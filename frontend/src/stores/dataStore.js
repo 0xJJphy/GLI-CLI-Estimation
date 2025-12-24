@@ -9,7 +9,12 @@ export const dashboardData = writable({
     bank_rocs: { fed: {}, ecb: {}, boj: {}, boe: {}, pboc: {} },
     cli: [],
     vix: [],
-    hy_spread: []
+    hy_spread: [],
+    btc: {
+        price: [], fair_value: [], upper_2sd: [], upper_1sd: [],
+        lower_1sd: [], lower_2sd: [], deviation_zscore: [], rocs: {}
+    },
+    correlations: { gli_btc: {}, cli_btc: {}, vix_btc: {}, netliq_btc: {} }
 });
 
 export const isLoading = writable(true);

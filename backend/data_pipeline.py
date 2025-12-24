@@ -262,61 +262,91 @@ def calculate_cross_correlation(series1, series2, max_lag=90):
 
 def calculate_btc_fair_value(df_t):
     """
-    Calculates Bitcoin 'fair value' based on regression model using GLI, CLI, VIX.
-    Returns DataFrame with actual BTC, fair value, and deviation bands.
+    Calculates Bitcoin 'fair value' using Quant-Grade Log-Regression.
+    Regresses log(Price) against standardized Macro Drivers (GLI, CLI, VIX, NetLiq).
     """
     from sklearn.linear_model import LinearRegression
+    from sklearn.preprocessing import StandardScaler
+    import numpy as np
 
     result = pd.DataFrame(index=df_t.index)
-
-    # Check if we have BTC data
+    
+    # Check if we have BTC data and enough non-null values
     if 'BTC' not in df_t.columns:
         return result
-
+    
+    # We ONLY model and return data for the period where BTC exists
+    btc_series = df_t['BTC'].dropna()
+    if len(btc_series) < 100:
+        return result
+    
     # Prepare features - use lagged values for predictive power
-    # GLI typically leads BTC by 30-60 days
-    features = pd.DataFrame({
-        'GLI_TOTAL': df_t.get('GLI_TOTAL', 0).shift(45),  # 45-day lag
-        'CLI': df_t.get('CLI', 0).shift(14),  # 14-day lag
-        'VIX': df_t.get('VIX', 0),  # Coincident
-        'NET_LIQ': df_t.get('NET_LIQUIDITY', 0).shift(30),  # 30-day lag
+    # Standard lags: GLI leads (~45d), CLI (~14d), NetLiq (~30d)
+    raw_features = pd.DataFrame({
+        'GLI_TOTAL': df_t.get('GLI_TOTAL', 0).shift(45),
+        'CLI': df_t.get('CLI', 0).shift(14),
+        'VIX': df_t.get('VIX', 0),
+        'NET_LIQ': df_t.get('NET_LIQUIDITY', 0).shift(30),
     })
 
-    target = df_t['BTC']
-
-    # Create training set (drop NaN)
-    train_data = pd.concat([features, target], axis=1).dropna()
-
-    if len(train_data) < 100:  # Need minimum data
-        result['BTC_ACTUAL'] = target
+    # Strict Date Mask: Only process dates where BTC is trading
+    btc_start = btc_series.index.min()
+    valid_mask = (df_t.index >= btc_start)
+    
+    # Target in log-space
+    # Use btc_series directly for training to avoid log(NaN)
+    y_train_raw = btc_series
+    X_train_raw = raw_features.loc[y_train_raw.index]
+    
+    # Join and drop any NaNs in features/target
+    train_data = pd.concat([X_train_raw, np.log(y_train_raw)], axis=1).dropna()
+    if len(train_data) < 100:
         return result
+        
+    X_train = train_data[['GLI_TOTAL', 'CLI', 'VIX', 'NET_LIQ']]
+    y_train = train_data['BTC'] # Actually log_btc
 
-    X = train_data[['GLI_TOTAL', 'CLI', 'VIX', 'NET_LIQ']].values
-    y = train_data['BTC'].values
+    # Standardize Features for stable coefficients
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
 
-    # Fit regression model
+    # Fit Model
     model = LinearRegression()
-    model.fit(X, y)
+    model.fit(X_train_scaled, y_train.values)
 
-    # Predict on all available data
-    X_all = features.dropna()
-    predictions = pd.Series(model.predict(X_all.values), index=X_all.index)
+    # Predict for the WHOLE BTC period
+    # Filter features to BTC start onwards
+    X_full_raw = raw_features.loc[valid_mask].ffill().bfill() # Ensure no mid-gaps
+    X_full_scaled = scaler.transform(X_full_raw)
+    
+    log_pred = pd.Series(model.predict(X_full_scaled), index=X_full_raw.index)
+    pred_fair = np.exp(log_pred)
 
-    # Calculate residuals and standard deviation
-    residuals = target[predictions.index] - predictions
-    std_dev = residuals.std()
+    # Calculate residuals in log-space for proportional error bands
+    log_actual = np.log(btc_series)
+    common_idx = log_actual.index.intersection(log_pred.index)
+    log_residuals = log_actual[common_idx] - log_pred[common_idx]
+    std_log = log_residuals.std()
 
-    # Build result DataFrame
-    result['BTC_ACTUAL'] = target
-    result['BTC_FAIR_VALUE'] = predictions
-    result['BTC_UPPER_1SD'] = predictions + std_dev
-    result['BTC_LOWER_1SD'] = predictions - std_dev
-    result['BTC_UPPER_2SD'] = predictions + 2 * std_dev
-    result['BTC_LOWER_2SD'] = predictions - 2 * std_dev
-    result['BTC_DEVIATION_PCT'] = ((target - predictions) / predictions * 100)
-    result['BTC_DEVIATION_ZSCORE'] = residuals / std_dev
+    # Build Result (only for BTC trading days)
+    result_btc = pd.DataFrame(index=X_full_raw.index)
+    result_btc['BTC_ACTUAL'] = df_t['BTC']
+    result_btc['BTC_FAIR_VALUE'] = pred_fair
+    
+    # Proportional Bands: FairValue * exp(±n * σ_log)
+    result_btc['BTC_UPPER_1SD'] = pred_fair * np.exp(std_log)
+    result_btc['BTC_LOWER_1SD'] = pred_fair * np.exp(-std_log)
+    result_btc['BTC_UPPER_2SD'] = pred_fair * np.exp(2 * std_log)
+    result_btc['BTC_LOWER_2SD'] = pred_fair * np.exp(-2 * std_log)
+    
+    # Deviation Metrics
+    # In log space, deviation is (actual/pred), so (actual-pred)/pred in pct
+    result_btc['BTC_DEVIATION_PCT'] = ((result_btc['BTC_ACTUAL'] - pred_fair) / pred_fair * 100)
+    # Residuals in standard deviations
+    result_btc['BTC_DEVIATION_ZSCORE'] = (np.log(result_btc['BTC_ACTUAL']) - log_pred) / std_log
 
-    return result
+    # Merge back to original full index but remain NaN where BTC didn't exist
+    return result.join(result_btc, how='left')
 
 def calculate_us_net_liq(df, source='FRED'):
     """Calculates US Net Liquidity in Trillions USD."""
@@ -373,13 +403,22 @@ def run_pipeline():
     raw_tv = {}
     if tv:
         for symbol, (exchange, name) in TV_CONFIG.items():
-            s = fetch_tv_series(symbol, exchange, name, n_bars=1000)
+            s = fetch_tv_series(symbol, exchange, name, n_bars=5000)
             if not s.empty: raw_tv[name] = s
     
     df_tv_t = pd.DataFrame(index=pd.concat(raw_tv.values()).index.unique() if raw_tv else []).sort_index()
     if raw_tv:
         for name, s in raw_tv.items(): df_tv_t[name] = s
-        df_tv_t = df_tv_t.ffill().bfill()
+        
+        # Only ffill for most series. bfill ONLY for FX rates as they are denominators.
+        fx_cols = [c for c in ['EURUSD', 'USDJPY', 'GBPUSD', 'CNYUSD'] if c in df_tv_t.columns]
+        for c in fx_cols:
+            df_tv_t[c] = df_tv_t[c].ffill().bfill()
+        
+        # Everything else only ffills (forward in time)
+        other_cols = [c for c in df_tv_t.columns if c not in fx_cols]
+        for c in other_cols:
+            df_tv_t[c] = df_tv_t[c].ffill()
         
         # Unit Logic for TV -> Trillions
         res_tv_t = pd.DataFrame(index=df_tv_t.index)

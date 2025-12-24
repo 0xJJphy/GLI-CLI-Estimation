@@ -226,32 +226,32 @@
     const corrs = $dashboardData.correlations || {};
     return [
       {
-        x: Object.keys(corrs.gli_btc || {}).map(Number),
-        y: Object.values(corrs.gli_btc || {}),
+        x: Object.keys(corrs["gli_btc"] || {}).map(Number),
+        y: Object.values(corrs["gli_btc"] || {}),
         name: "GLI vs BTC",
         type: "scatter",
         mode: "lines",
         line: { color: "#6366f1", width: 2 },
       },
       {
-        x: Object.keys(corrs.cli_btc || {}).map(Number),
-        y: Object.values(corrs.cli_btc || {}),
+        x: Object.keys(corrs["cli_btc"] || {}).map(Number),
+        y: Object.values(corrs["cli_btc"] || {}),
         name: "CLI vs BTC",
         type: "scatter",
         mode: "lines",
         line: { color: "#f59e0b", width: 2 },
       },
       {
-        x: Object.keys(corrs.vix_btc || {}).map(Number),
-        y: Object.values(corrs.vix_btc || {}),
+        x: Object.keys(corrs["vix_btc"] || {}).map(Number),
+        y: Object.values(corrs["vix_btc"] || {}),
         name: "VIX vs BTC",
         type: "scatter",
         mode: "lines",
         line: { color: "#dc2626", width: 2 },
       },
       {
-        x: Object.keys(corrs.netliq_btc || {}).map(Number),
-        y: Object.values(corrs.netliq_btc || {}),
+        x: Object.keys(corrs["netliq_btc"] || {}).map(Number),
+        y: Object.values(corrs["netliq_btc"] || {}),
         name: "Net Liq vs BTC",
         type: "scatter",
         mode: "lines",
@@ -822,10 +822,12 @@
           <div class="chart-card wide">
             <div class="chart-header">
               <h3>₿ Bitcoin: Price vs Fair Value Model</h3>
-              <span class="last-date">GLI-based regression + CLI risk adjustment</span>
+              <span class="last-date"
+                >GLI-based regression + CLI risk adjustment</span
+              >
             </div>
             <div class="chart-content">
-              <Chart data={btcFairValueData} />
+              <Chart data={btcFairValueData} yType="log" />
             </div>
           </div>
 
@@ -838,32 +840,46 @@
               <div class="btc-stat-item">
                 <span class="btc-label">BTC Price</span>
                 <span class="btc-value price">
-                  ${getLatestValue($dashboardData.btc?.price)?.toLocaleString() || "N/A"}
+                  ${getLatestValue(
+                    $dashboardData.btc?.price,
+                  )?.toLocaleString() || "N/A"}
                 </span>
               </div>
               <div class="btc-stat-item">
                 <span class="btc-label">Fair Value</span>
                 <span class="btc-value fair">
-                  ${getLatestValue($dashboardData.btc?.fair_value)?.toLocaleString() || "N/A"}
+                  ${getLatestValue(
+                    $dashboardData.btc?.fair_value,
+                  )?.toLocaleString() || "N/A"}
                 </span>
               </div>
               <div class="btc-stat-item">
                 <span class="btc-label">Deviation</span>
                 <span
                   class="btc-value deviation"
-                  class:overvalued={getLatestValue($dashboardData.btc?.deviation_pct) > 0}
-                  class:undervalued={getLatestValue($dashboardData.btc?.deviation_pct) < 0}
+                  class:overvalued={getLatestValue(
+                    $dashboardData.btc?.deviation_pct,
+                  ) > 0}
+                  class:undervalued={getLatestValue(
+                    $dashboardData.btc?.deviation_pct,
+                  ) < 0}
                 >
-                  {getLatestValue($dashboardData.btc?.deviation_pct)?.toFixed(1) || "0"}%
+                  {getLatestValue($dashboardData.btc?.deviation_pct)?.toFixed(
+                    1,
+                  ) || "0"}%
                 </span>
               </div>
               <div class="btc-stat-item">
                 <span class="btc-label">Z-Score</span>
                 <span
                   class="btc-value zscore"
-                  class:extreme={Math.abs(getLatestValue($dashboardData.btc?.deviation_zscore) || 0) > 2}
+                  class:extreme={Math.abs(
+                    getLatestValue($dashboardData.btc?.deviation_zscore) || 0,
+                  ) > 2}
                 >
-                  {getLatestValue($dashboardData.btc?.deviation_zscore)?.toFixed(2) || "0"}σ
+                  {getLatestValue(
+                    $dashboardData.btc?.deviation_zscore,
+                  )?.toFixed(2) || "0"}σ
                 </span>
               </div>
             </div>
@@ -873,7 +889,10 @@
           <div class="chart-card wide">
             <div class="chart-header">
               <h3>Cross-Correlation Analysis (90-Day Window)</h3>
-              <span class="last-date">Negative lag = indicator leads BTC | Positive lag = BTC leads indicator</span>
+              <span class="last-date"
+                >Negative lag = indicator leads BTC | Positive lag = BTC leads
+                indicator</span
+              >
             </div>
             <div class="chart-content">
               <Chart data={correlationData} />
@@ -957,31 +976,63 @@
                 <div class="roc-col label">US Net Liq</div>
                 <div
                   class="roc-col"
-                  class:plus={getLatestROC($dashboardData.us_net_liq_rocs, "1M") > 0}
-                  class:minus={getLatestROC($dashboardData.us_net_liq_rocs, "1M") < 0}
+                  class:plus={getLatestROC(
+                    $dashboardData.us_net_liq_rocs,
+                    "1M",
+                  ) > 0}
+                  class:minus={getLatestROC(
+                    $dashboardData.us_net_liq_rocs,
+                    "1M",
+                  ) < 0}
                 >
-                  {getLatestROC($dashboardData.us_net_liq_rocs, "1M").toFixed(2)}%
+                  {getLatestROC($dashboardData.us_net_liq_rocs, "1M").toFixed(
+                    2,
+                  )}%
                 </div>
                 <div
                   class="roc-col"
-                  class:plus={getLatestROC($dashboardData.us_net_liq_rocs, "3M") > 0}
-                  class:minus={getLatestROC($dashboardData.us_net_liq_rocs, "3M") < 0}
+                  class:plus={getLatestROC(
+                    $dashboardData.us_net_liq_rocs,
+                    "3M",
+                  ) > 0}
+                  class:minus={getLatestROC(
+                    $dashboardData.us_net_liq_rocs,
+                    "3M",
+                  ) < 0}
                 >
-                  {getLatestROC($dashboardData.us_net_liq_rocs, "3M").toFixed(2)}%
+                  {getLatestROC($dashboardData.us_net_liq_rocs, "3M").toFixed(
+                    2,
+                  )}%
                 </div>
                 <div
                   class="roc-col"
-                  class:plus={getLatestROC($dashboardData.us_net_liq_rocs, "6M") > 0}
-                  class:minus={getLatestROC($dashboardData.us_net_liq_rocs, "6M") < 0}
+                  class:plus={getLatestROC(
+                    $dashboardData.us_net_liq_rocs,
+                    "6M",
+                  ) > 0}
+                  class:minus={getLatestROC(
+                    $dashboardData.us_net_liq_rocs,
+                    "6M",
+                  ) < 0}
                 >
-                  {getLatestROC($dashboardData.us_net_liq_rocs, "6M").toFixed(2)}%
+                  {getLatestROC($dashboardData.us_net_liq_rocs, "6M").toFixed(
+                    2,
+                  )}%
                 </div>
                 <div
                   class="roc-col"
-                  class:plus={getLatestROC($dashboardData.us_net_liq_rocs, "1Y") > 0}
-                  class:minus={getLatestROC($dashboardData.us_net_liq_rocs, "1Y") < 0}
+                  class:plus={getLatestROC(
+                    $dashboardData.us_net_liq_rocs,
+                    "1Y",
+                  ) > 0}
+                  class:minus={getLatestROC(
+                    $dashboardData.us_net_liq_rocs,
+                    "1Y",
+                  ) < 0}
                 >
-                  {getLatestROC($dashboardData.us_net_liq_rocs, "1Y").toFixed(2)}%
+                  {getLatestROC($dashboardData.us_net_liq_rocs, "1Y").toFixed(
+                    2,
+                  )}%
                 </div>
               </div>
             </div>
@@ -993,26 +1044,30 @@
             <div class="interpretation-grid">
               <div class="interp-card">
                 <h5>Fair Value Model</h5>
-                <p>Regression using:<br/>
-                • GLI (45-day lag)<br/>
-                • CLI (14-day lag)<br/>
-                • VIX (coincident)<br/>
-                • US Net Liq (30-day lag)</p>
+                <p>
+                  Regression using:<br />
+                  • GLI (45-day lag)<br />
+                  • CLI (14-day lag)<br />
+                  • VIX (coincident)<br />
+                  • US Net Liq (30-day lag)
+                </p>
               </div>
               <div class="interp-card">
                 <h5>Deviation Zones</h5>
                 <p>
-                • <span class="extreme-zone">±2σ:</span> Extreme over/undervaluation<br/>
-                • <span class="moderate-zone">±1σ:</span> Moderate deviation<br/>
-                • Within ±1σ: Fair value range
+                  • <span class="extreme-zone">±2σ:</span> Extreme
+                  over/undervaluation<br />
+                  • <span class="moderate-zone">±1σ:</span> Moderate deviation<br
+                  />
+                  • Within ±1σ: Fair value range
                 </p>
               </div>
               <div class="interp-card">
                 <h5>Trading Signals</h5>
                 <p>
-                • <strong>Z > +2:</strong> Consider profit-taking<br/>
-                • <strong>Z < -2:</strong> Potential accumulation<br/>
-                • <strong>ROC divergence:</strong> Momentum shifts
+                  • <strong>Z &gt; +2:</strong> Consider profit-taking<br />
+                  • <strong>Z &lt; -2:</strong> Potential accumulation<br />
+                  • <strong>ROC divergence:</strong> Momentum shifts
                 </p>
               </div>
             </div>

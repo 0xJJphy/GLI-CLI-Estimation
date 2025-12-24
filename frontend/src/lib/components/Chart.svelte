@@ -5,6 +5,7 @@
     export let data = [];
     export let layout = {};
     export let config = { responsive: true, displayModeBar: false };
+    export let yType = "linear";
     export let divId =
         "plotly-chart-" + Math.random().toString(36).substr(2, 9);
 
@@ -21,6 +22,7 @@
             processedData,
             {
                 ...defaultLayout,
+                yaxis: { ...defaultLayout.yaxis, type: yType },
                 ...layout,
             },
             config,
@@ -48,6 +50,7 @@
             processedData,
             {
                 ...defaultLayout,
+                yaxis: { ...defaultLayout.yaxis, type: yType },
                 ...layout,
             },
             config,
