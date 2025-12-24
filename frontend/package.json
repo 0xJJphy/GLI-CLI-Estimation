@@ -1,0 +1,21 @@
+{
+  "name": "frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "data:sync": "python ../backend/data_pipeline.py && powershell -Command \"Copy-Item ../backend/data/dashboard_data*.json -Destination public/ -Force\"",
+    "dev": "npm run data:sync && vite",
+    "build": "npm run data:sync && vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^4.0.0",
+    "svelte": "^5.0.0",
+    "vite": "^5.4.11"
+  },
+  "dependencies": {
+    "lightweight-charts": "^5.1.0",
+    "plotly.js-dist-min": "^3.3.1"
+  }
+}

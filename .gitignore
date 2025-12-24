@@ -1,0 +1,27 @@
+# Environment variables
+.env
+.env.*
+
+# Dependencies
+node_modules/
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Data
+*.csv
+*.json
+!package.json
+!composer.json
+
+# IDE
+.vscode/
+.idea/
+
+# Build
+dist/
+build/
+.svelte-kit/
