@@ -11,8 +11,12 @@ import time
 # tvDatafeed import
 try:
     from tvDatafeed import TvDatafeed, Interval
+    TV_AVAILABLE = True
 except ImportError:
     print("WARNING: tvDatafeed not found. Please install it using: pip install git+https://github.com/rongardF/tvdatafeed.git")
+    TvDatafeed = None
+    Interval = None
+    TV_AVAILABLE = False
 
 # Load environment variables
 load_dotenv()
@@ -34,6 +38,9 @@ fred = Fred(api_key=FRED_API_KEY) if FRED_API_KEY else None
 
 def try_tv_login(username, password, max_retries=5, delay=2):
     """Attempts to log in to TradingView with a retry loop."""
+    if not TV_AVAILABLE:
+        return None
+
     for i in range(max_retries):
         try:
             print(f"Attempting TV Login ({i+1}/{max_retries})...")
@@ -48,9 +55,12 @@ def try_tv_login(username, password, max_retries=5, delay=2):
             if i < max_retries - 1:
                 time.sleep(delay)
     print("Could not log in to TradingView after multiple attempts. Fallback to Guest.")
-    return TvDatafeed() # Final fallback to Guest
+    try:
+        return TvDatafeed()
+    except:
+        return None
 
-tv = try_tv_login(TV_USERNAME, TV_PASSWORD)
+tv = try_tv_login(TV_USERNAME, TV_PASSWORD) if TV_AVAILABLE else None
 
 START_DATE = '1970-01-01'
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), 'data')
@@ -92,6 +102,7 @@ TV_CONFIG = {
     'USDJPY': ('FX_IDC', 'USDJPY'),
     'GBPUSD': ('FX_IDC', 'GBPUSD'),
     'CNYUSD': ('FX_IDC', 'CNYUSD'),
+    'BTCUSD': ('BITSTAMP', 'BTC'),
 }
 
 # ============================================================
@@ -219,6 +230,94 @@ def calculate_rocs(df, windows={'1M': 21, '3M': 63, '6M': 126, '1Y': 252}):
         rocs[label] = roc.fillna(0)
     return rocs
 
+def calculate_cross_correlation(series1, series2, max_lag=90):
+    """
+    Calculates cross-correlation between two series with different lags.
+    Returns dict with lag as key and correlation as value.
+    Negative lag means series1 leads series2.
+    Positive lag means series2 leads series1.
+    """
+    correlations = {}
+    for lag in range(-max_lag, max_lag + 1):
+        if lag < 0:
+            # series1 leads (shift series2 backward)
+            s1 = series1.iloc[:lag]
+            s2 = series2.iloc[-lag:]
+        elif lag > 0:
+            # series2 leads (shift series1 backward)
+            s1 = series1.iloc[lag:]
+            s2 = series2.iloc[:-lag]
+        else:
+            s1 = series1
+            s2 = series2
+
+        # Calculate correlation on aligned data
+        valid_idx = s1.index.intersection(s2.index)
+        if len(valid_idx) > 30:  # Minimum 30 observations
+            corr = s1[valid_idx].corr(s2[valid_idx])
+            if pd.notnull(corr):
+                correlations[lag] = corr
+
+    return correlations
+
+def calculate_btc_fair_value(df_t):
+    """
+    Calculates Bitcoin 'fair value' based on regression model using GLI, CLI, VIX.
+    Returns DataFrame with actual BTC, fair value, and deviation bands.
+    """
+    from sklearn.linear_model import LinearRegression
+
+    result = pd.DataFrame(index=df_t.index)
+
+    # Check if we have BTC data
+    if 'BTC' not in df_t.columns:
+        return result
+
+    # Prepare features - use lagged values for predictive power
+    # GLI typically leads BTC by 30-60 days
+    features = pd.DataFrame({
+        'GLI_TOTAL': df_t.get('GLI_TOTAL', 0).shift(45),  # 45-day lag
+        'CLI': df_t.get('CLI', 0).shift(14),  # 14-day lag
+        'VIX': df_t.get('VIX', 0),  # Coincident
+        'NET_LIQ': df_t.get('NET_LIQUIDITY', 0).shift(30),  # 30-day lag
+    })
+
+    target = df_t['BTC']
+
+    # Create training set (drop NaN)
+    train_data = pd.concat([features, target], axis=1).dropna()
+
+    if len(train_data) < 100:  # Need minimum data
+        result['BTC_ACTUAL'] = target
+        return result
+
+    X = train_data[['GLI_TOTAL', 'CLI', 'VIX', 'NET_LIQ']].values
+    y = train_data['BTC'].values
+
+    # Fit regression model
+    model = LinearRegression()
+    model.fit(X, y)
+
+    # Predict on all available data
+    X_all = features.dropna()
+    predictions = pd.Series(model.predict(X_all.values), index=X_all.index)
+
+    # Calculate residuals and standard deviation
+    residuals = target[predictions.index] - predictions
+    std_dev = residuals.std()
+
+    # Build result DataFrame
+    result['BTC_ACTUAL'] = target
+    result['BTC_FAIR_VALUE'] = predictions
+    result['BTC_UPPER_1SD'] = predictions + std_dev
+    result['BTC_LOWER_1SD'] = predictions - std_dev
+    result['BTC_UPPER_2SD'] = predictions + 2 * std_dev
+    result['BTC_LOWER_2SD'] = predictions - 2 * std_dev
+    result['BTC_DEVIATION_PCT'] = ((target - predictions) / predictions * 100)
+    result['BTC_DEVIATION_ZSCORE'] = residuals / std_dev
+
+    return result
+
 def calculate_us_net_liq(df, source='FRED'):
     """Calculates US Net Liquidity in Trillions USD."""
     res = pd.DataFrame(index=df.index)
@@ -235,24 +334,6 @@ def calculate_us_net_liq(df, source='FRED'):
         rrp_t = df['RRP'] / 1e3
     
     res['NET_LIQUIDITY'] = fed_t - tga_t - rrp_t
-    return res
-
-    res['IG_SPREAD_Z'] = normalize_zscore(df['IG_SPREAD'])
-    res['NFCI_CREDIT_Z'] = df['NFCI_CREDIT']
-    res['NFCI_RISK_Z'] = df['NFCI_RISK']
-    res['LENDING_STD_Z'] = normalize_zscore(df['LENDING_STD'])
-    res['VIX_Z'] = normalize_zscore(df['VIX'])
-    
-    weights = {
-        'HY_SPREAD_Z': 0.25,
-        'IG_SPREAD_Z': 0.15,
-        'NFCI_CREDIT_Z': 0.20,
-        'NFCI_RISK_Z': 0.20,
-        'LENDING_STD_Z': 0.10,
-        'VIX_Z': 0.10
-    }
-    
-    res['CLI'] = sum(res[col] * weight for col, weight in weights.items() if col in res.columns)
     return res
 
 # ============================================================
@@ -311,7 +392,10 @@ def run_pipeline():
         res_tv_t['BOE_USD'] = (df_tv_t.get('BOE', 0) * gbpusd) / 1e12
         cnynusd = df_tv_t.get('CNYUSD', df_fred.get('CNYUSD', 0.14))
         res_tv_t['PBOC_USD'] = (df_tv_t.get('PBOC', 0) * cnynusd) / 1e12
-        
+
+        # Bitcoin price (already in USD, no conversion needed)
+        res_tv_t['BTC'] = df_tv_t.get('BTC', pd.Series(dtype=float))
+
         # TGA/RRP are usually not in TV economics, fallback to FRED baseline
         # We use combine_first to ensure we have the full FRED history for these columns
         # Then we ffill() to carry the last FRED value forward to the latest TV date
@@ -333,10 +417,45 @@ def run_pipeline():
         # Alignment: Ensure index is strictly daily for charts
         all_dates = pd.date_range(start=df_t.index.min(), end=df_t.index.max(), freq='D')
         df_t = df_t.reindex(all_dates).ffill()
-        
+
         gli = calculate_gli_from_trillions(df_t)
         us_net_liq = calculate_us_net_liq_from_trillions(df_t)
-        
+
+        # Add GLI_TOTAL and NET_LIQUIDITY to df_t for BTC calculations
+        df_t['GLI_TOTAL'] = gli['GLI_TOTAL']
+        df_t['NET_LIQUIDITY'] = us_net_liq['NET_LIQUIDITY']
+
+        # Bitcoin Analysis
+        btc_analysis = calculate_btc_fair_value(df_t)
+        btc_rocs = {}
+        if 'BTC' in df_t.columns and df_t['BTC'].notna().sum() > 0:
+            btc_rocs = calculate_rocs(df_t['BTC'])
+
+        # Cross-Correlations
+        correlations = {}
+        if 'BTC' in df_t.columns and df_t['BTC'].notna().sum() > 100:
+            btc_clean = df_t['BTC'].dropna()
+
+            # GLI vs BTC
+            gli_clean = gli['GLI_TOTAL'].loc[btc_clean.index].dropna()
+            if len(gli_clean) > 100:
+                correlations['gli_btc'] = calculate_cross_correlation(gli_clean, btc_clean.loc[gli_clean.index], max_lag=90)
+
+            # CLI vs BTC
+            cli_clean = df_t['CLI'].loc[btc_clean.index].dropna()
+            if len(cli_clean) > 100:
+                correlations['cli_btc'] = calculate_cross_correlation(cli_clean, btc_clean.loc[cli_clean.index], max_lag=90)
+
+            # VIX vs BTC
+            vix_clean = df_t['VIX'].loc[btc_clean.index].dropna()
+            if len(vix_clean) > 100:
+                correlations['vix_btc'] = calculate_cross_correlation(vix_clean, btc_clean.loc[vix_clean.index], max_lag=90)
+
+            # Net Liq vs BTC
+            netliq_clean = us_net_liq['NET_LIQUIDITY'].loc[btc_clean.index].dropna()
+            if len(netliq_clean) > 100:
+                correlations['netliq_btc'] = calculate_cross_correlation(netliq_clean, btc_clean.loc[netliq_clean.index], max_lag=90)
+
         # JSON structure (same as before)
         gli_rocs = calculate_rocs(gli['GLI_TOTAL'])
         net_liq_rocs = calculate_rocs(us_net_liq['NET_LIQUIDITY'])
@@ -377,7 +496,19 @@ def run_pipeline():
             },
             'cli': clean_for_json(df_t['CLI']),
             'vix': clean_for_json(df_t['VIX']),
-            'hy_spread': clean_for_json(df_t['HY_SPREAD'])
+            'hy_spread': clean_for_json(df_t['HY_SPREAD']),
+            'btc': {
+                'price': clean_for_json(btc_analysis.get('BTC_ACTUAL', pd.Series(dtype=float))),
+                'fair_value': clean_for_json(btc_analysis.get('BTC_FAIR_VALUE', pd.Series(dtype=float))),
+                'upper_1sd': clean_for_json(btc_analysis.get('BTC_UPPER_1SD', pd.Series(dtype=float))),
+                'lower_1sd': clean_for_json(btc_analysis.get('BTC_LOWER_1SD', pd.Series(dtype=float))),
+                'upper_2sd': clean_for_json(btc_analysis.get('BTC_UPPER_2SD', pd.Series(dtype=float))),
+                'lower_2sd': clean_for_json(btc_analysis.get('BTC_LOWER_2SD', pd.Series(dtype=float))),
+                'deviation_pct': clean_for_json(btc_analysis.get('BTC_DEVIATION_PCT', pd.Series(dtype=float))),
+                'deviation_zscore': clean_for_json(btc_analysis.get('BTC_DEVIATION_ZSCORE', pd.Series(dtype=float))),
+                'rocs': {k: clean_for_json(v) for k, v in btc_rocs.items()} if btc_rocs else {}
+            },
+            'correlations': correlations
         }
 
         output_path = os.path.join(OUTPUT_DIR, filename)
@@ -389,9 +520,6 @@ def run_pipeline():
     import shutil
     shutil.copyfile(os.path.join(OUTPUT_DIR, 'dashboard_data_tv.json'), os.path.join(OUTPUT_DIR, 'dashboard_data.json'))
     print("Pipeline complete.")
-
-if __name__ == "__main__":
-    run_pipeline()
 
 if __name__ == "__main__":
     run_pipeline()
