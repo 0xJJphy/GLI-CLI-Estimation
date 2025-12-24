@@ -10,6 +10,7 @@ A premium, real-time macro liquidity monitoring dashboard that tracks the Global
 -   **Dual-Source Toggle**: Switch between **FRED Baseline** (M3 money supply proxies) and **TV Hybrid** (Central Bank Balance Sheets).
 -   **US Net Liquidity**: Real-time monitoring of the Fed's impact on markets ($FED Assets - TGA - RRP$).
 -   **Inter-Market Analysis**: Integrated Risk Model with VIX and High-Yield Spread monitoring.
+-   **₿ Bitcoin Analysis**: Fair value model based on GLI/CLI regression with deviation bands and correlation analysis.
 -   **Responsive Design**: Modern, glassmorphism-inspired UI with smooth micro-animations.
 
 ## 📊 Data & Formulas
@@ -27,6 +28,26 @@ $$Net Liquidity = Fed Assets - TGA (Treasury General Account) - RRP (Reverse Rep
 ### 3. Credit Liquidity Index (CLI)
 A Z-Score based index measuring credit conditions:
 -   Components: HY Spread, IG Spread, NFCI Credit/Risk, Lending Standards, and VIX.
+
+### 4. Bitcoin Fair Value Model
+Estimates Bitcoin's "fair price" based on macro liquidity conditions:
+
+**Model:**
+```
+BTC_Fair = β₁·GLI(t-45) + β₂·CLI(t-14) + β₃·VIX(t) + β₄·NetLiq(t-30) + ε
+```
+
+**Features:**
+-   **Fair Value Regression**: Linear model trained on historical GLI/CLI/VIX/NetLiq data
+-   **Deviation Bands**: ±1σ and ±2σ standard deviation zones
+-   **Z-Score Signals**: Overvaluation (Z > +2) / Undervaluation (Z < -2) alerts
+-   **Cross-Correlation Analysis**: Identifies optimal lag times (GLI leads BTC by ~45 days)
+-   **ROC Momentum Comparison**: Side-by-side rate of change vs GLI and US Net Liquidity
+
+**Use Cases:**
+-   **Mean Reversion Trading**: Buy when Z < -2, sell when Z > +2
+-   **Trend Confirmation**: ROC divergence between BTC and GLI signals reversals
+-   **Risk Management**: Extreme deviations suggest elevated volatility risk
 
 ## 🛠️ Setup & Usage
 

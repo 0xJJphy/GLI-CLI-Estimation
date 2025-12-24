@@ -155,6 +155,111 @@
   $: gliSignal = $latestStats?.gli?.change > 0 ? "bullish" : "bearish";
   $: liqSignal = $latestStats?.us_net_liq?.change > 0 ? "bullish" : "bearish";
 
+  // Bitcoin data
+  $: btcFairValueData = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.btc?.fair_value || [],
+      name: "Fair Value",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#10b981", width: 2, dash: "dot" },
+    },
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.btc?.upper_2sd || [],
+      name: "+2σ",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#ef4444", width: 1, dash: "dash" },
+      showlegend: true,
+    },
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.btc?.upper_1sd || [],
+      name: "+1σ",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#f59e0b", width: 1, dash: "dash" },
+      showlegend: true,
+    },
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.btc?.lower_1sd || [],
+      name: "-1σ",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#f59e0b", width: 1, dash: "dash" },
+      showlegend: true,
+    },
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.btc?.lower_2sd || [],
+      name: "-2σ",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#ef4444", width: 1, dash: "dash" },
+      showlegend: true,
+    },
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.btc?.price || [],
+      name: "BTC Price",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#f7931a", width: 3 },
+    },
+  ];
+
+  $: btcDeviationData = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.btc?.deviation_zscore || [],
+      name: "Price Deviation (Z-Score)",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#6366f1", width: 2 },
+    },
+  ];
+
+  $: correlationData = (() => {
+    const corrs = $dashboardData.correlations || {};
+    return [
+      {
+        x: Object.keys(corrs.gli_btc || {}).map(Number),
+        y: Object.values(corrs.gli_btc || {}),
+        name: "GLI vs BTC",
+        type: "scatter",
+        mode: "lines",
+        line: { color: "#6366f1", width: 2 },
+      },
+      {
+        x: Object.keys(corrs.cli_btc || {}).map(Number),
+        y: Object.values(corrs.cli_btc || {}),
+        name: "CLI vs BTC",
+        type: "scatter",
+        mode: "lines",
+        line: { color: "#f59e0b", width: 2 },
+      },
+      {
+        x: Object.keys(corrs.vix_btc || {}).map(Number),
+        y: Object.values(corrs.vix_btc || {}),
+        name: "VIX vs BTC",
+        type: "scatter",
+        mode: "lines",
+        line: { color: "#dc2626", width: 2 },
+      },
+      {
+        x: Object.keys(corrs.netliq_btc || {}).map(Number),
+        y: Object.values(corrs.netliq_btc || {}),
+        name: "Net Liq vs BTC",
+        type: "scatter",
+        mode: "lines",
+        line: { color: "#10b981", width: 2 },
+      },
+    ];
+  })();
+
   const getLastDate = (seriesKey) => {
     return $dashboardData.last_dates[seriesKey] || "N/A";
   };
@@ -164,6 +269,14 @@
       return 0;
     const series = rocsObj[window];
     return series.length > 0 ? series[series.length - 1] : 0;
+  };
+
+  const getLatestValue = (series) => {
+    if (!series || !Array.isArray(series) || series.length === 0) return null;
+    for (let i = series.length - 1; i >= 0; i--) {
+      if (series[i] !== null && series[i] !== undefined) return series[i];
+    }
+    return null;
   };
 </script>
 
@@ -217,6 +330,16 @@
         tabindex="0"
       >
         <span class="nav-icon">⚠️</span> Risk Model
+      </div>
+      <div
+        class="nav-item"
+        class:active={currentTab === "BTC Analysis"}
+        on:click={() => setTab("BTC Analysis")}
+        on:keydown={(e) => e.key === "Enter" && setTab("BTC Analysis")}
+        role="button"
+        tabindex="0"
+      >
+        <span class="nav-icon">₿</span> BTC Analysis
       </div>
     </nav>
 
@@ -693,6 +816,208 @@
             </div>
           </div>
         </div>
+      {:else if currentTab === "BTC Analysis"}
+        <div class="main-charts">
+          <!-- BTC Price vs Fair Value -->
+          <div class="chart-card wide">
+            <div class="chart-header">
+              <h3>₿ Bitcoin: Price vs Fair Value Model</h3>
+              <span class="last-date">GLI-based regression + CLI risk adjustment</span>
+            </div>
+            <div class="chart-content">
+              <Chart data={btcFairValueData} />
+            </div>
+          </div>
+
+          <!-- Deviation Stats -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>Current Valuation</h3>
+            </div>
+            <div class="btc-stats">
+              <div class="btc-stat-item">
+                <span class="btc-label">BTC Price</span>
+                <span class="btc-value price">
+                  ${getLatestValue($dashboardData.btc?.price)?.toLocaleString() || "N/A"}
+                </span>
+              </div>
+              <div class="btc-stat-item">
+                <span class="btc-label">Fair Value</span>
+                <span class="btc-value fair">
+                  ${getLatestValue($dashboardData.btc?.fair_value)?.toLocaleString() || "N/A"}
+                </span>
+              </div>
+              <div class="btc-stat-item">
+                <span class="btc-label">Deviation</span>
+                <span
+                  class="btc-value deviation"
+                  class:overvalued={getLatestValue($dashboardData.btc?.deviation_pct) > 0}
+                  class:undervalued={getLatestValue($dashboardData.btc?.deviation_pct) < 0}
+                >
+                  {getLatestValue($dashboardData.btc?.deviation_pct)?.toFixed(1) || "0"}%
+                </span>
+              </div>
+              <div class="btc-stat-item">
+                <span class="btc-label">Z-Score</span>
+                <span
+                  class="btc-value zscore"
+                  class:extreme={Math.abs(getLatestValue($dashboardData.btc?.deviation_zscore) || 0) > 2}
+                >
+                  {getLatestValue($dashboardData.btc?.deviation_zscore)?.toFixed(2) || "0"}σ
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cross-Correlation Chart -->
+          <div class="chart-card wide">
+            <div class="chart-header">
+              <h3>Cross-Correlation Analysis (90-Day Window)</h3>
+              <span class="last-date">Negative lag = indicator leads BTC | Positive lag = BTC leads indicator</span>
+            </div>
+            <div class="chart-content">
+              <Chart data={correlationData} />
+            </div>
+          </div>
+
+          <!-- ROC Comparison -->
+          <div class="chart-card wide">
+            <h4>Momentum Comparison (ROC %)</h4>
+            <div class="roc-grid">
+              <div class="roc-row header">
+                <div class="roc-col">Asset</div>
+                <div class="roc-col">1M</div>
+                <div class="roc-col">3M</div>
+                <div class="roc-col">6M</div>
+                <div class="roc-col">1Y</div>
+              </div>
+              <div class="roc-row">
+                <div class="roc-col label">₿ Bitcoin</div>
+                <div
+                  class="roc-col"
+                  class:plus={getLatestROC($dashboardData.btc?.rocs, "1M") > 0}
+                  class:minus={getLatestROC($dashboardData.btc?.rocs, "1M") < 0}
+                >
+                  {getLatestROC($dashboardData.btc?.rocs, "1M").toFixed(2)}%
+                </div>
+                <div
+                  class="roc-col"
+                  class:plus={getLatestROC($dashboardData.btc?.rocs, "3M") > 0}
+                  class:minus={getLatestROC($dashboardData.btc?.rocs, "3M") < 0}
+                >
+                  {getLatestROC($dashboardData.btc?.rocs, "3M").toFixed(2)}%
+                </div>
+                <div
+                  class="roc-col"
+                  class:plus={getLatestROC($dashboardData.btc?.rocs, "6M") > 0}
+                  class:minus={getLatestROC($dashboardData.btc?.rocs, "6M") < 0}
+                >
+                  {getLatestROC($dashboardData.btc?.rocs, "6M").toFixed(2)}%
+                </div>
+                <div
+                  class="roc-col"
+                  class:plus={getLatestROC($dashboardData.btc?.rocs, "1Y") > 0}
+                  class:minus={getLatestROC($dashboardData.btc?.rocs, "1Y") < 0}
+                >
+                  {getLatestROC($dashboardData.btc?.rocs, "1Y").toFixed(2)}%
+                </div>
+              </div>
+              <div class="roc-row">
+                <div class="roc-col label">Global GLI</div>
+                <div
+                  class="roc-col"
+                  class:plus={getLatestROC($dashboardData.gli.rocs, "1M") > 0}
+                  class:minus={getLatestROC($dashboardData.gli.rocs, "1M") < 0}
+                >
+                  {getLatestROC($dashboardData.gli.rocs, "1M").toFixed(2)}%
+                </div>
+                <div
+                  class="roc-col"
+                  class:plus={getLatestROC($dashboardData.gli.rocs, "3M") > 0}
+                  class:minus={getLatestROC($dashboardData.gli.rocs, "3M") < 0}
+                >
+                  {getLatestROC($dashboardData.gli.rocs, "3M").toFixed(2)}%
+                </div>
+                <div
+                  class="roc-col"
+                  class:plus={getLatestROC($dashboardData.gli.rocs, "6M") > 0}
+                  class:minus={getLatestROC($dashboardData.gli.rocs, "6M") < 0}
+                >
+                  {getLatestROC($dashboardData.gli.rocs, "6M").toFixed(2)}%
+                </div>
+                <div
+                  class="roc-col"
+                  class:plus={getLatestROC($dashboardData.gli.rocs, "1Y") > 0}
+                  class:minus={getLatestROC($dashboardData.gli.rocs, "1Y") < 0}
+                >
+                  {getLatestROC($dashboardData.gli.rocs, "1Y").toFixed(2)}%
+                </div>
+              </div>
+              <div class="roc-row">
+                <div class="roc-col label">US Net Liq</div>
+                <div
+                  class="roc-col"
+                  class:plus={getLatestROC($dashboardData.us_net_liq_rocs, "1M") > 0}
+                  class:minus={getLatestROC($dashboardData.us_net_liq_rocs, "1M") < 0}
+                >
+                  {getLatestROC($dashboardData.us_net_liq_rocs, "1M").toFixed(2)}%
+                </div>
+                <div
+                  class="roc-col"
+                  class:plus={getLatestROC($dashboardData.us_net_liq_rocs, "3M") > 0}
+                  class:minus={getLatestROC($dashboardData.us_net_liq_rocs, "3M") < 0}
+                >
+                  {getLatestROC($dashboardData.us_net_liq_rocs, "3M").toFixed(2)}%
+                </div>
+                <div
+                  class="roc-col"
+                  class:plus={getLatestROC($dashboardData.us_net_liq_rocs, "6M") > 0}
+                  class:minus={getLatestROC($dashboardData.us_net_liq_rocs, "6M") < 0}
+                >
+                  {getLatestROC($dashboardData.us_net_liq_rocs, "6M").toFixed(2)}%
+                </div>
+                <div
+                  class="roc-col"
+                  class:plus={getLatestROC($dashboardData.us_net_liq_rocs, "1Y") > 0}
+                  class:minus={getLatestROC($dashboardData.us_net_liq_rocs, "1Y") < 0}
+                >
+                  {getLatestROC($dashboardData.us_net_liq_rocs, "1Y").toFixed(2)}%
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Interpretation Panel -->
+          <div class="chart-card wide interpretation-panel">
+            <h4>📊 Model Interpretation</h4>
+            <div class="interpretation-grid">
+              <div class="interp-card">
+                <h5>Fair Value Model</h5>
+                <p>Regression using:<br/>
+                • GLI (45-day lag)<br/>
+                • CLI (14-day lag)<br/>
+                • VIX (coincident)<br/>
+                • US Net Liq (30-day lag)</p>
+              </div>
+              <div class="interp-card">
+                <h5>Deviation Zones</h5>
+                <p>
+                • <span class="extreme-zone">±2σ:</span> Extreme over/undervaluation<br/>
+                • <span class="moderate-zone">±1σ:</span> Moderate deviation<br/>
+                • Within ±1σ: Fair value range
+                </p>
+              </div>
+              <div class="interp-card">
+                <h5>Trading Signals</h5>
+                <p>
+                • <strong>Z > +2:</strong> Consider profit-taking<br/>
+                • <strong>Z < -2:</strong> Potential accumulation<br/>
+                • <strong>ROC divergence:</strong> Momentum shifts
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       {/if}
     </div>
   </main>
@@ -1098,6 +1423,111 @@
     }
     .wide {
       grid-column: span 1;
+    }
+  }
+
+  /* BTC Analysis Styles */
+  .btc-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    padding: 24px;
+  }
+
+  .btc-stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+  }
+
+  .btc-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .btc-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: #0f172a;
+  }
+
+  .btc-value.price {
+    color: #f7931a;
+  }
+
+  .btc-value.fair {
+    color: #10b981;
+  }
+
+  .btc-value.deviation.overvalued {
+    color: #ef4444;
+  }
+
+  .btc-value.deviation.undervalued {
+    color: #10b981;
+  }
+
+  .btc-value.zscore.extreme {
+    color: #dc2626;
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  .interpretation-panel {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border: 2px solid #fbbf24;
+  }
+
+  .interpretation-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    padding: 16px;
+  }
+
+  .interp-card {
+    background: white;
+    padding: 16px;
+    border-radius: 8px;
+    border: 1px solid #f59e0b;
+  }
+
+  .interp-card h5 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #92400e;
+  }
+
+  .interp-card p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #78350f;
+  }
+
+  .extreme-zone {
+    color: #dc2626;
+    font-weight: 600;
+  }
+
+  .moderate-zone {
+    color: #f59e0b;
+    font-weight: 600;
+  }
+
+  @media (max-width: 1200px) {
+    .interpretation-grid {
+      grid-template-columns: 1fr;
+    }
+    .btc-stats {
+      grid-template-columns: 1fr;
     }
   }
 
