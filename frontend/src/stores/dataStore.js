@@ -3,7 +3,8 @@ import { writable, derived } from 'svelte/store';
 export const dashboardData = writable({
     dates: [],
     last_dates: {},
-    gli: { total: [], fed: [], ecb: [], boj: [], boe: [], pboc: [], rocs: {} },
+    gli: { total: [], fed: [], ecb: [], boj: [], boe: [], pboc: [], boc: [], rba: [], snb: [], bok: [], rocs: {} },
+    m2: { total: [], us: [], eu: [], cn: [], jp: [], uk: [], ca: [], au: [], rocs: {} },
     us_net_liq: [],
     us_net_liq_rocs: {},
     bank_rocs: { fed: {}, ecb: {}, boj: {}, boe: {}, pboc: {} },

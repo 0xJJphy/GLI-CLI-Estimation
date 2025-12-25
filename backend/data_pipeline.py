@@ -36,35 +36,99 @@ if not FRED_API_KEY:
 
 fred = Fred(api_key=FRED_API_KEY) if FRED_API_KEY else None
 
-def try_tv_login(username, password, max_retries=5, delay=2):
-    """Attempts to log in to TradingView with a retry loop."""
+def try_tv_login(username, password, max_retries=10, delay=3):
+    """
+    Attempts to log in to TradingView with aggressive retry loop.
+    Keeps trying until success, with exponential-ish backoff.
+    """
     if not TV_AVAILABLE:
         return None
 
-    for i in range(max_retries):
+    attempt = 0
+    while True:
+        attempt += 1
         try:
-            print(f"Attempting TV Login ({i+1}/{max_retries})...")
+            print(f"Attempting TV Login ({attempt})...")
             if username and password:
                 tv_instance = TvDatafeed(username, password)
             else:
                 tv_instance = TvDatafeed()
-            print("TV Login Successful!")
-            return tv_instance
+            
+            # Verify login worked by making a simple request
+            test = tv_instance.get_hist("BTCUSD", "BITSTAMP", Interval.in_daily, n_bars=5)
+            if test is not None and len(test) > 0:
+                print("TV Login Successful!")
+                return tv_instance
+            else:
+                raise Exception("Login succeeded but test fetch failed")
+                
         except Exception as e:
-            print(f"TV Login failed (Attempt {i+1}): {e}")
-            if i < max_retries - 1:
-                time.sleep(delay)
-    print("Could not log in to TradingView after multiple attempts. Fallback to Guest.")
-    try:
-        return TvDatafeed()
-    except:
-        return None
+            print(f"TV Login failed (Attempt {attempt}): {e}")
+            if attempt >= max_retries:
+                print("Max retries reached. Falling back to Guest mode...")
+                try:
+                    return TvDatafeed()
+                except:
+                    return None
+            wait_time = min(delay * (1.5 ** (attempt - 1)), 30)  # Max 30s wait
+            time.sleep(wait_time)
 
 tv = try_tv_login(TV_USERNAME, TV_PASSWORD) if TV_AVAILABLE else None
 
-START_DATE = '1970-01-01'
+# Output directory and cache setup
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), 'data')
 os.makedirs(OUTPUT_DIR, exist_ok=True)
+CACHE_FILE = os.path.join(OUTPUT_DIR, 'data_cache_info.json')
+
+def check_data_freshness(symbol_name, cache_hours=12):
+    """
+    Checks if cached data for a symbol is still fresh (within cache_hours).
+    Returns True if data needs refresh, False if cache is still valid.
+    """
+    try:
+        if os.path.exists(CACHE_FILE):
+            with open(CACHE_FILE, 'r') as f:
+                cache_info = json.load(f)
+            if symbol_name in cache_info:
+                last_update = datetime.fromisoformat(cache_info[symbol_name])
+                hours_elapsed = (datetime.now() - last_update).total_seconds() / 3600
+                if hours_elapsed < cache_hours:
+                    return False  # Cache is still fresh
+    except Exception:
+        pass
+    return True  # Needs refresh
+
+def update_cache_timestamp(symbol_name):
+    """Updates the cache timestamp for a symbol."""
+    try:
+        cache_info = {}
+        if os.path.exists(CACHE_FILE):
+            with open(CACHE_FILE, 'r') as f:
+                cache_info = json.load(f)
+        cache_info[symbol_name] = datetime.now().isoformat()
+        with open(CACHE_FILE, 'w') as f:
+            json.dump(cache_info, f)
+    except Exception:
+        pass
+
+START_DATE = '1970-01-01'
+
+def max_bars_from_start(start_date: str, interval) -> int:
+    """
+    Calculates the maximum number of bars from start_date to now.
+    Prevents requesting timestamps before 1970 which causes OSError on Windows.
+    """
+    start = pd.Timestamp(start_date)
+    now = pd.Timestamp.now().normalize()  # Use tz-naive now() to match start
+
+    if interval == Interval.in_monthly:
+        return (now.year - start.year) * 12 + (now.month - start.month) + 1
+    if interval == Interval.in_weekly:
+        return int((now - start).days // 7) + 1
+    if interval == Interval.in_daily:
+        return int((now - start).days) + 1
+
+    return 1500  # Default fallback
 
 # ============================================================
 # SERIES DEFINITIONS
@@ -92,16 +156,76 @@ FRED_CONFIG = {
 }
 
 # Mapping: Symbol -> Internal Name (TradingView ECONOMICS)
+# Matches the PineScript GLI indicator by QuantitativeAlpha
 TV_CONFIG = {
-    'USCBBS': ('ECONOMICS', 'FED'),
-    'EUCBBS': ('ECONOMICS', 'ECB'),
-    'JPCBBS': ('ECONOMICS', 'BOJ'),
-    'GBCBBS': ('ECONOMICS', 'BOE'),
-    'CNCBBS': ('ECONOMICS', 'PBOC'),
+    # ==========================================================
+    # CENTRAL BANK BALANCE SHEETS (17 banks)
+    # ==========================================================
+    # Major CBs
+    'USCBBS': ('ECONOMICS', 'FED'),      # Federal Reserve
+    'EUCBBS': ('ECONOMICS', 'ECB'),      # European Central Bank
+    'JPCBBS': ('ECONOMICS', 'BOJ'),      # Bank of Japan
+    'CNCBBS': ('ECONOMICS', 'PBOC'),     # People's Bank of China
+    'GBCBBS': ('ECONOMICS', 'BOE'),      # Bank of England
+    # Additional CBs (from "other_active" in PineScript)
+    'CACBBS': ('ECONOMICS', 'BOC'),      # Bank of Canada
+    'AUCBBS': ('ECONOMICS', 'RBA'),      # Reserve Bank of Australia
+    'INCBBS': ('ECONOMICS', 'RBI'),      # Reserve Bank of India
+    'CHCBBS': ('ECONOMICS', 'SNB'),      # Swiss National Bank
+    'RUCBBS': ('ECONOMICS', 'CBR'),      # Central Bank of Russia
+    'BRCBBS': ('ECONOMICS', 'BCB'),      # Banco Central do Brasil
+    'KRCBBS': ('ECONOMICS', 'BOK'),      # Bank of Korea
+    'NZCBBS': ('ECONOMICS', 'RBNZ'),     # Reserve Bank of New Zealand
+    'SECBBS': ('ECONOMICS', 'SR'),       # Sveriges Riksbank (Sweden)
+    'MYCBBS': ('ECONOMICS', 'BNM'),      # Bank Negara Malaysia
+    
+    # ==========================================================
+    # M2 MONEY SUPPLY (14 economies)
+    # ==========================================================
+    # Major M2s
+    'USM2': ('ECONOMICS', 'USM2'),       # USA
+    'EUM2': ('ECONOMICS', 'EUM2'),       # EU
+    'CNM2': ('ECONOMICS', 'CNM2'),       # China
+    'JPM2': ('ECONOMICS', 'JPM2'),       # Japan
+    # Additional M2s (from "other_m2_active" in PineScript)
+    'GBM2': ('ECONOMICS', 'GBM2'),       # UK
+    'CAM2': ('ECONOMICS', 'CAM2'),       # Canada
+    'AUM3': ('ECONOMICS', 'AUM3'),       # Australia (M3)
+    'INM2': ('ECONOMICS', 'INM2'),       # India
+    'CHM2': ('ECONOMICS', 'CHM2'),       # Switzerland
+    'RUM2': ('ECONOMICS', 'RUM2'),       # Russia
+    'BRM2': ('ECONOMICS', 'BRM2'),       # Brazil
+    'KRM2': ('ECONOMICS', 'KRM2'),       # Korea
+    'MXM2': ('ECONOMICS', 'MXM2'),       # Mexico
+    'IDM2': ('ECONOMICS', 'IDM2'),       # Indonesia
+    'ZAM2': ('ECONOMICS', 'ZAM2'),       # South Africa
+    'MYM2': ('ECONOMICS', 'MYM2'),       # Malaysia
+    'SEM2': ('ECONOMICS', 'SEM2'),       # Sweden
+    
+    # ==========================================================
+    # FX RATES (all needed for conversions)
+    # ==========================================================
     'EURUSD': ('FX_IDC', 'EURUSD'),
-    'USDJPY': ('FX_IDC', 'USDJPY'),
+    'JPYUSD': ('FX_IDC', 'JPYUSD'),
     'GBPUSD': ('FX_IDC', 'GBPUSD'),
     'CNYUSD': ('FX_IDC', 'CNYUSD'),
+    'CADUSD': ('FX_IDC', 'CADUSD'),
+    'AUDUSD': ('FX_IDC', 'AUDUSD'),
+    'INRUSD': ('FX_IDC', 'INRUSD'),
+    'CHFUSD': ('FX_IDC', 'CHFUSD'),
+    'RUBUSD': ('FX_IDC', 'RUBUSD'),
+    'BRLUSD': ('FX_IDC', 'BRLUSD'),
+    'KRWUSD': ('FX_IDC', 'KRWUSD'),
+    'NZDUSD': ('FX_IDC', 'NZDUSD'),
+    'SEKUSD': ('FX_IDC', 'SEKUSD'),
+    'MYRUSD': ('FX_IDC', 'MYRUSD'),
+    'MXNUSD': ('FX_IDC', 'MXNUSD'),
+    'IDRUSD': ('FX_IDC', 'IDRUSD'),
+    'ZARUSD': ('FX_IDC', 'ZARUSD'),
+    
+    # ==========================================================
+    # OTHER
+    # ==========================================================
     'BTCUSD': ('BITSTAMP', 'BTC'),
 }
 
@@ -119,21 +243,53 @@ def fetch_fred_series(series_id, name):
         print(f"Error fetching FRED {series_id} ({name}): {e}")
         return pd.Series(dtype=float, name=name)
 
-def fetch_tv_series(symbol, exchange, name, n_bars=5000):
+def fetch_tv_series(symbol, exchange, name, n_bars=1500, max_retries=3):
+    """
+    Fetches TradingView data with smart interval fallback for ECONOMICS.
+    ECONOMICS data is typically monthly, so we try monthly → weekly → daily.
+    Caps n_bars to avoid pre-1970 timestamps which cause OSError on Windows.
+    """
     if not tv:
         return pd.Series(dtype=float, name=name)
-    try:
-        # TradingView interval mapping
-        # We use daily for most, but economics might be less frequent
-        df = tv.get_hist(symbol=symbol, exchange=exchange, interval=Interval.in_daily, n_bars=n_bars)
-        if df is not None and len(df) > 0:
-            s = df['close']
-            s.name = name
-            return s
-        return pd.Series(dtype=float, name=name)
-    except Exception as e:
-        print(f"Error fetching TV {symbol} ({name}): {e}")
-        return pd.Series(dtype=float, name=name)
+
+    # ECONOMICS data: try daily first (highest resolution), then weekly, then monthly
+    if exchange == "ECONOMICS":
+        intervals = [Interval.in_daily, Interval.in_weekly, Interval.in_monthly]
+    else:
+        intervals = [Interval.in_daily]
+
+    last_err = None
+
+    for interval in intervals:
+        # Cap n_bars to avoid pre-1970 timestamps (causes OSError on Windows)
+        if exchange == "ECONOMICS":
+            safe_cap = max_bars_from_start(START_DATE, interval)
+            effective_n = min(n_bars, safe_cap)
+        else:
+            effective_n = n_bars
+
+        for attempt in range(1, max_retries + 1):
+            try:
+                df = tv.get_hist(symbol=symbol, exchange=exchange, interval=interval, n_bars=effective_n)
+                
+                if df is not None and len(df) > 0 and "close" in df.columns:
+                    s = df["close"].copy()
+                    s.name = name
+                    return s
+                    
+            except OSError as e:
+                last_err = e
+                # If Errno 22, try with even fewer bars (aggressive cap)
+                if getattr(e, "errno", None) == 22 and effective_n > 200:
+                    effective_n = max(200, effective_n // 2)
+                time.sleep(1.5 * attempt)
+            except Exception as e:
+                last_err = e
+                time.sleep(1.5 * attempt)
+
+    if last_err:
+        print(f"Error fetching TV {symbol} ({name}): {last_err}")
+    return pd.Series(dtype=float, name=name)
 
 # ============================================================
 # CALCULATIONS
@@ -163,14 +319,20 @@ def calculate_us_net_liq_from_trillions(df):
     return res
 
 def calculate_cli(df):
-    """Calculates Credit Liquidity Index."""
+    """
+    Calculates Credit Liquidity Index.
+    SIGN CONVENTION: Higher CLI = easier credit conditions (bullish).
+    Spreads ↑, VIX ↑, lending standards ↑ mean TIGHTER conditions => CLI ↓
+    Therefore we NEGATE all z-scores.
+    """
     res = pd.DataFrame(index=df.index)
-    res['HY_SPREAD_Z'] = normalize_zscore(df['HY_SPREAD'])
-    res['IG_SPREAD_Z'] = normalize_zscore(df['IG_SPREAD'])
-    res['NFCI_CREDIT_Z'] = df['NFCI_CREDIT']
-    res['NFCI_RISK_Z'] = df['NFCI_RISK']
-    res['LENDING_STD_Z'] = normalize_zscore(df['LENDING_STD'])
-    res['VIX_Z'] = normalize_zscore(df['VIX'])
+    # Negate all z-scores: higher spread/VIX/lending = tighter = LOWER CLI
+    res['HY_SPREAD_Z'] = -normalize_zscore(df['HY_SPREAD'])
+    res['IG_SPREAD_Z'] = -normalize_zscore(df['IG_SPREAD'])
+    res['NFCI_CREDIT_Z'] = -df['NFCI_CREDIT']  # NFCI already z-scored, negate
+    res['NFCI_RISK_Z'] = -df['NFCI_RISK']
+    res['LENDING_STD_Z'] = -normalize_zscore(df['LENDING_STD'])
+    res['VIX_Z'] = -normalize_zscore(df['VIX'])
     
     weights = {
         'HY_SPREAD_Z': 0.25,
@@ -185,49 +347,123 @@ def calculate_cli(df):
     return res
 
 def calculate_gli(df, source='FRED'):
-    """Calculates Global Liquidity Index in Trillions USD for 5 major central banks."""
+    """
+    Calculates Global Liquidity Index in Trillions USD.
+    Includes up to 16 central banks matching PineScript GLI indicator.
+    """
     res = pd.DataFrame(index=df.index)
     
     if source == 'TV':
         # TradingView Units (ECONOMICS) - All are Raw Units (Units of Currency)
-        res['FED_USD'] = df['FED'] / 1e12
-        res['ECB_USD'] = (df['ECB'] * df['EURUSD']) / 1e12
+        # All CBs are converted to USD trillions using format: CB_local * XXXUSD / 1e12
         
-        if 'USDJPY' in df.columns:
-            res['BOJ_USD'] = (df['BOJ'] / df['USDJPY']) / 1e12
-        elif 'JPYUSD' in df.columns:
-            res['BOJ_USD'] = (df['BOJ'] * df['JPYUSD']) / 1e12
-        else:
-            # Fallback if no FX
-            res['BOJ_USD'] = df['BOJ'] / 150e12
+        # Helper function for CB conversion
+        def convert_cb(cb_col, fx_col, fx_fallback):
+            if cb_col in df.columns:
+                fx = df.get(fx_col, fx_fallback)
+                return (df[cb_col] * fx) / 1e12
+            return pd.Series(dtype=float)
         
-        res['BOE_USD'] = (df['BOE'] * df['GBPUSD']) / 1e12
+        # Major 5 CBs
+        res['FED_USD'] = df.get('FED', 0) / 1e12  # Already USD
+        res['ECB_USD'] = convert_cb('ECB', 'EURUSD', 1.08)
         
-        if 'CNYUSD' in df.columns:
-            res['PBOC_USD'] = (df['PBOC'] * df['CNYUSD']) / 1e12
-        elif 'USDCNY' in df.columns:
-            res['PBOC_USD'] = (df['PBOC'] / df['USDCNY']) / 1e12
-        else:
-            res['PBOC_USD'] = (df['PBOC'] / 7.2) / 1e12
+        # BOJ uses JPYUSD (direct) or 1/USDJPY
+        if 'BOJ' in df.columns:
+            if 'JPYUSD' in df.columns:
+                res['BOJ_USD'] = (df['BOJ'] * df['JPYUSD']) / 1e12
+            else:
+                res['BOJ_USD'] = df['BOJ'] / 150e12  # Fallback
+        
+        res['PBOC_USD'] = convert_cb('PBOC', 'CNYUSD', 0.14)
+        res['BOE_USD'] = convert_cb('BOE', 'GBPUSD', 1.27)
+        
+        # Additional 11 CBs (matching PineScript "other_active")
+        res['BOC_USD'] = convert_cb('BOC', 'CADUSD', 0.74)
+        res['RBA_USD'] = convert_cb('RBA', 'AUDUSD', 0.65)
+        res['RBI_USD'] = convert_cb('RBI', 'INRUSD', 0.012)
+        res['SNB_USD'] = convert_cb('SNB', 'CHFUSD', 1.13)
+        res['CBR_USD'] = convert_cb('CBR', 'RUBUSD', 0.011)
+        res['BCB_USD'] = convert_cb('BCB', 'BRLUSD', 0.17)
+        res['BOK_USD'] = convert_cb('BOK', 'KRWUSD', 0.00077)
+        res['RBNZ_USD'] = convert_cb('RBNZ', 'NZDUSD', 0.60)
+        res['SR_USD'] = convert_cb('SR', 'SEKUSD', 0.095)
+        res['BNM_USD'] = convert_cb('BNM', 'MYRUSD', 0.22)
             
     else:
-        # FRED Units logic:
+        # FRED Units logic (original 5 only):
         res['FED_USD'] = df['FED'] / 1e6
         res['ECB_USD'] = (df['ECB'] / 1e6) * df['EURUSD']
         res['BOJ_USD'] = (df['BOJ'] / 1e4) / df['USDJPY']
         res['BOE_USD'] = (df['BOE'] / 1e3) * df['GBPUSD']
         res['PBOC_USD'] = (df['PBOC'] / 1e12) / df['USDCNY']
     
-    res['GLI_TOTAL'] = res[['FED_USD', 'ECB_USD', 'BOJ_USD', 'BOE_USD', 'PBOC_USD']].sum(axis=1)
+    # Sum all available CBs dynamically
+    cb_cols = [c for c in res.columns if c.endswith('_USD')]
+    res['GLI_TOTAL'] = res[cb_cols].sum(axis=1)
+    return res
+
+def calculate_global_m2(df):
+    """
+    Calculates Global M2 Money Supply in Trillions USD.
+    Includes up to 14 economies matching PineScript GLI indicator.
+    """
+    res = pd.DataFrame(index=df.index)
+    
+    # Helper function for M2 conversion
+    def convert_m2(m2_col, fx_col, fx_fallback):
+        if m2_col in df.columns:
+            fx = df.get(fx_col, fx_fallback)
+            return (df[m2_col] * fx) / 1e3  # Convert to trillions
+        return pd.Series(dtype=float)
+    
+    # Major 4 M2s
+    res['US_M2_USD'] = df.get('USM2', 0) / 1e3  # Already in USD billions
+    res['EU_M2_USD'] = convert_m2('EUM2', 'EURUSD', 1.08)
+    res['CN_M2_USD'] = convert_m2('CNM2', 'CNYUSD', 0.14)
+    
+    # Japan M2 uses JPYUSD
+    if 'JPM2' in df.columns:
+        if 'JPYUSD' in df.columns:
+            res['JP_M2_USD'] = (df['JPM2'] * df['JPYUSD']) / 1e3
+        else:
+            res['JP_M2_USD'] = df['JPM2'] / 150e3  # Fallback
+    
+    # Additional 10 M2s (matching PineScript "other_m2_active")
+    res['UK_M2_USD'] = convert_m2('GBM2', 'GBPUSD', 1.27)
+    res['CA_M2_USD'] = convert_m2('CAM2', 'CADUSD', 0.74)
+    res['AU_M2_USD'] = convert_m2('AUM3', 'AUDUSD', 0.65)  # Australia uses M3
+    res['IN_M2_USD'] = convert_m2('INM2', 'INRUSD', 0.012)
+    res['CH_M2_USD'] = convert_m2('CHM2', 'CHFUSD', 1.13)
+    res['RU_M2_USD'] = convert_m2('RUM2', 'RUBUSD', 0.011)
+    res['BR_M2_USD'] = convert_m2('BRM2', 'BRLUSD', 0.17)
+    res['KR_M2_USD'] = convert_m2('KRM2', 'KRWUSD', 0.00077)
+    res['MX_M2_USD'] = convert_m2('MXM2', 'MXNUSD', 0.058)
+    res['ID_M2_USD'] = convert_m2('IDM2', 'IDRUSD', 0.000063)
+    res['ZA_M2_USD'] = convert_m2('ZAM2', 'ZARUSD', 0.054)
+    res['MY_M2_USD'] = convert_m2('MYM2', 'MYRUSD', 0.22)
+    res['SE_M2_USD'] = convert_m2('SEM2', 'SEKUSD', 0.095)
+    
+    # Calculate total dynamically
+    m2_cols = [c for c in res.columns if c.endswith('_M2_USD')]
+    if m2_cols:
+        res['M2_TOTAL'] = res[m2_cols].sum(axis=1)
+    else:
+        res['M2_TOTAL'] = 0
+    
     return res
 
 def calculate_rocs(df, windows={'1M': 21, '3M': 63, '6M': 126, '1Y': 252}):
-    """Calculates Rate of Change for specified windows."""
+    """
+    Calculates Rate of Change for specified windows.
+    NOTE: NaN values are preserved (not filled) to avoid artificial floors
+    and contaminated correlations. Convert to None only for JSON output.
+    """
     rocs = {}
     for label, window in windows.items():
         # ROC Calculation: (Current / Past) - 1
         roc = (df / df.shift(window) - 1) * 100
-        rocs[label] = roc.fillna(0)
+        rocs[label] = roc  # Keep NaN, don't fillna(0)
     return rocs
 
 def calculate_cross_correlation(series1, series2, max_lag=90):
@@ -425,6 +661,218 @@ def calculate_btc_fair_value(df_t):
     
     return result.join(result_btc, how='left')
 
+def calculate_btc_fair_value_v2(df_t):
+    """
+    QUANT V2: Enhanced Bitcoin Fair Value Model
+    
+    Key Improvements:
+    1. Weekly frequency (W-FRI) to avoid ffill autocorrelation
+    2. Models Δlog(BTC) returns instead of log(BTC) levels (avoids spurious regression)
+    3. ElasticNet with multiple lags (1-8 weeks) for automatic feature selection
+    4. GLI as PCA factor (not sum) to handle colinearity
+    5. Rolling 52-week volatility for adaptive bands
+    6. Walk-forward cross-validation metrics
+    """
+    from sklearn.linear_model import ElasticNetCV
+    from sklearn.preprocessing import StandardScaler, RobustScaler
+    from sklearn.decomposition import PCA
+    import numpy as np
+    import warnings
+    warnings.filterwarnings('ignore', category=UserWarning)
+    
+    result = {}
+    
+    if 'BTC' not in df_t.columns:
+        return result
+    
+    # 1. Resample to Weekly (Friday)
+    df_weekly = df_t.resample('W-FRI').last().dropna(how='all')
+    
+    btc_series = df_weekly['BTC'].dropna()
+    if len(btc_series) < 100:
+        return result
+    
+    # 2. Calculate Δlog returns (weekly)
+    btc_log_ret = np.log(btc_series).diff()
+    
+    # 3. Build GLI PCA Factor
+    gli_cols = ['FED_USD', 'ECB_USD', 'BOJ_USD', 'BOE_USD', 'PBOC_USD']
+    gli_available = [c for c in gli_cols if c in df_weekly.columns]
+    
+    if len(gli_available) >= 3:
+        gli_df = df_weekly[gli_available].ffill().bfill()
+        # Calculate Δlog for each CB
+        gli_dlog = np.log(gli_df).diff()
+        gli_dlog_clean = gli_dlog.dropna()
+        
+        if len(gli_dlog_clean) > 50:
+            scaler_pca = RobustScaler()
+            gli_scaled = scaler_pca.fit_transform(gli_dlog_clean)
+            pca = PCA(n_components=2)
+            pca_result = pca.fit_transform(gli_scaled)
+            gli_factor = pd.Series(pca_result[:, 0], index=gli_dlog_clean.index, name='GLI_FACTOR')
+        else:
+            gli_factor = pd.Series(dtype=float)
+    else:
+        gli_factor = pd.Series(dtype=float)
+    
+    # 4. Prepare Features with Multiple Lags (1-8 weeks)
+    feature_df = pd.DataFrame(index=df_weekly.index)
+    
+    # CLI changes
+    if 'CLI' in df_weekly.columns:
+        cli_series = df_weekly['CLI'].ffill()
+        cli_dlog = cli_series.diff()
+        for lag in range(1, 9):
+            feature_df[f'CLI_L{lag}'] = cli_dlog.shift(lag)
+    
+    # GLI Factor lags
+    if not gli_factor.empty:
+        for lag in range(1, 9):
+            feature_df[f'GLI_L{lag}'] = gli_factor.shift(lag)
+    
+    # VIX changes
+    if 'VIX' in df_weekly.columns:
+        vix_series = df_weekly['VIX'].ffill()
+        vix_diff = vix_series.diff()
+        for lag in range(1, 5):
+            feature_df[f'VIX_L{lag}'] = vix_diff.shift(lag)
+    
+    # Net Liquidity changes
+    if 'NET_LIQUIDITY' in df_weekly.columns:
+        netliq = df_weekly['NET_LIQUIDITY'].ffill()
+        netliq_dlog = np.log(netliq.replace(0, np.nan)).diff()
+        for lag in range(1, 9):
+            feature_df[f'NETLIQ_L{lag}'] = netliq_dlog.shift(lag)
+    
+    # 5. Align data for training - all on weekly index
+    btc_start = btc_series.index.min()
+    common_idx = btc_log_ret.index.intersection(feature_df.index)
+    common_idx = common_idx[common_idx >= btc_start]
+    
+    y = btc_log_ret.loc[common_idx]
+    X = feature_df.loc[common_idx]
+    
+    # Clean dataset
+    train_data = pd.concat([X, y.rename('TARGET')], axis=1).dropna()
+    
+    if len(train_data) < 100:
+        return result
+    
+    y_train = train_data['TARGET']
+    X_train = train_data.drop('TARGET', axis=1)
+    
+    # 6. ElasticNet with CV for automatic lag selection
+    scaler = RobustScaler()
+    X_scaled = scaler.fit_transform(X_train)
+    
+    model = ElasticNetCV(
+        l1_ratio=[0.1, 0.5, 0.7, 0.9, 0.95],
+        alphas=np.logspace(-4, 0, 20),
+        cv=5,
+        max_iter=5000,
+        random_state=42
+    )
+    model.fit(X_scaled, y_train)
+    
+    # 7. Generate predictions using the same common index
+    X_full = feature_df.loc[common_idx].ffill().bfill()
+    X_full_scaled = scaler.transform(X_full)
+    pred_returns = pd.Series(model.predict(X_full_scaled), index=X_full.index)
+    
+    # 8. Reconstruct log price from cumulative returns
+    log_btc_actual = np.log(btc_series)
+    first_log = log_btc_actual.iloc[0]
+    log_pred_cumulative = pred_returns.cumsum() + first_log
+    fair_value = np.exp(log_pred_cumulative)
+    
+    # 9. Rolling 52-week volatility bands
+    residuals = log_btc_actual.loc[fair_value.index] - log_pred_cumulative.loc[log_btc_actual.index.intersection(fair_value.index)]
+    rolling_std = residuals.rolling(window=52, min_periods=20).std().ffill().bfill()
+    
+    # Use median std as fallback for early periods
+    median_std = rolling_std.median()
+    rolling_std = rolling_std.fillna(median_std)
+    
+    upper_1sd = fair_value * np.exp(rolling_std)
+    lower_1sd = fair_value * np.exp(-rolling_std)
+    upper_2sd = fair_value * np.exp(2 * rolling_std)
+    lower_2sd = fair_value * np.exp(-2 * rolling_std)
+    
+    # 10. Deviation metrics
+    deviation_pct = (btc_series - fair_value) / fair_value * 100
+    deviation_zscore = residuals / rolling_std
+    
+    # 11. Walk-forward OOS metrics (simplified)
+    oos_start = int(len(train_data) * 0.7)
+    if oos_start > 50:
+        oos_resid = y_train.iloc[oos_start:] - model.predict(X_scaled[oos_start:])
+        oos_rmse = np.sqrt((oos_resid ** 2).mean())
+        oos_mae = np.abs(oos_resid).mean()
+        hit_rate = (np.sign(y_train.iloc[oos_start:]) == np.sign(model.predict(X_scaled[oos_start:]))).mean()
+    else:
+        oos_rmse, oos_mae, hit_rate = np.nan, np.nan, np.nan
+    
+    # 12. Feature importance (non-zero coefficients)
+    feature_importance = dict(zip(X_train.columns, model.coef_))
+    active_features = {k: v for k, v in feature_importance.items() if abs(v) > 1e-6}
+    
+    # 13. Predicted vs Actual Returns (for returns comparison chart)
+    actual_returns = btc_log_ret.loc[common_idx] * 100  # Convert to percentage
+    predicted_returns_pct = pred_returns * 100  # Convert to percentage
+    
+    # 14. Rebalanced Fair Value (quarterly reset to avoid cumulative drift)
+    # Reset fair value to actual BTC price every 13 weeks (quarterly)
+    rebalanced_fv = pd.Series(index=fair_value.index, dtype=float)
+    rebalance_period = 13  # weeks
+    
+    for i, date in enumerate(fair_value.index):
+        if i == 0 or i % rebalance_period == 0:
+            # Reset to actual BTC price
+            if date in btc_series.index:
+                base_log = np.log(btc_series.loc[date])
+            else:
+                base_log = np.log(fair_value.iloc[i])
+            cumulative_pred = 0
+        else:
+            cumulative_pred += pred_returns.iloc[i] if i < len(pred_returns) else 0
+        
+        rebalanced_fv.iloc[i] = np.exp(base_log + cumulative_pred)
+    
+    # Build result dictionary
+    result = {
+        'dates': fair_value.index.strftime('%Y-%m-%d').tolist(),
+        'fair_value': [float(x) if pd.notnull(x) else None for x in fair_value.tolist()],
+        'upper_1sd': [float(x) if pd.notnull(x) else None for x in upper_1sd.tolist()],
+        'lower_1sd': [float(x) if pd.notnull(x) else None for x in lower_1sd.tolist()],
+        'upper_2sd': [float(x) if pd.notnull(x) else None for x in upper_2sd.tolist()],
+        'lower_2sd': [float(x) if pd.notnull(x) else None for x in lower_2sd.tolist()],
+        'btc_price': [float(x) if pd.notnull(x) else None for x in btc_series.tolist()],
+        'deviation_pct': [float(x) if pd.notnull(x) else None for x in deviation_pct.tolist()],
+        'deviation_zscore': [float(x) if pd.notnull(x) else None for x in deviation_zscore.tolist()],
+        # New: Returns comparison data
+        'returns': {
+            'dates': actual_returns.index.strftime('%Y-%m-%d').tolist(),
+            'actual': [float(x) if pd.notnull(x) else None for x in actual_returns.tolist()],
+            'predicted': [float(x) if pd.notnull(x) else None for x in predicted_returns_pct.tolist()],
+        },
+        # New: Rebalanced fair value
+        'rebalanced_fv': [float(x) if pd.notnull(x) else None for x in rebalanced_fv.tolist()],
+        'metrics': {
+            'oos_rmse': round(oos_rmse, 6) if pd.notnull(oos_rmse) else None,
+            'oos_mae': round(oos_mae, 6) if pd.notnull(oos_mae) else None,
+            'hit_rate': round(hit_rate, 4) if pd.notnull(hit_rate) else None,
+            'r2_insample': round(model.score(X_scaled, y_train), 4),
+            'alpha': round(model.alpha_, 6),
+            'l1_ratio': round(model.l1_ratio_, 2),
+            'n_active_features': len(active_features),
+        },
+        'active_features': active_features,
+        'frequency': 'weekly'
+    }
+    
+    return result
+
 def calculate_us_net_liq(df, source='FRED'):
     """Calculates US Net Liquidity in Trillions USD."""
     res = pd.DataFrame(index=df.index)
@@ -488,7 +936,10 @@ def run_pipeline():
         for name, s in raw_tv.items(): df_tv_t[name] = s
         
         # Only ffill for most series. bfill ONLY for FX rates as they are denominators.
-        fx_cols = [c for c in ['EURUSD', 'USDJPY', 'GBPUSD', 'CNYUSD'] if c in df_tv_t.columns]
+        # All FX rates from TV_CONFIG matching PineScript
+        all_fx = ['EURUSD', 'JPYUSD', 'GBPUSD', 'CNYUSD', 'CADUSD', 'AUDUSD', 'INRUSD', 'CHFUSD', 
+                  'RUBUSD', 'BRLUSD', 'KRWUSD', 'NZDUSD', 'SEKUSD', 'MYRUSD', 'MXNUSD', 'IDRUSD', 'ZARUSD']
+        fx_cols = [c for c in all_fx if c in df_tv_t.columns]
         for c in fx_cols:
             df_tv_t[c] = df_tv_t[c].ffill().bfill()
         
@@ -497,20 +948,46 @@ def run_pipeline():
         for c in other_cols:
             df_tv_t[c] = df_tv_t[c].ffill()
         
-        # Unit Logic for TV -> Trillions
+        # Unit Logic for TV -> Trillions (Major 5 CBs)
         res_tv_t = pd.DataFrame(index=df_tv_t.index)
         res_tv_t['FED_USD'] = df_tv_t.get('FED', 0) / 1e12
         eurusd = df_tv_t.get('EURUSD', df_fred.get('EURUSD', 1.0))
         res_tv_t['ECB_USD'] = (df_tv_t.get('ECB', 0) * eurusd) / 1e12
-        usdjpy = df_tv_t.get('USDJPY', df_fred.get('USDJPY', 150))
-        res_tv_t['BOJ_USD'] = (df_tv_t.get('BOJ', 0) / usdjpy) / 1e12
+        jpyusd = df_tv_t.get('JPYUSD', 1.0 / df_fred.get('USDJPY', 150))  # JPYUSD from TV, fallback to 1/USDJPY from FRED
+        res_tv_t['BOJ_USD'] = (df_tv_t.get('BOJ', 0) * jpyusd) / 1e12
         gbpusd = df_tv_t.get('GBPUSD', df_fred.get('GBPUSD', 1.3))
         res_tv_t['BOE_USD'] = (df_tv_t.get('BOE', 0) * gbpusd) / 1e12
         cnynusd = df_tv_t.get('CNYUSD', df_fred.get('CNYUSD', 0.14))
         res_tv_t['PBOC_USD'] = (df_tv_t.get('PBOC', 0) * cnynusd) / 1e12
 
+        # Additional 4 CBs
+        if 'BOC' in df_tv_t.columns:
+            cadusd = df_tv_t.get('CADUSD', 0.74)  # Fallback
+            res_tv_t['BOC_USD'] = (df_tv_t.get('BOC', 0) * cadusd) / 1e12
+        if 'RBA' in df_tv_t.columns:
+            audusd = df_tv_t.get('AUDUSD', 0.65)  # Fallback
+            res_tv_t['RBA_USD'] = (df_tv_t.get('RBA', 0) * audusd) / 1e12
+        if 'SNB' in df_tv_t.columns:
+            chfusd = df_tv_t.get('CHFUSD', 1.1)  # Fallback
+            res_tv_t['SNB_USD'] = (df_tv_t.get('SNB', 0) * chfusd) / 1e12
+        if 'BOK' in df_tv_t.columns:
+            krwusd = df_tv_t.get('KRWUSD', 0.00077)  # Fallback ~1/1300
+            res_tv_t['BOK_USD'] = (df_tv_t.get('BOK', 0) * krwusd) / 1e12
+
         # Bitcoin price (already in USD, no conversion needed)
         res_tv_t['BTC'] = df_tv_t.get('BTC', pd.Series(dtype=float))
+
+        # M2 Money Supply data (pass through ALL M2s from TV_CONFIG for calculate_global_m2)
+        all_m2 = ['USM2', 'EUM2', 'CNM2', 'JPM2', 'GBM2', 'CAM2', 'AUM3', 'INM2', 'CHM2', 
+                  'RUM2', 'BRM2', 'KRM2', 'MXM2', 'IDM2', 'ZAM2', 'MYM2', 'SEM2']
+        for m2_col in all_m2:
+            if m2_col in df_tv_t.columns:
+                res_tv_t[m2_col] = df_tv_t[m2_col]
+        
+        # Also pass through all FX rates for calculate_global_m2
+        for fx_col in all_fx:
+            if fx_col in df_tv_t.columns:
+                res_tv_t[fx_col] = df_tv_t[fx_col]
 
         # TGA/RRP are usually not in TV economics, fallback to FRED baseline
         # We use combine_first to ensure we have the full FRED history for these columns
@@ -543,6 +1020,7 @@ def run_pipeline():
 
         # Bitcoin Analysis
         btc_analysis = calculate_btc_fair_value(df_t)
+        btc_analysis_v2 = calculate_btc_fair_value_v2(df_t)  # Quant v2 model
         btc_rocs = {}
         if 'BTC' in df_t.columns and df_t['BTC'].notna().sum() > 0:
             btc_rocs = calculate_rocs(df_t['BTC'])
@@ -611,8 +1089,22 @@ def run_pipeline():
                 'boj': clean_for_json(gli['BOJ_USD']),
                 'boe': clean_for_json(gli['BOE_USD']),
                 'pboc': clean_for_json(gli['PBOC_USD']),
+                # Additional CBs
+                'boc': clean_for_json(gli.get('BOC_USD', pd.Series(dtype=float))),
+                'rba': clean_for_json(gli.get('RBA_USD', pd.Series(dtype=float))),
+                'snb': clean_for_json(gli.get('SNB_USD', pd.Series(dtype=float))),
+                'bok': clean_for_json(gli.get('BOK_USD', pd.Series(dtype=float))),
                 'rocs': {k: clean_for_json(v) for k, v in gli_rocs.items()}
             },
+            'm2': (lambda m2_data, m2_rocs: {
+                'total': clean_for_json(m2_data.get('M2_TOTAL', pd.Series(dtype=float))),
+                'us': clean_for_json(m2_data.get('US_M2_USD', pd.Series(dtype=float))),
+                'eu': clean_for_json(m2_data.get('EU_M2_USD', pd.Series(dtype=float))),
+                'cn': clean_for_json(m2_data.get('CN_M2_USD', pd.Series(dtype=float))),
+                'jp': clean_for_json(m2_data.get('JP_M2_USD', pd.Series(dtype=float))),
+                'uk': clean_for_json(m2_data.get('UK_M2_USD', pd.Series(dtype=float))),
+                'rocs': {k: clean_for_json(v) for k, v in m2_rocs.items()}
+            })(calculate_global_m2(df_t), calculate_rocs(calculate_global_m2(df_t).get('M2_TOTAL', pd.Series(dtype=float)))),
             'us_net_liq': clean_for_json(us_net_liq['NET_LIQUIDITY']),
             'us_net_liq_rocs': {k: clean_for_json(v) for k, v in net_liq_rocs.items()},
             'bank_rocs': {
@@ -642,7 +1134,8 @@ def run_pipeline():
                         'lower_2sd': clean_for_json(btc_analysis.get('ADJ_BTC_LOWER_2SD', pd.Series(dtype=float))),
                         'deviation_pct': clean_for_json(btc_analysis.get('ADJ_BTC_DEVIATION_PCT', pd.Series(dtype=float))),
                         'deviation_zscore': clean_for_json(btc_analysis.get('ADJ_BTC_DEVIATION_ZSCORE', pd.Series(dtype=float))),
-                    }
+                    },
+                    'quant_v2': btc_analysis_v2  # New Quant v2 model with weekly data
                 },
                 'rocs': {k: clean_for_json(v) for k, v in btc_rocs.items()} if btc_rocs else {}
             },

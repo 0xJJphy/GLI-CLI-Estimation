@@ -12,6 +12,66 @@
   import Chart from "./lib/components/Chart.svelte";
   import LightweightChart from "./lib/components/LightweightChart.svelte";
   import SignalBadge from "./lib/components/SignalBadge.svelte";
+  import TimeRangeSelector from "./lib/components/TimeRangeSelector.svelte";
+
+  // Individual time range state for each chart section
+  let gliRange = "ALL";
+  let fedRange = "ALL";
+  let ecbRange = "ALL";
+  let bojRange = "ALL";
+  let boeRange = "ALL";
+  let pbocRange = "ALL";
+  let netLiqRange = "ALL";
+  let cliRange = "ALL";
+  let btcRange = "ALL";
+  let m2Range = "ALL";
+
+  // Helper to get cutoff date based on range
+  const getCutoffDate = (range) => {
+    if (range === "ALL") return null;
+    const now = new Date();
+    switch (range) {
+      case "1M":
+        return new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+      case "3M":
+        return new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+      case "6M":
+        return new Date(now.getFullYear(), now.getMonth() - 6, now.getDate());
+      case "1Y":
+        return new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+      case "3Y":
+        return new Date(now.getFullYear() - 3, now.getMonth(), now.getDate());
+      default:
+        return null;
+    }
+  };
+
+  // Filter dates array and get valid indices for Plotly charts
+  const getFilteredIndices = (dates, range) => {
+    if (!dates || !Array.isArray(dates) || range === "ALL") {
+      return dates ? dates.map((_, i) => i) : [];
+    }
+    const cutoff = getCutoffDate(range);
+    if (!cutoff) return dates.map((_, i) => i);
+
+    return dates.reduce((acc, d, i) => {
+      const date = new Date(d);
+      if (date >= cutoff) acc.push(i);
+      return acc;
+    }, []);
+  };
+
+  // Helper to filter Plotly trace data
+  const filterPlotlyData = (traceArray, dates, range) => {
+    if (!traceArray || range === "ALL") return traceArray;
+    const indices = getFilteredIndices(dates, range);
+
+    return traceArray.map((trace) => ({
+      ...trace,
+      x: indices.map((i) => trace.x[i]),
+      y: indices.map((i) => trace.y[i]),
+    }));
+  };
 
   const formatTV = (dates, values) => {
     if (!dates || !values || !Array.isArray(dates)) return [];
@@ -54,8 +114,8 @@
     deviation_zscore: [],
   };
 
-  // --- Chart Data Definitions ---
-  $: gliData = [
+  // --- Chart Data Definitions (filtered by globalTimeRange) ---
+  $: gliDataRaw = [
     {
       x: $dashboardData.dates,
       y: $dashboardData.gli.total,
@@ -67,6 +127,7 @@
       fillcolor: "rgba(99, 102, 241, 0.05)",
     },
   ];
+  $: gliData = filterPlotlyData(gliDataRaw, $dashboardData.dates, gliRange);
 
   $: fedData = [
     {
@@ -320,6 +381,152 @@
     ];
   })();
 
+  $: quantV2ChartData = (() => {
+    const v2 = $dashboardData.btc?.models?.quant_v2;
+    if (!v2 || !v2.dates || v2.dates.length === 0) return [];
+
+    return [
+      {
+        name: "BTC Price",
+        type: "area",
+        color: "#f7931a",
+        topColor: "rgba(247, 147, 26, 0.1)",
+        bottomColor: "rgba(247, 147, 26, 0)",
+        data: v2.dates
+          .map((d, i) => ({
+            time: d,
+            value: v2.btc_price[i],
+          }))
+          .filter((p) => p.value !== null),
+        width: 3,
+      },
+      {
+        name: "Fair Value",
+        type: "line",
+        color: "#10b981",
+        data: v2.dates
+          .map((d, i) => ({
+            time: d,
+            value: v2.fair_value[i],
+          }))
+          .filter((p) => p.value !== null),
+        width: 2,
+      },
+      {
+        name: "+2σ",
+        type: "line",
+        color: "#ef4444",
+        data: v2.dates
+          .map((d, i) => ({
+            time: d,
+            value: v2.upper_2sd[i],
+          }))
+          .filter((p) => p.value !== null),
+        width: 1,
+        options: { lineStyle: 2 },
+      },
+      {
+        name: "+1σ",
+        type: "line",
+        color: "#f59e0b",
+        data: v2.dates
+          .map((d, i) => ({
+            time: d,
+            value: v2.upper_1sd[i],
+          }))
+          .filter((p) => p.value !== null),
+        width: 1,
+        options: { lineStyle: 2 },
+      },
+      {
+        name: "-1σ",
+        type: "line",
+        color: "#f59e0b",
+        data: v2.dates
+          .map((d, i) => ({
+            time: d,
+            value: v2.lower_1sd[i],
+          }))
+          .filter((p) => p.value !== null),
+        width: 1,
+        options: { lineStyle: 2 },
+      },
+      {
+        name: "-2σ",
+        type: "line",
+        color: "#ef4444",
+        data: v2.dates
+          .map((d, i) => ({
+            time: d,
+            value: v2.lower_2sd[i],
+          }))
+          .filter((p) => p.value !== null),
+        width: 1,
+        options: { lineStyle: 2 },
+      },
+    ];
+  })();
+
+  // Returns comparison chart data (Plotly bar chart)
+  $: quantV2ReturnsData = (() => {
+    const v2 = $dashboardData.btc?.models?.quant_v2;
+    if (!v2 || !v2.returns || !v2.returns.dates) return [];
+
+    return [
+      {
+        x: v2.returns.dates,
+        y: v2.returns.actual,
+        name: "Actual Returns (%)",
+        type: "bar",
+        marker: { color: "#f7931a", opacity: 0.7 },
+      },
+      {
+        x: v2.returns.dates,
+        y: v2.returns.predicted,
+        name: "Predicted Returns (%)",
+        type: "scatter",
+        mode: "lines",
+        line: { color: "#10b981", width: 2 },
+      },
+    ];
+  })();
+
+  // Rebalanced Fair Value chart data (LightweightChart)
+  $: quantV2RebalancedData = (() => {
+    const v2 = $dashboardData.btc?.models?.quant_v2;
+    if (!v2 || !v2.dates || v2.dates.length === 0 || !v2.rebalanced_fv)
+      return [];
+
+    return [
+      {
+        name: "BTC Price",
+        type: "area",
+        color: "#f7931a",
+        topColor: "rgba(247, 147, 26, 0.1)",
+        bottomColor: "rgba(247, 147, 26, 0)",
+        data: v2.dates
+          .map((d, i) => ({
+            time: d,
+            value: v2.btc_price[i],
+          }))
+          .filter((p) => p.value !== null),
+        width: 3,
+      },
+      {
+        name: "Rebalanced FV",
+        type: "line",
+        color: "#8b5cf6",
+        data: v2.dates
+          .map((d, i) => ({
+            time: d,
+            value: v2.rebalanced_fv[i],
+          }))
+          .filter((p) => p.value !== null),
+        width: 2,
+      },
+    ];
+  })();
+
   const getLastDate = (seriesKey) => {
     return $dashboardData.last_dates[seriesKey] || "N/A";
   };
@@ -363,13 +570,23 @@
       </div>
       <div
         class="nav-item"
-        class:active={currentTab === "Global Flows"}
-        on:click={() => setTab("Global Flows")}
-        on:keydown={(e) => e.key === "Enter" && setTab("Global Flows")}
+        class:active={currentTab === "Global Flows CB"}
+        on:click={() => setTab("Global Flows CB")}
+        on:keydown={(e) => e.key === "Enter" && setTab("Global Flows CB")}
         role="button"
         tabindex="0"
       >
-        <span class="nav-icon">🌍</span> Global Flows
+        <span class="nav-icon">🏦</span> Global Flows CB
+      </div>
+      <div
+        class="nav-item"
+        class:active={currentTab === "Global M2"}
+        on:click={() => setTab("Global M2")}
+        on:keydown={(e) => e.key === "Enter" && setTab("Global M2")}
+        role="button"
+        tabindex="0"
+      >
+        <span class="nav-icon">💰</span> Global M2
       </div>
       <div
         class="nav-item"
@@ -400,6 +617,16 @@
         tabindex="0"
       >
         <span class="nav-icon">₿</span> BTC Analysis
+      </div>
+      <div
+        class="nav-item"
+        class:active={currentTab === "BTC Quant v2"}
+        on:click={() => setTab("BTC Quant v2")}
+        on:keydown={(e) => e.key === "Enter" && setTab("BTC Quant v2")}
+        role="button"
+        tabindex="0"
+      >
+        <span class="nav-icon">🧪</span> BTC Quant v2
       </div>
     </nav>
 
@@ -502,10 +729,16 @@
           <div class="chart-card">
             <div class="chart-header">
               <div class="label-group">
-                <h3>Global Liquidity Index (5 Banks)</h3>
+                <h3>Global Liquidity Index (16 Banks)</h3>
                 <SignalBadge type={gliSignal} text={gliSignal} />
               </div>
-              <span class="last-date">Last Data: {getLastDate("PBOC")}</span>
+              <div class="header-controls">
+                <TimeRangeSelector
+                  selectedRange={gliRange}
+                  onRangeChange={(r) => (gliRange = r)}
+                />
+                <span class="last-date">Last Data: {getLastDate("PBOC")}</span>
+              </div>
             </div>
             <div class="chart-content">
               <Chart data={gliData} />
@@ -537,7 +770,7 @@
             </div>
           </div>
         </div>
-      {:else if currentTab === "Global Flows"}
+      {:else if currentTab === "Global Flows CB"}
         <div class="main-charts">
           <div class="chart-card wide">
             <div class="chart-header">
@@ -871,6 +1104,135 @@
                   {getLatestROC($dashboardData.bank_rocs.pboc, "1Y").toFixed(
                     2,
                   )}%
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      {:else if currentTab === "Global M2"}
+        <div class="main-charts">
+          <!-- Global M2 Overview -->
+          <div class="chart-card wide">
+            <div class="chart-header">
+              <h3>💰 Global M2 Money Supply (5 Major Economies)</h3>
+              <span class="last-date">USA + EU + China + Japan + UK</span>
+            </div>
+            <div class="chart-content">
+              <Chart
+                data={[
+                  {
+                    x: $dashboardData.dates,
+                    y: $dashboardData.m2?.total,
+                    type: "scatter",
+                    mode: "lines",
+                    fill: "tozeroy",
+                    name: "Global M2",
+                    line: { color: "#10b981", width: 2 },
+                  },
+                ]}
+              />
+            </div>
+          </div>
+
+          <!-- M2 Breakdown by Economy -->
+          <div class="chart-card wide">
+            <div class="chart-header">
+              <h3>📊 M2 by Economy (Trillions USD)</h3>
+            </div>
+            <div class="chart-content">
+              <Chart
+                data={[
+                  {
+                    x: $dashboardData.dates,
+                    y: $dashboardData.m2?.us,
+                    type: "scatter",
+                    mode: "lines",
+                    name: "USA",
+                    line: { color: "#3b82f6", width: 2 },
+                  },
+                  {
+                    x: $dashboardData.dates,
+                    y: $dashboardData.m2?.cn,
+                    type: "scatter",
+                    mode: "lines",
+                    name: "China",
+                    line: { color: "#ef4444", width: 2 },
+                  },
+                  {
+                    x: $dashboardData.dates,
+                    y: $dashboardData.m2?.eu,
+                    type: "scatter",
+                    mode: "lines",
+                    name: "EU",
+                    line: { color: "#f59e0b", width: 2 },
+                  },
+                  {
+                    x: $dashboardData.dates,
+                    y: $dashboardData.m2?.jp,
+                    type: "scatter",
+                    mode: "lines",
+                    name: "Japan",
+                    line: { color: "#8b5cf6", width: 2 },
+                  },
+                  {
+                    x: $dashboardData.dates,
+                    y: $dashboardData.m2?.uk,
+                    type: "scatter",
+                    mode: "lines",
+                    name: "UK",
+                    line: { color: "#06b6d4", width: 2 },
+                  },
+                ]}
+              />
+            </div>
+          </div>
+
+          <!-- M2 ROCs -->
+          <div class="roc-section">
+            <div class="roc-card">
+              <h4>M2 Momentum (ROC)</h4>
+              <div class="roc-grid">
+                <div class="roc-row header">
+                  <div class="roc-col">Factor</div>
+                  <div class="roc-col">1M</div>
+                  <div class="roc-col">3M</div>
+                  <div class="roc-col">6M</div>
+                  <div class="roc-col">1Y</div>
+                </div>
+                <div class="roc-row">
+                  <div class="roc-col label">Global M2</div>
+                  <div
+                    class="roc-col"
+                    class:plus={getLatestROC($dashboardData.m2?.rocs, "1M") > 0}
+                    class:minus={getLatestROC($dashboardData.m2?.rocs, "1M") <
+                      0}
+                  >
+                    {getLatestROC($dashboardData.m2?.rocs, "1M").toFixed(2)}%
+                  </div>
+                  <div
+                    class="roc-col"
+                    class:plus={getLatestROC($dashboardData.m2?.rocs, "3M") > 0}
+                    class:minus={getLatestROC($dashboardData.m2?.rocs, "3M") <
+                      0}
+                  >
+                    {getLatestROC($dashboardData.m2?.rocs, "3M").toFixed(2)}%
+                  </div>
+                  <div
+                    class="roc-col"
+                    class:plus={getLatestROC($dashboardData.m2?.rocs, "6M") > 0}
+                    class:minus={getLatestROC($dashboardData.m2?.rocs, "6M") <
+                      0}
+                  >
+                    {getLatestROC($dashboardData.m2?.rocs, "6M").toFixed(2)}%
+                  </div>
+                  <div
+                    class="roc-col"
+                    class:plus={getLatestROC($dashboardData.m2?.rocs, "1Y") > 0}
+                    class:minus={getLatestROC($dashboardData.m2?.rocs, "1Y") <
+                      0}
+                  >
+                    {getLatestROC($dashboardData.m2?.rocs, "1Y").toFixed(2)}%
+                  </div>
                 </div>
               </div>
             </div>
@@ -1227,6 +1589,240 @@
                   • <strong>Z &lt; -2:</strong> Potential accumulation<br />
                   • <strong>ROC divergence:</strong> Momentum shifts
                 </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      {:else if currentTab === "BTC Quant v2"}
+        <div class="main-charts">
+          <!-- Quant v2 Model Description -->
+          <div class="chart-card wide">
+            <div class="chart-header">
+              <h3>🧪 Quant v2: Enhanced Bitcoin Fair Value Model</h3>
+              <span class="last-date"
+                >Weekly Δlog returns + ElasticNet + PCA GLI Factor</span
+              >
+            </div>
+            <div class="quant-description">
+              <p>
+                This model addresses econometric issues in the legacy model:
+              </p>
+              <ul>
+                <li>
+                  <strong>Weekly frequency</strong> (W-FRI) instead of daily to avoid
+                  ffill autocorrelation
+                </li>
+                <li>
+                  <strong>Δlog(BTC) returns</strong> instead of log levels (avoids
+                  spurious regression)
+                </li>
+                <li>
+                  <strong>ElasticNet</strong> with 1-8 week lags for automatic feature
+                  selection
+                </li>
+                <li>
+                  <strong>PCA GLI factor</strong> instead of raw sum (handles colinearity)
+                </li>
+                <li>
+                  <strong>Rolling 52-week volatility</strong> for adaptive bands
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- OOS Metrics Panel -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>📈 Out-of-Sample Metrics</h3>
+            </div>
+            <div class="quant-metrics">
+              <div class="metric-item">
+                <span class="metric-label">OOS RMSE</span>
+                <span class="metric-value"
+                  >{(
+                    $dashboardData.btc?.models?.quant_v2?.metrics?.oos_rmse || 0
+                  ).toFixed(4)}</span
+                >
+              </div>
+              <div class="metric-item">
+                <span class="metric-label">OOS MAE</span>
+                <span class="metric-value"
+                  >{(
+                    $dashboardData.btc?.models?.quant_v2?.metrics?.oos_mae || 0
+                  ).toFixed(4)}</span
+                >
+              </div>
+              <div class="metric-item">
+                <span class="metric-label">Hit Rate</span>
+                <span class="metric-value highlight"
+                  >{(
+                    ($dashboardData.btc?.models?.quant_v2?.metrics?.hit_rate ||
+                      0) * 100
+                  ).toFixed(2)}%</span
+                >
+              </div>
+              <div class="metric-item">
+                <span class="metric-label">R² In-Sample</span>
+                <span class="metric-value"
+                  >{(
+                    ($dashboardData.btc?.models?.quant_v2?.metrics
+                      ?.r2_insample || 0) * 100
+                  ).toFixed(2)}%</span
+                >
+              </div>
+              <div class="metric-item">
+                <span class="metric-label">Active Features</span>
+                <span class="metric-value"
+                  >{$dashboardData.btc?.models?.quant_v2?.metrics
+                    ?.n_active_features || 0}</span
+                >
+              </div>
+              <div class="metric-item">
+                <span class="metric-label">Frequency</span>
+                <span class="metric-value"
+                  >{$dashboardData.btc?.models?.quant_v2?.frequency ||
+                    "weekly"}</span
+                >
+              </div>
+            </div>
+          </div>
+
+          <!-- Model Parameters -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>⚙️ Model Parameters</h3>
+            </div>
+            <div class="quant-metrics">
+              <div class="metric-item">
+                <span class="metric-label">Alpha (λ)</span>
+                <span class="metric-value"
+                  >{(
+                    $dashboardData.btc?.models?.quant_v2?.metrics?.alpha || 0
+                  ).toFixed(6)}</span
+                >
+              </div>
+              <div class="metric-item">
+                <span class="metric-label">L1 Ratio</span>
+                <span class="metric-value"
+                  >{$dashboardData.btc?.models?.quant_v2?.metrics?.l1_ratio ||
+                    0}</span
+                >
+              </div>
+            </div>
+          </div>
+
+          <!-- Fair Value Chart (Cumulative) -->
+          <div class="chart-card wide">
+            <div class="chart-header">
+              <h3>₿ Bitcoin: Quant v2 Fair Value (Weekly - Cumulative)</h3>
+              <span class="last-date"
+                >⚠️ Cumulative drift may cause divergence over time</span
+              >
+            </div>
+            <div class="chart-content tv-chart-wrap">
+              <LightweightChart data={quantV2ChartData} logScale={true} />
+            </div>
+          </div>
+
+          <!-- Rebalanced Fair Value Chart -->
+          <div class="chart-card wide">
+            <div class="chart-header">
+              <h3>₿ Bitcoin: Rebalanced Fair Value (Quarterly Reset)</h3>
+              <span class="last-date"
+                >✅ Resets to actual price every 13 weeks to avoid drift</span
+              >
+            </div>
+            <div class="chart-content tv-chart-wrap">
+              <LightweightChart data={quantV2RebalancedData} logScale={true} />
+            </div>
+          </div>
+
+          <!-- Returns Comparison Chart -->
+          <div class="chart-card wide">
+            <div class="chart-header">
+              <h3>📊 Weekly Returns: Predicted vs Actual (%)</h3>
+              <span class="last-date"
+                >Orange bars = Actual | Green line = Predicted</span
+              >
+            </div>
+            <div class="chart-content">
+              <Chart data={quantV2ReturnsData} />
+            </div>
+          </div>
+
+          <!-- Active Features List -->
+          <div class="chart-card wide">
+            <div class="chart-header">
+              <h3>🎯 Active Features (Selected by ElasticNet)</h3>
+            </div>
+            <div class="features-grid">
+              {#each Object.entries($dashboardData.btc?.models?.quant_v2?.active_features || {}) as [feature, coef]}
+                <div
+                  class="feature-item"
+                  class:positive={coef > 0}
+                  class:negative={coef < 0}
+                >
+                  <span class="feature-name">{feature}</span>
+                  <span class="feature-coef">{coef.toFixed(4)}</span>
+                </div>
+              {/each}
+            </div>
+          </div>
+
+          <!-- Current Valuation -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>📊 Current Valuation (Quant v2)</h3>
+            </div>
+            <div class="btc-stats">
+              <div class="btc-stat-item">
+                <span class="btc-label">BTC Price</span>
+                <span class="btc-value price">
+                  ${getLatestValue(
+                    $dashboardData.btc?.models?.quant_v2?.btc_price,
+                  )?.toLocaleString() || "N/A"}
+                </span>
+              </div>
+              <div class="btc-stat-item">
+                <span class="btc-label">Fair Value</span>
+                <span class="btc-value fair">
+                  ${Math.round(
+                    getLatestValue(
+                      $dashboardData.btc?.models?.quant_v2?.fair_value,
+                    ) || 0,
+                  ).toLocaleString()}
+                </span>
+              </div>
+              <div class="btc-stat-item">
+                <span class="btc-label">Deviation</span>
+                <span
+                  class="btc-value deviation"
+                  class:overvalued={getLatestValue(
+                    $dashboardData.btc?.models?.quant_v2?.deviation_pct,
+                  ) > 0}
+                  class:undervalued={getLatestValue(
+                    $dashboardData.btc?.models?.quant_v2?.deviation_pct,
+                  ) < 0}
+                >
+                  {getLatestValue(
+                    $dashboardData.btc?.models?.quant_v2?.deviation_pct,
+                  )?.toFixed(1) || "0"}%
+                </span>
+              </div>
+              <div class="btc-stat-item">
+                <span class="btc-label">Z-Score</span>
+                <span
+                  class="btc-value zscore"
+                  class:extreme={Math.abs(
+                    getLatestValue(
+                      $dashboardData.btc?.models?.quant_v2?.deviation_zscore,
+                    ) || 0,
+                  ) > 2}
+                >
+                  {getLatestValue(
+                    $dashboardData.btc?.models?.quant_v2?.deviation_zscore,
+                  )?.toFixed(2) || "0"}σ
+                </span>
               </div>
             </div>
           </div>
@@ -1688,6 +2284,113 @@
     to {
       transform: rotate(360deg);
     }
+  }
+
+  /* Quant v2 Tab Styles */
+  .quant-description {
+    padding: 16px;
+    background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+    border-radius: 8px;
+    border-left: 4px solid #10b981;
+  }
+
+  .quant-description p {
+    margin: 0 0 12px 0;
+    color: #065f46;
+    font-weight: 500;
+  }
+
+  .quant-description ul {
+    margin: 0;
+    padding-left: 20px;
+    color: #047857;
+  }
+
+  .quant-description li {
+    margin-bottom: 6px;
+    line-height: 1.5;
+  }
+
+  .quant-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    padding: 16px;
+  }
+
+  .metric-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px;
+    background: #f8fafc;
+    border-radius: 8px;
+  }
+
+  .metric-label {
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748b;
+  }
+
+  .metric-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1e293b;
+  }
+
+  .metric-value.highlight {
+    color: #10b981;
+  }
+
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .feature-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    background: #f8fafc;
+    border-radius: 6px;
+    border-left: 3px solid #94a3b8;
+  }
+
+  .feature-item.positive {
+    border-left-color: #10b981;
+    background: #f0fdf4;
+  }
+
+  .feature-item.negative {
+    border-left-color: #ef4444;
+    background: #fef2f2;
+  }
+
+  .feature-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: #334155;
+  }
+
+  .feature-coef {
+    font-size: 13px;
+    font-weight: 600;
+    font-family: "Monaco", "Consolas", monospace;
+    color: #475569;
+  }
+
+  .feature-item.positive .feature-coef {
+    color: #059669;
+  }
+
+  .feature-item.negative .feature-coef {
+    color: #dc2626;
   }
 
   @media (max-width: 1200px) {
