@@ -250,38 +250,108 @@ def calculate_cross_correlation(series1, series2, max_lag=90):
         else:
             s1 = series1
             s2 = series2
-
-        # Calculate correlation on aligned data
-        valid_idx = s1.index.intersection(s2.index)
-        if len(valid_idx) > 30:  # Minimum 30 observations
-            corr = s1[valid_idx].corr(s2[valid_idx])
-            if pd.notnull(corr):
-                correlations[lag] = corr
-
+        
+        # Align indices
+        common_idx = s1.index.intersection(s2.index)
+        if len(common_idx) > 30:
+            correlations[lag] = s1.loc[common_idx].corr(s2.loc[common_idx])
+        else:
+            correlations[lag] = None
     return correlations
+
+def calculate_lag_correlation_analysis(df, max_lag=30):
+    """
+    Calculates multi-window ROCs for CLI and BTC, then computes lag correlations.
+    Returns a dictionary with ROC series and lag correlation analysis.
+    """
+    results = {
+        'rocs': {
+            'dates': df.index.strftime('%Y-%m-%d').tolist(),
+        },
+        'lag_correlations': {}
+    }
+    
+    windows = {'7d': 7, '14d': 14, '30d': 30}
+    
+    # Calculate ROCs for CLI and BTC at each window
+    for label, window in windows.items():
+        # CLI ROC
+        if 'CLI' in df.columns:
+            cli_roc = (df['CLI'] / df['CLI'].shift(window) - 1) * 100
+            results['rocs'][f'cli_{label}'] = [float(x) if pd.notnull(x) else None for x in cli_roc.tolist()]
+        
+        # BTC ROC
+        if 'BTC_Price' in df.columns:
+            btc_roc = (df['BTC_Price'] / df['BTC_Price'].shift(window) - 1) * 100
+            results['rocs'][f'btc_{label}'] = [float(x) if pd.notnull(x) else None for x in btc_roc.tolist()]
+            
+            # Compute lag correlations for this window
+            if 'CLI' in df.columns:
+                correlations = []
+                lags = list(range(0, max_lag + 1))
+                
+                cli_roc_clean = cli_roc.dropna()
+                btc_roc_clean = btc_roc.dropna()
+                
+                for lag in lags:
+                    # CLI at time t vs BTC at time t+lag (CLI leads)
+                    # This means: does CLI's change today predict BTC's change in 'lag' days?
+                    if lag == 0:
+                        common_idx = cli_roc_clean.index.intersection(btc_roc_clean.index)
+                    else:
+                        # Shift BTC backward by 'lag' days to see if CLI today correlates with BTC later
+                        btc_shifted = btc_roc_clean.shift(-lag)
+                        common_idx = cli_roc_clean.index.intersection(btc_shifted.dropna().index)
+                        btc_roc_clean_lag = btc_shifted
+                    
+                    if len(common_idx) > 50:
+                        if lag == 0:
+                            corr = cli_roc_clean.loc[common_idx].corr(btc_roc_clean.loc[common_idx])
+                        else:
+                            corr = cli_roc_clean.loc[common_idx].corr(btc_roc_clean_lag.loc[common_idx])
+                        correlations.append(round(corr, 4) if pd.notnull(corr) else None)
+                    else:
+                        correlations.append(None)
+                
+                # Find optimal lag
+                valid_corrs = [(i, c) for i, c in enumerate(correlations) if c is not None]
+                if valid_corrs:
+                    optimal_idx, max_corr = max(valid_corrs, key=lambda x: abs(x[1]))
+                    optimal_lag = lags[optimal_idx]
+                else:
+                    optimal_lag = 0
+                    max_corr = 0
+                
+                results['lag_correlations'][label] = {
+                    'lags': lags,
+                    'correlations': correlations,
+                    'optimal_lag': optimal_lag,
+                    'max_corr': round(max_corr, 4) if max_corr else 0
+                }
+    
+    return results
+
 
 def calculate_btc_fair_value(df_t):
     """
-    Calculates Bitcoin 'fair value' using Quant-Grade Log-Regression.
-    Regresses log(Price) against standardized Macro Drivers (GLI, CLI, VIX, NetLiq).
+    Calculates dual Bitcoin fair value models:
+    1. Standard Quant (Macro Only)
+    2. Adoption-Adjusted (Macro + Power Law/Log-Time)
     """
-    from sklearn.linear_model import LinearRegression
+    from sklearn.linear_model import LinearRegression, Ridge
     from sklearn.preprocessing import StandardScaler
     import numpy as np
 
     result = pd.DataFrame(index=df_t.index)
     
-    # Check if we have BTC data and enough non-null values
     if 'BTC' not in df_t.columns:
         return result
     
-    # We ONLY model and return data for the period where BTC exists
     btc_series = df_t['BTC'].dropna()
     if len(btc_series) < 100:
         return result
     
-    # Prepare features - use lagged values for predictive power
-    # Standard lags: GLI leads (~45d), CLI (~14d), NetLiq (~30d)
+    # 1. Base Macro Features
     raw_features = pd.DataFrame({
         'GLI_TOTAL': df_t.get('GLI_TOTAL', 0).shift(45),
         'CLI': df_t.get('CLI', 0).shift(14),
@@ -289,63 +359,70 @@ def calculate_btc_fair_value(df_t):
         'NET_LIQ': df_t.get('NET_LIQUIDITY', 0).shift(30),
     })
 
-    # Strict Date Mask: Only process dates where BTC is trading
+    # 2. Adoption Feature (Log Days since Genesis 2009-01-03)
+    genesis_date = pd.Timestamp('2009-01-03')
+    days_since_genesis = (df_t.index - genesis_date).days
+    # Avoid log(0)
+    raw_features['ADOPTION'] = np.log(np.maximum(days_since_genesis, 1))
+
     btc_start = btc_series.index.min()
     valid_mask = (df_t.index >= btc_start)
     
-    # Target in log-space
-    # Use btc_series directly for training to avoid log(NaN)
+    # Training Data
     y_train_raw = btc_series
     X_train_raw = raw_features.loc[y_train_raw.index]
-    
-    # Join and drop any NaNs in features/target
     train_data = pd.concat([X_train_raw, np.log(y_train_raw)], axis=1).dropna()
+    
     if len(train_data) < 100:
         return result
         
-    X_train = train_data[['GLI_TOTAL', 'CLI', 'VIX', 'NET_LIQ']]
-    y_train = train_data['BTC'] # Actually log_btc
-
-    # Standardize Features for stable coefficients
+    y_train = train_data['BTC'] # log_btc
     scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
 
-    # Fit Model
-    model = LinearRegression()
-    model.fit(X_train_scaled, y_train.values)
-
-    # Predict for the WHOLE BTC period
-    # Filter features to BTC start onwards
-    X_full_raw = raw_features.loc[valid_mask].ffill().bfill() # Ensure no mid-gaps
-    X_full_scaled = scaler.transform(X_full_raw)
+    # --- MODEL 1: MACRO ONLY ---
+    X_m_train = train_data[['GLI_TOTAL', 'CLI', 'VIX', 'NET_LIQ']]
+    X_m_scaled = scaler.fit_transform(X_m_train)
+    model_m = LinearRegression()
+    model_m.fit(X_m_scaled, y_train.values)
     
-    log_pred = pd.Series(model.predict(X_full_scaled), index=X_full_raw.index)
-    pred_fair = np.exp(log_pred)
+    X_m_full = raw_features[['GLI_TOTAL', 'CLI', 'VIX', 'NET_LIQ']].loc[valid_mask].ffill().bfill()
+    X_m_full_scaled = scaler.transform(X_m_full)
+    log_pred_m = pd.Series(model_m.predict(X_m_full_scaled), index=X_m_full.index)
+    
+    # --- MODEL 2: ADOPTION ADJUSTED (Macro + Time) ---
+    X_a_train = train_data[['GLI_TOTAL', 'CLI', 'VIX', 'NET_LIQ', 'ADOPTION']]
+    X_a_scaled = scaler.fit_transform(X_a_train)
+    # Use Ridge to prevent multicollinearity between Time and Liquidity
+    model_a = Ridge(alpha=1.0)
+    model_a.fit(X_a_scaled, y_train.values)
+    
+    X_a_full = raw_features[['GLI_TOTAL', 'CLI', 'VIX', 'NET_LIQ', 'ADOPTION']].loc[valid_mask].ffill().bfill()
+    X_a_full_scaled = scaler.transform(X_a_full)
+    log_pred_a = pd.Series(model_a.predict(X_a_full_scaled), index=X_a_full.index)
 
-    # Calculate residuals in log-space for proportional error bands
-    log_actual = np.log(btc_series)
-    common_idx = log_actual.index.intersection(log_pred.index)
-    log_residuals = log_actual[common_idx] - log_pred[common_idx]
-    std_log = log_residuals.std()
+    # Helper to calculate bands and metrics
+    def build_model_df(log_pred, btc_actual):
+        pred_fair = np.exp(log_pred)
+        log_actual = np.log(btc_actual.dropna())
+        common_idx = log_actual.index.intersection(log_pred.index)
+        std_log = (log_actual[common_idx] - log_pred[common_idx]).std()
+        
+        df = pd.DataFrame(index=log_pred.index)
+        df['FAIR_VALUE'] = pred_fair
+        df['UPPER_1SD'] = pred_fair * np.exp(std_log)
+        df['LOWER_1SD'] = pred_fair * np.exp(-std_log)
+        df['UPPER_2SD'] = pred_fair * np.exp(2 * std_log)
+        df['LOWER_2SD'] = pred_fair * np.exp(-2 * std_log)
+        df['DEVIATION_PCT'] = (btc_actual - pred_fair) / pred_fair * 100
+        df['DEVIATION_ZSCORE'] = (np.log(btc_actual) - log_pred) / std_log
+        return df
 
-    # Build Result (only for BTC trading days)
-    result_btc = pd.DataFrame(index=X_full_raw.index)
+    res_m = build_model_df(log_pred_m, df_t['BTC']).rename(columns=lambda x: f"BTC_{x}")
+    res_a = build_model_df(log_pred_a, df_t['BTC']).rename(columns=lambda x: f"ADJ_BTC_{x}")
+
+    result_btc = pd.concat([res_m, res_a], axis=1)
     result_btc['BTC_ACTUAL'] = df_t['BTC']
-    result_btc['BTC_FAIR_VALUE'] = pred_fair
     
-    # Proportional Bands: FairValue * exp(±n * σ_log)
-    result_btc['BTC_UPPER_1SD'] = pred_fair * np.exp(std_log)
-    result_btc['BTC_LOWER_1SD'] = pred_fair * np.exp(-std_log)
-    result_btc['BTC_UPPER_2SD'] = pred_fair * np.exp(2 * std_log)
-    result_btc['BTC_LOWER_2SD'] = pred_fair * np.exp(-2 * std_log)
-    
-    # Deviation Metrics
-    # In log space, deviation is (actual/pred), so (actual-pred)/pred in pct
-    result_btc['BTC_DEVIATION_PCT'] = ((result_btc['BTC_ACTUAL'] - pred_fair) / pred_fair * 100)
-    # Residuals in standard deviations
-    result_btc['BTC_DEVIATION_ZSCORE'] = (np.log(result_btc['BTC_ACTUAL']) - log_pred) / std_log
-
-    # Merge back to original full index but remain NaN where BTC didn't exist
     return result.join(result_btc, how='left')
 
 def calculate_us_net_liq(df, source='FRED'):
@@ -495,6 +572,15 @@ def run_pipeline():
             if len(netliq_clean) > 100:
                 correlations['netliq_btc'] = calculate_cross_correlation(netliq_clean, btc_clean.loc[netliq_clean.index], max_lag=90)
 
+        # Predictive Lag Correlation Analysis (CLI vs BTC ROC)
+        predictive = {}
+        if 'BTC' in df_t.columns and 'CLI' in df_t.columns:
+            analysis_df = pd.DataFrame({
+                'CLI': df_t['CLI'],
+                'BTC_Price': df_t['BTC']
+            })
+            predictive = calculate_lag_correlation_analysis(analysis_df.dropna(), max_lag=30)
+
         # JSON structure (same as before)
         gli_rocs = calculate_rocs(gli['GLI_TOTAL'])
         net_liq_rocs = calculate_rocs(us_net_liq['NET_LIQUIDITY'])
@@ -538,16 +624,30 @@ def run_pipeline():
             'hy_spread': clean_for_json(df_t['HY_SPREAD']),
             'btc': {
                 'price': clean_for_json(btc_analysis.get('BTC_ACTUAL', pd.Series(dtype=float))),
-                'fair_value': clean_for_json(btc_analysis.get('BTC_FAIR_VALUE', pd.Series(dtype=float))),
-                'upper_1sd': clean_for_json(btc_analysis.get('BTC_UPPER_1SD', pd.Series(dtype=float))),
-                'lower_1sd': clean_for_json(btc_analysis.get('BTC_LOWER_1SD', pd.Series(dtype=float))),
-                'upper_2sd': clean_for_json(btc_analysis.get('BTC_UPPER_2SD', pd.Series(dtype=float))),
-                'lower_2sd': clean_for_json(btc_analysis.get('BTC_LOWER_2SD', pd.Series(dtype=float))),
-                'deviation_pct': clean_for_json(btc_analysis.get('BTC_DEVIATION_PCT', pd.Series(dtype=float))),
-                'deviation_zscore': clean_for_json(btc_analysis.get('BTC_DEVIATION_ZSCORE', pd.Series(dtype=float))),
+                'models': {
+                    'macro': {
+                        'fair_value': clean_for_json(btc_analysis.get('BTC_FAIR_VALUE', pd.Series(dtype=float))),
+                        'upper_1sd': clean_for_json(btc_analysis.get('BTC_UPPER_1SD', pd.Series(dtype=float))),
+                        'lower_1sd': clean_for_json(btc_analysis.get('BTC_LOWER_1SD', pd.Series(dtype=float))),
+                        'upper_2sd': clean_for_json(btc_analysis.get('BTC_UPPER_2SD', pd.Series(dtype=float))),
+                        'lower_2sd': clean_for_json(btc_analysis.get('BTC_LOWER_2SD', pd.Series(dtype=float))),
+                        'deviation_pct': clean_for_json(btc_analysis.get('BTC_DEVIATION_PCT', pd.Series(dtype=float))),
+                        'deviation_zscore': clean_for_json(btc_analysis.get('BTC_DEVIATION_ZSCORE', pd.Series(dtype=float))),
+                    },
+                    'adoption': {
+                        'fair_value': clean_for_json(btc_analysis.get('ADJ_BTC_FAIR_VALUE', pd.Series(dtype=float))),
+                        'upper_1sd': clean_for_json(btc_analysis.get('ADJ_BTC_UPPER_1SD', pd.Series(dtype=float))),
+                        'lower_1sd': clean_for_json(btc_analysis.get('ADJ_BTC_LOWER_1SD', pd.Series(dtype=float))),
+                        'upper_2sd': clean_for_json(btc_analysis.get('ADJ_BTC_UPPER_2SD', pd.Series(dtype=float))),
+                        'lower_2sd': clean_for_json(btc_analysis.get('ADJ_BTC_LOWER_2SD', pd.Series(dtype=float))),
+                        'deviation_pct': clean_for_json(btc_analysis.get('ADJ_BTC_DEVIATION_PCT', pd.Series(dtype=float))),
+                        'deviation_zscore': clean_for_json(btc_analysis.get('ADJ_BTC_DEVIATION_ZSCORE', pd.Series(dtype=float))),
+                    }
+                },
                 'rocs': {k: clean_for_json(v) for k, v in btc_rocs.items()} if btc_rocs else {}
             },
-            'correlations': correlations
+            'correlations': correlations,
+            'predictive': predictive
         }
 
         output_path = os.path.join(OUTPUT_DIR, filename)

@@ -30,24 +30,21 @@ A Z-Score based index measuring credit conditions:
 -   Components: HY Spread, IG Spread, NFCI Credit/Risk, Lending Standards, and VIX.
 
 ### 4. Bitcoin Fair Value Model
-Estimates Bitcoin's "fair price" based on macro liquidity conditions:
+The dashboard provides two distinct quantitative models for Bitcoin valuation:
 
-**Model:**
-```
-BTC_Fair = β₁·GLI(t-45) + β₂·CLI(t-14) + β₃·VIX(t) + β₄·NetLiq(t-30) + ε
-```
+1.  **Macro-Only Model**: 
+    - **Formula**: `log(BTC) ~ β₁·GLI + β₂·CLI + β₃·VIX + β₄·NetLiq`
+    - **Focus**: Pure liquidity-driven valuation. It identifies how much of Bitcoin's price is explained solely by global monetary expansion and risk conditions.
 
-**Features:**
--   **Fair Value Regression**: Linear model trained on historical GLI/CLI/VIX/NetLiq data
--   **Deviation Bands**: ±1σ and ±2σ standard deviation zones
--   **Z-Score Signals**: Overvaluation (Z > +2) / Undervaluation (Z < -2) alerts
--   **Cross-Correlation Analysis**: Identifies optimal lag times (GLI leads BTC by ~45 days)
--   **ROC Momentum Comparison**: Side-by-side rate of change vs GLI and US Net Liquidity
+2.  **Adoption-Adjusted Model (Power Law)**:
+    - **Formula**: `log(BTC) ~ β₀·log(DaysSinceGenesis) + β₁·GLI + β₂·CLI + β₃·VIX + β₄·NetLiq`
+    - **Focus**: Combines the secular adoption trend (Power Law) with macro cyclicality. Uses **Ridge Regression** to handle the interplay between time and liquidity.
 
-**Use Cases:**
--   **Mean Reversion Trading**: Buy when Z < -2, sell when Z > +2
--   **Trend Confirmation**: ROC divergence between BTC and GLI signals reversals
--   **Risk Management**: Extreme deviations suggest elevated volatility risk
+**Features**:
+- **12+ Years of Data**: Models trained on daily data since 2012.
+- **Log-Space Analysis**: Ensures percentage-based accuracy across orders of magnitude.
+- **Dynamic Deviation Bands**: Proportional ±1σ and ±2σ Standard Deviation zones.
+- **Institutional Charting**: Interactive charts powered by **TradingView Lightweight Charts** (featuring log-scale and fluid zoom).
 
 ## 🛠️ Setup & Usage
 

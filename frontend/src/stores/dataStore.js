@@ -14,7 +14,15 @@ export const dashboardData = writable({
         price: [], fair_value: [], upper_2sd: [], upper_1sd: [],
         lower_1sd: [], lower_2sd: [], deviation_zscore: [], rocs: {}
     },
-    correlations: { gli_btc: {}, cli_btc: {}, vix_btc: {}, netliq_btc: {} }
+    correlations: { gli_btc: {}, cli_btc: {}, vix_btc: {}, netliq_btc: {} },
+    predictive: {
+        rocs: { dates: [], cli_7d: [], cli_14d: [], cli_30d: [], btc_7d: [], btc_14d: [], btc_30d: [] },
+        lag_correlations: {
+            '7d': { lags: [], correlations: [], optimal_lag: 0, max_corr: 0 },
+            '14d': { lags: [], correlations: [], optimal_lag: 0, max_corr: 0 },
+            '30d': { lags: [], correlations: [], optimal_lag: 0, max_corr: 0 }
+        }
+    }
 });
 
 export const isLoading = writable(true);

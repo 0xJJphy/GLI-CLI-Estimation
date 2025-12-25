@@ -10,9 +10,26 @@
   } from "./stores/dataStore";
   import StatsCard from "./lib/components/StatsCard.svelte";
   import Chart from "./lib/components/Chart.svelte";
+  import LightweightChart from "./lib/components/LightweightChart.svelte";
   import SignalBadge from "./lib/components/SignalBadge.svelte";
 
+  const formatTV = (dates, values) => {
+    if (!dates || !values || !Array.isArray(dates)) return [];
+    const points = [];
+    for (let i = 0; i < dates.length; i++) {
+      const val = values[i];
+      if (val === null || val === undefined || isNaN(val) || val <= 0) continue;
+      const dateStr = dates[i]; // Backend already provides YYYY-MM-DD
+      if (!dateStr || typeof dateStr !== "string") continue;
+      points.push({ time: dateStr, value: val });
+    }
+    // High-performance chronological sort
+    return points.sort((a, b) => (a.time > b.time ? 1 : -1));
+  };
+
   let currentTab = "Dashboard";
+  let selectedBtcModel = "macro"; // "macro" or "adoption"
+  let selectedLagWindow = "7d"; // "7d" | "14d" | "30d"
 
   onMount(() => {
     fetchData();
@@ -25,6 +42,16 @@
   const toggleSource = () => {
     selectedSource.update((s) => (s === "tv" ? "fred" : "tv"));
     fetchData();
+  };
+
+  $: activeBtcModel = $dashboardData.btc?.models?.[selectedBtcModel] || {
+    fair_value: [],
+    upper_1sd: [],
+    lower_1sd: [],
+    upper_2sd: [],
+    lower_2sd: [],
+    deviation_pct: [],
+    deviation_zscore: [],
   };
 
   // --- Chart Data Definitions ---
@@ -158,69 +185,81 @@
   // Bitcoin data
   $: btcFairValueData = [
     {
-      x: $dashboardData.dates,
-      y: $dashboardData.btc?.fair_value || [],
-      name: "Fair Value",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#10b981", width: 2, dash: "dot" },
-    },
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.btc?.upper_2sd || [],
-      name: "+2σ",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#ef4444", width: 1, dash: "dash" },
-      showlegend: true,
-    },
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.btc?.upper_1sd || [],
-      name: "+1σ",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#f59e0b", width: 1, dash: "dash" },
-      showlegend: true,
-    },
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.btc?.lower_1sd || [],
-      name: "-1σ",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#f59e0b", width: 1, dash: "dash" },
-      showlegend: true,
-    },
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.btc?.lower_2sd || [],
-      name: "-2σ",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#ef4444", width: 1, dash: "dash" },
-      showlegend: true,
-    },
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.btc?.price || [],
       name: "BTC Price",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#f7931a", width: 3 },
+      type: "area",
+      color: "#f7931a",
+      topColor: "rgba(247, 147, 26, 0.1)",
+      bottomColor: "rgba(247, 147, 26, 0)",
+      data: formatTV($dashboardData.dates, $dashboardData.btc?.price),
+      width: 3,
+    },
+    {
+      name: "Fair Value",
+      type: "line",
+      color: "#10b981",
+      data: formatTV($dashboardData.dates, activeBtcModel.fair_value),
+      width: 2,
+    },
+    {
+      name: "+2σ",
+      type: "line",
+      color: "#ef4444",
+      data: formatTV($dashboardData.dates, activeBtcModel.upper_2sd),
+      width: 1,
+      options: { lineStyle: 2 },
+    },
+    {
+      name: "+1σ",
+      type: "line",
+      color: "#f59e0b",
+      data: formatTV($dashboardData.dates, activeBtcModel.upper_1sd),
+      width: 1,
+      options: { lineStyle: 2 },
+    },
+    {
+      name: "-1σ",
+      type: "line",
+      color: "#f59e0b",
+      data: formatTV($dashboardData.dates, activeBtcModel.lower_1sd),
+      width: 1,
+      options: { lineStyle: 2 },
+    },
+    {
+      name: "-2σ",
+      type: "line",
+      color: "#ef4444",
+      data: formatTV($dashboardData.dates, activeBtcModel.lower_2sd),
+      width: 1,
+      options: { lineStyle: 2 },
     },
   ];
 
   $: btcDeviationData = [
     {
       x: $dashboardData.dates,
-      y: $dashboardData.btc?.deviation_zscore || [],
+      y: activeBtcModel.deviation_zscore || [],
       name: "Price Deviation (Z-Score)",
       type: "scatter",
       mode: "lines",
       line: { color: "#6366f1", width: 2 },
     },
   ];
+
+  $: btcLayout = {
+    xaxis: {
+      range: (() => {
+        const prices = $dashboardData.btc?.price || [];
+        const firstIdx = prices.findIndex((p) => p !== null);
+        if (firstIdx !== -1) {
+          return [
+            $dashboardData.dates[firstIdx],
+            $dashboardData.dates[prices.length - 1],
+          ];
+        }
+        return undefined;
+      })(),
+    },
+  };
 
   $: correlationData = (() => {
     const corrs = $dashboardData.correlations || {};
@@ -256,6 +295,27 @@
         type: "scatter",
         mode: "lines",
         line: { color: "#10b981", width: 2 },
+      },
+    ];
+  })();
+
+  $: lagCorrelationChartData = (() => {
+    const lagData =
+      $dashboardData.predictive?.lag_correlations?.[selectedLagWindow];
+    if (!lagData || !lagData.lags || !lagData.correlations) return [];
+
+    const optimalLag = lagData.optimal_lag || 0;
+    const colors = lagData.lags.map((lag) =>
+      lag === optimalLag ? "#10b981" : "#6366f1",
+    );
+
+    return [
+      {
+        x: lagData.lags,
+        y: lagData.correlations.map((c) => (c !== null ? c * 100 : null)), // Convert to percentage
+        name: `${selectedLagWindow.toUpperCase()} ROC Lag Correlation`,
+        type: "bar",
+        marker: { color: colors },
       },
     ];
   })();
@@ -821,20 +881,43 @@
           <!-- BTC Price vs Fair Value -->
           <div class="chart-card wide">
             <div class="chart-header">
-              <h3>₿ Bitcoin: Price vs Fair Value Model</h3>
-              <span class="last-date"
-                >GLI-based regression + CLI risk adjustment</span
-              >
+              <div class="header-with-toggle">
+                <h3>₿ Bitcoin: Price vs Fair Value Model</h3>
+                <div class="model-toggle">
+                  <button
+                    class="toggle-btn"
+                    class:active={selectedBtcModel === "macro"}
+                    on:click={() => (selectedBtcModel = "macro")}
+                  >
+                    Macro-Only
+                  </button>
+                  <button
+                    class="toggle-btn"
+                    class:active={selectedBtcModel === "adoption"}
+                    on:click={() => (selectedBtcModel = "adoption")}
+                  >
+                    Adoption-Adjusted
+                  </button>
+                </div>
+              </div>
+              <span class="last-date">
+                {selectedBtcModel === "macro"
+                  ? "Liquidity-driven regression"
+                  : "Adoption curve + Liquidity regression"}
+              </span>
             </div>
-            <div class="chart-content">
-              <Chart data={btcFairValueData} yType="log" />
+            <div class="chart-content tv-chart-wrap">
+              <LightweightChart data={btcFairValueData} logScale={true} />
+              <div class="debug-chart-info">
+                Points: {btcFairValueData[0]?.data?.length || 0}
+              </div>
             </div>
           </div>
 
           <!-- Deviation Stats -->
           <div class="chart-card">
             <div class="chart-header">
-              <h3>Current Valuation</h3>
+              <h3>Current Valuation ({selectedBtcModel.toUpperCase()})</h3>
             </div>
             <div class="btc-stats">
               <div class="btc-stat-item">
@@ -848,9 +931,9 @@
               <div class="btc-stat-item">
                 <span class="btc-label">Fair Value</span>
                 <span class="btc-value fair">
-                  ${getLatestValue(
-                    $dashboardData.btc?.fair_value,
-                  )?.toLocaleString() || "N/A"}
+                  ${Math.round(
+                    getLatestValue(activeBtcModel.fair_value) || 0,
+                  ).toLocaleString()}
                 </span>
               </div>
               <div class="btc-stat-item">
@@ -858,15 +941,14 @@
                 <span
                   class="btc-value deviation"
                   class:overvalued={getLatestValue(
-                    $dashboardData.btc?.deviation_pct,
+                    activeBtcModel.deviation_pct,
                   ) > 0}
                   class:undervalued={getLatestValue(
-                    $dashboardData.btc?.deviation_pct,
+                    activeBtcModel.deviation_pct,
                   ) < 0}
                 >
-                  {getLatestValue($dashboardData.btc?.deviation_pct)?.toFixed(
-                    1,
-                  ) || "0"}%
+                  {getLatestValue(activeBtcModel.deviation_pct)?.toFixed(1) ||
+                    "0"}%
                 </span>
               </div>
               <div class="btc-stat-item">
@@ -874,14 +956,90 @@
                 <span
                   class="btc-value zscore"
                   class:extreme={Math.abs(
-                    getLatestValue($dashboardData.btc?.deviation_zscore) || 0,
+                    getLatestValue(activeBtcModel.deviation_zscore) || 0,
                   ) > 2}
                 >
-                  {getLatestValue(
-                    $dashboardData.btc?.deviation_zscore,
-                  )?.toFixed(2) || "0"}σ
+                  {getLatestValue(activeBtcModel.deviation_zscore)?.toFixed(
+                    2,
+                  ) || "0"}σ
                 </span>
               </div>
+            </div>
+          </div>
+
+          <!-- Predictive Signals (CLI vs BTC Lag Correlation) -->
+          <div class="chart-card wide">
+            <div class="chart-header">
+              <h3>🔮 Predictive Signals: CLI → BTC Lag Analysis</h3>
+              <div class="model-toggle">
+                <button
+                  class="toggle-btn"
+                  class:active={selectedLagWindow === "7d"}
+                  on:click={() => (selectedLagWindow = "7d")}
+                >
+                  7D
+                </button>
+                <button
+                  class="toggle-btn"
+                  class:active={selectedLagWindow === "14d"}
+                  on:click={() => (selectedLagWindow = "14d")}
+                >
+                  14D
+                </button>
+                <button
+                  class="toggle-btn"
+                  class:active={selectedLagWindow === "30d"}
+                  on:click={() => (selectedLagWindow = "30d")}
+                >
+                  30D
+                </button>
+              </div>
+            </div>
+            <div class="predictive-stats">
+              <div class="pred-stat">
+                <span class="pred-label">ROC Window</span>
+                <span class="pred-value">{selectedLagWindow.toUpperCase()}</span
+                >
+              </div>
+              <div class="pred-stat">
+                <span class="pred-label">Optimal Lag</span>
+                <span class="pred-value highlight">
+                  {$dashboardData.predictive?.lag_correlations?.[
+                    selectedLagWindow
+                  ]?.optimal_lag || 0} days
+                </span>
+              </div>
+              <div class="pred-stat">
+                <span class="pred-label">Max Correlation</span>
+                <span
+                  class="pred-value"
+                  class:positive={($dashboardData.predictive
+                    ?.lag_correlations?.[selectedLagWindow]?.max_corr || 0) > 0}
+                  class:negative={($dashboardData.predictive
+                    ?.lag_correlations?.[selectedLagWindow]?.max_corr || 0) < 0}
+                >
+                  {(
+                    ($dashboardData.predictive?.lag_correlations?.[
+                      selectedLagWindow
+                    ]?.max_corr || 0) * 100
+                  ).toFixed(2)}%
+                </span>
+              </div>
+              <div class="pred-stat">
+                <span class="pred-label">Interpretation</span>
+                <span class="pred-value small">
+                  {#if ($dashboardData.predictive?.lag_correlations?.[selectedLagWindow]?.optimal_lag || 0) > 0}
+                    CLI change today may predict BTC in ~{$dashboardData
+                      .predictive?.lag_correlations?.[selectedLagWindow]
+                      ?.optimal_lag} days
+                  {:else}
+                    CLI and BTC move simultaneously
+                  {/if}
+                </span>
+              </div>
+            </div>
+            <div class="chart-content">
+              <Chart data={lagCorrelationChartData} />
             </div>
           </div>
 
@@ -1292,6 +1450,12 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   }
 
+  /* Specificity fix for Indigo theme on dark toggle */
+  .model-toggle .toggle-btn.active {
+    background: #6366f1;
+    color: white !important;
+  }
+
   .source-announcement {
     display: flex;
     align-items: center;
@@ -1388,6 +1552,43 @@
     border-radius: 6px;
   }
 
+  .header-with-toggle {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .model-toggle {
+    display: flex;
+    gap: 8px;
+    background: #f1f5f9;
+    padding: 4px;
+    border-radius: 8px;
+    width: fit-content;
+  }
+
+  .model-toggle .toggle-btn {
+    padding: 6px 16px;
+    font-size: 0.75rem;
+    border: none; /* Reset boarder from base .toggle-btn */
+    background: transparent;
+    color: #64748b;
+    box-shadow: none;
+  }
+
+  .model-toggle .toggle-btn.active {
+    background: #ffffff;
+    color: #6366f1;
+    font-weight: 700;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Specificity fix for Indigo theme on dark toggle */
+  .model-toggle .toggle-btn.active {
+    background: #6366f1;
+    color: white !important;
+  }
+
   .roc-section {
     margin-top: 40px;
     max-width: 1600px;
@@ -1453,8 +1654,25 @@
   }
 
   .chart-content {
-    min-height: 400px;
-    flex: 1;
+    min-height: 500px;
+    height: 500px;
+    flex: none; /* Force fixed height to rule out flex issues */
+    width: 100%;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .debug-chart-info {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.4);
+    color: white;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    pointer-events: none;
+    z-index: 100;
   }
 
   .loader {
@@ -1583,6 +1801,61 @@
     }
     .btc-stats {
       grid-template-columns: 1fr;
+    }
+  }
+
+  /* Predictive Signals Stats */
+  .predictive-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    padding: 16px;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-radius: 8px;
+    margin-bottom: 16px;
+  }
+
+  .pred-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .pred-label {
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748b;
+  }
+
+  .pred-value {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1e293b;
+  }
+
+  .pred-value.highlight {
+    color: #6366f1;
+  }
+
+  .pred-value.positive {
+    color: #10b981;
+  }
+
+  .pred-value.negative {
+    color: #ef4444;
+  }
+
+  .pred-value.small {
+    font-size: 13px;
+    font-weight: 500;
+    color: #475569;
+  }
+
+  @media (max-width: 900px) {
+    .predictive-stats {
+      grid-template-columns: repeat(2, 1fr);
     }
   }
 
