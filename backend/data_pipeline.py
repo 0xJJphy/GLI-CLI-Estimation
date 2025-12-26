@@ -901,8 +901,48 @@ def run_pipeline():
     print("Fetching FRED Baseline Data (Trillions)...")
     dfs_fred_t = {}
     raw_fred = {}
+    cached_fred_file = os.path.join(OUTPUT_DIR, 'fred_cache_data.json')
+    
+    # Load cached FRED data if exists
+    cached_fred = {}
+    if os.path.exists(cached_fred_file):
+        try:
+            with open(cached_fred_file, 'r') as f:
+                cached_fred = json.load(f)
+        except Exception:
+            cached_fred = {}
+    
+    fred_fetched = 0
+    fred_cached = 0
     for sid, name in FRED_CONFIG.items():
-        raw_fred[name] = fetch_fred_series(sid, name)
+        # FRED updates daily, use 24 hour cache
+        if not check_data_freshness(f"FRED_{name}", cache_hours=24) and name in cached_fred:
+            # Use cached data
+            raw_fred[name] = pd.Series(cached_fred[name]['values'], 
+                                       index=pd.to_datetime(cached_fred[name]['dates']), 
+                                       name=name)
+            fred_cached += 1
+        else:
+            # Fetch fresh data
+            s = fetch_fred_series(sid, name)
+            if not s.empty:
+                raw_fred[name] = s
+                update_cache_timestamp(f"FRED_{name}")
+                # Cache the data
+                cached_fred[name] = {
+                    'dates': s.index.strftime('%Y-%m-%d').tolist(),
+                    'values': s.tolist()
+                }
+                fred_fetched += 1
+    
+    # Save updated FRED cache
+    try:
+        with open(cached_fred_file, 'w') as f:
+            json.dump(cached_fred, f)
+    except Exception as e:
+        print(f"Warning: Could not save FRED cache: {e}")
+    
+    print(f"  -> Fetched {fred_fetched} FRED symbols, used cache for {fred_cached} symbols")
     
     # Unit Logic for FRED -> Trillions
     df_fred = pd.DataFrame(index=pd.concat(raw_fred.values()).index.unique()).sort_index()
@@ -926,10 +966,50 @@ def run_pipeline():
     # 2. Fetch TV and Normalize to Trillions
     print("Fetching TradingView Update Data (Trillions)...")
     raw_tv = {}
+    cached_data_file = os.path.join(OUTPUT_DIR, 'tv_cache_data.json')
+    
+    # Load cached TV data if exists
+    cached_tv = {}
+    if os.path.exists(cached_data_file):
+        try:
+            with open(cached_data_file, 'r') as f:
+                cached_tv = json.load(f)
+        except Exception:
+            cached_tv = {}
+    
     if tv:
+        symbols_fetched = 0
+        symbols_cached = 0
         for symbol, (exchange, name) in TV_CONFIG.items():
-            s = fetch_tv_series(symbol, exchange, name, n_bars=5000)
-            if not s.empty: raw_tv[name] = s
+            # Check if cache is still fresh (12 hours for most data)
+            cache_hours = 12 if exchange == "ECONOMICS" else 1  # FX updates more frequently
+            if not check_data_freshness(name, cache_hours=cache_hours) and name in cached_tv:
+                # Use cached data
+                raw_tv[name] = pd.Series(cached_tv[name]['values'], 
+                                         index=pd.to_datetime(cached_tv[name]['dates']), 
+                                         name=name)
+                symbols_cached += 1
+            else:
+                # Fetch fresh data
+                s = fetch_tv_series(symbol, exchange, name, n_bars=5000)
+                if not s.empty:
+                    raw_tv[name] = s
+                    update_cache_timestamp(name)
+                    # Cache the data
+                    cached_tv[name] = {
+                        'dates': s.index.strftime('%Y-%m-%d').tolist(),
+                        'values': s.tolist()
+                    }
+                    symbols_fetched += 1
+        
+        # Save updated cache
+        try:
+            with open(cached_data_file, 'w') as f:
+                json.dump(cached_tv, f)
+        except Exception as e:
+            print(f"Warning: Could not save cache: {e}")
+        
+        print(f"  -> Fetched {symbols_fetched} symbols, used cache for {symbols_cached} symbols")
     
     df_tv_t = pd.DataFrame(index=pd.concat(raw_tv.values()).index.unique() if raw_tv else []).sort_index()
     if raw_tv:

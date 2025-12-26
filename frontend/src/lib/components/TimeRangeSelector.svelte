@@ -7,6 +7,7 @@
         { value: "6M", label: "6M" },
         { value: "1Y", label: "1Y" },
         { value: "3Y", label: "3Y" },
+        { value: "5Y", label: "5Y" },
         { value: "ALL", label: "ALL" },
     ];
 

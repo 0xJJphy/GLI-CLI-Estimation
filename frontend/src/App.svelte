@@ -25,6 +25,8 @@
   let cliRange = "ALL";
   let btcRange = "ALL";
   let m2Range = "ALL";
+  let vixRange = "ALL";
+  let spreadRange = "ALL";
 
   // Helper to get cutoff date based on range
   const getCutoffDate = (range) => {
@@ -41,6 +43,8 @@
         return new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
       case "3Y":
         return new Date(now.getFullYear() - 3, now.getMonth(), now.getDate());
+      case "5Y":
+        return new Date(now.getFullYear() - 5, now.getMonth(), now.getDate());
       default:
         return null;
     }
@@ -129,7 +133,7 @@
   ];
   $: gliData = filterPlotlyData(gliDataRaw, $dashboardData.dates, gliRange);
 
-  $: fedData = [
+  $: fedDataRaw = [
     {
       x: $dashboardData.dates,
       y: $dashboardData.gli.fed,
@@ -141,8 +145,9 @@
       fillcolor: "rgba(59, 130, 246, 0.05)",
     },
   ];
+  $: fedData = filterPlotlyData(fedDataRaw, $dashboardData.dates, fedRange);
 
-  $: ecbData = [
+  $: ecbDataRaw = [
     {
       x: $dashboardData.dates,
       y: $dashboardData.gli.ecb,
@@ -154,8 +159,9 @@
       fillcolor: "rgba(139, 92, 246, 0.05)",
     },
   ];
+  $: ecbData = filterPlotlyData(ecbDataRaw, $dashboardData.dates, ecbRange);
 
-  $: bojData = [
+  $: bojDataRaw = [
     {
       x: $dashboardData.dates,
       y: $dashboardData.gli.boj,
@@ -167,8 +173,9 @@
       fillcolor: "rgba(244, 63, 94, 0.05)",
     },
   ];
+  $: bojData = filterPlotlyData(bojDataRaw, $dashboardData.dates, bojRange);
 
-  $: boeData = [
+  $: boeDataRaw = [
     {
       x: $dashboardData.dates,
       y: $dashboardData.gli.boe,
@@ -180,8 +187,9 @@
       fillcolor: "rgba(245, 158, 11, 0.05)",
     },
   ];
+  $: boeData = filterPlotlyData(boeDataRaw, $dashboardData.dates, boeRange);
 
-  $: pbocData = [
+  $: pbocDataRaw = [
     {
       x: $dashboardData.dates,
       y: $dashboardData.gli.pboc,
@@ -193,8 +201,9 @@
       fillcolor: "rgba(16, 185, 129, 0.05)",
     },
   ];
+  $: pbocData = filterPlotlyData(pbocDataRaw, $dashboardData.dates, pbocRange);
 
-  $: netLiqData = [
+  $: netLiqDataRaw = [
     {
       x: $dashboardData.dates,
       y: $dashboardData.us_net_liq,
@@ -206,8 +215,13 @@
       fillcolor: "rgba(16, 185, 129, 0.05)",
     },
   ];
+  $: netLiqData = filterPlotlyData(
+    netLiqDataRaw,
+    $dashboardData.dates,
+    netLiqRange,
+  );
 
-  $: cliData = [
+  $: cliDataRaw = [
     {
       x: $dashboardData.dates,
       y: $dashboardData.cli,
@@ -217,6 +231,7 @@
       line: { color: "#f59e0b", width: 3, shape: "spline" },
     },
   ];
+  $: cliData = filterPlotlyData(cliDataRaw, $dashboardData.dates, cliRange);
 
   $: vixData = [
     {
@@ -751,7 +766,13 @@
                 <h3>US Net Liquidity</h3>
                 <SignalBadge type={liqSignal} text={liqSignal} />
               </div>
-              <span class="last-date">Last Data: {getLastDate("FED")}</span>
+              <div class="header-controls">
+                <TimeRangeSelector
+                  selectedRange={netLiqRange}
+                  onRangeChange={(r) => (netLiqRange = r)}
+                />
+                <span class="last-date">Last Data: {getLastDate("FED")}</span>
+              </div>
             </div>
             <div class="chart-content">
               <Chart data={netLiqData} />
@@ -763,7 +784,13 @@
               <div class="label-group">
                 <h3>Credit Liquidity Index (CLI)</h3>
               </div>
-              <span class="last-date">Last Data: {getLastDate("NFCI")}</span>
+              <div class="header-controls">
+                <TimeRangeSelector
+                  selectedRange={cliRange}
+                  onRangeChange={(r) => (cliRange = r)}
+                />
+                <span class="last-date">Last Data: {getLastDate("NFCI")}</span>
+              </div>
             </div>
             <div class="chart-content">
               <Chart data={cliData} />
@@ -775,7 +802,13 @@
           <div class="chart-card wide">
             <div class="chart-header">
               <h3>Global Liquidity Index (Aggregate)</h3>
-              <span class="last-date">Last Data: {getLastDate("PBOC")}</span>
+              <div class="header-controls">
+                <TimeRangeSelector
+                  selectedRange={gliRange}
+                  onRangeChange={(r) => (gliRange = r)}
+                />
+                <span class="last-date">Last Data: {getLastDate("PBOC")}</span>
+              </div>
             </div>
             <div class="chart-content">
               <Chart data={gliData} />
@@ -784,7 +817,13 @@
           <div class="chart-card">
             <div class="chart-header">
               <h3>Federal Reserve (Fed)</h3>
-              <span class="last-date">Last Data: {getLastDate("FED")}</span>
+              <div class="header-controls">
+                <TimeRangeSelector
+                  selectedRange={fedRange}
+                  onRangeChange={(r) => (fedRange = r)}
+                />
+                <span class="last-date">Last Data: {getLastDate("FED")}</span>
+              </div>
             </div>
             <div class="chart-content">
               <Chart data={fedData} />
@@ -793,7 +832,13 @@
           <div class="chart-card">
             <div class="chart-header">
               <h3>European Central Bank (ECB)</h3>
-              <span class="last-date">Last Data: {getLastDate("ECB")}</span>
+              <div class="header-controls">
+                <TimeRangeSelector
+                  selectedRange={ecbRange}
+                  onRangeChange={(r) => (ecbRange = r)}
+                />
+                <span class="last-date">Last Data: {getLastDate("ECB")}</span>
+              </div>
             </div>
             <div class="chart-content">
               <Chart data={ecbData} />
@@ -802,7 +847,13 @@
           <div class="chart-card">
             <div class="chart-header">
               <h3>Bank of Japan (BoJ)</h3>
-              <span class="last-date">Last Data: {getLastDate("BOJ")}</span>
+              <div class="header-controls">
+                <TimeRangeSelector
+                  selectedRange={bojRange}
+                  onRangeChange={(r) => (bojRange = r)}
+                />
+                <span class="last-date">Last Data: {getLastDate("BOJ")}</span>
+              </div>
             </div>
             <div class="chart-content">
               <Chart data={bojData} />
@@ -811,7 +862,13 @@
           <div class="chart-card">
             <div class="chart-header">
               <h3>Bank of England (BoE)</h3>
-              <span class="last-date">Last Data: {getLastDate("BOE")}</span>
+              <div class="header-controls">
+                <TimeRangeSelector
+                  selectedRange={boeRange}
+                  onRangeChange={(r) => (boeRange = r)}
+                />
+                <span class="last-date">Last Data: {getLastDate("BOE")}</span>
+              </div>
             </div>
             <div class="chart-content">
               <Chart data={boeData} />
@@ -820,10 +877,34 @@
           <div class="chart-card wide">
             <div class="chart-header">
               <h3>People's Bank of China (PBoC)</h3>
-              <span class="last-date">Last Data: {getLastDate("PBOC")}</span>
+              <div class="header-controls">
+                <TimeRangeSelector
+                  selectedRange={pbocRange}
+                  onRangeChange={(r) => (pbocRange = r)}
+                />
+                <span class="last-date">Last Data: {getLastDate("PBOC")}</span>
+              </div>
             </div>
             <div class="chart-content">
               <Chart data={pbocData} />
+            </div>
+          </div>
+        </div>
+      {:else if currentTab === "Global M2"}
+        <div class="main-charts">
+          <div class="chart-card wide">
+            <div class="chart-header">
+              <h3>Global M2 Money Supply (14 Economies)</h3>
+              <div class="header-controls">
+                <TimeRangeSelector
+                  selectedRange={m2Range}
+                  onRangeChange={(r) => (m2Range = r)}
+                />
+                <span class="last-date">Last Data: {getLastDate("PBOC")}</span>
+              </div>
+            </div>
+            <div class="chart-content">
+              <Chart data={gliData} />
             </div>
           </div>
         </div>
@@ -832,7 +913,13 @@
           <div class="chart-card wide">
             <div class="chart-header">
               <h3>US Net Liquidity Trends</h3>
-              <span class="last-date">Last Data: {getLastDate("FED")}</span>
+              <div class="header-controls">
+                <TimeRangeSelector
+                  selectedRange={netLiqRange}
+                  onRangeChange={(r) => (netLiqRange = r)}
+                />
+                <span class="last-date">Last Data: {getLastDate("FED")}</span>
+              </div>
             </div>
             <div class="chart-content">
               <Chart data={netLiqData} />
@@ -841,7 +928,13 @@
           <div class="chart-card">
             <div class="chart-header">
               <h3>Fed Assets (USD Trillion)</h3>
-              <span class="last-date">Last Data: {getLastDate("FED")}</span>
+              <div class="header-controls">
+                <TimeRangeSelector
+                  selectedRange={fedRange}
+                  onRangeChange={(r) => (fedRange = r)}
+                />
+                <span class="last-date">Last Data: {getLastDate("FED")}</span>
+              </div>
             </div>
             <div class="chart-content">
               <Chart data={fedData} />
@@ -850,7 +943,13 @@
           <div class="chart-card">
             <div class="chart-header">
               <h3>US Credit Conditions</h3>
-              <span class="last-date">Last Data: {getLastDate("NFCI")}</span>
+              <div class="header-controls">
+                <TimeRangeSelector
+                  selectedRange={cliRange}
+                  onRangeChange={(r) => (cliRange = r)}
+                />
+                <span class="last-date">Last Data: {getLastDate("NFCI")}</span>
+              </div>
             </div>
             <div class="chart-content">
               <Chart data={cliData} />
@@ -862,7 +961,13 @@
           <div class="chart-card wide">
             <div class="chart-header">
               <h3>Credit Risk Premium</h3>
-              <span class="last-date">Last Data: {getLastDate("NFCI")}</span>
+              <div class="header-controls">
+                <TimeRangeSelector
+                  selectedRange={cliRange}
+                  onRangeChange={(r) => (cliRange = r)}
+                />
+                <span class="last-date">Last Data: {getLastDate("NFCI")}</span>
+              </div>
             </div>
             <div class="chart-content">
               <Chart data={cliData} />
@@ -871,7 +976,13 @@
           <div class="chart-card">
             <div class="chart-header">
               <h3>Volatility (VIX)</h3>
-              <span class="last-date">Last Data: {getLastDate("VIX")}</span>
+              <div class="header-controls">
+                <TimeRangeSelector
+                  selectedRange={vixRange}
+                  onRangeChange={(r) => (vixRange = r)}
+                />
+                <span class="last-date">Last Data: {getLastDate("VIX")}</span>
+              </div>
             </div>
             <div class="chart-content">
               <Chart data={vixData} />
@@ -880,9 +991,15 @@
           <div class="chart-card">
             <div class="chart-header">
               <h3>High Yield OAS</h3>
-              <span class="last-date"
-                >Last Data: {getLastDate("HY_SPREAD")}</span
-              >
+              <div class="header-controls">
+                <TimeRangeSelector
+                  selectedRange={spreadRange}
+                  onRangeChange={(r) => (spreadRange = r)}
+                />
+                <span class="last-date"
+                  >Last Data: {getLastDate("HY_SPREAD")}</span
+                >
+              </div>
             </div>
             <div class="chart-content">
               <Chart data={spreadData} />
