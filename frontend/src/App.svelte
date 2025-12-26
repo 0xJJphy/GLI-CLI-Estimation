@@ -6,13 +6,37 @@
     latestStats,
     isLoading,
     error,
-    selectedSource,
   } from "./stores/dataStore";
   import StatsCard from "./lib/components/StatsCard.svelte";
   import Chart from "./lib/components/Chart.svelte";
   import LightweightChart from "./lib/components/LightweightChart.svelte";
   import SignalBadge from "./lib/components/SignalBadge.svelte";
   import TimeRangeSelector from "./lib/components/TimeRangeSelector.svelte";
+
+  // Dark mode state
+  let darkMode = false;
+
+  // Initialize dark mode from localStorage on mount
+  onMount(() => {
+    const savedTheme = localStorage.getItem("theme");
+    darkMode = savedTheme === "dark";
+    applyTheme();
+  });
+
+  function toggleDarkMode() {
+    darkMode = !darkMode;
+    localStorage.setItem("theme", darkMode ? "dark" : "light");
+    applyTheme();
+  }
+
+  function applyTheme() {
+    if (typeof document !== "undefined") {
+      document.documentElement.setAttribute(
+        "data-theme",
+        darkMode ? "dark" : "light",
+      );
+    }
+  }
 
   // Individual time range state for each chart section
   let gliRange = "ALL";
@@ -191,11 +215,6 @@
 
   const setTab = (tab) => {
     currentTab = tab;
-  };
-
-  const toggleSource = () => {
-    selectedSource.update((s) => (s === "tv" ? "fred" : "tv"));
-    fetchData();
   };
 
   $: activeBtcModel = $dashboardData.btc?.models?.[selectedBtcModel] || {
@@ -1417,6 +1436,14 @@
     </nav>
 
     <div class="sidebar-footer">
+      <button
+        class="theme-toggle"
+        on:click={toggleDarkMode}
+        title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+      >
+        <span class="theme-icon">{darkMode ? "☀️" : "🌙"}</span>
+        <span class="theme-text">{darkMode ? "Light" : "Dark"}</span>
+      </button>
       <div class="status-indicator">
         <div class="pulse"></div>
         System Live
@@ -1434,22 +1461,6 @@
         </p>
       </div>
       <div class="header-actions">
-        <div class="source-toggle">
-          <button
-            class="toggle-btn"
-            class:active={$selectedSource === "fred"}
-            on:click={toggleSource}
-          >
-            FRED
-          </button>
-          <button
-            class="toggle-btn"
-            class:active={$selectedSource === "tv"}
-            on:click={toggleSource}
-          >
-            TV Hybrid
-          </button>
-        </div>
         {#if $isLoading}
           <div class="loader"></div>
         {:else}
@@ -1457,17 +1468,6 @@
         {/if}
       </div>
     </header>
-    {#if $selectedSource === "fred"}
-      <div class="source-announcement">
-        <span class="info-icon">ℹ️</span>
-        <p>
-          <strong>Notice:</strong> FRED data utilizes
-          <strong>M3 Money Supply</strong> proxies for Global Liquidity calculation.
-          This results in higher totals (~60T) compared to Central Bank Assets (~26T)
-          used in TV Hybrid.
-        </p>
-      </div>
-    {/if}
 
     {#if $error}
       <div class="error-banner">
@@ -3168,17 +3168,53 @@
 </div>
 
 <style>
+  /* CSS Variables for Theme */
+  :global(:root) {
+    --bg-primary: #f8fafc;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #f1f5f9;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
+    --border-color: #e2e8f0;
+    --accent-primary: #4f46e5;
+    --accent-secondary: #3b82f6;
+    --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    --chart-description-bg: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    --positive-color: #059669;
+    --negative-color: #dc2626;
+  }
+
+  :global([data-theme="dark"]) {
+    --bg-primary: #0f172a;
+    --bg-secondary: #1e293b;
+    --bg-tertiary: #334155;
+    --text-primary: #f8fafc;
+    --text-secondary: #cbd5e1;
+    --text-muted: #94a3b8;
+    --border-color: #334155;
+    --accent-primary: #6366f1;
+    --accent-secondary: #60a5fa;
+    --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --chart-description-bg: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    --positive-color: #10b981;
+    --negative-color: #f87171;
+  }
+
   :global(body) {
     margin: 0;
     padding: 0;
-    background: #f8fafc;
-    color: #0f172a;
+    background: var(--bg-primary);
+    color: var(--text-primary);
     font-family:
       "Inter",
       -apple-system,
       system-ui,
       sans-serif;
     overflow-x: hidden;
+    transition:
+      background-color 0.3s ease,
+      color 0.3s ease;
   }
 
   .app-container {
@@ -3189,12 +3225,15 @@
 
   .sidebar {
     width: 280px;
-    background: #ffffff;
-    border-right: 1px solid #e2e8f0;
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
     padding: 40px 24px;
     flex-shrink: 0;
+    transition:
+      background-color 0.3s ease,
+      border-color 0.3s ease;
   }
 
   .brand {
@@ -3223,12 +3262,12 @@
     margin: 0;
     font-size: 1.25rem;
     font-weight: 700;
-    color: #0f172a;
+    color: var(--text-primary);
   }
 
   .brand-text span {
     font-size: 0.75rem;
-    color: #64748b;
+    color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     font-weight: 600;
@@ -3244,7 +3283,7 @@
     padding: 12px 16px;
     border-radius: 12px;
     font-size: 0.9375rem;
-    color: #64748b;
+    color: var(--text-muted);
     cursor: pointer;
     transition: all 0.2s;
     display: flex;
@@ -3258,19 +3297,52 @@
   }
 
   .nav-item:hover {
-    background: #f1f5f9;
-    color: #0f172a;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
   }
 
   .nav-item.active {
-    background: #eef2ff;
-    color: #4f46e5;
+    background: rgba(79, 70, 229, 0.1);
+    color: var(--accent-primary);
     font-weight: 600;
   }
 
   .sidebar-footer {
     margin-top: auto;
     padding: 0 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .theme-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-tertiary);
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    transition: all 0.2s;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .theme-toggle:hover {
+    background: var(--accent-primary);
+    color: white;
+    border-color: var(--accent-primary);
+  }
+
+  .theme-icon {
+    font-size: 1rem;
+  }
+
+  .theme-text {
+    font-weight: 500;
   }
 
   .status-indicator {
@@ -3278,7 +3350,7 @@
     align-items: center;
     gap: 10px;
     font-size: 0.8125rem;
-    color: #64748b;
+    color: var(--text-muted);
     font-weight: 500;
   }
 
@@ -3310,7 +3382,8 @@
     flex: 1;
     padding: 48px;
     overflow-y: auto;
-    background: #f8fafc;
+    background: var(--bg-primary);
+    transition: background-color 0.3s ease;
   }
 
   header {
@@ -3326,41 +3399,33 @@
     margin: 0 0 4px 0;
     font-size: 2.25rem;
     font-weight: 800;
-    color: #0f172a;
+    color: var(--text-primary);
     letter-spacing: -0.025em;
   }
 
   .content-header p {
     margin: 0;
-    color: #64748b;
+    color: var(--text-muted);
     font-size: 1.125rem;
   }
 
   .refresh-btn {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    color: #0f172a;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
     padding: 10px 20px;
     border-radius: 12px;
     font-size: 0.875rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--card-shadow);
   }
 
   .refresh-btn:hover {
-    background: #f8fafc;
-    border-color: #cbd5e1;
+    background: var(--bg-tertiary);
+    border-color: var(--accent-secondary);
     transform: translateY(-1px);
-  }
-
-  .source-toggle {
-    display: flex;
-    background: #f1f5f9;
-    padding: 4px;
-    border-radius: 12px;
-    margin-right: 16px;
   }
 
   .toggle-btn {
@@ -3371,39 +3436,20 @@
     font-size: 0.75rem;
     font-weight: 700;
     cursor: pointer;
-    color: #64748b;
+    color: var(--text-muted);
     transition: all 0.2s;
   }
 
   .toggle-btn.active {
-    background: #ffffff;
-    color: #4f46e5;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    background: var(--bg-secondary);
+    color: var(--accent-primary);
+    box-shadow: var(--card-shadow);
   }
 
   /* Specificity fix for Indigo theme on dark toggle */
   .model-toggle .toggle-btn.active {
     background: #6366f1;
     color: white !important;
-  }
-
-  .source-announcement {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    background: #eff6ff;
-    border: 1px solid #bfdbfe;
-    padding: 10px 16px;
-    border-radius: 12px;
-    margin-top: 16px;
-    animation: slideDown 0.3s ease-out;
-  }
-
-  .source-announcement p {
-    font-size: 0.75rem;
-    color: #1e40af;
-    line-height: 1.4;
-    margin: 0;
   }
 
   @keyframes slideDown {
@@ -3447,13 +3493,16 @@
   }
 
   .chart-card {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
     border-radius: 24px;
     padding: 32px;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--card-shadow);
+    transition:
+      background-color 0.3s ease,
+      border-color 0.3s ease;
   }
 
   .wide {
@@ -3471,14 +3520,14 @@
     margin: 0;
     font-size: 1.125rem;
     font-weight: 700;
-    color: #1e293b;
+    color: var(--text-primary);
   }
 
   .last-date {
     font-size: 0.75rem;
-    color: #94a3b8;
+    color: var(--text-muted);
     font-weight: 600;
-    background: #f1f5f9;
+    background: var(--bg-tertiary);
     padding: 4px 10px;
     border-radius: 6px;
   }
@@ -3492,7 +3541,7 @@
   .model-toggle {
     display: flex;
     gap: 8px;
-    background: #f1f5f9;
+    background: var(--bg-tertiary);
     padding: 4px;
     border-radius: 8px;
     width: fit-content;
@@ -3596,16 +3645,16 @@
   .chart-description {
     margin: 8px 0 16px 0;
     padding: 12px 16px;
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    background: var(--chart-description-bg);
     border-radius: 8px;
     font-size: 0.85rem;
-    color: #475569;
+    color: var(--text-secondary);
     line-height: 1.5;
-    border-left: 3px solid #3b82f6;
+    border-left: 3px solid var(--accent-secondary);
   }
 
   .chart-description strong {
-    color: #1e293b;
+    color: var(--text-primary);
     font-weight: 600;
   }
 
@@ -3625,8 +3674,8 @@
   .loader {
     width: 28px;
     height: 28px;
-    border: 3px solid #f1f5f9;
-    border-top-color: #4f46e5;
+    border: 3px solid var(--bg-tertiary);
+    border-top-color: var(--accent-primary);
     border-radius: 50%;
     animation: spin 1s linear infinite;
   }
@@ -3634,12 +3683,12 @@
   /* FX Toggle Styles */
   .fx-toggle {
     display: flex;
-    background: #f1f5f9;
+    background: var(--bg-tertiary);
     padding: 2px;
     border-radius: 8px;
     gap: 2px;
     margin-right: 8px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--border-color);
   }
 
   .fx-btn {
