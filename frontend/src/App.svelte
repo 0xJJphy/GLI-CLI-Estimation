@@ -936,7 +936,7 @@
         <div class="main-charts">
           <div class="chart-card wide">
             <div class="chart-header">
-              <h3>Global M2 Money Supply (14 Economies)</h3>
+              <h3>Global Liquidity Index (Aggregate M2 Proxy)</h3>
               <div class="header-controls">
                 <TimeRangeSelector
                   selectedRange={m2Range}
@@ -947,6 +947,81 @@
             </div>
             <div class="chart-content">
               <Chart data={gliData} />
+            </div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>US M2 (Fed)</h3>
+              <div class="header-controls">
+                <TimeRangeSelector
+                  selectedRange={fedRange}
+                  onRangeChange={(r) => (fedRange = r)}
+                />
+                <span class="last-date">Last Data: {getLastDate("FED")}</span>
+              </div>
+            </div>
+            <div class="chart-content">
+              <Chart data={fedData} />
+            </div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>EU M2 (ECB)</h3>
+              <div class="header-controls">
+                <TimeRangeSelector
+                  selectedRange={ecbRange}
+                  onRangeChange={(r) => (ecbRange = r)}
+                />
+                <span class="last-date">Last Data: {getLastDate("ECB")}</span>
+              </div>
+            </div>
+            <div class="chart-content">
+              <Chart data={ecbData} />
+            </div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>China M2 (PBoC)</h3>
+              <div class="header-controls">
+                <TimeRangeSelector
+                  selectedRange={pbocRange}
+                  onRangeChange={(r) => (pbocRange = r)}
+                />
+                <span class="last-date">Last Data: {getLastDate("PBOC")}</span>
+              </div>
+            </div>
+            <div class="chart-content">
+              <Chart data={pbocData} />
+            </div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>Japan M2 (BoJ)</h3>
+              <div class="header-controls">
+                <TimeRangeSelector
+                  selectedRange={bojRange}
+                  onRangeChange={(r) => (bojRange = r)}
+                />
+                <span class="last-date">Last Data: {getLastDate("BOJ")}</span>
+              </div>
+            </div>
+            <div class="chart-content">
+              <Chart data={bojData} />
+            </div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>UK M2 (BoE)</h3>
+              <div class="header-controls">
+                <TimeRangeSelector
+                  selectedRange={boeRange}
+                  onRangeChange={(r) => (boeRange = r)}
+                />
+                <span class="last-date">Last Data: {getLastDate("BOE")}</span>
+              </div>
+            </div>
+            <div class="chart-content">
+              <Chart data={boeData} />
             </div>
           </div>
         </div>
