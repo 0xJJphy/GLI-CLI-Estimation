@@ -1633,7 +1633,7 @@
                   </div>
                 </div>
                 <div class="chart-content">
-                  <Chart darkMode={darkMode} data={gliData} />
+                  <Chart {darkMode} data={gliData} />
                 </div>
               </div>
 
@@ -1726,7 +1726,7 @@
                   </div>
                 </div>
                 <div class="chart-content">
-                  <Chart darkMode={darkMode} data={netLiqData} />
+                  <Chart {darkMode} data={netLiqData} />
                 </div>
               </div>
 
@@ -1820,7 +1820,7 @@
               </div>
             </div>
             <div class="chart-content">
-              <Chart darkMode={darkMode} data={cliData} />
+              <Chart {darkMode} data={cliData} />
             </div>
           </div>
 
@@ -1837,7 +1837,7 @@
               </div>
             </div>
             <div class="chart-content">
-              <Chart darkMode={darkMode} data={cliComponentData} />
+              <Chart {darkMode} data={cliComponentData} />
             </div>
           </div>
         </div>
@@ -1859,7 +1859,7 @@
                   </div>
                 </div>
                 <div class="chart-content">
-                  <Chart darkMode={darkMode} data={gliData} />
+                  <Chart {darkMode} data={gliData} />
                 </div>
               </div>
 
@@ -1948,7 +1948,7 @@
                 </div>
               </div>
               <div class="chart-content">
-                <Chart darkMode={darkMode} data={item.data} />
+                <Chart {darkMode} data={item.data} />
               </div>
             </div>
           {/each}
@@ -1971,7 +1971,7 @@
                   </div>
                 </div>
                 <div class="chart-content">
-                  <Chart darkMode={darkMode} data={m2TotalData} />
+                  <Chart {darkMode} data={m2TotalData} />
                 </div>
               </div>
 
@@ -2070,7 +2070,7 @@
                 </div>
               </div>
               <div class="chart-content">
-                <Chart darkMode={darkMode} data={item.data} />
+                <Chart {darkMode} data={item.data} />
               </div>
             </div>
           {/each}
@@ -2093,7 +2093,7 @@
                   </div>
                 </div>
                 <div class="chart-content">
-                  <Chart darkMode={darkMode} data={netLiqData} />
+                  <Chart {darkMode} data={netLiqData} />
                 </div>
               </div>
 
@@ -2188,7 +2188,7 @@
               </div>
             </div>
             <div class="chart-content">
-              <Chart darkMode={darkMode} data={fedData} />
+              <Chart {darkMode} data={fedData} />
             </div>
           </div>
           <div class="chart-card">
@@ -2203,7 +2203,7 @@
               </div>
             </div>
             <div class="chart-content">
-              <Chart darkMode={darkMode} data={cliData} />
+              <Chart {darkMode} data={cliData} />
             </div>
           </div>
 
@@ -2219,7 +2219,7 @@
               </div>
             </div>
             <div class="chart-content">
-              <Chart darkMode={darkMode} data={rrpData} />
+              <Chart {darkMode} data={rrpData} />
             </div>
           </div>
 
@@ -2235,7 +2235,7 @@
               </div>
             </div>
             <div class="chart-content">
-              <Chart darkMode={darkMode} data={tgaData} />
+              <Chart {darkMode} data={tgaData} />
             </div>
           </div>
         </div>
@@ -2254,7 +2254,7 @@
             </div>
             <p class="chart-description">{currentTranslations.cli}</p>
             <div class="chart-content">
-              <Chart darkMode={darkMode} data={cliData} />
+              <Chart {darkMode} data={cliData} />
             </div>
           </div>
 
@@ -2270,9 +2270,11 @@
                   <span class="last-date">Last: {getLastDate(item.bank)}</span>
                 </div>
               </div>
-              <p class="chart-description">{currentTranslations[item.descKey]}</p>
+              <p class="chart-description">
+                {currentTranslations[item.descKey]}
+              </p>
               <div class="chart-content">
-                <Chart darkMode={darkMode} data={item.data} />
+                <Chart {darkMode} data={item.data} />
               </div>
             </div>
           {/each}
@@ -2293,7 +2295,7 @@
             </div>
             <p class="chart-description">{currentTranslations.tips}</p>
             <div class="chart-content">
-              <Chart darkMode={darkMode} data={tipsData} layout={tipsLayout} />
+              <Chart {darkMode} data={tipsData} layout={tipsLayout} />
             </div>
           </div>
         </div>
@@ -2677,7 +2679,11 @@
               </span>
             </div>
             <div class="chart-content tv-chart-wrap">
-              <LightweightChart data={btcFairValueData} logScale={true} />
+              <LightweightChart
+                {darkMode}
+                data={btcFairValueData}
+                logScale={true}
+              />
               <div class="debug-chart-info">
                 Points: {btcFairValueData[0]?.data?.length || 0}
               </div>
@@ -2809,7 +2815,7 @@
               </div>
             </div>
             <div class="chart-content">
-              <Chart darkMode={darkMode} data={lagCorrelationChartData} />
+              <Chart {darkMode} data={lagCorrelationChartData} />
             </div>
           </div>
 
@@ -2823,7 +2829,7 @@
               >
             </div>
             <div class="chart-content">
-              <Chart darkMode={darkMode} data={correlationData} />
+              <Chart {darkMode} data={correlationData} />
             </div>
           </div>
 
@@ -3128,7 +3134,11 @@
               >
             </div>
             <div class="chart-content tv-chart-wrap">
-              <LightweightChart data={quantV2ChartData} logScale={true} />
+              <LightweightChart
+                {darkMode}
+                data={quantV2ChartData}
+                logScale={true}
+              />
             </div>
           </div>
 
@@ -3141,7 +3151,11 @@
               >
             </div>
             <div class="chart-content tv-chart-wrap">
-              <LightweightChart data={quantV2RebalancedData} logScale={true} />
+              <LightweightChart
+                {darkMode}
+                data={quantV2RebalancedData}
+                logScale={true}
+              />
             </div>
           </div>
 
@@ -3154,7 +3168,7 @@
               >
             </div>
             <div class="chart-content">
-              <Chart darkMode={darkMode} data={quantV2ReturnsData} />
+              <Chart {darkMode} data={quantV2ReturnsData} />
             </div>
           </div>
 
@@ -3808,21 +3822,21 @@
   /* Quant v2 Tab Styles */
   .quant-description {
     padding: 16px;
-    background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+    background: var(--bg-tertiary);
     border-radius: 8px;
-    border-left: 4px solid #10b981;
+    border-left: 4px solid var(--positive-color);
   }
 
   .quant-description p {
     margin: 0 0 12px 0;
-    color: #065f46;
+    color: var(--positive-color);
     font-weight: 500;
   }
 
   .quant-description ul {
     margin: 0;
     padding-left: 20px;
-    color: #047857;
+    color: var(--text-secondary);
   }
 
   .quant-description li {
@@ -3842,8 +3856,9 @@
     flex-direction: column;
     gap: 4px;
     padding: 12px;
-    background: #f8fafc;
+    background: var(--bg-tertiary);
     border-radius: 8px;
+    border: 1px solid var(--border-color);
   }
 
   .metric-label {
@@ -3851,17 +3866,17 @@
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #64748b;
+    color: var(--text-muted);
   }
 
   .metric-value {
     font-size: 20px;
     font-weight: 700;
-    color: #1e293b;
+    color: var(--text-primary);
   }
 
   .metric-value.highlight {
-    color: #10b981;
+    color: var(--positive-color);
   }
 
   .features-grid {
@@ -3876,40 +3891,40 @@
     justify-content: space-between;
     align-items: center;
     padding: 10px 14px;
-    background: #f8fafc;
+    background: var(--bg-tertiary);
     border-radius: 6px;
-    border-left: 3px solid #94a3b8;
+    border-left: 3px solid var(--text-muted);
   }
 
   .feature-item.positive {
-    border-left-color: #10b981;
-    background: #f0fdf4;
+    border-left-color: var(--positive-color);
+    background: rgba(16, 185, 129, 0.1);
   }
 
   .feature-item.negative {
-    border-left-color: #ef4444;
-    background: #fef2f2;
+    border-left-color: var(--negative-color);
+    background: rgba(239, 68, 68, 0.1);
   }
 
   .feature-name {
     font-size: 13px;
     font-weight: 500;
-    color: #334155;
+    color: var(--text-primary);
   }
 
   .feature-coef {
     font-size: 13px;
     font-weight: 600;
     font-family: "Monaco", "Consolas", monospace;
-    color: #475569;
+    color: var(--text-secondary);
   }
 
   .feature-item.positive .feature-coef {
-    color: #059669;
+    color: var(--positive-color);
   }
 
   .feature-item.negative .feature-coef {
-    color: #dc2626;
+    color: var(--negative-color);
   }
 
   @media (max-width: 1200px) {
