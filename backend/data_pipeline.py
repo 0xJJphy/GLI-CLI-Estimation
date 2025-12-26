@@ -300,16 +300,30 @@ def normalize_zscore(series, window=504):
     return (series - mean) / std
 
 def calculate_gli_from_trillions(df):
-    """Summarizes GLI components that are already in Trillions USD."""
+    """
+    Summarizes GLI components that are already in Trillions USD.
+    Dynamically aggregates ALL available *_USD columns (up to 16 CBs).
+    """
     res = pd.DataFrame(index=df.index)
-    cols = ['FED_USD', 'ECB_USD', 'BOJ_USD', 'BOE_USD', 'PBOC_USD']
-    for col in cols:
-        if col in df.columns:
-            res[col] = df[col]
-        else:
-            res[col] = 0.0
-    res['GLI_TOTAL'] = res[cols].sum(axis=1)
+    
+    # Find all CB columns ending in _USD (excluding TGA_USD, RRP_USD which are not CBs)
+    exclude_cols = ['TGA_USD', 'RRP_USD']
+    cb_cols = [c for c in df.columns if c.endswith('_USD') and c not in exclude_cols]
+    
+    # Copy all CB columns to result
+    for col in cb_cols:
+        res[col] = df[col]
+    
+    # Sum all available CBs dynamically
+    if cb_cols:
+        res['GLI_TOTAL'] = res[cb_cols].sum(axis=1)
+        res['CB_COUNT'] = len(cb_cols)  # Track how many CBs contributed
+    else:
+        res['GLI_TOTAL'] = 0.0
+        res['CB_COUNT'] = 0
+    
     return res
+
 
 def calculate_us_net_liq_from_trillions(df):
     """Calculates Net Liq from Trillion-scale components."""
@@ -326,13 +340,38 @@ def calculate_cli(df):
     Therefore we NEGATE all z-scores.
     """
     res = pd.DataFrame(index=df.index)
+    
     # Negate all z-scores: higher spread/VIX/lending = tighter = LOWER CLI
-    res['HY_SPREAD_Z'] = -normalize_zscore(df['HY_SPREAD'])
-    res['IG_SPREAD_Z'] = -normalize_zscore(df['IG_SPREAD'])
-    res['NFCI_CREDIT_Z'] = -df['NFCI_CREDIT']  # NFCI already z-scored, negate
-    res['NFCI_RISK_Z'] = -df['NFCI_RISK']
-    res['LENDING_STD_Z'] = -normalize_zscore(df['LENDING_STD'])
-    res['VIX_Z'] = -normalize_zscore(df['VIX'])
+    # Use get() to handle missing columns gracefully
+    if 'HY_SPREAD' in df.columns:
+        res['HY_SPREAD_Z'] = -normalize_zscore(df['HY_SPREAD'])
+    else:
+        res['HY_SPREAD_Z'] = pd.Series(0.0, index=df.index)
+        
+    if 'IG_SPREAD' in df.columns:
+        res['IG_SPREAD_Z'] = -normalize_zscore(df['IG_SPREAD'])
+    else:
+        res['IG_SPREAD_Z'] = pd.Series(0.0, index=df.index)
+        
+    if 'NFCI_CREDIT' in df.columns:
+        res['NFCI_CREDIT_Z'] = -df['NFCI_CREDIT']  # NFCI already z-scored, negate
+    else:
+        res['NFCI_CREDIT_Z'] = pd.Series(0.0, index=df.index)
+        
+    if 'NFCI_RISK' in df.columns:
+        res['NFCI_RISK_Z'] = -df['NFCI_RISK']
+    else:
+        res['NFCI_RISK_Z'] = pd.Series(0.0, index=df.index)
+        
+    if 'LENDING_STD' in df.columns:
+        res['LENDING_STD_Z'] = -normalize_zscore(df['LENDING_STD'])
+    else:
+        res['LENDING_STD_Z'] = pd.Series(0.0, index=df.index)
+        
+    if 'VIX' in df.columns:
+        res['VIX_Z'] = -normalize_zscore(df['VIX'])
+    else:
+        res['VIX_Z'] = pd.Series(0.0, index=df.index)
     
     weights = {
         'HY_SPREAD_Z': 0.25,
@@ -345,6 +384,7 @@ def calculate_cli(df):
     
     res['CLI'] = sum(res[col] * weight for col, weight in weights.items() if col in res.columns)
     return res
+
 
 def calculate_gli(df, source='FRED'):
     """
@@ -948,7 +988,7 @@ def run_pipeline():
     df_fred = pd.DataFrame(index=pd.concat(raw_fred.values()).index.unique()).sort_index()
     for name, s in raw_fred.items():
         df_fred[name] = s
-    df_fred = df_fred.ffill().bfill()
+    df_fred = df_fred.ffill()  # Only forward-fill to prevent data leakage (no bfill)
     
     # Derived Trillion Columns
     df_fred_t = pd.DataFrame(index=df_fred.index)
@@ -1053,6 +1093,26 @@ def run_pipeline():
         if 'BOK' in df_tv_t.columns:
             krwusd = df_tv_t.get('KRWUSD', 0.00077)  # Fallback ~1/1300
             res_tv_t['BOK_USD'] = (df_tv_t.get('BOK', 0) * krwusd) / 1e12
+        
+        # Additional 6 CBs to reach 16 total
+        if 'RBI' in df_tv_t.columns:
+            inrusd = df_tv_t.get('INRUSD', 0.012)  # ~1/83
+            res_tv_t['RBI_USD'] = (df_tv_t.get('RBI', 0) * inrusd) / 1e12
+        if 'CBR' in df_tv_t.columns:
+            rubusd = df_tv_t.get('RUBUSD', 0.011)  # ~1/90
+            res_tv_t['CBR_USD'] = (df_tv_t.get('CBR', 0) * rubusd) / 1e12
+        if 'BCB' in df_tv_t.columns:
+            brlusd = df_tv_t.get('BRLUSD', 0.17)  # ~1/6
+            res_tv_t['BCB_USD'] = (df_tv_t.get('BCB', 0) * brlusd) / 1e12
+        if 'RBNZ' in df_tv_t.columns:
+            nzdusd = df_tv_t.get('NZDUSD', 0.60)
+            res_tv_t['RBNZ_USD'] = (df_tv_t.get('RBNZ', 0) * nzdusd) / 1e12
+        if 'SR' in df_tv_t.columns:
+            sekusd = df_tv_t.get('SEKUSD', 0.095)  # ~1/10.5
+            res_tv_t['SR_USD'] = (df_tv_t.get('SR', 0) * sekusd) / 1e12
+        if 'BNM' in df_tv_t.columns:
+            myrusd = df_tv_t.get('MYRUSD', 0.22)  # ~1/4.5
+            res_tv_t['BNM_USD'] = (df_tv_t.get('BNM', 0) * myrusd) / 1e12
 
         # Bitcoin price (already in USD, no conversion needed)
         res_tv_t['BTC'] = df_tv_t.get('BTC', pd.Series(dtype=float))
@@ -1192,6 +1252,15 @@ def run_pipeline():
                 for b in ['fed', 'ecb', 'boj', 'boe', 'pboc']
             },
             'cli': clean_for_json(df_t['CLI']),
+            'cli_components': (lambda cli_df: {
+                'hy_z': clean_for_json(cli_df.get('HY_SPREAD_Z', pd.Series(dtype=float))),
+                'ig_z': clean_for_json(cli_df.get('IG_SPREAD_Z', pd.Series(dtype=float))),
+                'nfci_credit_z': clean_for_json(cli_df.get('NFCI_CREDIT_Z', pd.Series(dtype=float))),
+                'nfci_risk_z': clean_for_json(cli_df.get('NFCI_RISK_Z', pd.Series(dtype=float))),
+                'lending_z': clean_for_json(cli_df.get('LENDING_STD_Z', pd.Series(dtype=float))),
+                'vix_z': clean_for_json(cli_df.get('VIX_Z', pd.Series(dtype=float))),
+                'weights': {'HY': 0.25, 'IG': 0.15, 'NFCI_CREDIT': 0.20, 'NFCI_RISK': 0.20, 'LENDING': 0.10, 'VIX': 0.10}
+            })(calculate_cli(df_t)),
             'vix': clean_for_json(df_t['VIX']),
             'hy_spread': clean_for_json(df_t['HY_SPREAD']),
             'btc': {
