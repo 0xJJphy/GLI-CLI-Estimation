@@ -3,12 +3,25 @@ import { writable, derived } from 'svelte/store';
 export const dashboardData = writable({
     dates: [],
     last_dates: {},
-    gli: { total: [], fed: [], ecb: [], boj: [], boe: [], pboc: [], boc: [], rba: [], snb: [], bok: [], rocs: {} },
+    gli: {
+        total: [],
+        constant_fx: [],
+        cb_count: 5,
+        data_start_date: null,
+        fed: [], ecb: [], boj: [], boe: [], pboc: [],
+        boc: [], rba: [], snb: [], bok: [],
+        rbi: [], cbr: [], bcb: [], rbnz: [], sr: [], bnm: [],
+        rocs: {}
+    },
     m2: { total: [], us: [], eu: [], cn: [], jp: [], uk: [], ca: [], au: [], rocs: {} },
     us_net_liq: [],
     us_net_liq_rocs: {},
     bank_rocs: { fed: {}, ecb: {}, boj: {}, boe: {}, pboc: {} },
     cli: [],
+    cli_components: {
+        hy_z: [], ig_z: [], nfci_credit_z: [], nfci_risk_z: [], lending_z: [], vix_z: [],
+        weights: { HY: 0.25, IG: 0.15, NFCI_CREDIT: 0.20, NFCI_RISK: 0.20, LENDING: 0.10, VIX: 0.10 }
+    },
     vix: [],
     hy_spread: [],
     btc: {

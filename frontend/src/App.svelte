@@ -28,6 +28,9 @@
   let vixRange = "ALL";
   let spreadRange = "ALL";
 
+  // GLI FX mode: false = Spot USD, true = Constant FX (2019-12-31)
+  let gliShowConstantFx = false;
+
   // Helper to get cutoff date based on range
   const getCutoffDate = (range) => {
     if (range === "ALL") return null;
@@ -155,16 +158,26 @@
   };
 
   // --- Chart Data Definitions (filtered by globalTimeRange) ---
+  // Use gliDataSource based on toggle (Spot USD vs Constant FX)
+  $: gliDataSource = gliShowConstantFx
+    ? $dashboardData.gli.constant_fx
+    : $dashboardData.gli.total;
   $: gliDataRaw = [
     {
       x: $dashboardData.dates,
-      y: $dashboardData.gli.total,
-      name: "GLI Total",
+      y: gliDataSource,
+      name: gliShowConstantFx ? "GLI Constant-FX" : "GLI Total (Spot USD)",
       type: "scatter",
       mode: "lines",
       fill: "tozeroy",
-      line: { color: "#6366f1", width: 3, shape: "spline" },
-      fillcolor: "rgba(99, 102, 241, 0.05)",
+      line: {
+        color: gliShowConstantFx ? "#10b981" : "#6366f1",
+        width: 3,
+        shape: "spline",
+      },
+      fillcolor: gliShowConstantFx
+        ? "rgba(16, 185, 129, 0.05)"
+        : "rgba(99, 102, 241, 0.05)",
     },
   ];
   $: gliData = filterPlotlyData(gliDataRaw, $dashboardData.dates, gliRange);
@@ -875,10 +888,25 @@
           <div class="chart-card">
             <div class="chart-header">
               <div class="label-group">
-                <h3>Global Liquidity Index (16 Banks)</h3>
+                <h3>
+                  Global Liquidity Index ({$dashboardData.gli.cb_count || 16} Banks)
+                </h3>
                 <SignalBadge type={gliSignal} text={gliSignal} />
               </div>
               <div class="header-controls">
+                <div class="fx-toggle">
+                  <button
+                    class="fx-btn"
+                    class:active={!gliShowConstantFx}
+                    on:click={() => (gliShowConstantFx = false)}
+                    >Spot USD</button
+                  >
+                  <button
+                    class="fx-btn"
+                    class:active={gliShowConstantFx}
+                    on:click={() => (gliShowConstantFx = true)}>Const FX</button
+                  >
+                </div>
                 <TimeRangeSelector
                   selectedRange={gliRange}
                   onRangeChange={(r) => (gliRange = r)}
