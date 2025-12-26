@@ -188,6 +188,11 @@
     }
 
     $effect.pre(() => {
+        // Read props at top level for Svelte 5 reactivity tracking
+        const currentDarkModeValue = darkMode;
+        const currentLogScaleValue = logScale;
+        const currentDataValue = data;
+
         // Create a key that includes series names and sample values to detect deep changes
         const getSeriesKey = (seriesArr) => {
             if (!seriesArr) return "";
@@ -208,23 +213,23 @@
                 .join("|");
         };
 
-        const dataKey = getSeriesKey(data);
+        const dataKey = getSeriesKey(currentDataValue);
         const currentDataKey = getSeriesKey(currentData);
 
         if (api.chart && dataKey !== currentDataKey) {
-            currentData = data;
+            currentData = currentDataValue;
             updateSeries();
         }
 
-        if (api.chart && logScale !== currentLogScale) {
-            currentLogScale = logScale;
+        if (api.chart && currentLogScaleValue !== currentLogScale) {
+            currentLogScale = currentLogScaleValue;
             api.chart.priceScale("right").applyOptions({
-                mode: logScale ? 1 : 0,
+                mode: currentLogScaleValue ? 1 : 0,
             });
         }
 
-        if (api.chart && darkMode !== currentDarkMode) {
-            currentDarkMode = darkMode;
+        if (api.chart && currentDarkModeValue !== currentDarkMode) {
+            currentDarkMode = currentDarkModeValue;
             updateTheme();
         }
     });

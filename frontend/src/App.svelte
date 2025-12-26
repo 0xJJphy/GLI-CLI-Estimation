@@ -49,6 +49,36 @@
         "Senior Loan Officer Survey. ↑ Tightening = Banks restrict credit | ↓ Easing = Free lending",
       vix: "Implied volatility (fear gauge). Z>2 = Panic | Z<-1 = Complacency. Mean-reverts.",
       tips: "Breakeven (amber): Inflation expectations. Real Rate (blue): True cost of money. 5Y5Y (green): Long-term anchor.",
+      // BTC Analysis tab
+      btc_analysis_title: "BTC Fair Value Model",
+      btc_analysis_desc:
+        "Bitcoin fair value derived from global liquidity, M2, and credit conditions. Price above line = overvalued, below = undervalued.",
+      current_valuation: "Current Valuation",
+      btc_price: "BTC Price",
+      fair_value: "Fair Value",
+      deviation: "Deviation",
+      zscore: "Z-Score",
+      lag_analysis: "Predictive Signals: CLI → BTC Lag Analysis",
+      roc_window: "ROC Window",
+      optimal_lag: "Optimal Lag",
+      max_correlation: "Max Correlation",
+      interpretation: "Interpretation",
+      // BTC Quant v2 tab
+      quant_v2_title: "Quant v2: Enhanced Bitcoin Fair Value Model",
+      quant_v2_desc:
+        "This model addresses econometric issues in the legacy model:",
+      quant_v2_weekly:
+        "Weekly frequency (W-FRI) instead of daily to avoid FRI autocorrelation",
+      quant_v2_log:
+        "Δlog(BTC) returns instead of log levels (avoids spurious regression)",
+      quant_v2_elastic:
+        "ElasticNet with 1-8 week lags for automatic feature selection",
+      quant_v2_pca: "PCA GLI factor instead of raw sum (handles colinearity)",
+      quant_v2_vol: "Rolling 52-week volatility for adaptive bands",
+      oos_metrics: "Out-of-Sample Metrics",
+      model_params: "Model Parameters",
+      quant_chart_desc:
+        "Cumulative model drift may cause divergence over time.",
     },
     es: {
       gli: "Suma de balances de bancos centrales en USD. ↑ Expansión = Inyección de liquidez (alcista) | ↓ Contracción = QT (bajista)",
@@ -78,6 +108,37 @@
         "Encuesta de préstamos bancarios. ↑ Endurecimiento = Restringen crédito | ↓ = Prestan libremente",
       vix: "Volatilidad implícita (indicador de miedo). Z>2 = Pánico | Z<-1 = Complacencia.",
       tips: "Breakeven (ámbar): Expectativas de inflación. Tasa Real (azul): Coste real del dinero. 5Y5Y (verde): Anclaje a largo plazo.",
+      // BTC Analysis tab
+      btc_analysis_title: "Modelo de Valor Justo de BTC",
+      btc_analysis_desc:
+        "Valor justo de Bitcoin derivado de liquidez global, M2 y condiciones de crédito. Precio arriba = sobrevalorado, abajo = infravalorado.",
+      current_valuation: "Valoración Actual",
+      btc_price: "Precio BTC",
+      fair_value: "Valor Justo",
+      deviation: "Desviación",
+      zscore: "Z-Score",
+      lag_analysis: "Señales Predictivas: CLI → BTC Análisis de Retardo",
+      roc_window: "Ventana ROC",
+      optimal_lag: "Retardo Óptimo",
+      max_correlation: "Correlación Máxima",
+      interpretation: "Interpretación",
+      // BTC Quant v2 tab
+      quant_v2_title: "Quant v2: Modelo Mejorado de Valor Justo de Bitcoin",
+      quant_v2_desc:
+        "Este modelo aborda problemas econométricos del modelo anterior:",
+      quant_v2_weekly:
+        "Frecuencia semanal (W-VIE) en lugar de diaria para evitar autocorrelación",
+      quant_v2_log:
+        "Retornos Δlog(BTC) en lugar de niveles log (evita regresión espuria)",
+      quant_v2_elastic:
+        "ElasticNet con retardos de 1-8 semanas para selección automática",
+      quant_v2_pca:
+        "Factor PCA GLI en lugar de suma cruda (maneja colinealidad)",
+      quant_v2_vol: "Volatilidad rolling de 52 semanas para bandas adaptativas",
+      oos_metrics: "Métricas Fuera de Muestra",
+      model_params: "Parámetros del Modelo",
+      quant_chart_desc:
+        "La deriva acumulativa del modelo puede causar divergencia con el tiempo.",
     },
   };
 
@@ -3949,15 +4010,15 @@
     flex-direction: column;
     gap: 8px;
     padding: 16px;
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    background: var(--bg-tertiary);
     border-radius: 12px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--border-color);
   }
 
   .btc-label {
     font-size: 13px;
     font-weight: 500;
-    color: #64748b;
+    color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
@@ -3965,7 +4026,7 @@
   .btc-value {
     font-size: 24px;
     font-weight: 700;
-    color: #0f172a;
+    color: var(--text-primary);
   }
 
   .btc-value.price {
@@ -3973,24 +4034,24 @@
   }
 
   .btc-value.fair {
-    color: #10b981;
+    color: var(--positive-color);
   }
 
   .btc-value.deviation.overvalued {
-    color: #ef4444;
+    color: var(--negative-color);
   }
 
   .btc-value.deviation.undervalued {
-    color: #10b981;
+    color: var(--positive-color);
   }
 
   .btc-value.zscore.extreme {
-    color: #dc2626;
+    color: var(--negative-color);
     animation: pulse 2s ease-in-out infinite;
   }
 
   .interpretation-panel {
-    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    background: var(--bg-tertiary);
     border: 2px solid #fbbf24;
   }
 
@@ -4002,7 +4063,7 @@
   }
 
   .interp-card {
-    background: white;
+    background: var(--bg-secondary);
     padding: 16px;
     border-radius: 8px;
     border: 1px solid #f59e0b;
