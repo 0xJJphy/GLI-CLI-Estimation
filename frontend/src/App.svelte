@@ -91,6 +91,42 @@
     return points.sort((a, b) => (a.time > b.time ? 1 : -1));
   };
 
+  // Create LightweightChart series config with time range filtering
+  const formatLC = (dates, values, range, name, color, type = "line") => {
+    if (!dates || !values) return [];
+
+    // Get cutoff date for filtering
+    const cutoff = getCutoffDate(range);
+
+    const points = [];
+    for (let i = 0; i < dates.length; i++) {
+      const val = values[i];
+      if (val === null || val === undefined || isNaN(val)) continue;
+      const dateStr = dates[i];
+      if (!dateStr || typeof dateStr !== "string") continue;
+
+      // Apply time range filter
+      if (cutoff) {
+        const pointDate = new Date(dateStr);
+        if (pointDate < cutoff) continue;
+      }
+
+      points.push({ time: dateStr, value: val });
+    }
+
+    const sortedPoints = points.sort((a, b) => (a.time > b.time ? 1 : -1));
+
+    return [
+      {
+        name,
+        type,
+        color,
+        data: sortedPoints,
+        width: 2,
+      },
+    ];
+  };
+
   let currentTab = "Dashboard";
   let selectedBtcModel = "macro"; // "macro" or "adoption"
   let selectedLagWindow = "7d"; // "7d" | "14d" | "30d"
@@ -233,7 +269,7 @@
   ];
   $: cliData = filterPlotlyData(cliDataRaw, $dashboardData.dates, cliRange);
 
-  $: vixData = [
+  $: vixDataRaw = [
     {
       x: $dashboardData.dates,
       y: $dashboardData.vix,
@@ -243,8 +279,9 @@
       line: { color: "#dc2626", width: 3, shape: "spline" },
     },
   ];
+  $: vixData = filterPlotlyData(vixDataRaw, $dashboardData.dates, vixRange);
 
-  $: spreadData = [
+  $: spreadDataRaw = [
     {
       x: $dashboardData.dates,
       y: $dashboardData.hy_spread,
@@ -254,6 +291,11 @@
       line: { color: "#7c3aed", width: 3, shape: "spline" },
     },
   ];
+  $: spreadData = filterPlotlyData(
+    spreadDataRaw,
+    $dashboardData.dates,
+    spreadRange,
+  );
 
   $: gliSignal = $latestStats?.gli?.change > 0 ? "bullish" : "bearish";
   $: liqSignal = $latestStats?.us_net_liq?.change > 0 ? "bullish" : "bearish";
