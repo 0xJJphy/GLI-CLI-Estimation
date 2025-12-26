@@ -47,20 +47,20 @@
 <style>
     .stats-card {
         position: relative;
-        background: #ffffff;
-        border: 1px solid rgba(0, 0, 0, 0.05);
+        background: var(--bg-secondary, #ffffff);
+        border: 1px solid var(--border-color, rgba(0, 0, 0, 0.05));
         border-radius: 16px;
         padding: 24px;
-        color: #1e293b;
+        color: var(--text-primary, #1e293b);
         overflow: hidden;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        box-shadow: var(--card-shadow, 0 1px 3px rgba(0, 0, 0, 0.1));
     }
 
     .stats-card:hover {
         transform: translateY(-4px);
-        box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.1);
-        border-color: rgba(59, 130, 246, 0.2);
+        box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.15);
+        border-color: var(--accent-secondary, rgba(59, 130, 246, 0.3));
     }
 
     .card-glow {
@@ -107,7 +107,7 @@
 
     .title {
         font-size: 0.875rem;
-        color: #64748b;
+        color: var(--text-muted, #64748b);
         font-weight: 600;
         letter-spacing: 0.01em;
     }
@@ -123,15 +123,15 @@
     }
 
     .trend.positive {
-        color: #059669;
-        background: #ecfdf5;
-        border: 1px solid #d1fae5;
+        color: var(--positive-color, #059669);
+        background: rgba(16, 185, 129, 0.1);
+        border: 1px solid rgba(16, 185, 129, 0.2);
     }
 
     .trend.negative {
-        color: #dc2626;
-        background: #fef2f2;
-        border: 1px solid #fee2e2;
+        color: var(--negative-color, #dc2626);
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.2);
     }
 
     .value {
@@ -141,12 +141,12 @@
     .number {
         font-size: 2rem;
         font-weight: 800;
-        color: #0f172a;
+        color: var(--text-primary, #0f172a);
     }
 
     .suffix {
         font-size: 0.875rem;
-        color: #94a3b8;
+        color: var(--text-muted, #94a3b8);
         margin-left: 4px;
         font-weight: 600;
     }
@@ -157,7 +157,7 @@
 
     .progress-bar {
         height: 6px;
-        background: #f1f5f9;
+        background: var(--bg-tertiary, #f1f5f9);
         border-radius: 3px;
         overflow: hidden;
     }
@@ -169,10 +169,10 @@
     }
 
     .progress.positive {
-        background: #10b981;
+        background: var(--positive-color, #10b981);
     }
 
     .progress.negative {
-        background: #ef4444;
+        background: var(--negative-color, #ef4444);
     }
 </style>

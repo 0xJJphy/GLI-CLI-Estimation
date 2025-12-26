@@ -1633,7 +1633,7 @@
                   </div>
                 </div>
                 <div class="chart-content">
-                  <Chart data={gliData} />
+                  <Chart darkMode={darkMode} data={gliData} />
                 </div>
               </div>
 
@@ -1726,7 +1726,7 @@
                   </div>
                 </div>
                 <div class="chart-content">
-                  <Chart data={netLiqData} />
+                  <Chart darkMode={darkMode} data={netLiqData} />
                 </div>
               </div>
 
@@ -1820,7 +1820,7 @@
               </div>
             </div>
             <div class="chart-content">
-              <Chart data={cliData} />
+              <Chart darkMode={darkMode} data={cliData} />
             </div>
           </div>
 
@@ -1837,7 +1837,7 @@
               </div>
             </div>
             <div class="chart-content">
-              <Chart data={cliComponentData} />
+              <Chart darkMode={darkMode} data={cliComponentData} />
             </div>
           </div>
         </div>
@@ -1859,7 +1859,7 @@
                   </div>
                 </div>
                 <div class="chart-content">
-                  <Chart data={gliData} />
+                  <Chart darkMode={darkMode} data={gliData} />
                 </div>
               </div>
 
@@ -1948,7 +1948,7 @@
                 </div>
               </div>
               <div class="chart-content">
-                <Chart data={item.data} />
+                <Chart darkMode={darkMode} data={item.data} />
               </div>
             </div>
           {/each}
@@ -1971,7 +1971,7 @@
                   </div>
                 </div>
                 <div class="chart-content">
-                  <Chart data={m2TotalData} />
+                  <Chart darkMode={darkMode} data={m2TotalData} />
                 </div>
               </div>
 
@@ -2070,7 +2070,7 @@
                 </div>
               </div>
               <div class="chart-content">
-                <Chart data={item.data} />
+                <Chart darkMode={darkMode} data={item.data} />
               </div>
             </div>
           {/each}
@@ -2093,7 +2093,7 @@
                   </div>
                 </div>
                 <div class="chart-content">
-                  <Chart data={netLiqData} />
+                  <Chart darkMode={darkMode} data={netLiqData} />
                 </div>
               </div>
 
@@ -2188,7 +2188,7 @@
               </div>
             </div>
             <div class="chart-content">
-              <Chart data={fedData} />
+              <Chart darkMode={darkMode} data={fedData} />
             </div>
           </div>
           <div class="chart-card">
@@ -2203,7 +2203,7 @@
               </div>
             </div>
             <div class="chart-content">
-              <Chart data={cliData} />
+              <Chart darkMode={darkMode} data={cliData} />
             </div>
           </div>
 
@@ -2219,7 +2219,7 @@
               </div>
             </div>
             <div class="chart-content">
-              <Chart data={rrpData} />
+              <Chart darkMode={darkMode} data={rrpData} />
             </div>
           </div>
 
@@ -2235,7 +2235,7 @@
               </div>
             </div>
             <div class="chart-content">
-              <Chart data={tgaData} />
+              <Chart darkMode={darkMode} data={tgaData} />
             </div>
           </div>
         </div>
@@ -2254,7 +2254,7 @@
             </div>
             <p class="chart-description">{t("cli")}</p>
             <div class="chart-content">
-              <Chart data={cliData} />
+              <Chart darkMode={darkMode} data={cliData} />
             </div>
           </div>
 
@@ -2272,7 +2272,7 @@
               </div>
               <p class="chart-description">{t(item.descKey)}</p>
               <div class="chart-content">
-                <Chart data={item.data} />
+                <Chart darkMode={darkMode} data={item.data} />
               </div>
             </div>
           {/each}
@@ -2293,7 +2293,7 @@
             </div>
             <p class="chart-description">{t("tips")}</p>
             <div class="chart-content">
-              <Chart data={tipsData} layout={tipsLayout} />
+              <Chart darkMode={darkMode} data={tipsData} layout={tipsLayout} />
             </div>
           </div>
         </div>
@@ -2809,7 +2809,7 @@
               </div>
             </div>
             <div class="chart-content">
-              <Chart data={lagCorrelationChartData} />
+              <Chart darkMode={darkMode} data={lagCorrelationChartData} />
             </div>
           </div>
 
@@ -2823,7 +2823,7 @@
               >
             </div>
             <div class="chart-content">
-              <Chart data={correlationData} />
+              <Chart darkMode={darkMode} data={correlationData} />
             </div>
           </div>
 
@@ -3154,7 +3154,7 @@
               >
             </div>
             <div class="chart-content">
-              <Chart data={quantV2ReturnsData} />
+              <Chart darkMode={darkMode} data={quantV2ReturnsData} />
             </div>
           </div>
 

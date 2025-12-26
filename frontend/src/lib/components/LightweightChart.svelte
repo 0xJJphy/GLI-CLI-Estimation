@@ -2,25 +2,39 @@
     import { onMount } from "svelte";
     import { createChart, LineSeries, AreaSeries } from "lightweight-charts";
 
-    let { data = [], title = "", logScale = false } = $props();
+    let {
+        data = [],
+        title = "",
+        logScale = false,
+        darkMode = false,
+    } = $props();
 
     let container;
     let currentData;
     let currentLogScale;
+    let currentDarkMode;
 
     const api = {
         chart: null,
         seriesMap: new Map(),
     };
 
-    const colors = {
-        background: "#ffffff",
-        text: "#475569",
-        grid: "rgba(226, 232, 240, 0.4)",
-    };
+    // Theme-aware colors
+    const getColors = (isDark) => ({
+        background: isDark ? "#1e293b" : "#ffffff",
+        text: isDark ? "#cbd5e1" : "#475569",
+        grid: isDark ? "rgba(71, 85, 105, 0.3)" : "rgba(226, 232, 240, 0.4)",
+        crosshairLabel: isDark ? "#334155" : "#1e293b",
+        crosshairLine: isDark
+            ? "rgba(99, 102, 241, 0.5)"
+            : "rgba(99, 102, 241, 0.4)",
+        border: isDark ? "rgba(71, 85, 105, 0.5)" : "rgba(226, 232, 240, 0.8)",
+    });
 
     onMount(() => {
         if (!container) return;
+
+        const colors = getColors(darkMode);
 
         api.chart = createChart(container, {
             layout: {
@@ -36,20 +50,20 @@
             crosshair: {
                 mode: 0,
                 vertLine: {
-                    labelBackgroundColor: "#1e293b",
-                    color: "rgba(99, 102, 241, 0.4)",
+                    labelBackgroundColor: colors.crosshairLabel,
+                    color: colors.crosshairLine,
                     width: 1,
                     style: 2,
                 },
                 horzLine: {
-                    labelBackgroundColor: "#1e293b",
-                    color: "rgba(99, 102, 241, 0.4)",
+                    labelBackgroundColor: colors.crosshairLabel,
+                    color: colors.crosshairLine,
                     width: 1,
                     style: 2,
                 },
             },
             rightPriceScale: {
-                borderColor: "rgba(226, 232, 240, 0.8)",
+                borderColor: colors.border,
                 mode: logScale ? 1 : 0,
                 autoScale: true,
                 scaleMargins: {
@@ -58,7 +72,7 @@
                 },
             },
             timeScale: {
-                borderColor: "rgba(226, 232, 240, 0.8)",
+                borderColor: colors.border,
                 timeVisible: true,
                 secondsVisible: false,
                 rightOffset: 10,
@@ -68,6 +82,7 @@
 
         currentData = data;
         currentLogScale = logScale;
+        currentDarkMode = darkMode;
 
         updateSeries();
 
@@ -139,6 +154,39 @@
         api.chart.timeScale().fitContent();
     }
 
+    function updateTheme() {
+        if (!api.chart) return;
+
+        const colors = getColors(darkMode);
+
+        api.chart.applyOptions({
+            layout: {
+                background: { color: colors.background },
+                textColor: colors.text,
+            },
+            grid: {
+                vertLines: { color: colors.grid },
+                horzLines: { color: colors.grid },
+            },
+            crosshair: {
+                vertLine: {
+                    labelBackgroundColor: colors.crosshairLabel,
+                    color: colors.crosshairLine,
+                },
+                horzLine: {
+                    labelBackgroundColor: colors.crosshairLabel,
+                    color: colors.crosshairLine,
+                },
+            },
+            rightPriceScale: {
+                borderColor: colors.border,
+            },
+            timeScale: {
+                borderColor: colors.border,
+            },
+        });
+    }
+
     $effect.pre(() => {
         // Create a key that includes series names and sample values to detect deep changes
         const getSeriesKey = (seriesArr) => {
@@ -174,10 +222,15 @@
                 mode: logScale ? 1 : 0,
             });
         }
+
+        if (api.chart && darkMode !== currentDarkMode) {
+            currentDarkMode = darkMode;
+            updateTheme();
+        }
     });
 </script>
 
-<div class="chart-container-wrapper">
+<div class="chart-container-wrapper" class:dark={darkMode}>
     {#if title}
         <div class="chart-title">{title}</div>
     {/if}
@@ -192,7 +245,12 @@
         height: 100%;
         min-height: 450px;
         position: relative;
-        background: #ffffff;
+        background: var(--bg-secondary, #ffffff);
+        transition: background-color 0.3s ease;
+    }
+
+    .chart-container-wrapper.dark {
+        background: #1e293b;
     }
 
     .chart-container {
@@ -204,7 +262,7 @@
     .chart-title {
         font-size: 0.875rem;
         font-weight: 600;
-        color: #1e293b;
+        color: var(--text-primary, #1e293b);
         margin-bottom: 8px;
         padding-left: 4px;
     }
