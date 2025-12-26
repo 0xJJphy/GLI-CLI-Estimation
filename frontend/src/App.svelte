@@ -81,9 +81,11 @@
     },
   };
 
-  // Helper to get translation
-  const t = (key) =>
-    translations[language]?.[key] || translations.en[key] || key;
+  // Reactive translations - updates when language changes
+  $: currentTranslations = translations[language] || translations.en;
+
+  // Helper to get translation (uses reactive currentTranslations)
+  const t = (key) => currentTranslations[key] || translations.en[key] || key;
 
   // Initialize from localStorage on mount
   onMount(() => {
@@ -1511,12 +1513,7 @@
       </div>
     </nav>
 
-    <div class="sidebar-footer">
-      <div class="status-indicator">
-        <div class="pulse"></div>
-        System Live
-      </div>
-    </div>
+    <div class="sidebar-footer"></div>
   </aside>
 
   <main class="content">
@@ -1529,6 +1526,10 @@
         </p>
       </div>
       <div class="header-actions">
+        <div class="status-indicator">
+          <div class="pulse"></div>
+          System Live
+        </div>
         <button
           class="header-toggle"
           on:click={toggleLanguage}
@@ -3653,18 +3654,18 @@
   }
 
   .roc-card {
-    background: white;
-    border: 1px solid #e2e8f0;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
     border-radius: 24px;
     padding: 32px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--card-shadow);
   }
 
   .roc-card h4 {
     margin: 0 0 24px 0;
     font-size: 1.25rem;
     font-weight: 800;
-    color: #0f172a;
+    color: var(--text-primary);
   }
 
   .roc-grid {
@@ -3682,8 +3683,8 @@
   }
 
   .roc-row.header {
-    background: #f8fafc;
-    color: #64748b;
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
     font-size: 0.75rem;
     font-weight: 700;
     text-transform: uppercase;
@@ -3692,16 +3693,16 @@
 
   .roc-col.label {
     font-weight: 600;
-    color: #1e293b;
+    color: var(--text-primary);
   }
 
   .roc-col.plus {
-    color: #059669;
+    color: var(--positive-color);
     font-weight: 700;
   }
 
   .roc-col.minus {
-    color: #dc2626;
+    color: var(--negative-color);
     font-weight: 700;
   }
 
@@ -4107,10 +4108,10 @@
     display: flex;
     flex-direction: column;
     gap: 20px;
-    background: #ffffff;
+    background: var(--bg-secondary);
     padding: 16px;
     border-radius: 12px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--border-color);
     max-height: 800px;
     overflow-y: auto;
   }
@@ -4118,12 +4119,12 @@
   .metrics-section h4 {
     font-size: 13px;
     font-weight: 600;
-    color: #64748b;
+    color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
     margin-bottom: 12px;
     padding-bottom: 8px;
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: 1px solid var(--border-color);
   }
 
   .metrics-table {
@@ -4134,7 +4135,7 @@
   .metrics-table th {
     text-align: left;
     font-size: 11px;
-    color: #94a3b8;
+    color: var(--text-muted);
     padding-bottom: 8px;
   }
 
@@ -4142,11 +4143,12 @@
   .metrics-table td {
     padding: 8px 4px;
     text-align: left;
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: 1px solid var(--border-color);
     font-size: 10px;
+    color: var(--text-primary);
   }
   .impact-cell {
-    background: rgba(248, 250, 252, 0.5);
+    background: var(--bg-tertiary);
     font-size: 9px;
     opacity: 0.9;
   }
