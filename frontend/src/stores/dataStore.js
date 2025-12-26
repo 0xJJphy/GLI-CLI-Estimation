@@ -13,15 +13,27 @@ export const dashboardData = writable({
         rbi: [], cbr: [], bcb: [], rbnz: [], sr: [], bnm: [],
         rocs: {}
     },
+    gli_weights: {},
     m2: {
         total: [], us: [], eu: [], cn: [], jp: [], uk: [],
         ca: [], au: [], in: [], ch: [], ru: [], br: [],
         kr: [], mx: [], my: [],
         rocs: {}
     },
+    m2_weights: {},
+    m2_bank_rocs: {},
     us_net_liq: [],
+    us_net_liq_rrp: [],
+    us_net_liq_tga: [],
     us_net_liq_rocs: {},
-    bank_rocs: { fed: {}, ecb: {}, boj: {}, boe: {}, pboc: {} },
+    us_system_rocs: {
+        fed: {}, rrp: {}, tga: {}
+    },
+    bank_rocs: {
+        fed: {}, ecb: {}, boj: {}, boe: {}, pboc: {},
+        boc: {}, rba: {}, snb: {}, bok: {}, rbi: {},
+        cbr: {}, bcb: {}, rbnz: {}, sr: {}, bnm: {}
+    },
     cli: [],
     cli_components: {
         hy_z: [], ig_z: [], nfci_credit_z: [], nfci_risk_z: [], lending_z: [], vix_z: [],

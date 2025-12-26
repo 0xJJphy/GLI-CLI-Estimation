@@ -8,11 +8,13 @@ A premium, real-time macro liquidity monitoring dashboard that tracks the Global
 -   **Dual-Source Toggle**: Switch between **FRED Baseline** (M3 money supply proxies) and **TV Hybrid** (Central Bank Balance Sheets).
 -   **16 Central Banks**: FED, ECB, BoJ, BoE, PBoC, BoC, RBA, RBI, SNB, CBR, BCB, BoK, RBNZ, Riksbank, BNM.
 -   **14 M2 Economies**: US, EU, China, Japan, UK, Canada, Australia, India, Switzerland, Russia, Brazil, Korea, Mexico, Indonesia, South Africa, Malaysia, Sweden.
--   **US Net Liquidity**: Real-time monitoring of the Fed's impact on markets ($FED Assets - TGA - RRP$).
+-   **Multi-Timeframe Impact Analysis**: High-density 1M, 3M, and 1Y impact metrics for every GLI constituent, M2 economy, and US system component.
+-   **US System Plumbing**: Dedicated charts for **Reverse Repo (RRP)** and **Treasury General Account (TGA)** to track the precise distribution of US liquidity.
+-   **US Net Liquidity Matrix**: Breakdown of Fed Assets, RRP, and TGA contributions to the total net liquidity change.
 -   **Time Range Controls**: 1M, 3M, 6M, 1Y, 3Y, ALL buttons for each chart for flexible visualization.
 -   **Inter-Market Analysis**: Integrated Risk Model with VIX and High-Yield Spread monitoring.
 -   **₿ Bitcoin Analysis**: Fair value model based on GLI/CLI regression with deviation bands and correlation analysis.
--   **Responsive Design**: Modern, glassmorphism-inspired UI with smooth micro-animations.
+-   **Responsive Design**: Modern, glassmorphism-inspired UI with high-density quantitative metrics.
 
 ## 📊 Data & Formulas
 

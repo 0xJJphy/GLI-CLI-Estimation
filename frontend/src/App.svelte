@@ -511,6 +511,27 @@
     })
     .sort((a, b) => b.weight - a.weight);
 
+  // US System Metrics Helpers
+  $: usSystemMetrics = $dashboardData.us_system_rocs
+    ? Object.entries($dashboardData.us_system_rocs).map(([id, data]) => {
+        const labels = {
+          fed: "Fed Assets",
+          rrp: "Fed RRP",
+          tga: "Treasury TGA",
+        };
+        return {
+          id,
+          name: labels[id] || id.toUpperCase(),
+          m1: data["1M"]?.[data["1M"].length - 1] || 0,
+          m3: data["3M"]?.[data["3M"].length - 1] || 0,
+          y1: data["1Y"]?.[data["1Y"].length - 1] || 0,
+          imp1: data["impact_1m"]?.[data["impact_1m"].length - 1] || 0,
+          imp3: data["impact_3m"]?.[data["impact_3m"].length - 1] || 0,
+          imp1y: data["impact_1y"]?.[data["impact_1y"].length - 1] || 0,
+        };
+      })
+    : [];
+
   $: gliMovers = $dashboardData.bank_rocs
     ? Object.entries($dashboardData.bank_rocs)
         .map(([id, rocs]) => ({
@@ -1554,21 +1575,89 @@
           </div>
 
           <div class="chart-card wide">
-            <div class="chart-header">
-              <div class="label-group">
-                <h3>US Net Liquidity</h3>
-                <SignalBadge type={liqSignal} text={liqSignal} />
+            <div class="gli-layout">
+              <div class="chart-main">
+                <div class="chart-header">
+                  <div class="label-group">
+                    <h3>US Net Liquidity</h3>
+                    <SignalBadge type={liqSignal} text={liqSignal} />
+                  </div>
+                  <div class="header-controls">
+                    <TimeRangeSelector
+                      selectedRange={netLiqRange}
+                      onRangeChange={(r) => (netLiqRange = r)}
+                    />
+                    <span class="last-date"
+                      >Last Data: {getLastDate("FED")}</span
+                    >
+                  </div>
+                </div>
+                <div class="chart-content">
+                  <Chart data={netLiqData} />
+                </div>
               </div>
-              <div class="header-controls">
-                <TimeRangeSelector
-                  selectedRange={netLiqRange}
-                  onRangeChange={(r) => (netLiqRange = r)}
-                />
-                <span class="last-date">Last Data: {getLastDate("FED")}</span>
+
+              <div class="metrics-sidebar">
+                <div class="metrics-section">
+                  <h4>US System Components Impact</h4>
+                  <table class="metrics-table">
+                    <thead>
+                      <tr>
+                        <th>Account</th>
+                        <th>1M</th>
+                        <th title="Impact on Net Liq">Imp</th>
+                        <th>3M</th>
+                        <th title="Impact on Net Liq">Imp</th>
+                        <th>1Y</th>
+                        <th title="Impact on Net Liq">Imp</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {#each usSystemMetrics as item}
+                        <tr>
+                          <td>{item.name}</td>
+                          <td
+                            class="roc-val"
+                            class:positive={item.m1 > 0}
+                            class:negative={item.m1 < 0}
+                            >{item.m1.toFixed(1)}%</td
+                          >
+                          <td
+                            class="roc-val impact-cell"
+                            class:positive={item.imp1 > 0}
+                            class:negative={item.imp1 < 0}
+                            >{item.imp1.toFixed(2)}%</td
+                          >
+                          <td
+                            class="roc-val"
+                            class:positive={item.m3 > 0}
+                            class:negative={item.m3 < 0}
+                            >{item.m3.toFixed(1)}%</td
+                          >
+                          <td
+                            class="roc-val impact-cell"
+                            class:positive={item.imp3 > 0}
+                            class:negative={item.imp3 < 0}
+                            >{item.imp3.toFixed(2)}%</td
+                          >
+                          <td
+                            class="roc-val"
+                            class:positive={item.y1 > 0}
+                            class:negative={item.y1 < 0}
+                            >{item.y1.toFixed(1)}%</td
+                          >
+                          <td
+                            class="roc-val impact-cell"
+                            class:positive={item.imp1y > 0}
+                            class:negative={item.imp1y < 0}
+                            >{item.imp1y.toFixed(2)}%</td
+                          >
+                        </tr>
+                      {/each}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
-            <div class="chart-content">
-              <Chart data={netLiqData} />
             </div>
           </div>
 
@@ -1832,18 +1921,90 @@
       {:else if currentTab === "US System"}
         <div class="main-charts">
           <div class="chart-card wide">
-            <div class="chart-header">
-              <h3>US Net Liquidity Trends</h3>
-              <div class="header-controls">
-                <TimeRangeSelector
-                  selectedRange={netLiqRange}
-                  onRangeChange={(r) => (netLiqRange = r)}
-                />
-                <span class="last-date">Last Data: {getLastDate("FED")}</span>
+            <div class="gli-layout">
+              <div class="chart-main">
+                <div class="chart-header">
+                  <h3>US Net Liquidity Trends</h3>
+                  <div class="header-controls">
+                    <TimeRangeSelector
+                      selectedRange={netLiqRange}
+                      onRangeChange={(r) => (netLiqRange = r)}
+                    />
+                    <span class="last-date"
+                      >Last Data: {getLastDate("FED")}</span
+                    >
+                  </div>
+                </div>
+                <div class="chart-content">
+                  <Chart data={netLiqData} />
+                </div>
               </div>
-            </div>
-            <div class="chart-content">
-              <Chart data={netLiqData} />
+
+              <div class="metrics-sidebar">
+                <div class="metrics-section">
+                  <h4>US System Components Impact</h4>
+                  <table class="metrics-table">
+                    <thead>
+                      <tr>
+                        <th>Account</th>
+                        <th>1M</th>
+                        <th title="Impact on Net Liq">Imp</th>
+                        <th>3M</th>
+                        <th title="Impact on Net Liq">Imp</th>
+                        <th>1Y</th>
+                        <th title="Impact on Net Liq">Imp</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {#each usSystemMetrics as item}
+                        <tr>
+                          <td>{item.name}</td>
+                          <td
+                            class="roc-val"
+                            class:positive={item.m1 > 0}
+                            class:negative={item.m1 < 0}
+                            >{item.m1.toFixed(1)}%</td
+                          >
+                          <td
+                            class="roc-val impact-cell"
+                            class:positive={item.imp1 > 0}
+                            class:negative={item.imp1 < 0}
+                            >{item.imp1.toFixed(2)}%</td
+                          >
+                          <td
+                            class="roc-val"
+                            class:positive={item.m3 > 0}
+                            class:negative={item.m3 < 0}
+                            >{item.m3.toFixed(1)}%</td
+                          >
+                          <td
+                            class="roc-val impact-cell"
+                            class:positive={item.imp3 > 0}
+                            class:negative={item.imp3 < 0}
+                            >{item.imp3.toFixed(2)}%</td
+                          >
+                          <td
+                            class="roc-val"
+                            class:positive={item.y1 > 0}
+                            class:negative={item.y1 < 0}
+                            >{item.y1.toFixed(1)}%</td
+                          >
+                          <td
+                            class="roc-val impact-cell"
+                            class:positive={item.imp1y > 0}
+                            class:negative={item.imp1y < 0}
+                            >{item.imp1y.toFixed(2)}%</td
+                          >
+                        </tr>
+                      {/each}
+                    </tbody>
+                  </table>
+                  <p style="font-size: 10px; color: #94a3b8; margin-top: 8px;">
+                    * Imp = Contribution to US Net Liquidity change. RRP/TGA
+                    have an inverse effect.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
           <div class="chart-card">

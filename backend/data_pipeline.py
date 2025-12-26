@@ -1336,6 +1336,20 @@ def run_pipeline():
             'us_net_liq_rrp': clean_for_json(df_t.get('RRP_USD', pd.Series(dtype=float))),
             'us_net_liq_tga': clean_for_json(df_t.get('TGA_USD', pd.Series(dtype=float))),
             'us_net_liq_rocs': {k: clean_for_json(v) for k, v in net_liq_rocs.items()},
+            'us_system_rocs': (lambda total_nl: {
+                comp: {
+                    k: clean_for_json(calculate_rocs(df_t.get(col, pd.Series(0.0, index=df_t.index)))[k])
+                    for k in ['1M', '3M', '6M', '1Y']
+                } | {
+                    # Multi-period Impact on Net Liquidity
+                    # Note: RRP and TGA have INVERSE impact (increase = liquidity drain)
+                    f'impact_{i}': clean_for_json(
+                        ((df_t.get(col, pd.Series(0.0, index=df_t.index)) - 
+                          df_t.get(col, pd.Series(0.0, index=df_t.index)).shift(w)) / total_nl.shift(w)) * 100 * (1 if comp == 'fed' else -1)
+                    ) for i, w in [('1m', 22), ('3m', 66), ('1y', 252)]
+                }
+                for comp, col in [('fed', 'FED_USD'), ('rrp', 'RRP_USD'), ('tga', 'TGA_USD')]
+            })(us_net_liq['NET_LIQUIDITY']),
             'bank_rocs': (lambda total_gli: {
                 b: {
                     k: clean_for_json(calculate_rocs(gli.get(f'{b.upper()}_USD', pd.Series(0.0, index=df_t.index)))[k]) 
