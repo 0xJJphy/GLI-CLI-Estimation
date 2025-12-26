@@ -16,10 +16,81 @@
   // Dark mode state
   let darkMode = false;
 
-  // Initialize dark mode from localStorage on mount
+  // Language state (default: English)
+  let language = "en";
+
+  // Translations for chart descriptions
+  const translations = {
+    en: {
+      gli: "Sum of global central bank balance sheets in USD. ↑ Expansion = Liquidity injection (bullish) | ↓ Contraction = QT (bearish)",
+      gli_cb:
+        "Individual central bank assets in USD. Larger = more weight in global liquidity.",
+      btc_fair:
+        "BTC fair value derived from macro liquidity factors. Price above = overvalued, below = undervalued.",
+      btc_bands:
+        "±1σ/2σ bands show historical deviation range. Mean-reverts over time.",
+      net_liq:
+        "Fed Balance Sheet minus TGA and RRP. Key driver of US dollar liquidity.",
+      rrp: "Reverse Repo drains liquidity from the system. ↓ RRP = Liquidity release (bullish)",
+      tga: "Treasury General Account. ↓ TGA = Treasury spending = Liquidity injection",
+      m2_global:
+        "Global money supply in USD. Leading indicator for asset prices (45-90 day lag).",
+      m2_country: "Country M2 money supply in local currency converted to USD.",
+      cli: "Aggregates credit conditions, volatility, and lending. ↑ CLI = Easier credit (bullish) | ↓ CLI = Tighter (bearish)",
+      hy_spread:
+        "High Yield bond spreads vs Treasuries. ↓ Spread = Risk-on (bullish) | ↑ Spread = Risk-off",
+      ig_spread:
+        "Investment Grade spreads. ↓ Spread = Credit easing | ↑ Spread = Credit stress",
+      nfci_credit:
+        "Fed's NFCI Credit subindex. ↓ Below 0 = Loose conditions | ↑ Above 0 = Tight",
+      nfci_risk:
+        "Fed's NFCI Risk subindex. ↓ Below 0 = Low fear | ↑ Above 0 = Elevated fear",
+      lending:
+        "Senior Loan Officer Survey. ↑ Tightening = Banks restrict credit | ↓ Easing = Free lending",
+      vix: "Implied volatility (fear gauge). Z>2 = Panic | Z<-1 = Complacency. Mean-reverts.",
+      tips: "Breakeven (amber): Inflation expectations. Real Rate (blue): True cost of money. 5Y5Y (green): Long-term anchor.",
+    },
+    es: {
+      gli: "Suma de balances de bancos centrales en USD. ↑ Expansión = Inyección de liquidez (alcista) | ↓ Contracción = QT (bajista)",
+      gli_cb:
+        "Activos individuales de bancos centrales en USD. Mayor = más peso en liquidez global.",
+      btc_fair:
+        "Valor justo de BTC derivado de factores macro. Precio arriba = sobrevalorado, abajo = infravalorado.",
+      btc_bands:
+        "Bandas ±1σ/2σ muestran rango de desviación histórica. Revierte a la media.",
+      net_liq:
+        "Balance de la Fed menos TGA y RRP. Motor clave de liquidez del dólar.",
+      rrp: "Repo Inverso drena liquidez del sistema. ↓ RRP = Liberación de liquidez (alcista)",
+      tga: "Cuenta General del Tesoro. ↓ TGA = Gasto del Tesoro = Inyección de liquidez",
+      m2_global:
+        "Oferta monetaria global en USD. Indicador adelantado de precios (45-90 días de retardo).",
+      m2_country: "M2 del país en moneda local convertida a USD.",
+      cli: "Agrega condiciones crediticias, volatilidad y préstamos. ↑ CLI = Crédito fácil (alcista) | ↓ CLI = Más estricto",
+      hy_spread:
+        "Spreads de bonos High Yield vs Treasuries. ↓ Spread = Risk-on (alcista) | ↑ = Risk-off",
+      ig_spread:
+        "Spreads de grado de inversión. ↓ Spread = Crédito relajado | ↑ = Estrés crediticio",
+      nfci_credit:
+        "Subíndice de crédito NFCI de la Fed. ↓ Bajo 0 = Condiciones laxas | ↑ Sobre 0 = Estrictas",
+      nfci_risk:
+        "Subíndice de riesgo NFCI. ↓ Bajo 0 = Bajo miedo | ↑ Sobre 0 = Miedo elevado",
+      lending:
+        "Encuesta de préstamos bancarios. ↑ Endurecimiento = Restringen crédito | ↓ = Prestan libremente",
+      vix: "Volatilidad implícita (indicador de miedo). Z>2 = Pánico | Z<-1 = Complacencia.",
+      tips: "Breakeven (ámbar): Expectativas de inflación. Tasa Real (azul): Coste real del dinero. 5Y5Y (verde): Anclaje a largo plazo.",
+    },
+  };
+
+  // Helper to get translation
+  const t = (key) =>
+    translations[language]?.[key] || translations.en[key] || key;
+
+  // Initialize from localStorage on mount
   onMount(() => {
     const savedTheme = localStorage.getItem("theme");
+    const savedLang = localStorage.getItem("language");
     darkMode = savedTheme === "dark";
+    language = savedLang || "en";
     applyTheme();
   });
 
@@ -27,6 +98,11 @@
     darkMode = !darkMode;
     localStorage.setItem("theme", darkMode ? "dark" : "light");
     applyTheme();
+  }
+
+  function toggleLanguage() {
+    language = language === "en" ? "es" : "en";
+    localStorage.setItem("language", language);
   }
 
   function applyTheme() {
@@ -1436,14 +1512,6 @@
     </nav>
 
     <div class="sidebar-footer">
-      <button
-        class="theme-toggle"
-        on:click={toggleDarkMode}
-        title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-      >
-        <span class="theme-icon">{darkMode ? "☀️" : "🌙"}</span>
-        <span class="theme-text">{darkMode ? "Light" : "Dark"}</span>
-      </button>
       <div class="status-indicator">
         <div class="pulse"></div>
         System Live
@@ -1461,6 +1529,22 @@
         </p>
       </div>
       <div class="header-actions">
+        <button
+          class="header-toggle"
+          on:click={toggleLanguage}
+          title="Switch Language"
+        >
+          <span class="toggle-icon">🌐</span>
+          <span class="toggle-label">{language === "en" ? "EN" : "ES"}</span>
+        </button>
+        <button
+          class="header-toggle"
+          on:click={toggleDarkMode}
+          title={darkMode ? "Light Mode" : "Dark Mode"}
+        >
+          <span class="toggle-icon">{darkMode ? "☀️" : "🌙"}</span>
+          <span class="toggle-label">{darkMode ? "Light" : "Dark"}</span>
+        </button>
         {#if $isLoading}
           <div class="loader"></div>
         {:else}
@@ -2167,18 +2251,13 @@
                 <span class="last-date">Last Data: {getLastDate("NFCI")}</span>
               </div>
             </div>
-            <p class="chart-description">
-              Aggregates credit conditions, volatility, and lending standards
-              into a single index.
-              <strong>↑ CLI = Easier credit (bullish)</strong> |
-              <strong>↓ CLI = Tighter credit (bearish)</strong>
-            </p>
+            <p class="chart-description">{t("cli")}</p>
             <div class="chart-content">
               <Chart data={cliData} />
             </div>
           </div>
 
-          {#each [{ id: "hy", name: "HY Spread Contrast", data: hyZData, range: hyRange, setRange: (r) => (hyRange = r), bank: "HY_SPREAD", desc: "High Yield bond spreads vs Treasuries. ↓ Spread = Risk-on (bullish) | ↑ Spread = Risk-off (bearish)" }, { id: "ig", name: "IG Spread Contrast", data: igZData, range: igRange, setRange: (r) => (igRange = r), bank: "IG_SPREAD", desc: "Investment Grade spreads. ↓ Spread = Credit easing | ↑ Spread = Credit stress" }, { id: "nfci_credit", name: "NFCI Credit Contrast", data: nfciCreditZData, range: nfciRange, setRange: (r) => (nfciRange = r), bank: "NFCI", desc: "Fed's NFCI Credit subindex. ↓ Below 0 = Loose conditions | ↑ Above 0 = Tight conditions" }, { id: "nfci_risk", name: "NFCI Risk Contrast", data: nfciRiskZData, range: nfciRange, setRange: (r) => (nfciRange = r), bank: "NFCI", desc: "Fed's NFCI Risk subindex. Measures volatility perception. ↓ Below 0 = Low risk appetite | ↑ Above 0 = Elevated fear" }, { id: "lending", name: "Lending Standards Contrast", data: lendingZData, range: lendingRange, setRange: (r) => (lendingRange = r), bank: "LENDING_STD", desc: "Senior Loan Officer Survey. ↑ Tightening = Banks restrict credit | ↓ Easing = Banks lend freely" }, { id: "vix_z", name: "VIX Contrast (Z-Score)", data: vixZData, range: vixRange, setRange: (r) => (vixRange = r), bank: "VIX", desc: "Implied volatility (fear gauge). Z>2 = Panic | Z<-1 = Complacency. Mean-reverts." }] as item}
+          {#each [{ id: "hy", name: "HY Spread Contrast", data: hyZData, range: hyRange, setRange: (r) => (hyRange = r), bank: "HY_SPREAD", descKey: "hy_spread" }, { id: "ig", name: "IG Spread Contrast", data: igZData, range: igRange, setRange: (r) => (igRange = r), bank: "IG_SPREAD", descKey: "ig_spread" }, { id: "nfci_credit", name: "NFCI Credit Contrast", data: nfciCreditZData, range: nfciRange, setRange: (r) => (nfciRange = r), bank: "NFCI", descKey: "nfci_credit" }, { id: "nfci_risk", name: "NFCI Risk Contrast", data: nfciRiskZData, range: nfciRange, setRange: (r) => (nfciRange = r), bank: "NFCI", descKey: "nfci_risk" }, { id: "lending", name: "Lending Standards Contrast", data: lendingZData, range: lendingRange, setRange: (r) => (lendingRange = r), bank: "LENDING_STD", descKey: "lending" }, { id: "vix_z", name: "VIX Contrast (Z-Score)", data: vixZData, range: vixRange, setRange: (r) => (vixRange = r), bank: "VIX", descKey: "vix" }] as item}
             <div class="chart-card">
               <div class="chart-header">
                 <h3>{item.name}</h3>
@@ -2190,7 +2269,7 @@
                   <span class="last-date">Last: {getLastDate(item.bank)}</span>
                 </div>
               </div>
-              <p class="chart-description">{item.desc}</p>
+              <p class="chart-description">{t(item.descKey)}</p>
               <div class="chart-content">
                 <Chart data={item.data} />
               </div>
@@ -2211,14 +2290,7 @@
                 >
               </div>
             </div>
-            <p class="chart-description">
-              <strong>Breakeven (amber)</strong>: Market's expected inflation. ↑
-              Rising = Inflation fears.
-              <strong>Real Rate (blue)</strong>: True cost of money. Negative =
-              Ultra-easy policy, bullish risk assets.
-              <strong>5Y5Y Forward (green)</strong>: Long-term inflation anchor.
-              Stable ≈ 2-2.5% = Fed credibility intact.
-            </p>
+            <p class="chart-description">{t("tips")}</p>
             <div class="chart-content">
               <Chart data={tipsData} layout={tipsLayout} />
             </div>
@@ -3315,36 +3387,6 @@
     gap: 12px;
   }
 
-  .theme-toggle {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 14px;
-    border: 1px solid var(--border-color);
-    background: var(--bg-tertiary);
-    border-radius: 10px;
-    cursor: pointer;
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-    transition: all 0.2s;
-    width: 100%;
-    justify-content: center;
-  }
-
-  .theme-toggle:hover {
-    background: var(--accent-primary);
-    color: white;
-    border-color: var(--accent-primary);
-  }
-
-  .theme-icon {
-    font-size: 1rem;
-  }
-
-  .theme-text {
-    font-weight: 500;
-  }
-
   .status-indicator {
     display: flex;
     align-items: center;
@@ -3426,6 +3468,42 @@
     background: var(--bg-tertiary);
     border-color: var(--accent-secondary);
     transform: translateY(-1px);
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .header-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    transition: all 0.2s;
+  }
+
+  .header-toggle:hover {
+    background: var(--accent-primary);
+    color: white;
+    border-color: var(--accent-primary);
+  }
+
+  .toggle-icon {
+    font-size: 0.875rem;
+  }
+
+  .toggle-label {
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
   }
 
   .toggle-btn {
