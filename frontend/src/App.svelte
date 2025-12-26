@@ -2252,7 +2252,7 @@
                 <span class="last-date">Last Data: {getLastDate("NFCI")}</span>
               </div>
             </div>
-            <p class="chart-description">{t("cli")}</p>
+            <p class="chart-description">{currentTranslations.cli}</p>
             <div class="chart-content">
               <Chart darkMode={darkMode} data={cliData} />
             </div>
@@ -2270,7 +2270,7 @@
                   <span class="last-date">Last: {getLastDate(item.bank)}</span>
                 </div>
               </div>
-              <p class="chart-description">{t(item.descKey)}</p>
+              <p class="chart-description">{currentTranslations[item.descKey]}</p>
               <div class="chart-content">
                 <Chart darkMode={darkMode} data={item.data} />
               </div>
@@ -2291,7 +2291,7 @@
                 >
               </div>
             </div>
-            <p class="chart-description">{t("tips")}</p>
+            <p class="chart-description">{currentTranslations.tips}</p>
             <div class="chart-content">
               <Chart darkMode={darkMode} data={tipsData} layout={tipsLayout} />
             </div>
