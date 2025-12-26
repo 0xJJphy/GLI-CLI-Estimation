@@ -522,6 +522,7 @@
         return {
           id,
           name: labels[id] || id.toUpperCase(),
+          isLiability: id !== "fed",
           m1: data["1M"]?.[data["1M"].length - 1] || 0,
           m3: data["3M"]?.[data["3M"].length - 1] || 0,
           y1: data["1Y"]?.[data["1Y"].length - 1] || 0,
@@ -1618,8 +1619,12 @@
                           <td>{item.name}</td>
                           <td
                             class="roc-val"
-                            class:positive={item.m1 > 0}
-                            class:negative={item.m1 < 0}
+                            class:positive={(!item.isLiability &&
+                              item.m1 > 0) ||
+                              (item.isLiability && item.m1 < 0)}
+                            class:negative={(!item.isLiability &&
+                              item.m1 < 0) ||
+                              (item.isLiability && item.m1 > 0)}
                             >{item.m1.toFixed(1)}%</td
                           >
                           <td
@@ -1630,8 +1635,12 @@
                           >
                           <td
                             class="roc-val"
-                            class:positive={item.m3 > 0}
-                            class:negative={item.m3 < 0}
+                            class:positive={(!item.isLiability &&
+                              item.m3 > 0) ||
+                              (item.isLiability && item.m3 < 0)}
+                            class:negative={(!item.isLiability &&
+                              item.m3 < 0) ||
+                              (item.isLiability && item.m3 > 0)}
                             >{item.m3.toFixed(1)}%</td
                           >
                           <td
@@ -1642,8 +1651,12 @@
                           >
                           <td
                             class="roc-val"
-                            class:positive={item.y1 > 0}
-                            class:negative={item.y1 < 0}
+                            class:positive={(!item.isLiability &&
+                              item.y1 > 0) ||
+                              (item.isLiability && item.y1 < 0)}
+                            class:negative={(!item.isLiability &&
+                              item.y1 < 0) ||
+                              (item.isLiability && item.y1 > 0)}
                             >{item.y1.toFixed(1)}%</td
                           >
                           <td
@@ -1853,8 +1866,12 @@
                           <td>{item.weight.toFixed(0)}%</td>
                           <td
                             class="roc-val"
-                            class:positive={item.m1 > 0}
-                            class:negative={item.m1 < 0}
+                            class:positive={(!item.isLiability &&
+                              item.m1 > 0) ||
+                              (item.isLiability && item.m1 < 0)}
+                            class:negative={(!item.isLiability &&
+                              item.m1 < 0) ||
+                              (item.isLiability && item.m1 > 0)}
                             >{item.m1.toFixed(1)}%</td
                           >
                           <td
@@ -1865,8 +1882,12 @@
                           >
                           <td
                             class="roc-val"
-                            class:positive={item.m3 > 0}
-                            class:negative={item.m3 < 0}
+                            class:positive={(!item.isLiability &&
+                              item.m3 > 0) ||
+                              (item.isLiability && item.m3 < 0)}
+                            class:negative={(!item.isLiability &&
+                              item.m3 < 0) ||
+                              (item.isLiability && item.m3 > 0)}
                             >{item.m3.toFixed(1)}%</td
                           >
                           <td
@@ -1877,8 +1898,12 @@
                           >
                           <td
                             class="roc-val"
-                            class:positive={item.y1 > 0}
-                            class:negative={item.y1 < 0}
+                            class:positive={(!item.isLiability &&
+                              item.y1 > 0) ||
+                              (item.isLiability && item.y1 < 0)}
+                            class:negative={(!item.isLiability &&
+                              item.y1 < 0) ||
+                              (item.isLiability && item.y1 > 0)}
                             >{item.y1.toFixed(1)}%</td
                           >
                           <td
@@ -1961,8 +1986,12 @@
                           <td>{item.name}</td>
                           <td
                             class="roc-val"
-                            class:positive={item.m1 > 0}
-                            class:negative={item.m1 < 0}
+                            class:positive={(!item.isLiability &&
+                              item.m1 > 0) ||
+                              (item.isLiability && item.m1 < 0)}
+                            class:negative={(!item.isLiability &&
+                              item.m1 < 0) ||
+                              (item.isLiability && item.m1 > 0)}
                             >{item.m1.toFixed(1)}%</td
                           >
                           <td
@@ -1973,8 +2002,12 @@
                           >
                           <td
                             class="roc-val"
-                            class:positive={item.m3 > 0}
-                            class:negative={item.m3 < 0}
+                            class:positive={(!item.isLiability &&
+                              item.m3 > 0) ||
+                              (item.isLiability && item.m3 < 0)}
+                            class:negative={(!item.isLiability &&
+                              item.m3 < 0) ||
+                              (item.isLiability && item.m3 > 0)}
                             >{item.m3.toFixed(1)}%</td
                           >
                           <td
@@ -1985,8 +2018,12 @@
                           >
                           <td
                             class="roc-val"
-                            class:positive={item.y1 > 0}
-                            class:negative={item.y1 < 0}
+                            class:positive={(!item.isLiability &&
+                              item.y1 > 0) ||
+                              (item.isLiability && item.y1 < 0)}
+                            class:negative={(!item.isLiability &&
+                              item.y1 < 0) ||
+                              (item.isLiability && item.y1 > 0)}
                             >{item.y1.toFixed(1)}%</td
                           >
                           <td
