@@ -473,6 +473,59 @@
   ];
   $: cliData = filterPlotlyData(cliDataRaw, $dashboardData.dates, cliRange);
 
+  // GLI Metrics Helpers
+  $: gliWeights = Object.entries($dashboardData.gli_weights || {})
+    .map(([id, weight]) => {
+      const rocs = $dashboardData.bank_rocs?.[id] || {};
+      return {
+        id,
+        name: id.toUpperCase(),
+        weight,
+        m1: rocs["1M"]?.[rocs["1M"].length - 1] || 0,
+        m3: rocs["3M"]?.[rocs["3M"].length - 1] || 0,
+        m6: rocs["6M"]?.[rocs["6M"].length - 1] || 0,
+        y1: rocs["1Y"]?.[rocs["1Y"].length - 1] || 0,
+        imp1: rocs["impact_1m"]?.[rocs["impact_1m"].length - 1] || 0,
+        imp3: rocs["impact_3m"]?.[rocs["impact_3m"].length - 1] || 0,
+        imp1y: rocs["impact_1y"]?.[rocs["impact_1y"].length - 1] || 0,
+      };
+    })
+    .sort((a, b) => b.weight - a.weight);
+
+  // M2 Metrics Helpers
+  $: m2Weights = Object.entries($dashboardData.m2_weights || {})
+    .map(([id, weight]) => {
+      const rocs = $dashboardData.m2_bank_rocs?.[id] || {};
+      return {
+        id,
+        name: id.toUpperCase(),
+        weight,
+        m1: rocs["1M"]?.[rocs["1M"].length - 1] || 0,
+        m3: rocs["3M"]?.[rocs["3M"].length - 1] || 0,
+        m6: rocs["6M"]?.[rocs["6M"].length - 1] || 0,
+        y1: rocs["1Y"]?.[rocs["1Y"].length - 1] || 0,
+        imp1: rocs["impact_1m"]?.[rocs["impact_1m"].length - 1] || 0,
+        imp3: rocs["impact_3m"]?.[rocs["impact_3m"].length - 1] || 0,
+        imp1y: rocs["impact_1y"]?.[rocs["impact_1y"].length - 1] || 0,
+      };
+    })
+    .sort((a, b) => b.weight - a.weight);
+
+  $: gliMovers = $dashboardData.bank_rocs
+    ? Object.entries($dashboardData.bank_rocs)
+        .map(([id, rocs]) => ({
+          id,
+          name: id.toUpperCase(),
+          m1: rocs["1M"]?.[rocs["1M"].length - 1] || 0,
+          m3: rocs["3M"]?.[rocs["3M"].length - 1] || 0,
+          m6: rocs["6M"]?.[rocs["6M"].length - 1] || 0,
+          y1: rocs["1Y"]?.[rocs["1Y"].length - 1] || 0,
+          impact: rocs["impact_1m"]?.[rocs["impact_1m"].length - 1] || 0,
+        }))
+        .sort((a, b) => Math.abs(b.impact) - Math.abs(a.impact))
+        .slice(0, 5)
+    : [];
+
   // --- CLI Component Breakdown (Stacked Contribution) ---
   // Weights matching backend: HY (0.25), IG (0.15), NFCI_CREDIT (0.20), NFCI_RISK (0.20), LENDING (0.10), VIX (0.10)
   $: cliComponentDataRaw = [
@@ -1092,6 +1145,38 @@
     ];
   })();
 
+  // --- US System Data ---
+  let rrpRange = "1Y";
+  let tgaRange = "1Y";
+
+  $: rrpDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.us_net_liq_rrp,
+      name: "RRP Balance (Trillion USD)",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#ec4899", width: 2 },
+      fill: "tozeroy",
+      fillcolor: "rgba(236, 72, 153, 0.1)",
+    },
+  ];
+  $: rrpData = filterPlotlyData(rrpDataRaw, $dashboardData.dates, rrpRange);
+
+  $: tgaDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.us_net_liq_tga,
+      name: "TGA Balance (Trillion USD)",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#6366f1", width: 2 },
+      fill: "tozeroy",
+      fillcolor: "rgba(99, 102, 241, 0.1)",
+    },
+  ];
+  $: tgaData = filterPlotlyData(tgaDataRaw, $dashboardData.dates, tgaRange);
+
   // Returns comparison chart data (Plotly bar chart)
   $: quantV2ReturnsData = (() => {
     const v2 = $dashboardData.btc?.models?.quant_v2;
@@ -1153,7 +1238,14 @@
   })();
 
   const getLastDate = (seriesKey) => {
-    return $dashboardData.last_dates[seriesKey] || "N/A";
+    if (!$dashboardData.last_dates) return "N/A";
+    const key = seriesKey.toUpperCase();
+    return (
+      $dashboardData.last_dates[key] ||
+      $dashboardData.last_dates[key + "_USD"] ||
+      $dashboardData.last_dates[seriesKey] ||
+      "N/A"
+    );
   };
 
   const getLatestROC = (rocsObj, window) => {
@@ -1351,41 +1443,117 @@
         {/if}
 
         <div class="main-charts">
-          <div class="chart-card">
-            <div class="chart-header">
-              <div class="label-group">
-                <h3>
-                  Global Liquidity Index ({$dashboardData.gli.cb_count || 16} Banks)
-                </h3>
-                <SignalBadge type={gliSignal} text={gliSignal} />
-              </div>
-              <div class="header-controls">
-                <div class="fx-toggle">
-                  <button
-                    class="fx-btn"
-                    class:active={!gliShowConstantFx}
-                    on:click={() => (gliShowConstantFx = false)}
-                    >Spot USD</button
-                  >
-                  <button
-                    class="fx-btn"
-                    class:active={gliShowConstantFx}
-                    on:click={() => (gliShowConstantFx = true)}>Const FX</button
-                  >
+          <div class="chart-card wide">
+            <div class="gli-layout">
+              <div class="chart-main">
+                <div class="chart-header">
+                  <div class="label-group">
+                    <h3>
+                      Global Liquidity Index ({$dashboardData.gli.cb_count ||
+                        15} Banks)
+                    </h3>
+                    <SignalBadge type={gliSignal} text={gliSignal} />
+                  </div>
+                  <div class="header-controls">
+                    <div class="fx-toggle">
+                      <button
+                        class="fx-btn"
+                        class:active={!gliShowConstantFx}
+                        on:click={() => (gliShowConstantFx = false)}
+                        >Spot USD</button
+                      >
+                      <button
+                        class="fx-btn"
+                        class:active={gliShowConstantFx}
+                        on:click={() => (gliShowConstantFx = true)}
+                        >Const FX</button
+                      >
+                    </div>
+                    <TimeRangeSelector
+                      selectedRange={gliRange}
+                      onRangeChange={(r) => (gliRange = r)}
+                    />
+                    <span class="last-date"
+                      >Last: {getLastDate("GLI_TOTAL")}</span
+                    >
+                  </div>
                 </div>
-                <TimeRangeSelector
-                  selectedRange={gliRange}
-                  onRangeChange={(r) => (gliRange = r)}
-                />
-                <span class="last-date">Last Data: {getLastDate("PBOC")}</span>
+                <div class="chart-content">
+                  <Chart data={gliData} />
+                </div>
               </div>
-            </div>
-            <div class="chart-content">
-              <Chart data={gliData} />
+
+              <div class="metrics-sidebar">
+                <div class="metrics-section">
+                  <h4>GLI Composition & Performance</h4>
+                  <table class="metrics-table">
+                    <thead>
+                      <tr>
+                        <th>Bank</th>
+                        <th>Wgt</th>
+                        <th>1M</th>
+                        <th title="1M Global Impact">Imp</th>
+                        <th>3M</th>
+                        <th title="3M Global Impact">Imp</th>
+                        <th>1Y</th>
+                        <th title="1Y Global Impact">Imp</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {#each gliWeights.slice(0, 10) as bank}
+                        <tr>
+                          <td>{bank.name}</td>
+                          <td>{bank.weight.toFixed(0)}%</td>
+                          <td
+                            class="roc-val"
+                            class:positive={bank.m1 > 0}
+                            class:negative={bank.m1 < 0}
+                            >{bank.m1.toFixed(1)}%</td
+                          >
+                          <td
+                            class="roc-val impact-cell"
+                            class:positive={bank.imp1 > 0}
+                            class:negative={bank.imp1 < 0}
+                            >{bank.imp1.toFixed(2)}%</td
+                          >
+                          <td
+                            class="roc-val"
+                            class:positive={bank.m3 > 0}
+                            class:negative={bank.m3 < 0}
+                            >{bank.m3.toFixed(1)}%</td
+                          >
+                          <td
+                            class="roc-val impact-cell"
+                            class:positive={bank.imp3 > 0}
+                            class:negative={bank.imp3 < 0}
+                            >{bank.imp3.toFixed(2)}%</td
+                          >
+                          <td
+                            class="roc-val"
+                            class:positive={bank.y1 > 0}
+                            class:negative={bank.y1 < 0}
+                            >{bank.y1.toFixed(1)}%</td
+                          >
+                          <td
+                            class="roc-val impact-cell"
+                            class:positive={bank.imp1y > 0}
+                            class:negative={bank.imp1y < 0}
+                            >{bank.imp1y.toFixed(2)}%</td
+                          >
+                        </tr>
+                      {/each}
+                    </tbody>
+                  </table>
+                  <p style="font-size: 10px; color: #94a3b8; margin-top: 8px;">
+                    * Impact = % contribution of bank's 1M move to total Global
+                    Liquidity.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div class="chart-card">
+          <div class="chart-card wide">
             <div class="chart-header">
               <div class="label-group">
                 <h3>US Net Liquidity</h3>
@@ -1442,18 +1610,92 @@
       {:else if currentTab === "Global Flows CB"}
         <div class="main-charts">
           <div class="chart-card wide">
-            <div class="chart-header">
-              <h3>Global Liquidity Index (Aggregate)</h3>
-              <div class="header-controls">
-                <TimeRangeSelector
-                  selectedRange={gliRange}
-                  onRangeChange={(r) => (gliRange = r)}
-                />
-                <span class="last-date">Last Data: {getLastDate("PBOC")}</span>
+            <div class="gli-layout">
+              <div class="chart-main">
+                <div class="chart-header">
+                  <h3>Global Liquidity Index (Aggregate)</h3>
+                  <div class="header-controls">
+                    <TimeRangeSelector
+                      selectedRange={gliRange}
+                      onRangeChange={(r) => (gliRange = r)}
+                    />
+                    <span class="last-date"
+                      >Last: {getLastDate("GLI_TOTAL")}</span
+                    >
+                  </div>
+                </div>
+                <div class="chart-content">
+                  <Chart data={gliData} />
+                </div>
               </div>
-            </div>
-            <div class="chart-content">
-              <Chart data={gliData} />
+
+              <div class="metrics-sidebar">
+                <div class="metrics-section">
+                  <h4>GLI Composition & Performance</h4>
+                  <table class="metrics-table">
+                    <thead>
+                      <tr>
+                        <th>Bank</th>
+                        <th>Wgt</th>
+                        <th>1M</th>
+                        <th title="1M Global Impact">Imp</th>
+                        <th>3M</th>
+                        <th title="3M Global Impact">Imp</th>
+                        <th>1Y</th>
+                        <th title="1Y Global Impact">Imp</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {#each gliWeights.slice(0, 10) as bank}
+                        <tr>
+                          <td>{bank.name}</td>
+                          <td>{bank.weight.toFixed(0)}%</td>
+                          <td
+                            class="roc-val"
+                            class:positive={bank.m1 > 0}
+                            class:negative={bank.m1 < 0}
+                            >{bank.m1.toFixed(1)}%</td
+                          >
+                          <td
+                            class="roc-val impact-cell"
+                            class:positive={bank.imp1 > 0}
+                            class:negative={bank.imp1 < 0}
+                            >{bank.imp1.toFixed(2)}%</td
+                          >
+                          <td
+                            class="roc-val"
+                            class:positive={bank.m3 > 0}
+                            class:negative={bank.m3 < 0}
+                            >{bank.m3.toFixed(1)}%</td
+                          >
+                          <td
+                            class="roc-val impact-cell"
+                            class:positive={bank.imp3 > 0}
+                            class:negative={bank.imp3 < 0}
+                            >{bank.imp3.toFixed(2)}%</td
+                          >
+                          <td
+                            class="roc-val"
+                            class:positive={bank.y1 > 0}
+                            class:negative={bank.y1 < 0}
+                            >{bank.y1.toFixed(1)}%</td
+                          >
+                          <td
+                            class="roc-val impact-cell"
+                            class:positive={bank.imp1y > 0}
+                            class:negative={bank.imp1y < 0}
+                            >{bank.imp1y.toFixed(2)}%</td
+                          >
+                        </tr>
+                      {/each}
+                    </tbody>
+                  </table>
+                  <p style="font-size: 10px; color: #94a3b8; margin-top: 8px;">
+                    * Impact = % contribution of bank's 1M move to total Global
+                    Liquidity.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1480,17 +1722,92 @@
       {:else if currentTab === "Global M2"}
         <div class="main-charts">
           <div class="chart-card wide">
-            <div class="chart-header">
-              <h3>Global M2 Money Supply (Aggregate)</h3>
-              <div class="header-controls">
-                <TimeRangeSelector
-                  selectedRange={m2Range}
-                  onRangeChange={(r) => (m2Range = r)}
-                />
+            <div class="gli-layout">
+              <div class="chart-main">
+                <div class="chart-header">
+                  <h3>Global M2 Money Supply (Aggregate)</h3>
+                  <div class="header-controls">
+                    <TimeRangeSelector
+                      selectedRange={m2Range}
+                      onRangeChange={(r) => (m2Range = r)}
+                    />
+                    <span class="last-date"
+                      >Last: {getLastDate("M2_TOTAL")}</span
+                    >
+                  </div>
+                </div>
+                <div class="chart-content">
+                  <Chart data={m2TotalData} />
+                </div>
               </div>
-            </div>
-            <div class="chart-content">
-              <Chart data={m2TotalData} />
+
+              <div class="metrics-sidebar">
+                <div class="metrics-section">
+                  <h4>M2 Composition & Performance</h4>
+                  <table class="metrics-table">
+                    <thead>
+                      <tr>
+                        <th>Economy</th>
+                        <th>Wgt</th>
+                        <th>1M</th>
+                        <th title="1M Global Impact">Imp</th>
+                        <th>3M</th>
+                        <th title="3M Global Impact">Imp</th>
+                        <th>1Y</th>
+                        <th title="1Y Global Impact">Imp</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {#each m2Weights.slice(0, 10) as item}
+                        <tr>
+                          <td>{item.name}</td>
+                          <td>{item.weight.toFixed(0)}%</td>
+                          <td
+                            class="roc-val"
+                            class:positive={item.m1 > 0}
+                            class:negative={item.m1 < 0}
+                            >{item.m1.toFixed(1)}%</td
+                          >
+                          <td
+                            class="roc-val impact-cell"
+                            class:positive={item.imp1 > 0}
+                            class:negative={item.imp1 < 0}
+                            >{item.imp1.toFixed(2)}%</td
+                          >
+                          <td
+                            class="roc-val"
+                            class:positive={item.m3 > 0}
+                            class:negative={item.m3 < 0}
+                            >{item.m3.toFixed(1)}%</td
+                          >
+                          <td
+                            class="roc-val impact-cell"
+                            class:positive={item.imp3 > 0}
+                            class:negative={item.imp3 < 0}
+                            >{item.imp3.toFixed(2)}%</td
+                          >
+                          <td
+                            class="roc-val"
+                            class:positive={item.y1 > 0}
+                            class:negative={item.y1 < 0}
+                            >{item.y1.toFixed(1)}%</td
+                          >
+                          <td
+                            class="roc-val impact-cell"
+                            class:positive={item.imp1y > 0}
+                            class:negative={item.imp1y < 0}
+                            >{item.imp1y.toFixed(2)}%</td
+                          >
+                        </tr>
+                      {/each}
+                    </tbody>
+                  </table>
+                  <p style="font-size: 10px; color: #94a3b8; margin-top: 8px;">
+                    * Impact = % contribution of local M2 1M move to total
+                    Global M2.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1552,11 +1869,43 @@
                   selectedRange={cliRange}
                   onRangeChange={(r) => (cliRange = r)}
                 />
-                <span class="last-date">Last Data: {getLastDate("NFCI")}</span>
+                <span class="last-date">Last Data: {getLastDate("CLI")}</span>
               </div>
             </div>
             <div class="chart-content">
               <Chart data={cliData} />
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>Fed RRP Facility</h3>
+              <div class="header-controls">
+                <TimeRangeSelector
+                  selectedRange={rrpRange}
+                  onRangeChange={(r) => (rrpRange = r)}
+                />
+                <span class="last-date">Last Data: {getLastDate("RRP")}</span>
+              </div>
+            </div>
+            <div class="chart-content">
+              <Chart data={rrpData} />
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>Treasury General Account (TGA)</h3>
+              <div class="header-controls">
+                <TimeRangeSelector
+                  selectedRange={tgaRange}
+                  onRangeChange={(r) => (tgaRange = r)}
+                />
+                <span class="last-date">Last Data: {getLastDate("TGA")}</span>
+              </div>
+            </div>
+            <div class="chart-content">
+              <Chart data={tgaData} />
             </div>
           </div>
         </div>
@@ -3322,6 +3671,95 @@
     }
     .content {
       padding: 24px;
+    }
+  }
+
+  /* GLI Metrics Panel */
+  .gli-layout {
+    display: grid;
+    grid-template-columns: 1fr 420px;
+    gap: 20px;
+  }
+
+  .metrics-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    background: #ffffff;
+    padding: 16px;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    max-height: 800px;
+    overflow-y: auto;
+  }
+
+  .metrics-section h4 {
+    font-size: 13px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  .metrics-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .metrics-table th {
+    text-align: left;
+    font-size: 11px;
+    color: #94a3b8;
+    padding-bottom: 8px;
+  }
+
+  .metrics-table th,
+  .metrics-table td {
+    padding: 8px 4px;
+    text-align: left;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 10px;
+  }
+  .impact-cell {
+    background: rgba(248, 250, 252, 0.5);
+    font-size: 9px;
+    opacity: 0.9;
+  }
+  .metrics-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  .weight-bar {
+    height: 4px;
+    background: #e2e8f0;
+    border-radius: 2px;
+    margin-top: 4px;
+    overflow: hidden;
+  }
+
+  .weight-fill {
+    height: 100%;
+    background: #3b82f6;
+  }
+
+  .roc-val {
+    font-weight: 600;
+    font-family: "Monaco", "Consolas", monospace;
+  }
+
+  .roc-val.positive {
+    color: #10b981;
+  }
+  .roc-val.negative {
+    color: #ef4444;
+  }
+
+  @media (max-width: 1200px) {
+    .gli-layout {
+      grid-template-columns: 1fr;
     }
   }
 </style>

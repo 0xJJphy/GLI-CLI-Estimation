@@ -138,7 +138,7 @@ FRED_CONFIG = {
     'WALCL': 'FED',
     'ECBASSETSW': 'ECB',
     'JPNASSETS': 'BOJ',
-    'MABMM301GBM189S': 'BOE',
+    'UKASSETS': 'BOE',
     'MABMM301CNA189S': 'PBOC',
     'DEXUSEU': 'EURUSD',
     'DEXJPUS': 'USDJPY',
@@ -1035,7 +1035,7 @@ def run_pipeline():
     df_fred_t['FED_USD'] = df_fred['FED'] / 1e6
     df_fred_t['ECB_USD'] = (df_fred['ECB'] / 1e6) * df_fred.get('EURUSD', 1.0)
     df_fred_t['BOJ_USD'] = (df_fred['BOJ'] / 1e4) / df_fred.get('USDJPY', 150)
-    df_fred_t['BOE_USD'] = (df_fred['BOE'] / 1e12) * df_fred.get('GBPUSD', 1.3) # Raw -> Trillions
+    df_fred_t['BOE_USD'] = (df_fred['BOE'] / 1e12) * df_fred.get('GBPUSD', 1.3) # Raw GBP -> Trillions
     df_fred_t['PBOC_USD'] = (df_fred['PBOC'] / 1e12) / df_fred.get('USDCNY', 7.2) # Raw -> Trillions
     df_fred_t['TGA_USD'] = df_fred['TGA'] / 1e6
     df_fred_t['RRP_USD'] = df_fred['RRP'] / 1e3
@@ -1202,9 +1202,16 @@ def run_pipeline():
         gli = calculate_gli_from_trillions(df_t)
         us_net_liq = calculate_us_net_liq_from_trillions(df_t)
 
-        # Add GLI_TOTAL and NET_LIQUIDITY to df_t for BTC calculations
+        # Add GLI_TOTAL, NET_LIQUIDITY and M2_TOTAL to df_t
+        m2_data = calculate_global_m2(df_t)
         df_t['GLI_TOTAL'] = gli['GLI_TOTAL']
         df_t['NET_LIQUIDITY'] = us_net_liq['NET_LIQUIDITY']
+        df_t['M2_TOTAL'] = m2_data['M2_TOTAL']
+        
+        # Add labels without _USD for date tracking compatibility
+        if 'RRP_USD' in df_t.columns: df_t['RRP'] = df_t['RRP_USD']
+        if 'TGA_USD' in df_t.columns: df_t['TGA'] = df_t['TGA_USD']
+        if 'FED_USD' in df_t.columns: df_t['FED'] = df_t['FED_USD']
 
         # Bitcoin Analysis
         btc_analysis = calculate_btc_fair_value(df_t)
@@ -1254,7 +1261,12 @@ def run_pipeline():
             predictive = calculate_lag_correlation_analysis(analysis_df.dropna(), max_lag=30)
 
         # JSON structure (same as before)
+        # Identify all active M2 columns
+        m2_cols_agg = [c for c in m2_data.columns if c.endswith('_M2_USD')]
+        m2_keys_agg = [c.replace('_M2_USD', '').lower() for c in m2_cols_agg if c != 'M2_TOTAL']
+        
         gli_rocs = calculate_rocs(gli['GLI_TOTAL'])
+        m2_rocs_total = calculate_rocs(m2_data.get('M2_TOTAL', pd.Series(dtype=float)))
         net_liq_rocs = calculate_rocs(us_net_liq['NET_LIQUIDITY'])
         
         def clean_for_json(obj):
@@ -1299,30 +1311,48 @@ def run_pipeline():
                 'bnm': clean_for_json(gli.get('BNM_USD', pd.Series(dtype=float))),
                 'rocs': {k: clean_for_json(v) for k, v in gli_rocs.items()}
             },
-            'm2': (lambda m2_data, m2_rocs: {
+            'm2': {
                 'total': clean_for_json(m2_data.get('M2_TOTAL', pd.Series(dtype=float))),
-                'us': clean_for_json(m2_data.get('US_M2_USD', pd.Series(dtype=float))),
-                'eu': clean_for_json(m2_data.get('EU_M2_USD', pd.Series(dtype=float))),
-                'cn': clean_for_json(m2_data.get('CN_M2_USD', pd.Series(dtype=float))),
-                'jp': clean_for_json(m2_data.get('JP_M2_USD', pd.Series(dtype=float))),
-                'uk': clean_for_json(m2_data.get('UK_M2_USD', pd.Series(dtype=float))),
-                'ca': clean_for_json(m2_data.get('CA_M2_USD', pd.Series(dtype=float))),
-                'au': clean_for_json(m2_data.get('AU_M2_USD', pd.Series(dtype=float))),
-                'in': clean_for_json(m2_data.get('IN_M2_USD', pd.Series(dtype=float))),
-                'ch': clean_for_json(m2_data.get('CH_M2_USD', pd.Series(dtype=float))),
-                'ru': clean_for_json(m2_data.get('RU_M2_USD', pd.Series(dtype=float))),
-                'br': clean_for_json(m2_data.get('BR_M2_USD', pd.Series(dtype=float))),
-                'kr': clean_for_json(m2_data.get('KR_M2_USD', pd.Series(dtype=float))),
-                'mx': clean_for_json(m2_data.get('MX_M2_USD', pd.Series(dtype=float))),
-                'my': clean_for_json(m2_data.get('MY_M2_USD', pd.Series(dtype=float))),
-                'rocs': {k: clean_for_json(v) for k, v in m2_rocs.items()}
-            })(calculate_global_m2(df_t), calculate_rocs(calculate_global_m2(df_t).get('M2_TOTAL', pd.Series(dtype=float)))),
-            'us_net_liq': clean_for_json(us_net_liq['NET_LIQUIDITY']),
-            'us_net_liq_rocs': {k: clean_for_json(v) for k, v in net_liq_rocs.items()},
-            'bank_rocs': {
-                b: {k: clean_for_json(calculate_rocs(gli[f'{b.upper()}_USD'])[k]) for k in ['1M', '3M', '6M', '1Y']}
-                for b in ['fed', 'ecb', 'boj', 'boe', 'pboc']
+                'rocs': {k: clean_for_json(v) for k, v in m2_rocs_total.items()},
+                **{k: clean_for_json(m2_data[f"{k.upper()}_M2_USD"]) for k in m2_keys_agg}
             },
+            'm2_bank_rocs': (lambda total_m2: {
+                k: {
+                    roi_key: clean_for_json(calculate_rocs(m2_data[f'{k.upper()}_M2_USD'])[roi_key])
+                    for roi_key in ['1M', '3M', '6M', '1Y']
+                } | {
+                    # Contribution to Global M2 Change
+                    f'impact_{i}': clean_for_json(
+                        ((m2_data[f'{k.upper()}_M2_USD'] - m2_data[f'{k.upper()}_M2_USD'].shift(w)) / total_m2.shift(w)) * 100
+                    ) for i, w in [('1m', 22), ('3m', 66), ('6m', 132), ('1y', 252)]
+                }
+                for k in m2_keys_agg
+            })(m2_data['M2_TOTAL']),
+            'm2_weights': (lambda latest_m2: {
+                k: float(latest_m2.get(f'{k.upper()}_M2_USD', 0) / latest_m2['M2_TOTAL'] * 100) if latest_m2['M2_TOTAL'] > 0 else 0
+                for k in m2_keys_agg
+            })(m2_data.iloc[-1] if not m2_data.empty else {}),
+            'us_net_liq': clean_for_json(us_net_liq['NET_LIQUIDITY']),
+            'us_net_liq_rrp': clean_for_json(df_t.get('RRP_USD', pd.Series(dtype=float))),
+            'us_net_liq_tga': clean_for_json(df_t.get('TGA_USD', pd.Series(dtype=float))),
+            'us_net_liq_rocs': {k: clean_for_json(v) for k, v in net_liq_rocs.items()},
+            'bank_rocs': (lambda total_gli: {
+                b: {
+                    k: clean_for_json(calculate_rocs(gli.get(f'{b.upper()}_USD', pd.Series(0.0, index=df_t.index)))[k]) 
+                    for k in ['1M', '3M', '6M', '1Y']
+                } | {
+                    # Multi-period Impact
+                    f'impact_{i}': clean_for_json(
+                        ((gli.get(f'{b.upper()}_USD', pd.Series(0.0, index=df_t.index)) - 
+                          gli.get(f'{b.upper()}_USD', pd.Series(0.0, index=df_t.index)).shift(w)) / total_gli.shift(w)) * 100
+                    ) for i, w in [('1m', 22), ('3m', 66), ('6m', 132), ('1y', 252)]
+                }
+                for b in ['fed', 'ecb', 'boj', 'boe', 'pboc', 'boc', 'rba', 'snb', 'bok', 'rbi', 'cbr', 'bcb', 'rbnz', 'sr', 'bnm']
+            })(gli['GLI_TOTAL']),
+            'gli_weights': (lambda latest_gli: {
+                b: float(latest_gli.get(f'{b.upper()}_USD', 0) / latest_gli['GLI_TOTAL'] * 100) if latest_gli['GLI_TOTAL'] > 0 else 0
+                for b in ['fed', 'ecb', 'boj', 'boe', 'pboc', 'boc', 'rba', 'snb', 'bok', 'rbi', 'cbr', 'bcb', 'rbnz', 'sr', 'bnm']
+            })(gli.iloc[-1] if not gli.empty else {}),
             'cli': clean_for_json(df_t['CLI']),
             'cli_components': (lambda cli_df: {
                 'hy_z': clean_for_json(cli_df.get('HY_SPREAD_Z', pd.Series(dtype=float))),
