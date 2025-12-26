@@ -473,6 +473,50 @@
   ];
   $: cliData = filterPlotlyData(cliDataRaw, $dashboardData.dates, cliRange);
 
+  // TIPS / Inflation Expectations Data
+  let tipsRange = "5Y";
+  $: tipsDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.tips_breakeven,
+      name: "10Y Breakeven Inflation",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#f59e0b", width: 2, shape: "spline" },
+      yaxis: "y",
+    },
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.tips_real_rate,
+      name: "10Y Real Rate (TIPS Yield)",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#3b82f6", width: 2, shape: "spline" },
+      yaxis: "y2",
+    },
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.tips_5y5y_forward,
+      name: "5Y5Y Forward Inflation",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#10b981", width: 2, dash: "dash", shape: "spline" },
+      yaxis: "y",
+    },
+  ];
+  $: tipsData = filterPlotlyData(tipsDataRaw, $dashboardData.dates, tipsRange);
+  $: tipsLayout = {
+    yaxis: { title: "Inflation (%)", side: "left", showgrid: false },
+    yaxis2: {
+      title: "Real Rate (%)",
+      overlaying: "y",
+      side: "right",
+      showgrid: false,
+    },
+    legend: { orientation: "h", y: 1.1 },
+    margin: { t: 40, r: 60 },
+  };
+
   // GLI Metrics Helpers
   $: gliWeights = Object.entries($dashboardData.gli_weights || {})
     .map(([id, weight]) => {
@@ -2145,6 +2189,25 @@
               </div>
             </div>
           {/each}
+
+          <!-- TIPS / Inflation Expectations Chart -->
+          <div class="chart-card wide">
+            <div class="chart-header">
+              <h3>Inflation Expectations (TIPS Market)</h3>
+              <div class="header-controls">
+                <TimeRangeSelector
+                  selectedRange={tipsRange}
+                  onRangeChange={(r) => (tipsRange = r)}
+                />
+                <span class="last-date"
+                  >Last Data: {getLastDate("TIPS_BREAKEVEN")}</span
+                >
+              </div>
+            </div>
+            <div class="chart-content">
+              <Chart data={tipsData} layout={tipsLayout} />
+            </div>
+          </div>
         </div>
 
         <!-- NEW ROC Section -->

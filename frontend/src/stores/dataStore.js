@@ -41,6 +41,11 @@ export const dashboardData = writable({
     },
     vix: [],
     hy_spread: [],
+    ig_spread: [],
+    // TIPS / Inflation Expectations
+    tips_breakeven: [],
+    tips_real_rate: [],
+    tips_5y5y_forward: [],
     btc: {
         price: [], fair_value: [], upper_2sd: [], upper_1sd: [],
         lower_1sd: [], lower_2sd: [], deviation_zscore: [], rocs: {}

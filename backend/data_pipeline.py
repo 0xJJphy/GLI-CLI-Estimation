@@ -152,7 +152,11 @@ FRED_CONFIG = {
     'NFCICREDIT': 'NFCI_CREDIT',
     'NFCIRISK': 'NFCI_RISK',
     'DRTSCILM': 'LENDING_STD',
-    'VIXCLS': 'VIX'
+    'VIXCLS': 'VIX',
+    # TIPS / Inflation Expectations (high-frequency, FRED-exclusive)
+    'T10YIE': 'TIPS_BREAKEVEN',           # 10-Year Breakeven Inflation Rate
+    'DFII10': 'TIPS_REAL_RATE',           # 10-Year Real Interest Rate (TIPS Yield)
+    'T5YIFR': 'TIPS_5Y5Y_FORWARD',        # 5-Year, 5-Year Forward Inflation Expectation
 }
 
 # Mapping: Symbol -> Internal Name (TradingView ECONOMICS)
@@ -1046,6 +1050,10 @@ def run_pipeline():
     df_fred_t['NFCI_CREDIT'] = df_fred['NFCI_CREDIT']
     df_fred_t['NFCI_RISK'] = df_fred['NFCI_RISK']
     df_fred_t['LENDING_STD'] = df_fred['LENDING_STD']
+    # TIPS / Inflation Expectations
+    df_fred_t['TIPS_BREAKEVEN'] = df_fred.get('TIPS_BREAKEVEN', pd.Series(dtype=float))
+    df_fred_t['TIPS_REAL_RATE'] = df_fred.get('TIPS_REAL_RATE', pd.Series(dtype=float))
+    df_fred_t['TIPS_5Y5Y_FORWARD'] = df_fred.get('TIPS_5Y5Y_FORWARD', pd.Series(dtype=float))
     df_fred_t['CLI'] = calculate_cli(df_fred)['CLI']
 
     # 2. Fetch TV and Normalize to Trillions
@@ -1178,7 +1186,8 @@ def run_pipeline():
         # We use combine_first to ensure we have the full FRED history for these columns
         # Then we ffill() to carry the last FRED value forward to the latest TV date
         fred_cols_to_sync = ['TGA_USD', 'RRP_USD', 'VIX', 'HY_SPREAD', 'IG_SPREAD', 
-                             'NFCI', 'NFCI_CREDIT', 'NFCI_RISK', 'LENDING_STD', 'CLI']
+                             'NFCI', 'NFCI_CREDIT', 'NFCI_RISK', 'LENDING_STD', 'CLI',
+                             'TIPS_BREAKEVEN', 'TIPS_REAL_RATE', 'TIPS_5Y5Y_FORWARD']
         res_tv_t = res_tv_t.combine_first(df_fred_t[fred_cols_to_sync]).ffill()
         # Preserve RAW local units in the hybrid dataframe
         df_hybrid_processed = res_tv_t.combine_first(df_tv_t)
@@ -1271,8 +1280,8 @@ def run_pipeline():
         
         def clean_for_json(obj):
             if isinstance(obj, pd.Series):
-                # Return None (null in JSON) instead of 0 for NaN to avoid spiky chart floors
-                return [float(x) if pd.notnull(x) else None for x in obj.tolist()]
+                # Return None (null in JSON) instead of 0 for NaN/Inf to avoid invalid JSON
+                return [float(x) if pd.notnull(x) and np.isfinite(x) else None for x in obj.tolist()]
             return obj
 
         # Helper for safer last date extraction
@@ -1379,6 +1388,11 @@ def run_pipeline():
             })(calculate_cli(df_t)),
             'vix': clean_for_json(df_t['VIX']),
             'hy_spread': clean_for_json(df_t['HY_SPREAD']),
+            'ig_spread': clean_for_json(df_t['IG_SPREAD']),
+            # TIPS / Inflation Expectations
+            'tips_breakeven': clean_for_json(df_t.get('TIPS_BREAKEVEN', pd.Series(dtype=float))),
+            'tips_real_rate': clean_for_json(df_t.get('TIPS_REAL_RATE', pd.Series(dtype=float))),
+            'tips_5y5y_forward': clean_for_json(df_t.get('TIPS_5Y5Y_FORWARD', pd.Series(dtype=float))),
             'btc': {
                 'price': clean_for_json(btc_analysis.get('BTC_ACTUAL', pd.Series(dtype=float))),
                 'models': {
