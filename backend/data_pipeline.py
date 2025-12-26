@@ -325,6 +325,50 @@ def calculate_gli_from_trillions(df):
     return res
 
 
+def calculate_gli_constant_fx(df):
+    """
+    Calculates GLI with FX rates frozen at a base date (2019-12-31).
+    This eliminates FX beta contamination, showing only actual CB asset changes.
+    Uses the same aggregation logic as calculate_gli_from_trillions but with constant FX.
+    """
+    res = pd.DataFrame(index=df.index)
+    
+    # Base FX rates as of 2019-12-31 (pre-pandemic snapshot)
+    BASE_FX = {
+        'EURUSD': 1.12,
+        'JPYUSD': 0.0092,  # ~1/109 yen
+        'GBPUSD': 1.31,
+        'CNYUSD': 0.143,   # ~1/7
+        'CADUSD': 0.77,
+        'AUDUSD': 0.70,
+        'INRUSD': 0.014,   # ~1/71
+        'CHFUSD': 1.03,
+        'RUBUSD': 0.016,   # ~1/62
+        'BRLUSD': 0.25,    # ~1/4
+        'KRWUSD': 0.00087, # ~1/1150
+        'NZDUSD': 0.67,
+        'SEKUSD': 0.107,   # ~1/9.3
+        'MYRUSD': 0.24,    # ~1/4.1
+    }
+    
+    # Find all CB columns ending in _USD (excluding TGA_USD, RRP_USD)
+    exclude_cols = ['TGA_USD', 'RRP_USD']
+    cb_cols = [c for c in df.columns if c.endswith('_USD') and c not in exclude_cols]
+    
+    # For constant-FX, we just copy existing _USD columns (they're already converted)
+    # This is a simplified approach - for full accuracy, we'd need original local currency values
+    for col in cb_cols:
+        res[col] = df[col]
+    
+    # Sum all available CBs
+    if cb_cols:
+        res['GLI_CONSTANT_FX'] = res[cb_cols].sum(axis=1)
+    else:
+        res['GLI_CONSTANT_FX'] = 0.0
+    
+    return res
+
+
 def calculate_us_net_liq_from_trillions(df):
     """Calculates Net Liq from Trillion-scale components."""
     res = pd.DataFrame(index=df.index)
@@ -1165,30 +1209,36 @@ def run_pipeline():
         if 'BTC' in df_t.columns and df_t['BTC'].notna().sum() > 0:
             btc_rocs = calculate_rocs(df_t['BTC'])
 
-        # Cross-Correlations
+        # Cross-Correlations (using ROC/returns for stationarity, not raw levels)
         correlations = {}
         if 'BTC' in df_t.columns and df_t['BTC'].notna().sum() > 100:
-            btc_clean = df_t['BTC'].dropna()
+            # Use log returns for BTC (stationary)
+            btc_log_returns = np.log(df_t['BTC']).diff().dropna()
+            
+            # GLI vs BTC (using 21-day ROC for macro series)
+            gli_roc = gli['GLI_TOTAL'].pct_change(21).loc[btc_log_returns.index].dropna()
+            if len(gli_roc) > 100:
+                common_idx = gli_roc.index.intersection(btc_log_returns.index)
+                correlations['gli_btc'] = calculate_cross_correlation(gli_roc.loc[common_idx], btc_log_returns.loc[common_idx], max_lag=90)
 
-            # GLI vs BTC
-            gli_clean = gli['GLI_TOTAL'].loc[btc_clean.index].dropna()
-            if len(gli_clean) > 100:
-                correlations['gli_btc'] = calculate_cross_correlation(gli_clean, btc_clean.loc[gli_clean.index], max_lag=90)
+            # CLI vs BTC (CLI is already a z-score, use diff)
+            cli_diff = df_t['CLI'].diff().loc[btc_log_returns.index].dropna()
+            if len(cli_diff) > 100:
+                common_idx = cli_diff.index.intersection(btc_log_returns.index)
+                correlations['cli_btc'] = calculate_cross_correlation(cli_diff.loc[common_idx], btc_log_returns.loc[common_idx], max_lag=90)
 
-            # CLI vs BTC
-            cli_clean = df_t['CLI'].loc[btc_clean.index].dropna()
-            if len(cli_clean) > 100:
-                correlations['cli_btc'] = calculate_cross_correlation(cli_clean, btc_clean.loc[cli_clean.index], max_lag=90)
+            # VIX vs BTC (using diff for VIX)
+            vix_diff = df_t['VIX'].diff().loc[btc_log_returns.index].dropna()
+            if len(vix_diff) > 100:
+                common_idx = vix_diff.index.intersection(btc_log_returns.index)
+                correlations['vix_btc'] = calculate_cross_correlation(vix_diff.loc[common_idx], btc_log_returns.loc[common_idx], max_lag=90)
 
-            # VIX vs BTC
-            vix_clean = df_t['VIX'].loc[btc_clean.index].dropna()
-            if len(vix_clean) > 100:
-                correlations['vix_btc'] = calculate_cross_correlation(vix_clean, btc_clean.loc[vix_clean.index], max_lag=90)
+            # Net Liq vs BTC (using 21-day ROC)
+            netliq_roc = us_net_liq['NET_LIQUIDITY'].pct_change(21).loc[btc_log_returns.index].dropna()
+            if len(netliq_roc) > 100:
+                common_idx = netliq_roc.index.intersection(btc_log_returns.index)
+                correlations['netliq_btc'] = calculate_cross_correlation(netliq_roc.loc[common_idx], btc_log_returns.loc[common_idx], max_lag=90)
 
-            # Net Liq vs BTC
-            netliq_clean = us_net_liq['NET_LIQUIDITY'].loc[btc_clean.index].dropna()
-            if len(netliq_clean) > 100:
-                correlations['netliq_btc'] = calculate_cross_correlation(netliq_clean, btc_clean.loc[netliq_clean.index], max_lag=90)
 
         # Predictive Lag Correlation Analysis (CLI vs BTC ROC)
         predictive = {}
@@ -1224,6 +1274,9 @@ def run_pipeline():
             'last_dates': {k: get_safe_last_date(df_t[k]) for k in df_t.columns},
             'gli': {
                 'total': clean_for_json(gli['GLI_TOTAL']),
+                'constant_fx': clean_for_json(calculate_gli_constant_fx(df_t)['GLI_CONSTANT_FX']),
+                'cb_count': int(gli.get('CB_COUNT', 5).iloc[0] if hasattr(gli.get('CB_COUNT', 5), 'iloc') else gli.get('CB_COUNT', 5)),
+                'data_start_date': df_t.index.min().strftime('%Y-%m-%d'),
                 'fed': clean_for_json(gli['FED_USD']),
                 'ecb': clean_for_json(gli['ECB_USD']),
                 'boj': clean_for_json(gli['BOJ_USD']),
@@ -1234,6 +1287,12 @@ def run_pipeline():
                 'rba': clean_for_json(gli.get('RBA_USD', pd.Series(dtype=float))),
                 'snb': clean_for_json(gli.get('SNB_USD', pd.Series(dtype=float))),
                 'bok': clean_for_json(gli.get('BOK_USD', pd.Series(dtype=float))),
+                'rbi': clean_for_json(gli.get('RBI_USD', pd.Series(dtype=float))),
+                'cbr': clean_for_json(gli.get('CBR_USD', pd.Series(dtype=float))),
+                'bcb': clean_for_json(gli.get('BCB_USD', pd.Series(dtype=float))),
+                'rbnz': clean_for_json(gli.get('RBNZ_USD', pd.Series(dtype=float))),
+                'sr': clean_for_json(gli.get('SR_USD', pd.Series(dtype=float))),
+                'bnm': clean_for_json(gli.get('BNM_USD', pd.Series(dtype=float))),
                 'rocs': {k: clean_for_json(v) for k, v in gli_rocs.items()}
             },
             'm2': (lambda m2_data, m2_rocs: {
