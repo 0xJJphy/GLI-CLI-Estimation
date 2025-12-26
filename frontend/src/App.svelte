@@ -75,8 +75,8 @@
         "ElasticNet with 1-8 week lags for automatic feature selection",
       quant_v2_pca: "PCA GLI factor instead of raw sum (handles colinearity)",
       quant_v2_vol: "Rolling 52-week volatility for adaptive bands",
-      oos_metrics: "Out-of-Sample Metrics",
-      model_params: "Model Parameters",
+      oos_metrics: "{currentTranslations.oos_metrics}",
+      model_params: "{currentTranslations.model_params}",
       quant_chart_desc:
         "Cumulative model drift may cause divergence over time.",
     },
@@ -2758,7 +2758,7 @@
             </div>
             <div class="btc-stats">
               <div class="btc-stat-item">
-                <span class="btc-label">BTC Price</span>
+                <span class="btc-label">{currentTranslations.btc_price}</span>
                 <span class="btc-value price">
                   ${getLatestValue(
                     $dashboardData.btc?.price,
@@ -2766,7 +2766,7 @@
                 </span>
               </div>
               <div class="btc-stat-item">
-                <span class="btc-label">Fair Value</span>
+                <span class="btc-label">{currentTranslations.fair_value}</span>
                 <span class="btc-value fair">
                   ${Math.round(
                     getLatestValue(activeBtcModel.fair_value) || 0,
@@ -2774,7 +2774,7 @@
                 </span>
               </div>
               <div class="btc-stat-item">
-                <span class="btc-label">Deviation</span>
+                <span class="btc-label">{currentTranslations.deviation}</span>
                 <span
                   class="btc-value deviation"
                   class:overvalued={getLatestValue(
@@ -2789,7 +2789,7 @@
                 </span>
               </div>
               <div class="btc-stat-item">
-                <span class="btc-label">Z-Score</span>
+                <span class="btc-label">{currentTranslations.zscore}</span>
                 <span
                   class="btc-value zscore"
                   class:extreme={Math.abs(
@@ -3108,7 +3108,7 @@
           <!-- OOS Metrics Panel -->
           <div class="chart-card">
             <div class="chart-header">
-              <h3>📈 Out-of-Sample Metrics</h3>
+              <h3>📈 {currentTranslations.oos_metrics}</h3>
             </div>
             <div class="quant-metrics">
               <div class="metric-item">
@@ -3162,10 +3162,10 @@
             </div>
           </div>
 
-          <!-- Model Parameters -->
+          <!-- {currentTranslations.model_params} -->
           <div class="chart-card">
             <div class="chart-header">
-              <h3>⚙️ Model Parameters</h3>
+              <h3>⚙️ {currentTranslations.model_params}</h3>
             </div>
             <div class="quant-metrics">
               <div class="metric-item">
@@ -3259,7 +3259,7 @@
             </div>
             <div class="btc-stats">
               <div class="btc-stat-item">
-                <span class="btc-label">BTC Price</span>
+                <span class="btc-label">{currentTranslations.btc_price}</span>
                 <span class="btc-value price">
                   ${getLatestValue(
                     $dashboardData.btc?.models?.quant_v2?.btc_price,
@@ -3267,7 +3267,7 @@
                 </span>
               </div>
               <div class="btc-stat-item">
-                <span class="btc-label">Fair Value</span>
+                <span class="btc-label">{currentTranslations.fair_value}</span>
                 <span class="btc-value fair">
                   ${Math.round(
                     getLatestValue(
@@ -3277,7 +3277,7 @@
                 </span>
               </div>
               <div class="btc-stat-item">
-                <span class="btc-label">Deviation</span>
+                <span class="btc-label">{currentTranslations.deviation}</span>
                 <span
                   class="btc-value deviation"
                   class:overvalued={getLatestValue(
@@ -3293,7 +3293,7 @@
                 </span>
               </div>
               <div class="btc-stat-item">
-                <span class="btc-label">Z-Score</span>
+                <span class="btc-label">{currentTranslations.zscore}</span>
                 <span
                   class="btc-value zscore"
                   class:extreme={Math.abs(
