@@ -297,6 +297,95 @@
     spreadRange,
   );
 
+  // --- M2 Money Supply Chart Data ---
+  $: m2TotalDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.m2.total,
+      name: "Global M2 Total",
+      type: "scatter",
+      mode: "lines",
+      fill: "tozeroy",
+      line: { color: "#6366f1", width: 3, shape: "spline" },
+      fillcolor: "rgba(99, 102, 241, 0.05)",
+    },
+  ];
+  $: m2TotalData = filterPlotlyData(
+    m2TotalDataRaw,
+    $dashboardData.dates,
+    m2Range,
+  );
+
+  $: usM2DataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.m2.us,
+      name: "US M2",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#3b82f6", width: 3, shape: "spline" },
+      fill: "tozeroy",
+      fillcolor: "rgba(59, 130, 246, 0.05)",
+    },
+  ];
+  $: usM2Data = filterPlotlyData(usM2DataRaw, $dashboardData.dates, m2Range);
+
+  $: euM2DataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.m2.eu,
+      name: "EU M2",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#8b5cf6", width: 3, shape: "spline" },
+      fill: "tozeroy",
+      fillcolor: "rgba(139, 92, 246, 0.05)",
+    },
+  ];
+  $: euM2Data = filterPlotlyData(euM2DataRaw, $dashboardData.dates, m2Range);
+
+  $: cnM2DataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.m2.cn,
+      name: "China M2",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#10b981", width: 3, shape: "spline" },
+      fill: "tozeroy",
+      fillcolor: "rgba(16, 185, 129, 0.05)",
+    },
+  ];
+  $: cnM2Data = filterPlotlyData(cnM2DataRaw, $dashboardData.dates, m2Range);
+
+  $: jpM2DataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.m2.jp,
+      name: "Japan M2",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#f43f5e", width: 3, shape: "spline" },
+      fill: "tozeroy",
+      fillcolor: "rgba(244, 63, 94, 0.05)",
+    },
+  ];
+  $: jpM2Data = filterPlotlyData(jpM2DataRaw, $dashboardData.dates, m2Range);
+
+  $: ukM2DataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.m2.uk,
+      name: "UK M2",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#f59e0b", width: 3, shape: "spline" },
+      fill: "tozeroy",
+      fillcolor: "rgba(245, 158, 11, 0.05)",
+    },
+  ];
+  $: ukM2Data = filterPlotlyData(ukM2DataRaw, $dashboardData.dates, m2Range);
+
   $: gliSignal = $latestStats?.gli?.change > 0 ? "bullish" : "bearish";
   $: liqSignal = $latestStats?.us_net_liq?.change > 0 ? "bullish" : "bearish";
 
@@ -936,7 +1025,7 @@
         <div class="main-charts">
           <div class="chart-card wide">
             <div class="chart-header">
-              <h3>Global Liquidity Index (Aggregate M2 Proxy)</h3>
+              <h3>Global M2 Money Supply (14 Economies)</h3>
               <div class="header-controls">
                 <TimeRangeSelector
                   selectedRange={m2Range}
@@ -946,82 +1035,82 @@
               </div>
             </div>
             <div class="chart-content">
-              <Chart data={gliData} />
+              <Chart data={m2TotalData} />
             </div>
           </div>
           <div class="chart-card">
             <div class="chart-header">
-              <h3>US M2 (Fed)</h3>
+              <h3>US M2 Money Supply</h3>
               <div class="header-controls">
                 <TimeRangeSelector
-                  selectedRange={fedRange}
-                  onRangeChange={(r) => (fedRange = r)}
+                  selectedRange={m2Range}
+                  onRangeChange={(r) => (m2Range = r)}
                 />
                 <span class="last-date">Last Data: {getLastDate("FED")}</span>
               </div>
             </div>
             <div class="chart-content">
-              <Chart data={fedData} />
+              <Chart data={usM2Data} />
             </div>
           </div>
           <div class="chart-card">
             <div class="chart-header">
-              <h3>EU M2 (ECB)</h3>
+              <h3>EU M2 Money Supply</h3>
               <div class="header-controls">
                 <TimeRangeSelector
-                  selectedRange={ecbRange}
-                  onRangeChange={(r) => (ecbRange = r)}
+                  selectedRange={m2Range}
+                  onRangeChange={(r) => (m2Range = r)}
                 />
                 <span class="last-date">Last Data: {getLastDate("ECB")}</span>
               </div>
             </div>
             <div class="chart-content">
-              <Chart data={ecbData} />
+              <Chart data={euM2Data} />
             </div>
           </div>
           <div class="chart-card">
             <div class="chart-header">
-              <h3>China M2 (PBoC)</h3>
+              <h3>China M2 Money Supply</h3>
               <div class="header-controls">
                 <TimeRangeSelector
-                  selectedRange={pbocRange}
-                  onRangeChange={(r) => (pbocRange = r)}
+                  selectedRange={m2Range}
+                  onRangeChange={(r) => (m2Range = r)}
                 />
                 <span class="last-date">Last Data: {getLastDate("PBOC")}</span>
               </div>
             </div>
             <div class="chart-content">
-              <Chart data={pbocData} />
+              <Chart data={cnM2Data} />
             </div>
           </div>
           <div class="chart-card">
             <div class="chart-header">
-              <h3>Japan M2 (BoJ)</h3>
+              <h3>Japan M2 Money Supply</h3>
               <div class="header-controls">
                 <TimeRangeSelector
-                  selectedRange={bojRange}
-                  onRangeChange={(r) => (bojRange = r)}
+                  selectedRange={m2Range}
+                  onRangeChange={(r) => (m2Range = r)}
                 />
                 <span class="last-date">Last Data: {getLastDate("BOJ")}</span>
               </div>
             </div>
             <div class="chart-content">
-              <Chart data={bojData} />
+              <Chart data={jpM2Data} />
             </div>
           </div>
           <div class="chart-card">
             <div class="chart-header">
-              <h3>UK M2 (BoE)</h3>
+              <h3>UK M2 Money Supply</h3>
               <div class="header-controls">
                 <TimeRangeSelector
-                  selectedRange={boeRange}
-                  onRangeChange={(r) => (boeRange = r)}
+                  selectedRange={m2Range}
+                  onRangeChange={(r) => (m2Range = r)}
                 />
                 <span class="last-date">Last Data: {getLastDate("BOE")}</span>
               </div>
             </div>
             <div class="chart-content">
-              <Chart data={boeData} />
+              <Chart data={ukM2Data} />
             </div>
           </div>
         </div>
