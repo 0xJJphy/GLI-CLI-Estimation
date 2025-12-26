@@ -329,43 +329,39 @@ def calculate_gli_constant_fx(df):
     """
     Calculates GLI with FX rates frozen at a base date (2019-12-31).
     This eliminates FX beta contamination, showing only actual CB asset changes.
-    Uses the same aggregation logic as calculate_gli_from_trillions but with constant FX.
+    Uses frozen conversion factors for each CB to compute USD-equivalent trillions.
     """
-    res = pd.DataFrame(index=df.index)
+    res = pd.Series(0.0, index=df.index)
     
     # Base FX rates as of 2019-12-31 (pre-pandemic snapshot)
-    BASE_FX = {
-        'EURUSD': 1.12,
-        'JPYUSD': 0.0092,  # ~1/109 yen
-        'GBPUSD': 1.31,
-        'CNYUSD': 0.143,   # ~1/7
-        'CADUSD': 0.77,
-        'AUDUSD': 0.70,
-        'INRUSD': 0.014,   # ~1/71
-        'CHFUSD': 1.03,
-        'RUBUSD': 0.016,   # ~1/62
-        'BRLUSD': 0.25,    # ~1/4
-        'KRWUSD': 0.00087, # ~1/1150
-        'NZDUSD': 0.67,
-        'SEKUSD': 0.107,   # ~1/9.3
-        'MYRUSD': 0.24,    # ~1/4.1
+    # Mapping: Local Name in df -> Fixed Conversion Rate
+    # Note: Units in our DF for balance sheets are typically billions or trillions depending on source.
+    # TV ECONOMICS data like USCBBS is in USD, EUCBBS in EUR, etc. normally raw integers or millions.
+    # We want result in USD Trillions.
+    
+    CONV_FACTORS = {
+        'FED': 1.0 / 1e12,        # USD -> Trillions
+        'ECB': 1.12 / 1e12,       # EUR -> USD -> Trillions
+        'BOJ': 0.0092 / 1e12,     # JPY -> USD -> Trillions
+        'PBOC': 0.143 / 1e12,     # CNY -> USD -> Trillions
+        'BOE': 1.31 / 1e12,       # GBP -> USD -> Trillions
+        'BOC': 0.77 / 1e12,       # CAD -> USD -> Trillions
+        'RBA': 0.70 / 1e12,       # AUD -> USD -> Trillions
+        'RBI': 0.014 / 1e12,      # INR -> USD -> Trillions
+        'SNB': 1.03 / 1e12,       # CHF -> USD -> Trillions
+        'CBR': 0.016 / 1e12,      # RUB -> USD -> Trillions
+        'BCB': 0.25 / 1e12,       # BRL -> USD -> Trillions
+        'BOK': 0.00087 / 1e12,    # KRW -> USD -> Trillions
+        'RBNZ': 0.67 / 1e12,      # NZD -> USD -> Trillions
+        'SR': 0.107 / 1e12,       # SEK -> USD -> Trillions
+        'BNM': 0.24 / 1e12,       # MYR -> USD -> Trillions
     }
     
-    # Find all CB columns ending in _USD (excluding TGA_USD, RRP_USD)
-    exclude_cols = ['TGA_USD', 'RRP_USD']
-    cb_cols = [c for c in df.columns if c.endswith('_USD') and c not in exclude_cols]
-    
-    # For constant-FX, we just copy existing _USD columns (they're already converted)
-    # This is a simplified approach - for full accuracy, we'd need original local currency values
-    for col in cb_cols:
-        res[col] = df[col]
-    
-    # Sum all available CBs
-    if cb_cols:
-        res['GLI_CONSTANT_FX'] = res[cb_cols].sum(axis=1)
-    else:
-        res['GLI_CONSTANT_FX'] = 0.0
-    
+    # Sum all contributing local CBs using fixed conversion
+    for col, factor in CONV_FACTORS.items():
+        if col in df.columns:
+            res += df[col].fillna(0.0) * factor
+            
     return res
 
 
@@ -1045,6 +1041,11 @@ def run_pipeline():
     df_fred_t['RRP_USD'] = df_fred['RRP'] / 1e3
     df_fred_t['VIX'] = df_fred['VIX']
     df_fred_t['HY_SPREAD'] = df_fred['HY_SPREAD']
+    df_fred_t['IG_SPREAD'] = df_fred['IG_SPREAD']
+    df_fred_t['NFCI'] = df_fred['NFCI']
+    df_fred_t['NFCI_CREDIT'] = df_fred['NFCI_CREDIT']
+    df_fred_t['NFCI_RISK'] = df_fred['NFCI_RISK']
+    df_fred_t['LENDING_STD'] = df_fred['LENDING_STD']
     df_fred_t['CLI'] = calculate_cli(df_fred)['CLI']
 
     # 2. Fetch TV and Normalize to Trillions
@@ -1176,15 +1177,18 @@ def run_pipeline():
         # TGA/RRP are usually not in TV economics, fallback to FRED baseline
         # We use combine_first to ensure we have the full FRED history for these columns
         # Then we ffill() to carry the last FRED value forward to the latest TV date
-        res_tv_t = res_tv_t.combine_first(df_fred_t[['TGA_USD', 'RRP_USD', 'VIX', 'HY_SPREAD', 'CLI']]).ffill()
-        df_tv_t = res_tv_t
+        fred_cols_to_sync = ['TGA_USD', 'RRP_USD', 'VIX', 'HY_SPREAD', 'IG_SPREAD', 
+                             'NFCI', 'NFCI_CREDIT', 'NFCI_RISK', 'LENDING_STD', 'CLI']
+        res_tv_t = res_tv_t.combine_first(df_fred_t[fred_cols_to_sync]).ffill()
+        # Preserve RAW local units in the hybrid dataframe
+        df_hybrid_processed = res_tv_t.combine_first(df_tv_t)
     
     # 3. Hybrid Merge (Trillions to Trillions)
     # Clip hybrid to start exactly when FRED starts
     fred_start = df_fred_t.index.min()
     
-    if not df_tv_t.empty:
-        df_hybrid_t = df_tv_t.combine_first(df_fred_t)
+    if 'df_hybrid_processed' in locals() and not df_hybrid_processed.empty:
+        df_hybrid_t = df_hybrid_processed.combine_first(df_fred_t)
         df_hybrid_t = df_hybrid_t[df_hybrid_t.index >= fred_start]
     else:
         df_hybrid_t = df_fred_t
@@ -1274,7 +1278,7 @@ def run_pipeline():
             'last_dates': {k: get_safe_last_date(df_t[k]) for k in df_t.columns},
             'gli': {
                 'total': clean_for_json(gli['GLI_TOTAL']),
-                'constant_fx': clean_for_json(calculate_gli_constant_fx(df_t)['GLI_CONSTANT_FX']),
+                'constant_fx': clean_for_json(calculate_gli_constant_fx(df_t)),
                 'cb_count': int(gli.get('CB_COUNT', 5).iloc[0] if hasattr(gli.get('CB_COUNT', 5), 'iloc') else gli.get('CB_COUNT', 5)),
                 'data_start_date': df_t.index.min().strftime('%Y-%m-%d'),
                 'fed': clean_for_json(gli['FED_USD']),
@@ -1302,6 +1306,15 @@ def run_pipeline():
                 'cn': clean_for_json(m2_data.get('CN_M2_USD', pd.Series(dtype=float))),
                 'jp': clean_for_json(m2_data.get('JP_M2_USD', pd.Series(dtype=float))),
                 'uk': clean_for_json(m2_data.get('UK_M2_USD', pd.Series(dtype=float))),
+                'ca': clean_for_json(m2_data.get('CA_M2_USD', pd.Series(dtype=float))),
+                'au': clean_for_json(m2_data.get('AU_M2_USD', pd.Series(dtype=float))),
+                'in': clean_for_json(m2_data.get('IN_M2_USD', pd.Series(dtype=float))),
+                'ch': clean_for_json(m2_data.get('CH_M2_USD', pd.Series(dtype=float))),
+                'ru': clean_for_json(m2_data.get('RU_M2_USD', pd.Series(dtype=float))),
+                'br': clean_for_json(m2_data.get('BR_M2_USD', pd.Series(dtype=float))),
+                'kr': clean_for_json(m2_data.get('KR_M2_USD', pd.Series(dtype=float))),
+                'mx': clean_for_json(m2_data.get('MX_M2_USD', pd.Series(dtype=float))),
+                'my': clean_for_json(m2_data.get('MY_M2_USD', pd.Series(dtype=float))),
                 'rocs': {k: clean_for_json(v) for k, v in m2_rocs.items()}
             })(calculate_global_m2(df_t), calculate_rocs(calculate_global_m2(df_t).get('M2_TOTAL', pd.Series(dtype=float)))),
             'us_net_liq': clean_for_json(us_net_liq['NET_LIQUIDITY']),

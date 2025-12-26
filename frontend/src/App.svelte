@@ -21,12 +21,44 @@
   let bojRange = "ALL";
   let boeRange = "ALL";
   let pbocRange = "ALL";
+  let bocRange = "ALL",
+    rbaRange = "ALL",
+    snbRange = "ALL",
+    bokRange = "ALL";
+  let rbiRange = "ALL",
+    cbrRange = "ALL",
+    bcbRange = "ALL",
+    rbnzRange = "ALL",
+    srRange = "ALL",
+    bnmRange = "ALL";
   let netLiqRange = "ALL";
   let cliRange = "ALL";
   let btcRange = "ALL";
   let m2Range = "ALL";
   let vixRange = "ALL";
   let spreadRange = "ALL";
+  let hyRange = "ALL",
+    igRange = "ALL",
+    nfciRange = "ALL",
+    lendingRange = "ALL";
+
+  // Individual M2 time ranges
+  let usM2Range = "ALL",
+    euM2Range = "ALL",
+    cnM2Range = "ALL",
+    jpM2Range = "ALL",
+    ukM2Range = "ALL";
+  let caM2Range = "ALL",
+    auM2Range = "ALL",
+    inM2Range = "ALL",
+    chM2Range = "ALL",
+    ruM2Range = "ALL";
+  let brM2Range = "ALL",
+    krM2Range = "ALL",
+    mxM2Range = "ALL",
+    myM2Range = "ALL";
+
+  // GLI FX mode: false = Spot USD, true = Constant FX (2019-12-31)
 
   // GLI FX mode: false = Spot USD, true = Constant FX (2019-12-31)
   let gliShowConstantFx = false;
@@ -70,8 +102,27 @@
 
   // Helper to filter Plotly trace data
   const filterPlotlyData = (traceArray, dates, range) => {
-    if (!traceArray || range === "ALL") return traceArray;
-    const indices = getFilteredIndices(dates, range);
+    if (!traceArray || !dates || !dates.length) return traceArray;
+
+    let indices;
+    if (range === "ALL") {
+      // Auto-trim: Find the first index where ANY trace has non-zero/non-null data
+      let firstValidIdx = -1;
+      for (let i = 0; i < dates.length; i++) {
+        const hasData = traceArray.some((trace) => {
+          const val = trace.y[i];
+          return val !== null && val !== undefined && val !== 0;
+        });
+        if (hasData) {
+          firstValidIdx = i;
+          break;
+        }
+      }
+      if (firstValidIdx === -1) return traceArray; // No valid data found at all
+      indices = dates.slice(firstValidIdx).map((_, i) => i + firstValidIdx);
+    } else {
+      indices = getFilteredIndices(dates, range);
+    }
 
     return traceArray.map((trace) => ({
       ...trace,
@@ -252,6 +303,146 @@
   ];
   $: pbocData = filterPlotlyData(pbocDataRaw, $dashboardData.dates, pbocRange);
 
+  $: bocDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.gli.boc,
+      name: "BoC Assets",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#34d399", width: 3, shape: "spline" },
+      fill: "tozeroy",
+      fillcolor: "rgba(52, 211, 153, 0.05)",
+    },
+  ];
+  $: bocData = filterPlotlyData(bocDataRaw, $dashboardData.dates, bocRange);
+
+  $: rbaDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.gli.rba,
+      name: "RBA Assets",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#fbbf24", width: 3, shape: "spline" },
+      fill: "tozeroy",
+      fillcolor: "rgba(251, 191, 36, 0.05)",
+    },
+  ];
+  $: rbaData = filterPlotlyData(rbaDataRaw, $dashboardData.dates, rbaRange);
+
+  $: snbDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.gli.snb,
+      name: "SNB Assets",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#f87171", width: 3, shape: "spline" },
+      fill: "tozeroy",
+      fillcolor: "rgba(248, 113, 113, 0.05)",
+    },
+  ];
+  $: snbData = filterPlotlyData(snbDataRaw, $dashboardData.dates, snbRange);
+
+  $: bokDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.gli.bok,
+      name: "BoK Assets",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#60a5fa", width: 3, shape: "spline" },
+      fill: "tozeroy",
+      fillcolor: "rgba(96, 165, 250, 0.05)",
+    },
+  ];
+  $: bokData = filterPlotlyData(bokDataRaw, $dashboardData.dates, bokRange);
+
+  $: rbiDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.gli.rbi,
+      name: "RBI Assets",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#a78bfa", width: 3, shape: "spline" },
+      fill: "tozeroy",
+      fillcolor: "rgba(167, 139, 250, 0.05)",
+    },
+  ];
+  $: rbiData = filterPlotlyData(rbiDataRaw, $dashboardData.dates, rbiRange);
+
+  $: cbrDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.gli.cbr,
+      name: "CBR Assets",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#fb7185", width: 3, shape: "spline" },
+      fill: "tozeroy",
+      fillcolor: "rgba(251, 113, 133, 0.05)",
+    },
+  ];
+  $: cbrData = filterPlotlyData(cbrDataRaw, $dashboardData.dates, cbrRange);
+
+  $: bcbDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.gli.bcb,
+      name: "BCB Assets",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#4ade80", width: 3, shape: "spline" },
+      fill: "tozeroy",
+      fillcolor: "rgba(74, 222, 128, 0.05)",
+    },
+  ];
+  $: bcbData = filterPlotlyData(bcbDataRaw, $dashboardData.dates, bcbRange);
+
+  $: rbnzDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.gli.rbnz,
+      name: "RBNZ Assets",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#22d3ee", width: 3, shape: "spline" },
+      fill: "tozeroy",
+      fillcolor: "rgba(34, 211, 238, 0.05)",
+    },
+  ];
+  $: rbnzData = filterPlotlyData(rbnzDataRaw, $dashboardData.dates, rbnzRange);
+
+  $: srDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.gli.sr,
+      name: "Riksbank Assets",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#818cf8", width: 3, shape: "spline" },
+      fill: "tozeroy",
+      fillcolor: "rgba(129, 140, 248, 0.05)",
+    },
+  ];
+  $: srData = filterPlotlyData(srDataRaw, $dashboardData.dates, srRange);
+
+  $: bnmDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.gli.bnm,
+      name: "BNM Assets",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#fb923c", width: 3, shape: "spline" },
+      fill: "tozeroy",
+      fillcolor: "rgba(251, 146, 60, 0.05)",
+    },
+  ];
+  $: bnmData = filterPlotlyData(bnmDataRaw, $dashboardData.dates, bnmRange);
+
   $: netLiqDataRaw = [
     {
       x: $dashboardData.dates,
@@ -282,6 +473,70 @@
   ];
   $: cliData = filterPlotlyData(cliDataRaw, $dashboardData.dates, cliRange);
 
+  // --- CLI Component Breakdown (Stacked Contribution) ---
+  // Weights matching backend: HY (0.25), IG (0.15), NFCI_CREDIT (0.20), NFCI_RISK (0.20), LENDING (0.10), VIX (0.10)
+  $: cliComponentDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.cli_components.hy_z.map((v) => v * 0.25),
+      name: "HY Spread Contrast",
+      type: "scatter",
+      stackgroup: "cli",
+      fillcolor: "rgba(239, 68, 68, 0.4)", // red
+      line: { color: "#ef4444", width: 1 },
+    },
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.cli_components.ig_z.map((v) => v * 0.15),
+      name: "IG Spread Contrast",
+      type: "scatter",
+      stackgroup: "cli",
+      fillcolor: "rgba(249, 115, 22, 0.4)", // orange
+      line: { color: "#f97316", width: 1 },
+    },
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.cli_components.nfci_credit_z.map((v) => v * 0.2),
+      name: "NFCI Credit Contrast",
+      type: "scatter",
+      stackgroup: "cli",
+      fillcolor: "rgba(234, 179, 8, 0.4)", // yellow
+      line: { color: "#eab308", width: 1 },
+    },
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.cli_components.nfci_risk_z.map((v) => v * 0.2),
+      name: "NFCI Risk Contrast",
+      type: "scatter",
+      stackgroup: "cli",
+      fillcolor: "rgba(168, 85, 247, 0.4)", // purple
+      line: { color: "#a855f7", width: 1 },
+    },
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.cli_components.lending_z.map((v) => v * 0.1),
+      name: "Lending Standards Contrast",
+      type: "scatter",
+      stackgroup: "cli",
+      fillcolor: "rgba(59, 130, 246, 0.4)", // blue
+      line: { color: "#3b82f6", width: 1 },
+    },
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.cli_components.vix_z.map((v) => v * 0.1),
+      name: "VIX Contrast",
+      type: "scatter",
+      stackgroup: "cli",
+      fillcolor: "rgba(107, 114, 128, 0.4)", // gray
+      line: { color: "#6b7280", width: 1 },
+    },
+  ];
+  $: cliComponentData = filterPlotlyData(
+    cliComponentDataRaw,
+    $dashboardData.dates,
+    cliRange,
+  );
+
   $: vixDataRaw = [
     {
       x: $dashboardData.dates,
@@ -309,6 +564,91 @@
     $dashboardData.dates,
     spreadRange,
   );
+
+  // --- Individual CLI Components (Z-Scores) ---
+  $: hyZDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.cli_components.hy_z,
+      name: "HY Spread Contrast",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#ef4444", width: 2 },
+    },
+  ];
+  $: hyZData = filterPlotlyData(hyZDataRaw, $dashboardData.dates, hyRange);
+
+  $: igZDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.cli_components.ig_z,
+      name: "IG Spread Contrast",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#f97316", width: 2 },
+    },
+  ];
+  $: igZData = filterPlotlyData(igZDataRaw, $dashboardData.dates, igRange);
+
+  $: nfciCreditZDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.cli_components.nfci_credit_z,
+      name: "NFCI Credit Contrast",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#eab308", width: 2 },
+    },
+  ];
+  $: nfciCreditZData = filterPlotlyData(
+    nfciCreditZDataRaw,
+    $dashboardData.dates,
+    nfciRange,
+  );
+
+  $: nfciRiskZDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.cli_components.nfci_risk_z,
+      name: "NFCI Risk Contrast",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#a855f7", width: 2 },
+    },
+  ];
+  $: nfciRiskZData = filterPlotlyData(
+    nfciRiskZDataRaw,
+    $dashboardData.dates,
+    nfciRange,
+  );
+
+  $: lendingZDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.cli_components.lending_z,
+      name: "Lending Standards Contrast",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#3b82f6", width: 2 },
+    },
+  ];
+  $: lendingZData = filterPlotlyData(
+    lendingZDataRaw,
+    $dashboardData.dates,
+    lendingRange,
+  );
+
+  $: vixZDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.cli_components.vix_z,
+      name: "VIX Contrast",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#6b7280", width: 2 },
+    },
+  ];
+  $: vixZData = filterPlotlyData(vixZDataRaw, $dashboardData.dates, vixRange);
 
   // --- M2 Money Supply Chart Data ---
   $: m2TotalDataRaw = [
@@ -341,7 +681,7 @@
       fillcolor: "rgba(59, 130, 246, 0.05)",
     },
   ];
-  $: usM2Data = filterPlotlyData(usM2DataRaw, $dashboardData.dates, m2Range);
+  $: usM2Data = filterPlotlyData(usM2DataRaw, $dashboardData.dates, usM2Range);
 
   $: euM2DataRaw = [
     {
@@ -355,7 +695,7 @@
       fillcolor: "rgba(139, 92, 246, 0.05)",
     },
   ];
-  $: euM2Data = filterPlotlyData(euM2DataRaw, $dashboardData.dates, m2Range);
+  $: euM2Data = filterPlotlyData(euM2DataRaw, $dashboardData.dates, euM2Range);
 
   $: cnM2DataRaw = [
     {
@@ -369,7 +709,7 @@
       fillcolor: "rgba(16, 185, 129, 0.05)",
     },
   ];
-  $: cnM2Data = filterPlotlyData(cnM2DataRaw, $dashboardData.dates, m2Range);
+  $: cnM2Data = filterPlotlyData(cnM2DataRaw, $dashboardData.dates, cnM2Range);
 
   $: jpM2DataRaw = [
     {
@@ -383,7 +723,7 @@
       fillcolor: "rgba(244, 63, 94, 0.05)",
     },
   ];
-  $: jpM2Data = filterPlotlyData(jpM2DataRaw, $dashboardData.dates, m2Range);
+  $: jpM2Data = filterPlotlyData(jpM2DataRaw, $dashboardData.dates, jpM2Range);
 
   $: ukM2DataRaw = [
     {
@@ -397,7 +737,133 @@
       fillcolor: "rgba(245, 158, 11, 0.05)",
     },
   ];
-  $: ukM2Data = filterPlotlyData(ukM2DataRaw, $dashboardData.dates, m2Range);
+  $: ukM2Data = filterPlotlyData(ukM2DataRaw, $dashboardData.dates, ukM2Range);
+
+  $: caM2DataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.m2.ca,
+      name: "Canada M2",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#ef4444", width: 3, shape: "spline" },
+      fill: "tozeroy",
+      fillcolor: "rgba(239, 68, 68, 0.05)",
+    },
+  ];
+  $: caM2Data = filterPlotlyData(caM2DataRaw, $dashboardData.dates, caM2Range);
+
+  $: auM2DataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.m2.au,
+      name: "Australia M2",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#3b82f6", width: 3, shape: "spline" },
+      fill: "tozeroy",
+      fillcolor: "rgba(59, 130, 246, 0.05)",
+    },
+  ];
+  $: auM2Data = filterPlotlyData(auM2DataRaw, $dashboardData.dates, auM2Range);
+
+  $: inM2DataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.m2.in,
+      name: "India M2",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#6366f1", width: 3, shape: "spline" },
+      fill: "tozeroy",
+      fillcolor: "rgba(99, 102, 241, 0.05)",
+    },
+  ];
+  $: inM2Data = filterPlotlyData(inM2DataRaw, $dashboardData.dates, inM2Range);
+
+  $: chM2DataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.m2.ch,
+      name: "Switzerland M2",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#0ea5e9", width: 3, shape: "spline" },
+      fill: "tozeroy",
+      fillcolor: "rgba(14, 165, 233, 0.05)",
+    },
+  ];
+  $: chM2Data = filterPlotlyData(chM2DataRaw, $dashboardData.dates, chM2Range);
+
+  $: ruM2DataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.m2.ru,
+      name: "Russia M2",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#dc2626", width: 3, shape: "spline" },
+      fill: "tozeroy",
+      fillcolor: "rgba(220, 38, 38, 0.05)",
+    },
+  ];
+  $: ruM2Data = filterPlotlyData(ruM2DataRaw, $dashboardData.dates, ruM2Range);
+
+  $: brM2DataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.m2.br,
+      name: "Brazil M2",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#10b981", width: 3, shape: "spline" },
+      fill: "tozeroy",
+      fillcolor: "rgba(16, 185, 129, 0.05)",
+    },
+  ];
+  $: brM2Data = filterPlotlyData(brM2DataRaw, $dashboardData.dates, brM2Range);
+
+  $: krM2DataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.m2.kr,
+      name: "South Korea M2",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#8b5cf6", width: 3, shape: "spline" },
+      fill: "tozeroy",
+      fillcolor: "rgba(139, 92, 246, 0.05)",
+    },
+  ];
+  $: krM2Data = filterPlotlyData(krM2DataRaw, $dashboardData.dates, krM2Range);
+
+  $: mxM2DataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.m2.mx,
+      name: "Mexico M2",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#f59e0b", width: 3, shape: "spline" },
+      fill: "tozeroy",
+      fillcolor: "rgba(245, 158, 11, 0.05)",
+    },
+  ];
+  $: mxM2Data = filterPlotlyData(mxM2DataRaw, $dashboardData.dates, mxM2Range);
+
+  $: myM2DataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.m2.my,
+      name: "Malaysia M2",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#f43f5e", width: 3, shape: "spline" },
+      fill: "tozeroy",
+      fillcolor: "rgba(244, 63, 94, 0.05)",
+    },
+  ];
+  $: myM2Data = filterPlotlyData(myM2DataRaw, $dashboardData.dates, myM2Range);
 
   $: gliSignal = $latestStats?.gli?.change > 0 ? "bullish" : "bearish";
   $: liqSignal = $latestStats?.us_net_liq?.change > 0 ? "bullish" : "bearish";
@@ -955,6 +1421,23 @@
               <Chart data={cliData} />
             </div>
           </div>
+
+          <div class="chart-card wide">
+            <div class="chart-header">
+              <div class="label-group">
+                <h3>CLI Component Contributions</h3>
+              </div>
+              <div class="header-controls">
+                <TimeRangeSelector
+                  selectedRange={cliRange}
+                  onRangeChange={(r) => (cliRange = r)}
+                />
+              </div>
+            </div>
+            <div class="chart-content">
+              <Chart data={cliComponentData} />
+            </div>
+          </div>
         </div>
       {:else if currentTab === "Global Flows CB"}
         <div class="main-charts">
@@ -973,174 +1456,61 @@
               <Chart data={gliData} />
             </div>
           </div>
-          <div class="chart-card">
-            <div class="chart-header">
-              <h3>Federal Reserve (Fed)</h3>
-              <div class="header-controls">
-                <TimeRangeSelector
-                  selectedRange={fedRange}
-                  onRangeChange={(r) => (fedRange = r)}
-                />
-                <span class="last-date">Last Data: {getLastDate("FED")}</span>
+
+          {#each [{ name: "Federal Reserve (Fed)", data: fedData, range: fedRange, setRange: (r) => (fedRange = r), bank: "FED" }, { name: "European Central Bank (ECB)", data: ecbData, range: ecbRange, setRange: (r) => (ecbRange = r), bank: "ECB" }, { name: "Bank of Japan (BoJ)", data: bojData, range: bojRange, setRange: (r) => (bojRange = r), bank: "BOJ" }, { name: "Bank of England (BoE)", data: boeData, range: boeRange, setRange: (r) => (boeRange = r), bank: "BOE" }, { name: "People's Bank of China (PBoC)", data: pbocData, range: pbocRange, setRange: (r) => (pbocRange = r), bank: "PBOC" }, { name: "Bank of Canada (BoC)", data: bocData, range: bocRange, setRange: (r) => (bocRange = r), bank: "BOC" }, { name: "Reserve Bank of Australia (RBA)", data: rbaData, range: rbaRange, setRange: (r) => (rbaRange = r), bank: "RBA" }, { name: "Swiss National Bank (SNB)", data: snbData, range: snbRange, setRange: (r) => (snbRange = r), bank: "SNB" }, { name: "Bank of Korea (BoK)", data: bokData, range: bokRange, setRange: (r) => (bokRange = r), bank: "BOK" }, { name: "Reserve Bank of India (RBI)", data: rbiData, range: rbiRange, setRange: (r) => (rbiRange = r), bank: "RBI" }, { name: "Central Bank of Russia (CBR)", data: cbrData, range: cbrRange, setRange: (r) => (cbrRange = r), bank: "CBR" }, { name: "Central Bank of Brazil (BCB)", data: bcbData, range: bcbRange, setRange: (r) => (bcbRange = r), bank: "BCB" }, { name: "Reserve Bank of New Zealand (RBNZ)", data: rbnzData, range: rbnzRange, setRange: (r) => (rbnzRange = r), bank: "RBNZ" }, { name: "Sveriges Riksbank (SR)", data: srData, range: srRange, setRange: (r) => (srRange = r), bank: "SR" }, { name: "Bank Negara Malaysia (BNM)", data: bnmData, range: bnmRange, setRange: (r) => (bnmRange = r), bank: "BNM" }] as item}
+            <div class="chart-card">
+              <div class="chart-header">
+                <h3>{item.name}</h3>
+                <div class="header-controls">
+                  <TimeRangeSelector
+                    selectedRange={item.range}
+                    onRangeChange={item.setRange}
+                  />
+                  <span class="last-date"
+                    >Last Data: {getLastDate(item.bank)}</span
+                  >
+                </div>
+              </div>
+              <div class="chart-content">
+                <Chart data={item.data} />
               </div>
             </div>
-            <div class="chart-content">
-              <Chart data={fedData} />
-            </div>
-          </div>
-          <div class="chart-card">
-            <div class="chart-header">
-              <h3>European Central Bank (ECB)</h3>
-              <div class="header-controls">
-                <TimeRangeSelector
-                  selectedRange={ecbRange}
-                  onRangeChange={(r) => (ecbRange = r)}
-                />
-                <span class="last-date">Last Data: {getLastDate("ECB")}</span>
-              </div>
-            </div>
-            <div class="chart-content">
-              <Chart data={ecbData} />
-            </div>
-          </div>
-          <div class="chart-card">
-            <div class="chart-header">
-              <h3>Bank of Japan (BoJ)</h3>
-              <div class="header-controls">
-                <TimeRangeSelector
-                  selectedRange={bojRange}
-                  onRangeChange={(r) => (bojRange = r)}
-                />
-                <span class="last-date">Last Data: {getLastDate("BOJ")}</span>
-              </div>
-            </div>
-            <div class="chart-content">
-              <Chart data={bojData} />
-            </div>
-          </div>
-          <div class="chart-card">
-            <div class="chart-header">
-              <h3>Bank of England (BoE)</h3>
-              <div class="header-controls">
-                <TimeRangeSelector
-                  selectedRange={boeRange}
-                  onRangeChange={(r) => (boeRange = r)}
-                />
-                <span class="last-date">Last Data: {getLastDate("BOE")}</span>
-              </div>
-            </div>
-            <div class="chart-content">
-              <Chart data={boeData} />
-            </div>
-          </div>
-          <div class="chart-card wide">
-            <div class="chart-header">
-              <h3>People's Bank of China (PBoC)</h3>
-              <div class="header-controls">
-                <TimeRangeSelector
-                  selectedRange={pbocRange}
-                  onRangeChange={(r) => (pbocRange = r)}
-                />
-                <span class="last-date">Last Data: {getLastDate("PBOC")}</span>
-              </div>
-            </div>
-            <div class="chart-content">
-              <Chart data={pbocData} />
-            </div>
-          </div>
+          {/each}
         </div>
       {:else if currentTab === "Global M2"}
         <div class="main-charts">
           <div class="chart-card wide">
             <div class="chart-header">
-              <h3>Global M2 Money Supply (14 Economies)</h3>
+              <h3>Global M2 Money Supply (Aggregate)</h3>
               <div class="header-controls">
                 <TimeRangeSelector
                   selectedRange={m2Range}
                   onRangeChange={(r) => (m2Range = r)}
                 />
-                <span class="last-date">Last Data: {getLastDate("PBOC")}</span>
               </div>
             </div>
             <div class="chart-content">
               <Chart data={m2TotalData} />
             </div>
           </div>
-          <div class="chart-card">
-            <div class="chart-header">
-              <h3>US M2 Money Supply</h3>
-              <div class="header-controls">
-                <TimeRangeSelector
-                  selectedRange={m2Range}
-                  onRangeChange={(r) => (m2Range = r)}
-                />
-                <span class="last-date">Last Data: {getLastDate("FED")}</span>
+
+          {#each [{ id: "us", name: "US M2", data: usM2Data, range: usM2Range, setRange: (r) => (usM2Range = r), bank: "FED" }, { id: "eu", name: "EU M2", data: euM2Data, range: euM2Range, setRange: (r) => (euM2Range = r), bank: "ECB" }, { id: "cn", name: "China M2", data: cnM2Data, range: cnM2Range, setRange: (r) => (cnM2Range = r), bank: "PBOC" }, { id: "jp", name: "Japan M2", data: jpM2Data, range: jpM2Range, setRange: (r) => (jpM2Range = r), bank: "BOJ" }, { id: "uk", name: "UK M2", data: ukM2Data, range: ukM2Range, setRange: (r) => (ukM2Range = r), bank: "BOE" }, { id: "ca", name: "Canada M2", data: caM2Data, range: caM2Range, setRange: (r) => (caM2Range = r), bank: "BOC" }, { id: "au", name: "Australia M2", data: auM2Data, range: auM2Range, setRange: (r) => (auM2Range = r), bank: "RBA" }, { id: "in", name: "India M2", data: inM2Data, range: inM2Range, setRange: (r) => (inM2Range = r), bank: "RBI" }, { id: "ch", name: "Switzerland M2", data: chM2Data, range: chM2Range, setRange: (r) => (chM2Range = r), bank: "SNB" }, { id: "ru", name: "Russia M2", data: ruM2Data, range: ruM2Range, setRange: (r) => (ruM2Range = r), bank: "CBR" }, { id: "br", name: "Brazil M2", data: brM2Data, range: brM2Range, setRange: (r) => (brM2Range = r), bank: "BCB" }, { id: "kr", name: "South Korea M2", data: krM2Data, range: krM2Range, setRange: (r) => (krM2Range = r), bank: "BOK" }, { id: "mx", name: "Mexico M2", data: mxM2Data, range: mxM2Range, setRange: (r) => (mxM2Range = r), bank: "MX" }, { id: "my", name: "Malaysia M2", data: myM2Data, range: myM2Range, setRange: (r) => (myM2Range = r), bank: "BNM" }] as item}
+            <div class="chart-card">
+              <div class="chart-header">
+                <h3>{item.name}</h3>
+                <div class="header-controls">
+                  <TimeRangeSelector
+                    selectedRange={item.range}
+                    onRangeChange={item.setRange}
+                  />
+                  <span class="last-date">Last: {getLastDate(item.bank)}</span>
+                </div>
+              </div>
+              <div class="chart-content">
+                <Chart data={item.data} />
               </div>
             </div>
-            <div class="chart-content">
-              <Chart data={usM2Data} />
-            </div>
-          </div>
-          <div class="chart-card">
-            <div class="chart-header">
-              <h3>EU M2 Money Supply</h3>
-              <div class="header-controls">
-                <TimeRangeSelector
-                  selectedRange={m2Range}
-                  onRangeChange={(r) => (m2Range = r)}
-                />
-                <span class="last-date">Last Data: {getLastDate("ECB")}</span>
-              </div>
-            </div>
-            <div class="chart-content">
-              <Chart data={euM2Data} />
-            </div>
-          </div>
-          <div class="chart-card">
-            <div class="chart-header">
-              <h3>China M2 Money Supply</h3>
-              <div class="header-controls">
-                <TimeRangeSelector
-                  selectedRange={m2Range}
-                  onRangeChange={(r) => (m2Range = r)}
-                />
-                <span class="last-date">Last Data: {getLastDate("PBOC")}</span>
-              </div>
-            </div>
-            <div class="chart-content">
-              <Chart data={cnM2Data} />
-            </div>
-          </div>
-          <div class="chart-card">
-            <div class="chart-header">
-              <h3>Japan M2 Money Supply</h3>
-              <div class="header-controls">
-                <TimeRangeSelector
-                  selectedRange={m2Range}
-                  onRangeChange={(r) => (m2Range = r)}
-                />
-                <span class="last-date">Last Data: {getLastDate("BOJ")}</span>
-              </div>
-            </div>
-            <div class="chart-content">
-              <Chart data={jpM2Data} />
-            </div>
-          </div>
-          <div class="chart-card">
-            <div class="chart-header">
-              <h3>UK M2 Money Supply</h3>
-              <div class="header-controls">
-                <TimeRangeSelector
-                  selectedRange={m2Range}
-                  onRangeChange={(r) => (m2Range = r)}
-                />
-                <span class="last-date">Last Data: {getLastDate("BOE")}</span>
-              </div>
-            </div>
-            <div class="chart-content">
-              <Chart data={ukM2Data} />
-            </div>
-          </div>
+          {/each}
         </div>
       {:else if currentTab === "US System"}
         <div class="main-charts">
@@ -1194,7 +1564,7 @@
         <div class="main-charts">
           <div class="chart-card wide">
             <div class="chart-header">
-              <h3>Credit Risk Premium</h3>
+              <h3>Credit Liquidity Index (CLI Aggregate)</h3>
               <div class="header-controls">
                 <TimeRangeSelector
                   selectedRange={cliRange}
@@ -1207,38 +1577,24 @@
               <Chart data={cliData} />
             </div>
           </div>
-          <div class="chart-card">
-            <div class="chart-header">
-              <h3>Volatility (VIX)</h3>
-              <div class="header-controls">
-                <TimeRangeSelector
-                  selectedRange={vixRange}
-                  onRangeChange={(r) => (vixRange = r)}
-                />
-                <span class="last-date">Last Data: {getLastDate("VIX")}</span>
+
+          {#each [{ id: "hy", name: "HY Spread Contrast", data: hyZData, range: hyRange, setRange: (r) => (hyRange = r), bank: "HY_SPREAD" }, { id: "ig", name: "IG Spread Contrast", data: igZData, range: igRange, setRange: (r) => (igRange = r), bank: "IG_SPREAD" }, { id: "nfci_credit", name: "NFCI Credit Contrast", data: nfciCreditZData, range: nfciRange, setRange: (r) => (nfciRange = r), bank: "NFCI" }, { id: "nfci_risk", name: "NFCI Risk Contrast", data: nfciRiskZData, range: nfciRange, setRange: (r) => (nfciRange = r), bank: "NFCI" }, { id: "lending", name: "Lending Standards Contrast", data: lendingZData, range: lendingRange, setRange: (r) => (lendingRange = r), bank: "LENDING_STD" }, { id: "vix_z", name: "VIX Contrast (Z-Score)", data: vixZData, range: vixRange, setRange: (r) => (vixRange = r), bank: "VIX" }] as item}
+            <div class="chart-card">
+              <div class="chart-header">
+                <h3>{item.name}</h3>
+                <div class="header-controls">
+                  <TimeRangeSelector
+                    selectedRange={item.range}
+                    onRangeChange={item.setRange}
+                  />
+                  <span class="last-date">Last: {getLastDate(item.bank)}</span>
+                </div>
+              </div>
+              <div class="chart-content">
+                <Chart data={item.data} />
               </div>
             </div>
-            <div class="chart-content">
-              <Chart data={vixData} />
-            </div>
-          </div>
-          <div class="chart-card">
-            <div class="chart-header">
-              <h3>High Yield OAS</h3>
-              <div class="header-controls">
-                <TimeRangeSelector
-                  selectedRange={spreadRange}
-                  onRangeChange={(r) => (spreadRange = r)}
-                />
-                <span class="last-date"
-                  >Last Data: {getLastDate("HY_SPREAD")}</span
-                >
-              </div>
-            </div>
-            <div class="chart-content">
-              <Chart data={spreadData} />
-            </div>
-          </div>
+          {/each}
         </div>
 
         <!-- NEW ROC Section -->
@@ -2629,6 +2985,46 @@
     border-top-color: #4f46e5;
     border-radius: 50%;
     animation: spin 1s linear infinite;
+  }
+
+  /* FX Toggle Styles */
+  .fx-toggle {
+    display: flex;
+    background: #f1f5f9;
+    padding: 2px;
+    border-radius: 8px;
+    gap: 2px;
+    margin-right: 8px;
+    border: 1px solid #e2e8f0;
+  }
+
+  .fx-btn {
+    padding: 4px 10px;
+    border: none;
+    background: transparent;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+  }
+
+  .fx-btn:hover {
+    color: #1e293b;
+    background: rgba(255, 255, 255, 0.5);
+  }
+
+  .fx-btn.active {
+    background: white;
+    color: #6366f1;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Color override for Constant FX active state */
+  .fx-btn.active:last-child {
+    color: #10b981;
   }
 
   @keyframes spin {

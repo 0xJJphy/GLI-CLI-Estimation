@@ -13,7 +13,12 @@ export const dashboardData = writable({
         rbi: [], cbr: [], bcb: [], rbnz: [], sr: [], bnm: [],
         rocs: {}
     },
-    m2: { total: [], us: [], eu: [], cn: [], jp: [], uk: [], ca: [], au: [], rocs: {} },
+    m2: {
+        total: [], us: [], eu: [], cn: [], jp: [], uk: [],
+        ca: [], au: [], in: [], ch: [], ru: [], br: [],
+        kr: [], mx: [], my: [],
+        rocs: {}
+    },
     us_net_liq: [],
     us_net_liq_rocs: {},
     bank_rocs: { fed: {}, ecb: {}, boj: {}, boe: {}, pboc: {} },
