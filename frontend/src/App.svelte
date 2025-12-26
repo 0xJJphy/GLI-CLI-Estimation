@@ -538,6 +538,7 @@
         .map(([id, rocs]) => ({
           id,
           name: id.toUpperCase(),
+          isLiability: false,
           m1: rocs["1M"]?.[rocs["1M"].length - 1] || 0,
           m3: rocs["3M"]?.[rocs["3M"].length - 1] || 0,
           m6: rocs["6M"]?.[rocs["6M"].length - 1] || 0,
