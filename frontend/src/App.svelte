@@ -2167,12 +2167,18 @@
                 <span class="last-date">Last Data: {getLastDate("NFCI")}</span>
               </div>
             </div>
+            <p class="chart-description">
+              Aggregates credit conditions, volatility, and lending standards
+              into a single index.
+              <strong>↑ CLI = Easier credit (bullish)</strong> |
+              <strong>↓ CLI = Tighter credit (bearish)</strong>
+            </p>
             <div class="chart-content">
               <Chart data={cliData} />
             </div>
           </div>
 
-          {#each [{ id: "hy", name: "HY Spread Contrast", data: hyZData, range: hyRange, setRange: (r) => (hyRange = r), bank: "HY_SPREAD" }, { id: "ig", name: "IG Spread Contrast", data: igZData, range: igRange, setRange: (r) => (igRange = r), bank: "IG_SPREAD" }, { id: "nfci_credit", name: "NFCI Credit Contrast", data: nfciCreditZData, range: nfciRange, setRange: (r) => (nfciRange = r), bank: "NFCI" }, { id: "nfci_risk", name: "NFCI Risk Contrast", data: nfciRiskZData, range: nfciRange, setRange: (r) => (nfciRange = r), bank: "NFCI" }, { id: "lending", name: "Lending Standards Contrast", data: lendingZData, range: lendingRange, setRange: (r) => (lendingRange = r), bank: "LENDING_STD" }, { id: "vix_z", name: "VIX Contrast (Z-Score)", data: vixZData, range: vixRange, setRange: (r) => (vixRange = r), bank: "VIX" }] as item}
+          {#each [{ id: "hy", name: "HY Spread Contrast", data: hyZData, range: hyRange, setRange: (r) => (hyRange = r), bank: "HY_SPREAD", desc: "High Yield bond spreads vs Treasuries. ↓ Spread = Risk-on (bullish) | ↑ Spread = Risk-off (bearish)" }, { id: "ig", name: "IG Spread Contrast", data: igZData, range: igRange, setRange: (r) => (igRange = r), bank: "IG_SPREAD", desc: "Investment Grade spreads. ↓ Spread = Credit easing | ↑ Spread = Credit stress" }, { id: "nfci_credit", name: "NFCI Credit Contrast", data: nfciCreditZData, range: nfciRange, setRange: (r) => (nfciRange = r), bank: "NFCI", desc: "Fed's NFCI Credit subindex. ↓ Below 0 = Loose conditions | ↑ Above 0 = Tight conditions" }, { id: "nfci_risk", name: "NFCI Risk Contrast", data: nfciRiskZData, range: nfciRange, setRange: (r) => (nfciRange = r), bank: "NFCI", desc: "Fed's NFCI Risk subindex. Measures volatility perception. ↓ Below 0 = Low risk appetite | ↑ Above 0 = Elevated fear" }, { id: "lending", name: "Lending Standards Contrast", data: lendingZData, range: lendingRange, setRange: (r) => (lendingRange = r), bank: "LENDING_STD", desc: "Senior Loan Officer Survey. ↑ Tightening = Banks restrict credit | ↓ Easing = Banks lend freely" }, { id: "vix_z", name: "VIX Contrast (Z-Score)", data: vixZData, range: vixRange, setRange: (r) => (vixRange = r), bank: "VIX", desc: "Implied volatility (fear gauge). Z>2 = Panic | Z<-1 = Complacency. Mean-reverts." }] as item}
             <div class="chart-card">
               <div class="chart-header">
                 <h3>{item.name}</h3>
@@ -2184,6 +2190,7 @@
                   <span class="last-date">Last: {getLastDate(item.bank)}</span>
                 </div>
               </div>
+              <p class="chart-description">{item.desc}</p>
               <div class="chart-content">
                 <Chart data={item.data} />
               </div>
@@ -2204,6 +2211,14 @@
                 >
               </div>
             </div>
+            <p class="chart-description">
+              <strong>Breakeven (amber)</strong>: Market's expected inflation. ↑
+              Rising = Inflation fears.
+              <strong>Real Rate (blue)</strong>: True cost of money. Negative =
+              Ultra-easy policy, bullish risk assets.
+              <strong>5Y5Y Forward (green)</strong>: Long-term inflation anchor.
+              Stable ≈ 2-2.5% = Fed credibility intact.
+            </p>
             <div class="chart-content">
               <Chart data={tipsData} layout={tipsLayout} />
             </div>
@@ -3576,6 +3591,22 @@
     width: 100%;
     position: relative;
     overflow: hidden;
+  }
+
+  .chart-description {
+    margin: 8px 0 16px 0;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-radius: 8px;
+    font-size: 0.85rem;
+    color: #475569;
+    line-height: 1.5;
+    border-left: 3px solid #3b82f6;
+  }
+
+  .chart-description strong {
+    color: #1e293b;
+    font-weight: 600;
   }
 
   .debug-chart-info {
