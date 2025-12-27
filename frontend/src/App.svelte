@@ -733,6 +733,24 @@
 
   let btcRocPeriod = 21; // Default 1 Month (21 trading days)
   let btcLag = 0; // Default 0 lag
+  let normalizeImpulse = false; // Toggle for Z-Score Normalization
+
+  function calculateZScore(values) {
+    if (!values || values.length === 0) return [];
+    const valid = values.filter((v) => v !== null && v !== undefined);
+    if (valid.length < 2) return values;
+
+    const mean = valid.reduce((a, b) => a + b, 0) / valid.length;
+    const variance =
+      valid.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / valid.length;
+    const stdDev = Math.sqrt(variance);
+
+    if (stdDev === 0) return values.map(() => 0);
+
+    return values.map((v) =>
+      v === null || v === undefined ? null : (v - mean) / stdDev,
+    );
+  }
 
   function calculateBtcRoc(prices, dates, period, lag = 0) {
     if (!prices || !dates || prices.length !== dates.length) return [];
@@ -910,15 +928,17 @@
 
     // Fixed BTC ROC (No Lag on BTC itself, it is the anchor)
     const computed = calculateBtcRoc(prices, dates, btcRocPeriod, 0);
+    const yRaw = computed.map((p) => p.y);
+    const yFinal = normalizeImpulse ? calculateZScore(yRaw) : yRaw;
 
     return {
       x: computed.map((p) => p.x),
-      y: computed.map((p) => p.y),
-      name: `BTC ROC (${btcRocPeriod}d)`,
+      y: yFinal,
+      name: `BTC ROC (${btcRocPeriod}d)${normalizeImpulse ? " [Z]" : ""}`,
       type: "scatter",
       mode: "lines",
       line: { color: "#94a3b8", width: 2, dash: "solid" },
-      yaxis: "y2",
+      yaxis: normalizeImpulse ? "y" : "y2",
       opacity: 0.8,
     };
   })();
@@ -939,10 +959,20 @@
     btcLag,
   );
 
+  $: gliY = normalizeImpulse
+    ? calculateZScore(gliImpulseShifted.y)
+    : gliImpulseShifted.y;
+  $: netLiqY = normalizeImpulse
+    ? calculateZScore(netLiqImpulseShifted.y)
+    : netLiqImpulseShifted.y;
+  $: cliY = normalizeImpulse
+    ? calculateZScore(cliMomentumShifted.y)
+    : cliMomentumShifted.y;
+
   $: impulseDataRaw = [
     {
       x: gliImpulseShifted.x,
-      y: gliImpulseShifted.y,
+      y: gliY,
       name:
         "GLI Impulse (13W)" +
         (btcLag !== 0 ? ` [${btcLag > 0 ? "+" : ""}${btcLag}d]` : ""),
@@ -952,7 +982,7 @@
     },
     {
       x: netLiqImpulseShifted.x,
-      y: netLiqImpulseShifted.y,
+      y: netLiqY,
       name: "NetLiq Impulse (13W)",
       type: "scatter",
       mode: "lines",
@@ -960,7 +990,7 @@
     },
     {
       x: cliMomentumShifted.x,
-      y: cliMomentumShifted.y,
+      y: cliY,
       name: "CLI Momentum (4W)",
       type: "scatter",
       mode: "lines",
@@ -977,7 +1007,7 @@
 
   $: impulseLayout = {
     yaxis: {
-      title: "Impulse ($ Trillion)",
+      title: normalizeImpulse ? "Z-Score (σ)" : "Impulse ($ Trillion)",
       gridcolor: darkMode ? "#334155" : "#e2e8f0",
     },
     yaxis2: {
@@ -985,6 +1015,7 @@
       overlaying: "y",
       side: "right",
       showgrid: false,
+      visible: !normalizeImpulse,
     },
     margin: { t: 30, b: 30, l: 50, r: 50 },
     legend: { orientation: "h", y: 1.1 },
@@ -2937,6 +2968,18 @@
                     style="font-size: 11px; width: 25px; text-align: right; color: var(--text-primary);"
                     >{btcLag}</span
                   >
+                </div>
+
+                <div
+                  class="control-group"
+                  style="display: flex; align-items: center; gap: 4px;"
+                >
+                  <label
+                    style="font-size: 11px; color: var(--text-primary); display: flex; align-items: center; gap: 4px; cursor: pointer;"
+                  >
+                    <input type="checkbox" bind:checked={normalizeImpulse} />
+                    Normalize (Z)
+                  </label>
                 </div>
 
                 <TimeRangeSelector
