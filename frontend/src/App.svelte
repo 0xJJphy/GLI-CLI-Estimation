@@ -1036,9 +1036,26 @@
           imp1: data["impact_1m"]?.[data["impact_1m"].length - 1] || 0,
           imp3: data["impact_3m"]?.[data["impact_3m"].length - 1] || 0,
           imp1y: data["impact_1y"]?.[data["impact_1y"].length - 1] || 0,
+          delta1: data["delta_1m"]?.[data["delta_1m"].length - 1] || 0,
+          delta3: data["delta_3m"]?.[data["delta_3m"].length - 1] || 0,
+          delta1y: data["delta_1y"]?.[data["delta_1y"].length - 1] || 0,
         };
       })
     : [];
+
+  $: usSystemTotal = usSystemMetrics.reduce(
+    (acc, item) => {
+      return {
+        delta1: acc.delta1 + item.delta1,
+        imp1: acc.imp1 + item.imp1,
+        delta3: acc.delta3 + item.delta3,
+        imp3: acc.imp3 + item.imp3,
+        delta1y: acc.delta1y + item.delta1y,
+        imp1y: acc.imp1y + item.imp1y,
+      };
+    },
+    { delta1: 0, imp1: 0, delta3: 0, imp3: 0, delta1y: 0, imp1y: 0 },
+  );
 
   $: gliMovers = $dashboardData.bank_rocs
     ? Object.entries($dashboardData.bank_rocs)
@@ -2247,6 +2264,7 @@
                       <tr>
                         <th>{currentTranslations.account}</th>
                         <th>1M</th>
+                        <th title="Absolute change in Billions USD">$ Δ1M</th>
                         <th title={currentTranslations.impact_us}>Imp</th>
                         <th>3M</th>
                         <th title={currentTranslations.impact_us}>Imp</th>
@@ -2268,6 +2286,19 @@
                               (item.isLiability && item.m1 > 0)}
                             >{item.m1.toFixed(1)}%</td
                           >
+                          <td
+                            class="roc-val"
+                            class:positive={(!item.isLiability &&
+                              item.delta1 > 0) ||
+                              (item.isLiability && item.delta1 < 0)}
+                            class:negative={(!item.isLiability &&
+                              item.delta1 < 0) ||
+                              (item.isLiability && item.delta1 > 0)}
+                          >
+                            {item.delta1 > 0 ? "+" : ""}{item.delta1.toFixed(
+                              0,
+                            )}B
+                          </td>
                           <td
                             class="roc-val impact-cell"
                             class:positive={item.imp1 > 0}
@@ -2308,6 +2339,42 @@
                           >
                         </tr>
                       {/each}
+                      <tr class="total-row">
+                        <td><strong>TOTAL</strong></td>
+                        <td>-</td>
+                        <td
+                          class="roc-val"
+                          class:positive={usSystemTotal.delta1 > 0}
+                          class:negative={usSystemTotal.delta1 < 0}
+                        >
+                          {usSystemTotal.delta1 > 0
+                            ? "+"
+                            : ""}{usSystemTotal.delta1.toFixed(0)}B
+                        </td>
+                        <td
+                          class="roc-val impact-cell"
+                          class:positive={usSystemTotal.imp1 > 0}
+                          class:negative={usSystemTotal.imp1 < 0}
+                        >
+                          {usSystemTotal.imp1.toFixed(2)}%
+                        </td>
+                        <td>-</td>
+                        <td
+                          class="roc-val impact-cell"
+                          class:positive={usSystemTotal.imp3 > 0}
+                          class:negative={usSystemTotal.imp3 < 0}
+                        >
+                          {usSystemTotal.imp3.toFixed(2)}%
+                        </td>
+                        <td>-</td>
+                        <td
+                          class="roc-val impact-cell"
+                          class:positive={usSystemTotal.imp1y > 0}
+                          class:negative={usSystemTotal.imp1y < 0}
+                        >
+                          {usSystemTotal.imp1y.toFixed(2)}%
+                        </td>
+                      </tr>
                     </tbody>
                   </table>
                 </div>
@@ -2625,6 +2692,7 @@
                       <tr>
                         <th>{currentTranslations.account}</th>
                         <th>1M</th>
+                        <th title="Absolute change in Billions USD">$ Δ1M</th>
                         <th title={currentTranslations.impact_us}>Imp</th>
                         <th>3M</th>
                         <th title={currentTranslations.impact_us}>Imp</th>
@@ -2646,6 +2714,19 @@
                               (item.isLiability && item.m1 > 0)}
                             >{item.m1.toFixed(1)}%</td
                           >
+                          <td
+                            class="roc-val"
+                            class:positive={(!item.isLiability &&
+                              item.delta1 > 0) ||
+                              (item.isLiability && item.delta1 < 0)}
+                            class:negative={(!item.isLiability &&
+                              item.delta1 < 0) ||
+                              (item.isLiability && item.delta1 > 0)}
+                          >
+                            {item.delta1 > 0 ? "+" : ""}{item.delta1.toFixed(
+                              0,
+                            )}B
+                          </td>
                           <td
                             class="roc-val impact-cell"
                             class:positive={item.imp1 > 0}
@@ -2686,6 +2767,42 @@
                           >
                         </tr>
                       {/each}
+                      <tr class="total-row">
+                        <td><strong>TOTAL</strong></td>
+                        <td>-</td>
+                        <td
+                          class="roc-val"
+                          class:positive={usSystemTotal.delta1 > 0}
+                          class:negative={usSystemTotal.delta1 < 0}
+                        >
+                          {usSystemTotal.delta1 > 0
+                            ? "+"
+                            : ""}{usSystemTotal.delta1.toFixed(0)}B
+                        </td>
+                        <td
+                          class="roc-val impact-cell"
+                          class:positive={usSystemTotal.imp1 > 0}
+                          class:negative={usSystemTotal.imp1 < 0}
+                        >
+                          {usSystemTotal.imp1.toFixed(2)}%
+                        </td>
+                        <td>-</td>
+                        <td
+                          class="roc-val impact-cell"
+                          class:positive={usSystemTotal.imp3 > 0}
+                          class:negative={usSystemTotal.imp3 < 0}
+                        >
+                          {usSystemTotal.imp3.toFixed(2)}%
+                        </td>
+                        <td>-</td>
+                        <td
+                          class="roc-val impact-cell"
+                          class:positive={usSystemTotal.imp1y > 0}
+                          class:negative={usSystemTotal.imp1y < 0}
+                        >
+                          {usSystemTotal.imp1y.toFixed(2)}%
+                        </td>
+                      </tr>
                     </tbody>
                   </table>
                   <p style="font-size: 10px; color: #94a3b8; margin-top: 8px;">
@@ -5382,5 +5499,13 @@
     .gli-layout {
       grid-template-columns: 1fr;
     }
+  }
+  .total-row {
+    background-color: rgba(148, 163, 184, 0.1);
+    border-top: 2px solid var(--border-color);
+  }
+  .total-row td {
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
   }
 </style>

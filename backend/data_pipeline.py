@@ -501,7 +501,18 @@ def calculate_global_m2(df):
     def convert_m2(m2_col, fx_col, fx_fallback):
         if m2_col in df.columns:
             fx = df.get(fx_col, fx_fallback)
-            return (df[m2_col] * fx) / 1e3  # Convert to trillions
+            val = df[m2_col] * fx
+            
+            # Logic to handle Units (TV) vs Billions (FRED)
+            # If value is > 1 Trillion (1e12), it's probably in Units
+            # If it's < 1 Trillion, it might be in Billions (like USM2 = 21,000)
+            # Actually, standardizing: anything > 1e10 is likely Units.
+            # 1 billion = 1e9. 10 billion = 1e10.
+            # Typical M2 is > 100B.
+            if val.mean() > 1e10:
+                return val / 1e12  # Units -> Trillions
+            else:
+                return val / 1e3   # Billions -> Trillions
         return pd.Series(dtype=float)
     
     # Major 4 M2s
@@ -1579,6 +1590,12 @@ def run_pipeline():
                 comp: {
                     k: clean_for_json(calculate_rocs(df_t.get(col, pd.Series(0.0, index=df_t.index)))[k])
                     for k in ['1M', '3M', '6M', '1Y']
+                } | {
+                    # Absolute Dollar Change (in Billions for easier reading)
+                    f'delta_{i}': clean_for_json(
+                        (df_t.get(col, pd.Series(0.0, index=df_t.index)) - 
+                         df_t.get(col, pd.Series(0.0, index=df_t.index)).shift(w)) * 1000 # Convert T to B
+                    ) for i, w in [('1m', 22), ('3m', 66), ('1y', 252)]
                 } | {
                     # Multi-period Impact on Net Liquidity
                     # Note: RRP and TGA have INVERSE impact (increase = liquidity drain)
