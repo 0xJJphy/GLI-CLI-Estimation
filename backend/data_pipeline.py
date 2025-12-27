@@ -971,10 +971,14 @@ def calculate_macro_regime(
     regime_code = pd.Series(np.where(bull, 1, np.where(bear, -1, 0)), index=idx).astype(float)
 
     # "Transition" flag: strong acceleration (regime changing)
-    accel_strength = np.nanmax(
-        np.vstack([_zscore_roll(gli_accel).abs().values, _zscore_roll(netliq_accel).abs().values]),
-        axis=0
-    )
+    # Suppress warning for all-NaN slices (expected for early dates with insufficient rolling data)
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
+        accel_strength = np.nanmax(
+            np.vstack([_zscore_roll(gli_accel).abs().values, _zscore_roll(netliq_accel).abs().values]),
+            axis=0
+        )
     transition = pd.Series((accel_strength > 1.5).astype(float), index=idx)
 
     # ---------- Output ----------
