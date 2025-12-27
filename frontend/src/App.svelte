@@ -1035,29 +1035,6 @@
     return { x: shiftedX, y: shiftedY };
   }
 
-  // --- Regime Chart Data (BTC Price + Background) ---
-  $: regimeChartData = [btcPriceTrace].filter(Boolean);
-
-  $: regimeShapes = calculateHistoricalRegimes(
-    $dashboardData.dates,
-    $dashboardData.flow_metrics?.gli_impulse_13w,
-    $dashboardData.flow_metrics?.net_liquidity_impulse_13w,
-  );
-
-  $: regimeChartLayout = {
-    yaxis: {
-      title: "BTC Price (Log)",
-      type: "log",
-      gridcolor: darkMode ? "#334155" : "#e2e8f0",
-    },
-    margin: { t: 10, b: 30, l: 50, r: 20 },
-    showlegend: false,
-    shapes: regimeShapes,
-    height: 300, // Compact height for the panel
-    paper_bgcolor: "rgba(0,0,0,0)",
-    plot_bgcolor: "rgba(0,0,0,0)",
-  };
-
   // --- Impulse Chart Data (Signals + BTC ROC) ---
   $: btcRocTrace = (() => {
     if (!$dashboardData.btc || !$dashboardData.btc.price) return null;
