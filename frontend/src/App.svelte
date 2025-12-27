@@ -4741,6 +4741,34 @@
     font-weight: 700;
   }
 
+  /* ROC Inline Display */
+  .roc-inline {
+    display: flex;
+    gap: 16px;
+    margin-top: 12px;
+    padding: 10px 16px;
+    font-size: 12px;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .roc-inline span {
+    font-weight: 600;
+  }
+
+  .roc-inline span.positive {
+    color: var(--positive-color);
+    font-weight: 700;
+  }
+
+  .roc-inline span.negative {
+    color: var(--negative-color);
+    font-weight: 700;
+  }
+
   .label-group {
     display: flex;
     align-items: center;
