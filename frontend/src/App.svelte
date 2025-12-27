@@ -1084,23 +1084,29 @@
     }
 
     // Regime Background Data with offset
-    for (let i = 0; i < regimeScore.length && i < dates.length; i++) {
-      const score = regimeScore[i];
-      const color = scoreToColor(score);
+    // Iterate over the FULL date range (including extended future dates)
+    // For each target date, look BACK by offset to find the source signal
+    const totalDates = dates.length + currentOffset;
 
-      if (color) {
-        // Map signal date to projected date with offset
-        let targetDate;
-        const targetIdx = i + currentOffset;
+    for (let targetIdx = 0; targetIdx < totalDates; targetIdx++) {
+      // Calculate target date
+      let targetDate;
+      if (targetIdx < dates.length) {
+        targetDate = dates[targetIdx];
+      } else if (lastDate) {
+        const daysToAdd = targetIdx - (dates.length - 1);
+        targetDate = addDays(lastDate, daysToAdd);
+      }
 
-        if (targetIdx < dates.length) {
-          targetDate = dates[targetIdx];
-        } else if (lastDate) {
-          const daysToAdd = targetIdx - (dates.length - 1);
-          targetDate = addDays(lastDate, daysToAdd);
-        }
+      // Calculate source index (look back by offset)
+      const sourceIdx = targetIdx - currentOffset;
 
-        if (targetDate) {
+      // Only paint if source index is valid (within score data range)
+      if (sourceIdx >= 0 && sourceIdx < regimeScore.length) {
+        const score = regimeScore[sourceIdx];
+        const color = scoreToColor(score);
+
+        if (color && targetDate) {
           bgData.push({ time: targetDate, value: 1, color });
         }
       }
@@ -1125,6 +1131,62 @@
         color: "#94a3b8",
         topColor: "rgba(148, 163, 184, 0.4)",
         bottomColor: "rgba(148, 163, 184, 0.01)",
+        width: 2,
+      },
+    ];
+  })();
+
+  // CB Breadth Chart Data (% of CBs expanding)
+  $: cbBreadthData = (() => {
+    if (!$dashboardData.dates || !$dashboardData.macro_regime?.cb_diffusion_13w)
+      return [];
+
+    const dates = $dashboardData.dates;
+    const diffusion = $dashboardData.macro_regime.cb_diffusion_13w;
+
+    const data = [];
+    for (let i = 0; i < dates.length && i < diffusion.length; i++) {
+      if (diffusion[i] !== null && diffusion[i] !== undefined) {
+        data.push({ time: dates[i], value: diffusion[i] * 100 }); // Convert to percentage
+      }
+    }
+
+    return [
+      {
+        name: "CB Breadth (%)",
+        type: "area",
+        data: data,
+        color: "#3b82f6",
+        topColor: "rgba(59, 130, 246, 0.3)",
+        bottomColor: "rgba(59, 130, 246, 0.01)",
+        width: 2,
+      },
+    ];
+  })();
+
+  // CB Concentration Chart Data (HHI)
+  $: cbConcentrationData = (() => {
+    if (!$dashboardData.dates || !$dashboardData.macro_regime?.cb_hhi_13w)
+      return [];
+
+    const dates = $dashboardData.dates;
+    const hhi = $dashboardData.macro_regime.cb_hhi_13w;
+
+    const data = [];
+    for (let i = 0; i < dates.length && i < hhi.length; i++) {
+      if (hhi[i] !== null && hhi[i] !== undefined) {
+        data.push({ time: dates[i], value: hhi[i] });
+      }
+    }
+
+    return [
+      {
+        name: "CB Concentration (HHI)",
+        type: "area",
+        data: data,
+        color: "#f59e0b",
+        topColor: "rgba(245, 158, 11, 0.3)",
+        bottomColor: "rgba(245, 158, 11, 0.01)",
         width: 2,
       },
     ];
@@ -3382,6 +3444,52 @@
             </div>
 
             <div class="regime-glow glow-{currentRegime.color}"></div>
+          </div>
+
+          <!-- CB Breadth Chart -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <div class="label-group">
+                <h3>
+                  {language === "es"
+                    ? "Amplitud CB (% Expandiendo)"
+                    : "CB Breadth (% Expanding)"}
+                </h3>
+              </div>
+            </div>
+            <div class="chart-content">
+              <LightweightChart {darkMode} data={cbBreadthData} />
+            </div>
+            <p
+              style="font-size: 10px; color: var(--text-muted); margin-top: 8px;"
+            >
+              {language === "es"
+                ? "Porcentaje de bancos centrales con balance expandiéndose (13W). >50% = Mayoría inyectando liquidez."
+                : "Percentage of central banks with expanding balance sheets (13W). >50% = Majority injecting liquidity."}
+            </p>
+          </div>
+
+          <!-- CB Concentration Chart -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <div class="label-group">
+                <h3>
+                  {language === "es"
+                    ? "Concentración CB (HHI)"
+                    : "CB Concentration (HHI)"}
+                </h3>
+              </div>
+            </div>
+            <div class="chart-content">
+              <LightweightChart {darkMode} data={cbConcentrationData} />
+            </div>
+            <p
+              style="font-size: 10px; color: var(--text-muted); margin-top: 8px;"
+            >
+              {language === "es"
+                ? "Índice Herfindahl-Hirschman de concentración de flujos CB. Alto = Liderazgo concentrado (menos robusto)."
+                : "Herfindahl-Hirschman Index of CB flow concentration. High = Concentrated leadership (less robust)."}
+            </p>
           </div>
 
           <div class="chart-card wide">
