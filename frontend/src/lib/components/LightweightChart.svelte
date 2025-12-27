@@ -1,6 +1,11 @@
 <script>
     import { onMount } from "svelte";
-    import { createChart, LineSeries, AreaSeries } from "lightweight-charts";
+    import {
+        createChart,
+        LineSeries,
+        AreaSeries,
+        HistogramSeries,
+    } from "lightweight-charts";
 
     let {
         data = [],
@@ -125,8 +130,17 @@
 
             try {
                 let series;
-                const seriesType =
-                    sConfig.type === "area" ? AreaSeries : LineSeries;
+                let seriesType;
+                switch (sConfig.type) {
+                    case "area":
+                        seriesType = AreaSeries;
+                        break;
+                    case "histogram":
+                        seriesType = HistogramSeries;
+                        break;
+                    default:
+                        seriesType = LineSeries;
+                }
 
                 const options = {
                     color: sConfig.color,

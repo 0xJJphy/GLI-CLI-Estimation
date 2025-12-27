@@ -204,6 +204,8 @@
       regime_losing_steam: "Losing Steam",
       regime_neutral: "Neutral / Transition",
       regime_signal: "Macro Pulse & Regime",
+      regime_chart_desc:
+        "Log-scale BTC Price overlaid on Macro Regime. Background tracks combined Global (GLI) and US (NetLiq) liquidity momentum. Green: Dual Expansion (Bullish). Red: Dual Contraction (Bearish). Grey: Mixed/Neutral.",
     },
     es: {
       gli: "Suma de balances de bancos centrales en USD. ↑ Expansión = Inyección de liquidez (alcista) | ↓ Contracción = QT (bajista)",
@@ -389,6 +391,8 @@
       regime_losing_steam: "Perdiendo Fuelle",
       regime_neutral: "Neutral / Transición",
       regime_signal: "Pulso Macro y Régimen",
+      regime_chart_desc:
+        "Precio BTC (Log) vs Régimen Macro. El fondo rastrea liquidez Global (GLI) y EE.UU. (NetLiq). Verde: Expansión Dual (Alcista). Rojo: Contracción Dual (Bajista). Gris: Neutral.",
     },
   };
 
@@ -935,22 +939,66 @@
     return shapes;
   }
 
-  $: btcPriceTrace = (() => {
-    if (!$dashboardData.btc || !$dashboardData.btc.price) return null;
-    const prices = $dashboardData.btc.price || [];
-    const dates = $dashboardData.dates;
-    if (!prices.length) return null;
+  $: regimeLCData = (() => {
+    if (
+      !$dashboardData.dates ||
+      !$dashboardData.btc ||
+      !$dashboardData.btc.price
+    )
+      return [];
 
-    return {
-      x: dates,
-      y: prices,
-      name: "BTC Price (Log)",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#94a3b8", width: 1.5 }, // Solid slate-400
-      yaxis: "y2",
-      opacity: 0.9,
-    };
+    const dates = $dashboardData.dates;
+    const prices = $dashboardData.btc.price;
+    const gli = $dashboardData.flow_metrics?.gli_impulse_13w || [];
+    const netliq = $dashboardData.flow_metrics?.net_liquidity_impulse_13w || [];
+
+    const bgData = [];
+    const btcData = [];
+
+    for (let i = 0; i < dates.length; i++) {
+      const d = dates[i];
+      if (!d) continue;
+
+      // Background (Regime)
+      if (gli[i] !== undefined && netliq[i] !== undefined) {
+        const g = gli[i];
+        const n = netliq[i];
+        let color = "rgba(148, 163, 184, 0.08)"; // Neutral
+        if (g > 0 && n > 0)
+          color = "rgba(16, 185, 129, 0.15)"; // Bullish Green
+        else if (g < 0 && n < 0) color = "rgba(239, 68, 68, 0.15)"; // Bearish Red
+
+        bgData.push({ time: d, value: 1, color });
+      }
+
+      // BTC
+      if (prices[i] !== undefined && prices[i] !== null) {
+        btcData.push({ time: d, value: prices[i] });
+      }
+    }
+
+    return [
+      {
+        name: "Regime",
+        type: "histogram",
+        data: bgData,
+        color: "transparent",
+        options: {
+          priceScaleId: "left",
+          priceFormat: { type: "custom", formatter: () => "" },
+          scaleMargins: { top: 0, bottom: 0 },
+        },
+      },
+      {
+        name: "BTC Price",
+        type: "area",
+        data: btcData,
+        color: "#94a3b8",
+        topColor: "rgba(148, 163, 184, 0.4)",
+        bottomColor: "rgba(148, 163, 184, 0.01)",
+        width: 2,
+      },
+    ];
   })();
 
   // --- Signal Lagging Logic ---
@@ -3063,13 +3111,20 @@
 
             <div
               class="regime-chart-container"
-              style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top:10px;"
+              style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top:10px; height: 450px; display: flex; flex-direction: column;"
             >
-              <Chart
-                {darkMode}
-                data={regimeChartData}
-                layout={regimeChartLayout}
-              />
+              <p
+                style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.4;"
+              >
+                {currentTranslations.regime_chart_desc}
+              </p>
+              <div style="flex: 1; min-height: 0;">
+                <LightweightChart
+                  {darkMode}
+                  data={regimeLCData}
+                  logScale={true}
+                />
+              </div>
             </div>
 
             <div class="regime-glow glow-{currentRegime.color}"></div>
