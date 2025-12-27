@@ -731,8 +731,8 @@
   ];
   $: bocData = filterPlotlyData(bocDataRaw, $dashboardData.dates, bocRange);
 
-  $: btcRocPeriod = 21; // Default 1 Month (21 trading days)
-  $: btcLag = 0; // Default 0 lag
+  let btcRocPeriod = 21; // Default 1 Month (21 trading days)
+  let btcLag = 0; // Default 0 lag
 
   function calculateHistoricalRegimes(dates, gli, netliq) {
     if (!dates || !gli || !netliq) return [];
@@ -814,41 +814,130 @@
     };
   })();
 
-  // Impulse Analysis Data
-  $: impulseDataRaw = [
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.flow_metrics.gli_impulse_13w || [],
-      name: currentTranslations.gli_impulse,
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#3b82f6", width: 2, shape: "spline" },
-    },
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.flow_metrics.net_liquidity_impulse_13w || [],
-      name: "NetLiq Impulse (13W)",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#10b981", width: 2, shape: "spline" },
-    },
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.flow_metrics.cli_momentum_4w || [],
-      name: "CLI Momentum (4W)",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#f59e0b", width: 2, shape: "spline" },
-      // yaxis: "y2", // Moved to Y1 to avoid sharing scale with BTC ROC
-    },
-    ...(btcPriceTrace ? [btcPriceTrace] : []),
-  ];
+  // --- Signal Lagging Logic ---
+  // We want to shift GLI, NetLiq, and CLI traces by 'btcLag' (renamed conceptually to 'signalOffset') days.
+  // If Lag > 0, we shift signals FORWARD (Right) to see if they lead Price.
+  // Ideally, if Signal(t) predicts Price(t+lag), we shift Signal(t) to t+lag.
+
+  function shiftData(dates, values, lagDays) {
+    if (!dates || !values || dates.length !== values.length)
+      return { x: dates || [], y: values || [] };
+    if (lagDays === 0) return { x: dates, y: values };
+
+    // Since dates are strings YYYY-MM-DD, we assume index shifting is sufficient if data is daily.
+    // 1 index approx 1 day (trading day).
+    // Shift Right (Positive Lag): Prepend nulls/cut start, or simply shift the x-axis?
+    // Easiest is to keep Y values and SHIFT X array.
+    // If we shift signal to the right, Signal[i] happens at Date[i+lag].
+
+    // Actually, easier way for Plotly:
+    // If we want to move line to the RIGHT (+), we add days to the date object.
+    // But we have a discrete date list.
+    // Let's use index shifting.
+
+    const shiftedX = [];
+    const shiftedY = [];
+
+    for (let i = 0; i < values.length; i++) {
+      const targetIdx = i + lagDays;
+      if (targetIdx >= 0 && targetIdx < dates.length) {
+        shiftedX.push(dates[targetIdx]);
+        shiftedY.push(values[i]);
+      }
+    }
+    return { x: shiftedX, y: shiftedY };
+  }
+
+  // --- Regime Chart Data (BTC Price + Background) ---
+  $: regimeChartData = [btcPriceTrace].filter(Boolean);
 
   $: regimeShapes = calculateHistoricalRegimes(
     $dashboardData.dates,
     $dashboardData.flow_metrics?.gli_impulse_13w,
     $dashboardData.flow_metrics?.net_liquidity_impulse_13w,
   );
+
+  $: regimeChartLayout = {
+    yaxis: {
+      title: "BTC Price (Log)",
+      type: "log",
+      gridcolor: darkMode ? "#334155" : "#e2e8f0",
+    },
+    margin: { t: 10, b: 30, l: 50, r: 20 },
+    showlegend: false,
+    shapes: regimeShapes,
+    height: 300, // Compact height for the panel
+    paper_bgcolor: "rgba(0,0,0,0)",
+    plot_bgcolor: "rgba(0,0,0,0)",
+  };
+
+  // --- Impulse Chart Data (Signals + BTC ROC) ---
+  $: btcRocTrace = (() => {
+    if (!$dashboardData.btc || !$dashboardData.btc.price) return null;
+    const prices = $dashboardData.btc.price || [];
+    const dates = $dashboardData.dates;
+    if (!prices.length) return null;
+
+    // Fixed BTC ROC (No Lag on BTC itself, it is the anchor)
+    const computed = calculateBtcRoc(prices, dates, btcRocPeriod, 0);
+
+    return {
+      x: computed.map((p) => p.x),
+      y: computed.map((p) => p.y),
+      name: `BTC ROC (${btcRocPeriod}d)`,
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#94a3b8", width: 2, dash: "solid" },
+      yaxis: "y2",
+      opacity: 0.8,
+    };
+  })();
+
+  $: gliImpulseShifted = shiftData(
+    $dashboardData.dates,
+    $dashboardData.flow_metrics?.gli_impulse_13w,
+    btcLag,
+  );
+  $: netLiqImpulseShifted = shiftData(
+    $dashboardData.dates,
+    $dashboardData.flow_metrics?.net_liquidity_impulse_13w,
+    btcLag,
+  );
+  $: cliMomentumShifted = shiftData(
+    $dashboardData.dates,
+    $dashboardData.flow_metrics?.cli_momentum_4w,
+    btcLag,
+  );
+
+  $: impulseDataRaw = [
+    {
+      x: gliImpulseShifted.x,
+      y: gliImpulseShifted.y,
+      name:
+        "GLI Impulse (13W)" +
+        (btcLag !== 0 ? ` [${btcLag > 0 ? "+" : ""}${btcLag}d]` : ""),
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#3b82f6", width: 2, shape: "spline" },
+    },
+    {
+      x: netLiqImpulseShifted.x,
+      y: netLiqImpulseShifted.y,
+      name: "NetLiq Impulse (13W)",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#10b981", width: 2, shape: "spline" },
+    },
+    {
+      x: cliMomentumShifted.x,
+      y: cliMomentumShifted.y,
+      name: "CLI Momentum (4W)",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#f59e0b", width: 2, shape: "spline" },
+    },
+    ...(btcRocTrace ? [btcRocTrace] : []),
+  ];
 
   $: impulseData = filterPlotlyData(
     impulseDataRaw,
@@ -862,13 +951,11 @@
       gridcolor: darkMode ? "#334155" : "#e2e8f0",
     },
     yaxis2: {
-      title: "BTC Price (Log)",
+      title: "BTC ROC (%)",
       overlaying: "y",
       side: "right",
       showgrid: false,
-      type: "log",
     },
-    shapes: regimeShapes,
     margin: { t: 30, b: 30, l: 50, r: 50 },
     legend: { orientation: "h", y: 1.1 },
   };
@@ -2761,6 +2848,18 @@
               <p class="regime-description">{currentRegime.desc}</p>
               <p class="regime-details">{currentRegime.details}</p>
             </div>
+
+            <div
+              class="regime-chart-container"
+              style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top:10px;"
+            >
+              <Chart
+                {darkMode}
+                data={regimeChartData}
+                layout={regimeChartLayout}
+              />
+            </div>
+
             <div class="regime-glow glow-{currentRegime.color}"></div>
           </div>
 
@@ -2770,7 +2869,46 @@
                 <h3>{currentTranslations.impulse_analysis}</h3>
               </div>
               <div class="header-controls">
-                <div class="control-group"></div>
+                <div
+                  class="control-group"
+                  style="display: flex; align-items: center; gap: 8px;"
+                >
+                  <span style="font-size: 11px; color: var(--text-muted);"
+                    >{currentTranslations.period}:</span
+                  >
+                  <select
+                    bind:value={btcRocPeriod}
+                    style="background: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); padding: 4px; border-radius: 4px; font-size: 11px;"
+                  >
+                    <option value={21}>1M</option>
+                    <option value={63}>3M</option>
+                    <option value={126}>6M</option>
+                    <option value={252}>1Y</option>
+                  </select>
+                </div>
+
+                <div
+                  class="control-group"
+                  style="display: flex; align-items: center; gap: 8px;"
+                >
+                  <span style="font-size: 11px; color: var(--text-muted);"
+                    >{currentTranslations.lag_days}:</span
+                  >
+                  <input
+                    type="range"
+                    min="-60"
+                    max="60"
+                    step="1"
+                    bind:value={btcLag}
+                    style="width: 80px;"
+                    title="{btcLag} days"
+                  />
+                  <span
+                    style="font-size: 11px; width: 25px; text-align: right; color: var(--text-primary);"
+                    >{btcLag}</span
+                  >
+                </div>
+
                 <TimeRangeSelector
                   selectedRange={impulseRange}
                   onRangeChange={(r) => (impulseRange = r)}
