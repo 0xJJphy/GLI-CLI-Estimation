@@ -2522,6 +2522,208 @@
                     {currentTranslations.impact_note_us}
                   </p>
                 </div>
+
+                <!-- Composite Liquidity Metrics -->
+                <div
+                  class="metrics-section"
+                  style="margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(148, 163, 184, 0.2);"
+                >
+                  <h4>{currentTranslations.liquidity_score}</h4>
+                  <table class="metrics-table compact">
+                    <thead>
+                      <tr>
+                        <th>Metric</th>
+                        <th>Value</th>
+                        <th>Signal</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>{currentTranslations.liquidity_score}</td>
+                        <td
+                          class="roc-val"
+                          class:positive={getLatestValue(
+                            $dashboardData.us_system_metrics?.liquidity_score,
+                          ) > 0}
+                          class:negative={getLatestValue(
+                            $dashboardData.us_system_metrics?.liquidity_score,
+                          ) < 0}
+                          >{(
+                            getLatestValue(
+                              $dashboardData.us_system_metrics?.liquidity_score,
+                            ) ?? 0
+                          ).toFixed(2)}</td
+                        >
+                        <td
+                          class="signal-cell"
+                          class:plus={getLatestValue(
+                            $dashboardData.us_system_metrics?.liquidity_score,
+                          ) > 1}
+                          class:minus={getLatestValue(
+                            $dashboardData.us_system_metrics?.liquidity_score,
+                          ) < -1}
+                          >{getLatestValue(
+                            $dashboardData.us_system_metrics?.liquidity_score,
+                          ) > 1
+                            ? currentTranslations.liquid_env
+                            : getLatestValue(
+                                  $dashboardData.us_system_metrics
+                                    ?.liquidity_score,
+                                ) < -1
+                              ? currentTranslations.dry_env
+                              : "—"}</td
+                        >
+                      </tr>
+                      <tr>
+                        <td>{currentTranslations.netliq_roc}</td>
+                        <td
+                          class="roc-val"
+                          class:positive={getLatestValue(
+                            $dashboardData.us_system_metrics?.netliq_roc_20d,
+                          ) > 0}
+                          class:negative={getLatestValue(
+                            $dashboardData.us_system_metrics?.netliq_roc_20d,
+                          ) < 0}
+                          >{(
+                            getLatestValue(
+                              $dashboardData.us_system_metrics?.netliq_roc_20d,
+                            ) ?? 0
+                          ).toFixed(2)}%</td
+                        >
+                        <td
+                          class="signal-cell"
+                          class:plus={getLatestValue(
+                            $dashboardData.us_system_metrics?.netliq_roc_20d,
+                          ) > 2}
+                          class:minus={getLatestValue(
+                            $dashboardData.us_system_metrics?.netliq_roc_20d,
+                          ) < -2}
+                          >{getLatestValue(
+                            $dashboardData.us_system_metrics?.netliq_roc_20d,
+                          ) > 2
+                            ? "Risk-ON"
+                            : getLatestValue(
+                                  $dashboardData.us_system_metrics
+                                    ?.netliq_roc_20d,
+                                ) < -2
+                              ? "Risk-OFF"
+                              : "—"}</td
+                        >
+                      </tr>
+                      <tr>
+                        <td>{currentTranslations.rrp_drain}</td>
+                        <td
+                          class="roc-val"
+                          class:positive={getLatestValue(
+                            $dashboardData.us_system_metrics?.rrp_drain_weekly,
+                          ) < 0}
+                          class:negative={getLatestValue(
+                            $dashboardData.us_system_metrics?.rrp_drain_weekly,
+                          ) > 0}
+                          >{(
+                            (getLatestValue(
+                              $dashboardData.us_system_metrics
+                                ?.rrp_drain_weekly,
+                            ) ?? 0) * 1000
+                          ).toFixed(0)}B/w</td
+                        >
+                        <td
+                          class="signal-cell"
+                          class:plus={getLatestValue(
+                            $dashboardData.us_system_metrics?.rrp_drain_weekly,
+                          ) < -0.05}
+                          class:minus={getLatestValue(
+                            $dashboardData.us_system_metrics?.rrp_drain_weekly,
+                          ) > 0}
+                          >{getLatestValue(
+                            $dashboardData.us_system_metrics?.rrp_drain_weekly,
+                          ) < -0.05
+                            ? "Bullish"
+                            : getLatestValue(
+                                  $dashboardData.us_system_metrics
+                                    ?.rrp_drain_weekly,
+                                ) > 0
+                              ? "Bearish"
+                              : "—"}</td
+                        >
+                      </tr>
+                      <tr>
+                        <td>{currentTranslations.fed_momentum_label}</td>
+                        <td
+                          class="roc-val"
+                          class:positive={getLatestValue(
+                            $dashboardData.us_system_metrics?.fed_momentum,
+                          ) > 0}
+                          class:negative={getLatestValue(
+                            $dashboardData.us_system_metrics?.fed_momentum,
+                          ) < 0}
+                          >{(
+                            getLatestValue(
+                              $dashboardData.us_system_metrics?.fed_momentum,
+                            ) ?? 0
+                          ).toFixed(3)}T</td
+                        >
+                        <td
+                          class="signal-cell"
+                          class:plus={getLatestValue(
+                            $dashboardData.us_system_metrics?.fed_momentum,
+                          ) > 0}
+                          class:minus={getLatestValue(
+                            $dashboardData.us_system_metrics?.fed_momentum,
+                          ) < 0}
+                          >{getLatestValue(
+                            $dashboardData.us_system_metrics?.fed_momentum,
+                          ) > 0
+                            ? currentTranslations.regime_qe
+                            : currentTranslations.regime_qt}</td
+                        >
+                      </tr>
+                      <tr>
+                        <td>{currentTranslations.tga_deviation}</td>
+                        <td
+                          class="roc-val"
+                          class:positive={getLatestValue(
+                            $dashboardData.us_system_metrics?.tga_zscore,
+                          ) < 0}
+                          class:negative={getLatestValue(
+                            $dashboardData.us_system_metrics?.tga_zscore,
+                          ) > 1}
+                          >{(
+                            getLatestValue(
+                              $dashboardData.us_system_metrics?.tga_zscore,
+                            ) ?? 0
+                          ).toFixed(2)}</td
+                        >
+                        <td
+                          class="signal-cell"
+                          class:plus={getLatestValue(
+                            $dashboardData.us_system_metrics?.tga_zscore,
+                          ) < -1}
+                          class:minus={getLatestValue(
+                            $dashboardData.us_system_metrics?.tga_zscore,
+                          ) > 1}
+                          >{getLatestValue(
+                            $dashboardData.us_system_metrics?.tga_zscore,
+                          ) > 1
+                            ? "Drain"
+                            : getLatestValue(
+                                  $dashboardData.us_system_metrics?.tga_zscore,
+                                ) < -1
+                              ? "Inject"
+                              : "—"}</td
+                        >
+                      </tr>
+                    </tbody>
+                  </table>
+                  <p style="font-size: 10px; color: #94a3b8; margin-top: 6px;">
+                    * Score &gt;+1: {language === "en"
+                      ? "Liquid env (bullish)"
+                      : "Entorno líquido (alcista)"}<br />
+                    * Score &lt;-1: {language === "en"
+                      ? "Dry env (bearish)"
+                      : "Entorno seco (bajista)"}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
