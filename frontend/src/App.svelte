@@ -764,12 +764,10 @@
   }
 
   $: btcRocTrace = (() => {
-    if (!$dashboardData.btc || !$dashboardData.btc.full_price) return null;
+    if (!$dashboardData.btc || !$dashboardData.btc.price) return null;
     // We need a price series aligned with dates.
-    // data_pipeline exports 'btc' object with 'full_price' (Series) which might be just values or index.
-    // However main dashboard structure uses 'btc_price' in store usually or we check the dataStore.
-    // Let's rely on dashboardData.btc.full_price as checked in line 2741 of previous view.
-    const prices = $dashboardData.btc.full_price || [];
+    // $dashboardData.btc.price is the correct array.
+    const prices = $dashboardData.btc.price || [];
     const dates = $dashboardData.dates;
 
     if (!prices.length) return null;
