@@ -206,6 +206,13 @@
       regime_signal: "Macro Pulse & Regime",
       regime_chart_desc:
         "Log-scale BTC Price overlaid on Macro Regime. Background tracks combined Global (GLI) and US (NetLiq) liquidity momentum. Green: Dual Expansion (Bullish). Red: Dual Contraction (Bearish). Grey: Mixed/Neutral.",
+      regime_formula_title: "Regime Formula",
+      regime_formula_desc:
+        "Score = 50 + 15 × Total_Z | Liquidity (35% GLI + 35% NetLiq + 20% M2 ± CB breadth) + Credit (60% CLI + 40% CLI momentum) - Brakes (real rates + repo stress + reserve scarcity)",
+      regime_score_bullish:
+        "Score > 50: Bullish bias (green) → Liquidity expanding, credit easing",
+      regime_score_bearish:
+        "Score < 50: Bearish bias (red) → Liquidity contracting, credit tightening",
     },
     es: {
       gli: "Suma de balances de bancos centrales en USD. ↑ Expansión = Inyección de liquidez (alcista) | ↓ Contracción = QT (bajista)",
@@ -393,6 +400,13 @@
       regime_signal: "Pulso Macro y Régimen",
       regime_chart_desc:
         "Precio BTC (Log) vs Régimen Macro. El fondo rastrea liquidez Global (GLI) y EE.UU. (NetLiq). Verde: Expansión Dual (Alcista). Rojo: Contracción Dual (Bajista). Gris: Neutral.",
+      regime_formula_title: "Fórmula del Régimen",
+      regime_formula_desc:
+        "Score = 50 + 15 × Total_Z | Liquidez (35% GLI + 35% NetLiq + 20% M2 ± amplitud CB) + Crédito (60% CLI + 40% momentum CLI) - Frenos (tasas reales + estrés repo + escasez reservas)",
+      regime_score_bullish:
+        "Score > 50: Sesgo alcista (verde) → Liquidez expandiéndose, crédito relajándose",
+      regime_score_bearish:
+        "Score < 50: Sesgo bajista (rojo) → Liquidez contrayéndose, crédito endureciéndose",
     },
   };
 
@@ -940,25 +954,8 @@
     return shapes;
   }
 
-  // Reactive dependency: regimeLag must be accessed at top level for Svelte to track it
-  $: currentRegimeLag = regimeLag;
-
-  $: regimeLCData = (() => {
-    // Use currentRegimeLag to ensure reactivity
-    const offset = currentRegimeLag;
-
-    if (
-      !$dashboardData.dates ||
-      !$dashboardData.btc ||
-      !$dashboardData.btc.price
-    )
-      return [];
-
-    const dates = $dashboardData.dates;
-    const prices = $dashboardData.btc.price;
-    // Use new multi-factor macro regime SCORE for gradient coloring
-    const regimeScore = $dashboardData.macro_regime?.score || [];
-
+  // Helper function for regime chart data (extracted for reactivity)
+  function buildRegimeLCData(dates, prices, regimeScore, offset, lastDate) {
     const bgData = [];
     const btcData = [];
 
@@ -970,56 +967,44 @@
     };
 
     // Helper: Convert score (0-100) to gradient color
-    // score < 50 = soft red (more red as score approaches 0)
-    // score > 50 = soft green (more green as score approaches 100)
-    // score = 50 = neutral grey
     const scoreToColor = (score) => {
       if (score === null || score === undefined) return null;
 
       const deviation = (score - 50) / 50; // -1 to +1
       const absDeviation = Math.abs(deviation);
-      const alpha = 0.05 + absDeviation * 0.15; // 0.05 to 0.20 opacity
+      const alpha = 0.08 + absDeviation * 0.18; // 0.08 to 0.26 opacity
 
       if (deviation > 0.02) {
-        // Green gradient (bullish lean)
-        return `rgba(16, 185, 129, ${alpha.toFixed(2)})`;
+        return `rgba(16, 185, 129, ${alpha.toFixed(2)})`; // Green
       } else if (deviation < -0.02) {
-        // Red gradient (bearish lean)
-        return `rgba(239, 68, 68, ${alpha.toFixed(2)})`;
+        return `rgba(239, 68, 68, ${alpha.toFixed(2)})`; // Red
       } else {
-        // Neutral grey (very close to 50)
-        return `rgba(148, 163, 184, 0.06)`;
+        return `rgba(148, 163, 184, 0.08)`; // Neutral grey
       }
     };
 
-    const lastDate = dates[dates.length - 1];
-
-    // BTC Price Data (Normal loop)
+    // BTC Price Data
     for (let i = 0; i < dates.length; i++) {
       if (prices[i] !== undefined && prices[i] !== null) {
         btcData.push({ time: dates[i], value: prices[i] });
       }
     }
 
-    // Regime Background Data (Extended loop with offset)
-    // Signal at index 'i' determines Regime at 'i + offset'.
-    for (let i = 0; i < dates.length; i++) {
+    // Regime Background Data - Paint for ALL dates with score, not just BTC dates
+    for (let i = 0; i < regimeScore.length && i < dates.length; i++) {
       const score = regimeScore[i];
       const color = scoreToColor(score);
 
       if (color) {
-        // Calculate Target Date with offset
+        // Map signal date to projected date with offset
         let targetDate;
         const targetIdx = i + offset;
 
         if (targetIdx < dates.length) {
           targetDate = dates[targetIdx];
-        } else {
-          // Future projection beyond available dates
-          if (lastDate) {
-            const daysToAdd = targetIdx - (dates.length - 1);
-            targetDate = addDays(lastDate, daysToAdd);
-          }
+        } else if (lastDate) {
+          const daysToAdd = targetIdx - (dates.length - 1);
+          targetDate = addDays(lastDate, daysToAdd);
         }
 
         if (targetDate) {
@@ -1050,6 +1035,19 @@
         width: 2,
       },
     ];
+  }
+
+  // Reactive regime chart data - regimeLag is now explicitly in the reactive expression
+  $: regimeLCData = (() => {
+    if (!$dashboardData.dates || !$dashboardData.btc?.price) return [];
+
+    const dates = $dashboardData.dates;
+    const prices = $dashboardData.btc.price;
+    const regimeScore = $dashboardData.macro_regime?.score || [];
+    const lastDate = dates[dates.length - 1];
+
+    // regimeLag is accessed here at top level for Svelte reactivity
+    return buildRegimeLCData(dates, prices, regimeScore, regimeLag, lastDate);
   })();
 
   // --- Signal Lagging Logic ---
@@ -3162,6 +3160,28 @@
             <div class="regime-body">
               <p class="regime-description">{currentRegime.desc}</p>
               <p class="regime-details">{currentRegime.details}</p>
+
+              <div
+                class="regime-formula"
+                style="margin-top: 12px; padding: 10px; background: var(--card-bg-alt, rgba(0,0,0,0.15)); border-radius: 6px; font-size: 11px;"
+              >
+                <h4
+                  style="margin: 0 0 6px 0; font-size: 12px; color: var(--text-primary);"
+                >
+                  {currentTranslations.regime_formula_title}
+                </h4>
+                <p
+                  style="margin: 0 0 4px 0; color: var(--text-muted); font-family: monospace; line-height: 1.4;"
+                >
+                  {currentTranslations.regime_formula_desc}
+                </p>
+                <p style="margin: 0; color: #10b981;">
+                  • {currentTranslations.regime_score_bullish}
+                </p>
+                <p style="margin: 0; color: #ef4444;">
+                  • {currentTranslations.regime_score_bearish}
+                </p>
+              </div>
             </div>
 
             <div
