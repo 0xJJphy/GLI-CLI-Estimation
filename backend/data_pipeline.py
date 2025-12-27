@@ -841,6 +841,167 @@ def calculate_flow_metrics(df):
     return result
 
 
+def calculate_macro_regime(
+    df: pd.DataFrame,
+    impulse_days: int = 65,      # ~13 weeks (trading days)
+    accel_days: int = 65,
+    z_window: int = 252,         # ~1 year (trading days)
+    min_periods: int = 100,
+    score_clip: float = 3.0,
+) -> Dict[str, pd.Series]:
+    """
+    Multi-factor macro regime:
+      - Liquidity (flows): GLI, US Net Liquidity, Global M2 (impulse + accel)
+      - Credit: CLI level + momentum
+      - Brakes / plumbing: real-rate shock (TIPS), repo stress (SOFR-IORB),
+        stress de reservas vs netliq (spread zscore), + breadth/concentration CB
+
+    Requires (if present, uses; if missing, degrades gracefully):
+      GLI_TOTAL, NET_LIQUIDITY, M2_TOTAL, CLI,
+      BANK_RESERVES, TIPS_REAL_RATE, SOFR, IORB,
+      and optionally {FED,ECB,BOJ,PBOC,BOE,BOC,RBA,SNB,CBR,BCB,BOK,RBI,RBNZ,SR,BNM}_USD
+    """
+
+    idx = df.index
+    out: Dict[str, pd.Series] = {}
+
+    def _zscore_roll(s: pd.Series) -> pd.Series:
+        s = s.astype(float).replace([np.inf, -np.inf], np.nan)
+        mu = s.rolling(z_window, min_periods=min_periods).mean()
+        sd = s.rolling(z_window, min_periods=min_periods).std().replace(0, np.nan)
+        return (s - mu) / sd
+
+    # ---------- Core series ----------
+    gli = df.get("GLI_TOTAL", pd.Series(index=idx, dtype=float))
+    netliq = df.get("NET_LIQUIDITY", pd.Series(index=idx, dtype=float))
+    m2 = df.get("M2_TOTAL", pd.Series(index=idx, dtype=float))
+    cli = df.get("CLI", pd.Series(index=idx, dtype=float))
+
+    # ---------- Flow / impulse (Δ13W) ----------
+    gli_imp = gli.diff(impulse_days)
+    netliq_imp = netliq.diff(impulse_days)
+    m2_imp = m2.diff(impulse_days)
+
+    # Acceleration (change in impulse)
+    gli_accel = gli_imp - gli_imp.shift(accel_days)
+    netliq_accel = netliq_imp - netliq_imp.shift(accel_days)
+
+    # Credit momentum (13W for "regime")
+    cli_mom = cli.diff(impulse_days)
+
+    # ---------- Breadth / Concentration (CB diffusion + HHI) ----------
+    cb_list = ["FED", "ECB", "BOJ", "PBOC", "BOE", "BOC", "RBA", "SNB", "CBR", "BCB", "BOK", "RBI", "RBNZ", "SR", "BNM"]
+    cb_cols = [f"{cb}_USD" for cb in cb_list if f"{cb}_USD" in df.columns]
+
+    if cb_cols:
+        cb_deltas = df[cb_cols].astype(float).diff(impulse_days)
+        # Diffusion: % CBs with Δ13W > 0
+        denom = cb_deltas.notna().sum(axis=1).replace(0, np.nan)
+        cb_diffusion = (cb_deltas > 0).sum(axis=1) / denom
+
+        # Concentration (HHI) over absolute contributions
+        abs_d = cb_deltas.abs()
+        abs_sum = abs_d.sum(axis=1).replace(0, np.nan)
+        shares = abs_d.div(abs_sum, axis=0)
+        cb_hhi = (shares.pow(2)).sum(axis=1)
+
+    else:
+        cb_diffusion = pd.Series(np.nan, index=idx)
+        cb_hhi = pd.Series(np.nan, index=idx)
+
+    # ---------- Brakes / plumbing ----------
+    tips_real = df.get("TIPS_REAL_RATE", pd.Series(index=idx, dtype=float))
+    real_rate_shock_4w = tips_real.diff(20)  # ~4 weeks
+
+    sofr = df.get("SOFR", pd.Series(index=idx, dtype=float))
+    iorb = df.get("IORB", pd.Series(index=idx, dtype=float))
+    repo_stress = sofr - iorb  # >0 typically indicates funding tension
+
+    reserves = df.get("BANK_RESERVES", pd.Series(index=idx, dtype=float))
+    # Spread zscore: (NetLiq - Reserves) zscore
+    spread = (netliq - reserves).astype(float)
+    spread_mu = spread.rolling(z_window, min_periods=min_periods).mean()
+    spread_sd = spread.rolling(z_window, min_periods=min_periods).std().replace(0, np.nan)
+    reserves_spread_z = (spread - spread_mu) / spread_sd
+
+    # ---------- Z features ----------
+    z_gli_imp = _zscore_roll(gli_imp)
+    z_netliq_imp = _zscore_roll(netliq_imp)
+    z_m2_imp = _zscore_roll(m2_imp)
+
+    z_cli = _zscore_roll(cli)
+    z_cli_mom = _zscore_roll(cli_mom)
+
+    z_diffusion = _zscore_roll(cb_diffusion)          # breadth (↑ better)
+    z_hhi = _zscore_roll(cb_hhi)                      # concentration (↑ worse)
+
+    z_real_shock = _zscore_roll(real_rate_shock_4w)   # ↑ worse
+    z_repo = _zscore_roll(repo_stress)                # ↑ worse
+
+    # ---------- Component blocks ----------
+    # Liquidity: flows + breadth - concentration
+    liquidity_z = (
+        0.35 * z_gli_imp.fillna(0) +
+        0.35 * z_netliq_imp.fillna(0) +
+        0.20 * z_m2_imp.fillna(0) +
+        0.10 * z_diffusion.fillna(0) -
+        0.10 * z_hhi.fillna(0)
+    )
+
+    # Credit: level + momentum
+    credit_z = 0.60 * z_cli.fillna(0) + 0.40 * z_cli_mom.fillna(0)
+
+    # Brakes: real rates + repo + stress reserves (note: higher spread_z = worse)
+    brakes_z = (
+        -0.35 * z_real_shock.fillna(0) +
+        -0.25 * z_repo.fillna(0) +
+        -0.25 * reserves_spread_z.fillna(0)
+    )
+
+    total_z = (liquidity_z + credit_z + brakes_z).replace([np.inf, -np.inf], np.nan)
+
+    # ---------- Score 0-100 ----------
+    score = 50.0 + 15.0 * np.clip(total_z, -score_clip, score_clip)
+    score = score.fillna(50.0)
+
+    # ---------- Regime code ----------
+    #  1 = expansion (risk-on), -1 = contraction (risk-off), 0 = mixed/neutral
+    bull = (total_z > 0.75) & (liquidity_z > 0) & (credit_z > -0.25)
+    bear = (total_z < -0.75) & (liquidity_z < 0) & (credit_z < 0.25)
+    regime_code = pd.Series(np.where(bull, 1, np.where(bear, -1, 0)), index=idx).astype(float)
+
+    # "Transition" flag: strong acceleration (regime changing)
+    accel_strength = np.nanmax(
+        np.vstack([_zscore_roll(gli_accel).abs().values, _zscore_roll(netliq_accel).abs().values]),
+        axis=0
+    )
+    transition = pd.Series((accel_strength > 1.5).astype(float), index=idx)
+
+    # ---------- Output ----------
+    out["score"] = score
+    out["regime_code"] = regime_code
+    out["transition"] = transition
+
+    # Diagnostics (useful for debug + charts)
+    out["total_z"] = total_z
+    out["liquidity_z"] = liquidity_z
+    out["credit_z"] = credit_z
+    out["brakes_z"] = brakes_z
+
+    out["gli_impulse_13w"] = gli_imp
+    out["netliq_impulse_13w"] = netliq_imp
+    out["m2_impulse_13w"] = m2_imp
+
+    out["cb_diffusion_13w"] = cb_diffusion
+    out["cb_hhi_13w"] = cb_hhi
+
+    out["real_rate_shock_4w"] = real_rate_shock_4w
+    out["repo_stress"] = repo_stress
+    out["reserves_spread_z"] = reserves_spread_z
+
+    return out
+
+
 def calculate_btc_fair_value(df_t):
     """
     Calculates dual Bitcoin fair value models:
@@ -1488,6 +1649,9 @@ def run_pipeline():
         }).ffill()
         flow_metrics = {k: clean_for_json(v) for k, v in calculate_flow_metrics(flow_df).items()}
 
+        # --- Macro Regime (multi-factor) ---
+        regime_metrics = calculate_macro_regime(df_t)
+
         # Helper for Series Metadata (Last Real Date & Coverage)
         def get_series_info(series, df_ref):
             if series is None or series.empty:
@@ -1616,6 +1780,22 @@ def run_pipeline():
                 'boj_contrib_13w': clean_for_json(flow_metrics.get('boj_contrib_13w', pd.Series(dtype=float))),
                 'pboc_contrib_13w': clean_for_json(flow_metrics.get('pboc_contrib_13w', pd.Series(dtype=float))),
                 'boe_contrib_13w': clean_for_json(flow_metrics.get('boe_contrib_13w', pd.Series(dtype=float))),
+            },
+            # Macro Regime (multi-factor regime model)
+            'macro_regime': {
+                'score': clean_for_json(regime_metrics.get('score', pd.Series(dtype=float))),
+                'regime_code': clean_for_json(regime_metrics.get('regime_code', pd.Series(dtype=float))),
+                'transition': clean_for_json(regime_metrics.get('transition', pd.Series(dtype=float))),
+                # optional diagnostics
+                'total_z': clean_for_json(regime_metrics.get('total_z', pd.Series(dtype=float))),
+                'liquidity_z': clean_for_json(regime_metrics.get('liquidity_z', pd.Series(dtype=float))),
+                'credit_z': clean_for_json(regime_metrics.get('credit_z', pd.Series(dtype=float))),
+                'brakes_z': clean_for_json(regime_metrics.get('brakes_z', pd.Series(dtype=float))),
+                'cb_diffusion_13w': clean_for_json(regime_metrics.get('cb_diffusion_13w', pd.Series(dtype=float))),
+                'cb_hhi_13w': clean_for_json(regime_metrics.get('cb_hhi_13w', pd.Series(dtype=float))),
+                'repo_stress': clean_for_json(regime_metrics.get('repo_stress', pd.Series(dtype=float))),
+                'real_rate_shock_4w': clean_for_json(regime_metrics.get('real_rate_shock_4w', pd.Series(dtype=float))),
+                'reserves_spread_z': clean_for_json(regime_metrics.get('reserves_spread_z', pd.Series(dtype=float))),
             },
             'us_system_rocs': (lambda total_nl: {
                 comp: {
