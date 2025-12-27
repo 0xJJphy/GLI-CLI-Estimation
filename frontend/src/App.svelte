@@ -940,7 +940,13 @@
     return shapes;
   }
 
+  // Reactive dependency: regimeLag must be accessed at top level for Svelte to track it
+  $: currentRegimeLag = regimeLag;
+
   $: regimeLCData = (() => {
+    // Use currentRegimeLag to ensure reactivity
+    const offset = currentRegimeLag;
+
     if (
       !$dashboardData.dates ||
       !$dashboardData.btc ||
@@ -996,7 +1002,7 @@
     }
 
     // Regime Background Data (Extended loop with offset)
-    // Signal at index 'i' determines Regime at 'i + regimeLag'.
+    // Signal at index 'i' determines Regime at 'i + offset'.
     for (let i = 0; i < dates.length; i++) {
       const score = regimeScore[i];
       const color = scoreToColor(score);
@@ -1004,7 +1010,7 @@
       if (color) {
         // Calculate Target Date with offset
         let targetDate;
-        const targetIdx = i + regimeLag;
+        const targetIdx = i + offset;
 
         if (targetIdx < dates.length) {
           targetDate = dates[targetIdx];
