@@ -781,9 +781,9 @@
         `BTC ROC (${btcRocPeriod}d) ` + (btcLag !== 0 ? `Lag ${btcLag}d` : ""),
       type: "scatter",
       mode: "lines",
-      line: { color: "#808080", width: 1.5, dash: "dot" }, // Grey dotted line
-      yaxis: "y2", // Overlay on right axis (CLI Momentum)
-      opacity: 0.7,
+      line: { color: "#94a3b8", width: 2 }, // Solid slate-400 line for better visibility
+      yaxis: "y2", // Overlay on right axis
+      opacity: 0.8,
     };
   })();
 
@@ -812,7 +812,7 @@
       type: "scatter",
       mode: "lines",
       line: { color: "#f59e0b", width: 2, shape: "spline" },
-      yaxis: "y2",
+      // yaxis: "y2", // Moved to Y1 to avoid sharing scale with BTC ROC
     },
     ...(btcRocTrace ? [btcRocTrace] : []),
   ];
@@ -829,7 +829,7 @@
       gridcolor: darkMode ? "#334155" : "#e2e8f0",
     },
     yaxis2: {
-      title: "CLI Momentum (ΔZ)",
+      title: "BTC ROC (%)",
       overlaying: "y",
       side: "right",
       showgrid: false,
