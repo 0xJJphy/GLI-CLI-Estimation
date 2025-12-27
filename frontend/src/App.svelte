@@ -737,6 +737,7 @@
 
   let btcRocPeriod = 21; // Default 1 Month (21 trading days)
   let btcLag = 0; // Default 0 lag
+  let regimeLag = 72; // Default 72 days lag for Regime Chart
   let normalizeImpulse = true; // Always Normalized (Z-Score)
   let showComposite = false; // Toggle for Composite Aggregate Signal
   let optimalLagLabel = "N/A"; // Display string for UI
@@ -959,10 +960,16 @@
       const d = dates[i];
       if (!d) continue;
 
-      // Background (Regime)
-      if (gli[i] !== undefined && netliq[i] !== undefined) {
-        const g = gli[i];
-        const n = netliq[i];
+      // Background (Regime) with Lag
+      const lagIdx = i - regimeLag;
+      if (
+        lagIdx >= 0 &&
+        lagIdx < gli.length &&
+        gli[lagIdx] !== undefined &&
+        netliq[lagIdx] !== undefined
+      ) {
+        const g = gli[lagIdx];
+        const n = netliq[lagIdx];
         let color = "rgba(148, 163, 184, 0.08)"; // Neutral
         if (g > 0 && n > 0)
           color = "rgba(16, 185, 129, 0.15)"; // Bullish Green
@@ -3080,6 +3087,30 @@
                 <span>{currentRegime.emoji}</span>
                 <span>{currentRegime.name}</span>
               </div>
+
+              <div
+                class="control-group"
+                style="display: flex; align-items: center; gap: 8px; margin-left: auto; margin-right: 16px;"
+              >
+                <span
+                  style="font-size: 11px; color: var(--text-muted); opacity: 0.7;"
+                  >Offset (Days):</span
+                >
+                <input
+                  type="range"
+                  min="0"
+                  max="120"
+                  step="1"
+                  bind:value={regimeLag}
+                  style="width: 80px;"
+                  title="{regimeLag} days"
+                />
+                <span
+                  style="font-size: 11px; min-width: 25px; text-align: right; color: var(--text-primary); font-family: monospace;"
+                  >{regimeLag}</span
+                >
+              </div>
+
               <div class="liquidity-score">
                 <span class="score-label">Score:</span>
                 <span
