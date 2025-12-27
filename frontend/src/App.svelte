@@ -734,6 +734,97 @@
   let btcRocPeriod = 21; // Default 1 Month (21 trading days)
   let btcLag = 0; // Default 0 lag
   let normalizeImpulse = false; // Toggle for Z-Score Normalization
+  let showComposite = false; // Toggle for Composite Aggregate Signal
+  let optimalLagLabel = "N/A"; // Display string for UI
+
+  function calculateCorrelation(xArray, yArray) {
+    if (
+      !xArray ||
+      !yArray ||
+      xArray.length !== yArray.length ||
+      xArray.length < 2
+    )
+      return 0;
+
+    let sumX = 0,
+      sumY = 0,
+      sumXY = 0,
+      sumX2 = 0,
+      sumY2 = 0,
+      n = 0;
+    for (let i = 0; i < xArray.length; i++) {
+      const x = xArray[i];
+      const y = yArray[i];
+      if (x !== null && x !== undefined && y !== null && y !== undefined) {
+        sumX += x;
+        sumY += y;
+        sumXY += x * y;
+        sumX2 += x * x;
+        sumY2 += y * y;
+        n++;
+      }
+    }
+    if (n < 2) return 0;
+
+    const numerator = n * sumXY - sumX * sumY;
+    const denominator = Math.sqrt(
+      (n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY),
+    );
+    return denominator === 0 ? 0 : numerator / denominator;
+  }
+
+  function findOptimalLag(
+    dates,
+    signalValues,
+    btcRocValues,
+    minLag = -15,
+    maxLag = 120,
+  ) {
+    // We want to find shift 'k' for signalValues that maximizes correlation with btcRocValues.
+    // btcRocValues stays fixed (associated with 'dates').
+    // signalValues[i] is at dates[i].
+    // shiftedSignal[i] = signalValues[i - k] ... wait.
+    // logic: shiftData(dates, values, k) returns aligned arrays.
+    // We can use shiftData inside loop.
+
+    let bestLag = 0;
+    let maxCorr = -1;
+
+    // Optimization: btcRoc is sparse? No, it's mapped to dates.
+    // But btcRoc might have nulls at start.
+
+    // Create a Map for BTC ROC to speed up? array access is O(1).
+    // Dates align by index i.
+
+    for (let k = minLag; k <= maxLag; k += 3) {
+      // Step 3 days for speed
+      // Simplified shift logic for correlation only (no need for dates array construction)
+      // Shift +k: signal[i] moves to dates[i+k].
+      // So we compare signal[i] vs btcRoc[i+k].
+
+      const x = [];
+      const y = [];
+
+      for (let i = 0; i < signalValues.length; i++) {
+        let j = i + k; // shifted index
+        if (j >= 0 && j < btcRocValues.length) {
+          const sig = signalValues[i];
+          const roc = btcRocValues[j];
+          if (sig != null && roc != null) {
+            x.push(sig);
+            y.push(roc);
+          }
+        }
+      }
+
+      const r = calculateCorrelation(x, y);
+      if (r > maxCorr) {
+        maxCorr = r;
+        bestLag = k;
+      }
+    }
+    return { lag: bestLag, corr: maxCorr };
+  }
 
   function calculateZScore(values) {
     if (!values || values.length === 0) return [];
@@ -929,19 +1020,63 @@
     // Fixed BTC ROC (No Lag on BTC itself, it is the anchor)
     const computed = calculateBtcRoc(prices, dates, btcRocPeriod, 0);
     const yRaw = computed.map((p) => p.y);
-    const yFinal = normalizeImpulse ? calculateZScore(yRaw) : yRaw;
+    // Force Z-Score if Composite is ON (to match scale) or if Normalized is ON
+    const useZ = normalizeImpulse || showComposite;
+    const yFinal = useZ ? calculateZScore(yRaw) : yRaw;
 
     return {
       x: computed.map((p) => p.x),
       y: yFinal,
-      name: `BTC ROC (${btcRocPeriod}d)${normalizeImpulse ? " [Z]" : ""}`,
+      name: `BTC ROC (${btcRocPeriod}d)${useZ ? " [Z]" : ""}`,
       type: "scatter",
       mode: "lines",
       line: { color: "#94a3b8", width: 2, dash: "solid" },
-      yaxis: normalizeImpulse ? "y" : "y2",
+      yaxis: useZ ? "y" : "y2",
       opacity: 0.8,
     };
   })();
+
+  // Composite Signal Calculation & Lag Finder
+  $: compositeData = (() => {
+    if (!showComposite || !$dashboardData.flow_metrics) return null;
+
+    // Get Z-Scores of components
+    const g = calculateZScore(
+      $dashboardData.flow_metrics.gli_impulse_13w || [],
+    );
+    const n = calculateZScore(
+      $dashboardData.flow_metrics.net_liquidity_impulse_13w || [],
+    );
+    const c = calculateZScore(
+      $dashboardData.flow_metrics.cli_momentum_4w || [],
+    );
+
+    if (!g.length) return null;
+
+    // Average Z-Score
+    const comp = g.map((val, i) => {
+      if (val == null || n[i] == null || c[i] == null) return null;
+      return (val + n[i] + c[i]) / 3;
+    });
+
+    // Run Correlation Analysis
+    const prices = $dashboardData.btc?.price || [];
+    const fullRoc = prices.map((curr, i) => {
+      if (i < btcRocPeriod) return null;
+      const past = prices[i - btcRocPeriod];
+      if (!past) return null;
+      return ((curr - past) / past) * 100;
+    });
+
+    const best = findOptimalLag($dashboardData.dates, comp, fullRoc, 0, 120); // Scan 0 to 120 days positive lag
+    optimalLagLabel = `Best Offset: +${best.lag}d (Corr: ${best.corr.toFixed(2)})`;
+
+    return comp;
+  })();
+
+  $: compositeShifted = showComposite
+    ? shiftData($dashboardData.dates, compositeData, btcLag)
+    : null;
 
   $: gliImpulseShifted = shiftData(
     $dashboardData.dates,
@@ -969,35 +1104,48 @@
     ? calculateZScore(cliMomentumShifted.y)
     : cliMomentumShifted.y;
 
-  $: impulseDataRaw = [
-    {
-      x: gliImpulseShifted.x,
-      y: gliY,
-      name:
-        "GLI Impulse (13W)" +
-        (btcLag !== 0 ? ` [${btcLag > 0 ? "+" : ""}${btcLag}d]` : ""),
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#3b82f6", width: 2, shape: "spline" },
-    },
-    {
-      x: netLiqImpulseShifted.x,
-      y: netLiqY,
-      name: "NetLiq Impulse (13W)",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#10b981", width: 2, shape: "spline" },
-    },
-    {
-      x: cliMomentumShifted.x,
-      y: cliY,
-      name: "CLI Momentum (4W)",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#f59e0b", width: 2, shape: "spline" },
-    },
-    ...(btcRocTrace ? [btcRocTrace] : []),
-  ];
+  $: impulseDataRaw = showComposite
+    ? [
+        {
+          x: compositeShifted?.x || [],
+          y: compositeShifted?.y || [],
+          name:
+            "Composite Liquidity (Z)" + (btcLag !== 0 ? ` [${btcLag}d]` : ""),
+          type: "scatter",
+          mode: "lines",
+          line: { color: "#8b5cf6", width: 3, shape: "spline" }, // Violet
+        },
+        ...(btcRocTrace ? [btcRocTrace] : []),
+      ]
+    : [
+        {
+          x: gliImpulseShifted.x,
+          y: gliY,
+          name:
+            "GLI Impulse (13W)" +
+            (btcLag !== 0 ? ` [${btcLag > 0 ? "+" : ""}${btcLag}d]` : ""),
+          type: "scatter",
+          mode: "lines",
+          line: { color: "#3b82f6", width: 2, shape: "spline" },
+        },
+        {
+          x: netLiqImpulseShifted.x,
+          y: netLiqY,
+          name: "NetLiq Impulse (13W)",
+          type: "scatter",
+          mode: "lines",
+          line: { color: "#10b981", width: 2, shape: "spline" },
+        },
+        {
+          x: cliMomentumShifted.x,
+          y: cliY,
+          name: "CLI Momentum (4W)",
+          type: "scatter",
+          mode: "lines",
+          line: { color: "#f59e0b", width: 2, shape: "spline" },
+        },
+        ...(btcRocTrace ? [btcRocTrace] : []),
+      ];
 
   $: impulseData = filterPlotlyData(
     impulseDataRaw,
@@ -1007,7 +1155,10 @@
 
   $: impulseLayout = {
     yaxis: {
-      title: normalizeImpulse ? "Z-Score (σ)" : "Impulse ($ Trillion)",
+      title:
+        normalizeImpulse || showComposite
+          ? "Z-Score (σ)"
+          : "Impulse ($ Trillion)",
       gridcolor: darkMode ? "#334155" : "#e2e8f0",
     },
     yaxis2: {
@@ -1015,7 +1166,7 @@
       overlaying: "y",
       side: "right",
       showgrid: false,
-      visible: !normalizeImpulse,
+      visible: !(normalizeImpulse || showComposite),
     },
     margin: { t: 30, b: 30, l: 50, r: 50 },
     legend: { orientation: "h", y: 1.1 },
@@ -2981,6 +3132,26 @@
                     Normalize (Z)
                   </label>
                 </div>
+
+                <div
+                  class="control-group"
+                  style="display: flex; align-items: center; gap: 4px;"
+                >
+                  <label
+                    style="font-size: 11px; color: var(--text-primary); display: flex; align-items: center; gap: 4px; cursor: pointer;"
+                  >
+                    <input type="checkbox" bind:checked={showComposite} />
+                    Composite
+                  </label>
+                </div>
+
+                {#if showComposite}
+                  <span
+                    style="font-size: 11px; color: #8b5cf6; font-weight: 500; border: 1px solid #8b5cf6; padding: 2px 6px; border-radius: 4px;"
+                  >
+                    {optimalLagLabel}
+                  </span>
+                {/if}
 
                 <TimeRangeSelector
                   selectedRange={impulseRange}
