@@ -2382,9 +2382,18 @@
 <div class="app-container">
   <aside class="sidebar">
     <div class="brand">
-      <div class="logo-box">A</div>
+      <div
+        class="logo-box"
+        style="background: transparent; padding: 0; overflow: hidden;"
+      >
+        <img
+          src="logo-quant.jpg"
+          alt="Quant Terminal"
+          style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;"
+        />
+      </div>
       <div class="brand-text">
-        <h2>Antigravity</h2>
+        <h2>Quant Terminal</h2>
         <span>Liquidity Engine</span>
       </div>
     </div>
