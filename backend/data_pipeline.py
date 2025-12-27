@@ -559,25 +559,18 @@ def calculate_cross_correlation(series1, series2, max_lag=90):
     Returns dict with lag as key and correlation as value.
     Negative lag means series1 leads series2.
     Positive lag means series2 leads series1.
+    
+    FIXED: Uses shift() for true lag alignment instead of broken iloc slicing.
+    lag > 0  => compare s1(t) vs s2(t+lag) (s1 leads by lag)
+    lag < 0  => compare s1(t) vs s2(t+lag) (s2 leads by |lag|)
     """
     correlations = {}
     for lag in range(-max_lag, max_lag + 1):
-        if lag < 0:
-            # series1 leads (shift series2 backward)
-            s1 = series1.iloc[:lag]
-            s2 = series2.iloc[-lag:]
-        elif lag > 0:
-            # series2 leads (shift series1 backward)
-            s1 = series1.iloc[lag:]
-            s2 = series2.iloc[:-lag]
-        else:
-            s1 = series1
-            s2 = series2
-        
-        # Align indices
-        common_idx = s1.index.intersection(s2.index)
-        if len(common_idx) > 30:
-            correlations[lag] = s1.loc[common_idx].corr(s2.loc[common_idx])
+        # shift(-lag) aligns s2 at t+lag with s1 at t
+        # So lag > 0: s1 today vs s2 in 'lag' days (s1 leads)
+        aligned = pd.concat([series1, series2.shift(-lag)], axis=1).dropna()
+        if len(aligned) > 30:
+            correlations[lag] = aligned.iloc[:, 0].corr(aligned.iloc[:, 1])
         else:
             correlations[lag] = None
     return correlations
@@ -788,10 +781,10 @@ def calculate_btc_fair_value(df_t):
         return result
     
     # 1. Base Macro Features
+    # NOTE: VIX removed to avoid multicollinearity - CLI already includes VIX_Z as component
     raw_features = pd.DataFrame({
         'GLI_TOTAL': df_t.get('GLI_TOTAL', 0).shift(45),
         'CLI': df_t.get('CLI', 0).shift(14),
-        'VIX': df_t.get('VIX', 0),
         'NET_LIQ': df_t.get('NET_LIQUIDITY', 0).shift(30),
     })
 
@@ -816,23 +809,23 @@ def calculate_btc_fair_value(df_t):
     scaler = StandardScaler()
 
     # --- MODEL 1: MACRO ONLY ---
-    X_m_train = train_data[['GLI_TOTAL', 'CLI', 'VIX', 'NET_LIQ']]
+    X_m_train = train_data[['GLI_TOTAL', 'CLI', 'NET_LIQ']]
     X_m_scaled = scaler.fit_transform(X_m_train)
     model_m = LinearRegression()
     model_m.fit(X_m_scaled, y_train.values)
     
-    X_m_full = raw_features[['GLI_TOTAL', 'CLI', 'VIX', 'NET_LIQ']].loc[valid_mask].ffill().bfill()
+    X_m_full = raw_features[['GLI_TOTAL', 'CLI', 'NET_LIQ']].loc[valid_mask].ffill()
     X_m_full_scaled = scaler.transform(X_m_full)
     log_pred_m = pd.Series(model_m.predict(X_m_full_scaled), index=X_m_full.index)
     
     # --- MODEL 2: ADOPTION ADJUSTED (Macro + Time) ---
-    X_a_train = train_data[['GLI_TOTAL', 'CLI', 'VIX', 'NET_LIQ', 'ADOPTION']]
+    X_a_train = train_data[['GLI_TOTAL', 'CLI', 'NET_LIQ', 'ADOPTION']]
     X_a_scaled = scaler.fit_transform(X_a_train)
     # Use Ridge to prevent multicollinearity between Time and Liquidity
     model_a = Ridge(alpha=1.0)
     model_a.fit(X_a_scaled, y_train.values)
     
-    X_a_full = raw_features[['GLI_TOTAL', 'CLI', 'VIX', 'NET_LIQ', 'ADOPTION']].loc[valid_mask].ffill().bfill()
+    X_a_full = raw_features[['GLI_TOTAL', 'CLI', 'NET_LIQ', 'ADOPTION']].loc[valid_mask].ffill()
     X_a_full_scaled = scaler.transform(X_a_full)
     log_pred_a = pd.Series(model_a.predict(X_a_full_scaled), index=X_a_full.index)
 
