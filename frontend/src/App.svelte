@@ -734,56 +734,83 @@
   $: btcRocPeriod = 21; // Default 1 Month (21 trading days)
   $: btcLag = 0; // Default 0 lag
 
-  function calculateBtcRoc(prices, dates, period, lag) {
-    if (!prices || prices.length === 0 || !dates) return [];
+  function calculateHistoricalRegimes(dates, gli, netliq) {
+    if (!dates || !gli || !netliq) return [];
 
-    const rocData = [];
-    // Align data based on dates if needed, but assuming index alignment for now since dates are shared
-    // Period is in days/indices. If daily data (approx), period=21 is 1M.
+    const shapes = [];
+    let currentRegime = null;
+    let startIdx = 0;
 
-    for (let i = period; i < prices.length; i++) {
-      const currentPrice = prices[i];
-      const pastPrice = prices[i - period];
+    for (let i = 0; i < dates.length; i++) {
+      const g = gli[i];
+      const n = netliq[i];
+      let r = "neutral";
 
-      if (pastPrice && pastPrice !== 0) {
-        const roc = ((currentPrice - pastPrice) / pastPrice) * 100; // Percentage
+      if (g > 0 && n > 0) r = "bullish";
+      else if (g < 0 && n < 0) r = "bearish";
 
-        // Apply Lag: Shift the DATE of the point.
-        // Let's implement visual shift: index + lag.
-
-        const targetIndex = i + lag;
-        if (targetIndex >= 0 && targetIndex < dates.length) {
-          rocData.push({
-            x: dates[targetIndex],
-            y: roc,
+      if (r !== currentRegime) {
+        if (currentRegime !== null) {
+          shapes.push({
+            type: "rect",
+            xref: "x",
+            yref: "paper",
+            x0: dates[startIdx],
+            x1: dates[i],
+            y0: 0,
+            y1: 1,
+            fillcolor:
+              currentRegime === "bullish"
+                ? "rgba(16, 185, 129, 0.08)"
+                : currentRegime === "bearish"
+                  ? "rgba(239, 68, 68, 0.08)"
+                  : "rgba(148, 163, 184, 0.03)",
+            line: { width: 0 },
+            layer: "below",
           });
         }
+        currentRegime = r;
+        startIdx = i;
       }
     }
-    return rocData;
+    // Final shape
+    if (currentRegime !== null) {
+      shapes.push({
+        type: "rect",
+        xref: "x",
+        yref: "paper",
+        x0: dates[startIdx],
+        x1: dates[dates.length - 1],
+        y0: 0,
+        y1: 1,
+        fillcolor:
+          currentRegime === "bullish"
+            ? "rgba(16, 185, 129, 0.08)"
+            : currentRegime === "bearish"
+              ? "rgba(239, 68, 68, 0.08)"
+              : "rgba(148, 163, 184, 0.03)",
+        line: { width: 0 },
+        layer: "below",
+      });
+    }
+    return shapes;
   }
 
-  $: btcRocTrace = (() => {
+  $: btcPriceTrace = (() => {
     if (!$dashboardData.btc || !$dashboardData.btc.price) return null;
-    // We need a price series aligned with dates.
-    // $dashboardData.btc.price is the correct array.
     const prices = $dashboardData.btc.price || [];
     const dates = $dashboardData.dates;
-
     if (!prices.length) return null;
 
-    const computed = calculateBtcRoc(prices, dates, btcRocPeriod, btcLag);
-
     return {
-      x: computed.map((p) => p.x),
-      y: computed.map((p) => p.y),
-      name:
-        `BTC ROC (${btcRocPeriod}d) ` + (btcLag !== 0 ? `Lag ${btcLag}d` : ""),
+      x: dates,
+      y: prices,
+      name: "BTC Price (Log)",
       type: "scatter",
       mode: "lines",
-      line: { color: "#94a3b8", width: 2 }, // Solid slate-400 line for better visibility
-      yaxis: "y2", // Overlay on right axis
-      opacity: 0.8,
+      line: { color: "#94a3b8", width: 1.5 }, // Solid slate-400
+      yaxis: "y2",
+      opacity: 0.9,
     };
   })();
 
@@ -814,8 +841,14 @@
       line: { color: "#f59e0b", width: 2, shape: "spline" },
       // yaxis: "y2", // Moved to Y1 to avoid sharing scale with BTC ROC
     },
-    ...(btcRocTrace ? [btcRocTrace] : []),
+    ...(btcPriceTrace ? [btcPriceTrace] : []),
   ];
+
+  $: regimeShapes = calculateHistoricalRegimes(
+    $dashboardData.dates,
+    $dashboardData.flow_metrics?.gli_impulse_13w,
+    $dashboardData.flow_metrics?.net_liquidity_impulse_13w,
+  );
 
   $: impulseData = filterPlotlyData(
     impulseDataRaw,
@@ -829,41 +862,59 @@
       gridcolor: darkMode ? "#334155" : "#e2e8f0",
     },
     yaxis2: {
-      title: "BTC ROC (%)",
+      title: "BTC Price (Log)",
       overlaying: "y",
       side: "right",
       showgrid: false,
+      type: "log",
     },
+    shapes: regimeShapes,
     margin: { t: 30, b: 30, l: 50, r: 50 },
     legend: { orientation: "h", y: 1.1 },
   };
 
-  // Macro Regime Logic
+  // Liquidity Score Logic (0-100)
+  $: liquidityScore = (() => {
+    const metrics = $dashboardData.flow_metrics;
+    if (!metrics) return 50;
+
+    let score = 50;
+    // GLI Impulse (Global)
+    const gli = getLatestValue(metrics.gli_impulse_13w) || 0;
+    score += gli > 0 ? 15 : -15;
+
+    // US Net Liquidity
+    const netliq = getLatestValue(metrics.net_liquidity_impulse_13w) || 0;
+    score += netliq > 0 ? 15 : -15;
+
+    // CLI Momentum (Credit)
+    const cli = getLatestValue(metrics.cli_momentum_4w) || 0;
+    score += cli > 0 ? 10 : -10;
+
+    // Acceleration (Derivative)
+    const accel = getLatestValue(metrics.gli_accel) || 0;
+    score += accel > 0 ? 10 : -10;
+
+    return Math.max(0, Math.min(100, score));
+  })();
+
+  // Simplified Macro Regime Logic
   $: currentRegimeId = (() => {
     const gli = $dashboardData.flow_metrics?.gli_impulse_13w;
     const netliq = $dashboardData.flow_metrics?.net_liquidity_impulse_13w;
-    const cli = $dashboardData.flow_metrics?.cli_momentum_4w;
-    const accel = $dashboardData.flow_metrics?.gli_accel;
 
-    if (!gli || !netliq || !cli || gli.length === 0) return "neutral";
+    if (!gli || !netliq || gli.length === 0) return "neutral";
 
     const lastGli = gli[gli.length - 1] || 0;
     const lastNetliq = netliq[netliq.length - 1] || 0;
-    const lastCli = cli[cli.length - 1] || 0;
-    const lastAccel = accel ? accel[accel.length - 1] || 0 : 0;
 
-    // Highest Priority: Extreme Regimes (Full Consensus)
-    if (lastGli > 0 && lastNetliq > 0 && lastCli > 0) return "bullish";
-    if (lastGli < 0 && lastNetliq < 0 && lastCli < 0) return "bearish";
+    // Simplified Logic:
+    // Bullish: Global AND US are expanding
+    if (lastGli > 0 && lastNetliq > 0) return "bullish";
+    // Bearish: Global AND US are contracting
+    if (lastGli < 0 && lastNetliq < 0) return "bearish";
 
-    // Secondary: Logic of "Turning points" (Acceleration precedes level)
-    if (lastGli < 0 && lastAccel > 0) return "early_warning";
-    if (lastGli > 0 && lastAccel < 0) return "losing_steam";
-
-    // Tertiary: Divergences (Regional variations)
-    if (lastGli > 0 && lastNetliq < 0) return "global_inj";
-    if (lastGli < 0 && lastNetliq > 0) return "us_inj";
-
+    // Everything else is Neutral/Mixed
     return "neutral";
   })();
 
@@ -876,11 +927,11 @@
           emoji: "🐂",
           color: "bullish",
           desc: isEs
-            ? "Expansión total de liquidez: Los Bancos Centrales inyectan, el 'plumbing' de EE.UU. apoya y el crédito se relaja."
-            : "Full Liquidity Expansion: Central Banks are injecting, US plumbing is supportive, and credit conditions are easing.",
+            ? "Expansión Sincronizada: Tanto la liquidez Global como la de EE.UU. están expandiéndose."
+            : "Synchronized Expansion: Both Global and US liquidity are expanding.",
           details: isEs
-            ? "Alta probabilidad de soporte de tendencia para activos de riesgo."
-            : "High probability trend support for risk assets.",
+            ? "Entorno favorable para activos de riesgo."
+            : "Favorable environment for risk assets.",
         };
       case "bearish":
         return {
@@ -888,71 +939,24 @@
           emoji: "🐻",
           color: "bearish",
           desc: isEs
-            ? "Contracción total de liquidez: QT global activo, drenaje en EE.UU. y endurecimiento del crédito."
-            : "Full Liquidity Contraction: Global QT is active, US plumbing is draining, and credit is tightening.",
+            ? "Contracción Sincronizada: Tanto la liquidez Global como la de EE.UU. se están contrayendo."
+            : "Synchronized Contraction: Both Global and US liquidity are contracting.",
           details: isEs
-            ? "Viento en contra estructural para Bitcoin y renta variable."
-            : "Structural headwind for Bitcoin and equities.",
+            ? "Entorno defensivo/adverso para activos de riesgo."
+            : "Defensive/Headwind environment for risk assets.",
         };
-      case "global_inj":
-        return {
-          name: currentTranslations.regime_global_inj,
-          emoji: "🌍",
-          color: "global_inj",
-          desc: isEs
-            ? "Divergencia: El resto del mundo inyecta liquidez, pero el sistema de EE.UU. (Net Liq) sigue drenando."
-            : "Divergence: Rest of the world is injecting liquidity, but US plumbing (Net Liq) remains a drag.",
-          details: isEs
-            ? "Probable comportamiento errático; foco en fortaleza relativa."
-            : "Choppy market behavior likely; focus on relative strength.",
-        };
-      case "us_inj":
-        return {
-          name: currentTranslations.regime_us_inj,
-          emoji: "🇺🇸",
-          color: "us_inj",
-          desc: isEs
-            ? "Divergencia: El 'plumbing' de EE.UU. apoya (vía TGA/RRP), pero los Bancos Globales no acompañan."
-            : "Divergence: US plumbing is supportive (via TGA/RRP), but Global CBs are not following suit.",
-          details: isEs
-            ? "Rallies frágiles impulsados por cambios técnicos domésticos."
-            : "Fragile rallies driven by domestic plumbing shifts.",
-        };
-      case "early_warning":
-        return {
-          name: currentTranslations.regime_early_warning,
-          emoji: "⚠️",
-          color: "early_warning",
-          desc: isEs
-            ? "Cambio de Velocidad: La liquidez aún se contrae, pero el ritmo se está frenando (aceleración positiva)."
-            : "Change in Velocity: Liquidity is still contracting, but the pace is slowing down (positive acceleration).",
-          details: isEs
-            ? "Señal temprana de suelo potencial o cambio de régimen."
-            : "Early signal of a potential bottom or regime shift.",
-        };
-      case "losing_steam":
-        return {
-          name: currentTranslations.regime_losing_steam,
-          emoji: "🌬️",
-          color: "losing_steam",
-          desc: isEs
-            ? "Agotamiento de Momentum: La liquidez se expande, pero a un ritmo decreciente (aceleración negativa)."
-            : "Momentum Fade: Liquidity is expanding, but at a decreasing rate (negative acceleration).",
-          details: isEs
-            ? "Fatiga de tendencia; vigilar posibles techos locales."
-            : "Trend fatigue; watch for local tops.",
-        };
+      case "neutral":
       default:
         return {
           name: currentTranslations.regime_neutral,
           emoji: "⚖️",
           color: "neutral",
           desc: isEs
-            ? "Neutral / Transición: Sin vectores claros de dominancia en los flujos de liquidez o crédito."
-            : "Neutral / Transition: No clear dominance in liquidity or credit impulse vectors.",
+            ? "Régimen Mixto/Divergente: Señales contradictorias entre liquidez Global y doméstica."
+            : "Mixed/Divergent Regime: Conflicting signals between Global and domestic liquidity.",
           details: isEs
-            ? "Esperar confirmación de tendencia."
-            : "Wait for trend confirmation.",
+            ? "Comportamiento lateral o errático esperado."
+            : "Choppy or sideways price action expected.",
         };
     }
   })();
@@ -2743,6 +2747,15 @@
                 <span>{currentRegime.emoji}</span>
                 <span>{currentRegime.name}</span>
               </div>
+              <div class="liquidity-score">
+                <span class="score-label">Score:</span>
+                <span
+                  class="score-val"
+                  class:high={liquidityScore >= 70}
+                  class:low={liquidityScore <= 30}
+                  >{liquidityScore.toFixed(0)}</span
+                >
+              </div>
             </div>
             <div class="regime-body">
               <p class="regime-description">{currentRegime.desc}</p>
@@ -2757,44 +2770,7 @@
                 <h3>{currentTranslations.impulse_analysis}</h3>
               </div>
               <div class="header-controls">
-                <div
-                  class="control-group"
-                  style="display: flex; align-items: center; gap: 8px;"
-                >
-                  <span style="font-size: 11px; color: var(--text-muted);"
-                    >{currentTranslations.period}:</span
-                  >
-                  <select
-                    bind:value={btcRocPeriod}
-                    style="background: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); padding: 4px; border-radius: 4px; font-size: 11px;"
-                  >
-                    <option value={21}>1M</option>
-                    <option value={63}>3M</option>
-                    <option value={126}>6M</option>
-                    <option value={252}>1Y</option>
-                  </select>
-                </div>
-                <div
-                  class="control-group"
-                  style="display: flex; align-items: center; gap: 8px;"
-                >
-                  <span style="font-size: 11px; color: var(--text-muted);"
-                    >{currentTranslations.lag_days}:</span
-                  >
-                  <input
-                    type="range"
-                    min="-60"
-                    max="60"
-                    step="1"
-                    bind:value={btcLag}
-                    style="width: 80px;"
-                    title="{btcLag} days"
-                  />
-                  <span
-                    style="font-size: 11px; width: 25px; text-align: right; color: var(--text-primary);"
-                    >{btcLag}</span
-                  >
-                </div>
+                <div class="control-group"></div>
                 <TimeRangeSelector
                   selectedRange={impulseRange}
                   onRangeChange={(r) => (impulseRange = r)}
@@ -5834,6 +5810,36 @@
     color: #10b981;
     font-size: 9px;
     font-weight: 700;
+  }
+
+  /* Liquidity Score */
+  .liquidity-score {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 12px;
+    padding-left: 12px;
+    border-left: 1px solid rgba(148, 163, 184, 0.2);
+  }
+  .score-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+  }
+  .score-val {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  .score-val.high {
+    color: #10b981;
+    text-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+  }
+  .score-val.low {
+    color: #ef4444;
+    text-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
   }
 
   .freshness-tag.stale {
