@@ -106,27 +106,34 @@ export const latestStats = derived(dashboardData, ($data) => {
         return arr[idx];
     };
 
-    const getValue = (path, idx) => {
+    const getLatestValue = (path) => {
         const arr = path.split('.').reduce((obj, key) => obj?.[key], $data);
-        return safeGet(arr, idx);
+        if (!arr || !arr.length) return null;
+        return arr[arr.length - 1];
     };
 
     return {
         gli: {
-            value: getValue('gli.total', lastIdx),
+            value: getLatestValue('gli.total'),
             change: getChange($data.gli.total)
         },
         us_net_liq: {
-            value: getValue('us_net_liq', lastIdx),
+            value: getLatestValue('us_net_liq'),
             change: getChange($data.us_net_liq)
         },
         cli: {
-            value: getValue('cli', lastIdx),
+            value: getLatestValue('cli'),
             change: (safeGet($data.cli, lastIdx) ?? 0) - (safeGet($data.cli, prevIdx) ?? 0)
         },
         vix: {
-            value: getValue('vix', lastIdx),
+            value: getLatestValue('vix'),
             change: getChange($data.vix)
+        },
+        btc: {
+            price: getLatestValue('btc.price'),
+            fair_value: getLatestValue('btc.models.macro.fair_value'),
+            deviation_zscore: getLatestValue('btc.models.macro.deviation_zscore'),
+            deviation_pct: getLatestValue('btc.models.macro.deviation_pct')
         }
     };
 });

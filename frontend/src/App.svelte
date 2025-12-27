@@ -36,7 +36,7 @@
       m2_global:
         "Global money supply in USD. Leading indicator for asset prices (45-90 day lag).",
       m2_country: "Country M2 money supply in local currency converted to USD.",
-      cli: "Aggregates credit conditions, volatility, and lending. ↑ CLI = Easier credit (bullish) | ↓ CLI = Tighter (bearish)",
+      cli: "Aggregates credit conditions, volatility, and lending. ↑ CLI = Easier credit (bullish) | ↓ Contraction = Tighter (bearish)",
       hy_spread:
         "High Yield bond spreads vs Treasuries. ↓ Spread = Risk-on (bullish) | ↑ Spread = Risk-off",
       ig_spread:
@@ -49,6 +49,58 @@
         "Senior Loan Officer Survey. ↑ Tightening = Banks restrict credit | ↓ Easing = Free lending",
       vix: "Implied volatility (fear gauge). Z>2 = Panic | Z<-1 = Complacency. Mean-reverts.",
       tips: "Breakeven (amber): Inflation expectations. Real Rate (blue): True cost of money. 5Y5Y (green): Long-term anchor.",
+      // Navigation
+      nav_dashboard: "Dashboard",
+      nav_gli: "Global Flows CB",
+      nav_m2: "Global M2",
+      nav_us_system: "US System",
+      nav_risk_model: "Risk Model",
+      nav_btc_analysis: "BTC Analysis",
+      nav_btc_quant: "BTC Quant v2",
+      // Header & Global
+      header_desc:
+        "Real-time macro liquidity and credit monitoring across 5 major central banks",
+      system_live: "System Live",
+      refresh_data: "Refresh Data",
+      light_mode: "Light Mode",
+      dark_mode: "Dark Mode",
+      switch_lang: "Switch Language",
+      conn_error: "Connection Error:",
+      // Stats Cards
+      stat_gli: "Global Liquidity (GLI)",
+      stat_us_net: "US Net Liquidity",
+      stat_cli: "Credit Index (CLI)",
+      stat_vix: "Volatility Index",
+      // Common Table Labels
+      bank: "Bank",
+      weight: "Wgt",
+      economy: "Economy",
+      account: "Account",
+      impact_1m: "1M Global Impact",
+      impact_3m: "3M Global Impact",
+      impact_1y: "1Y Global Impact",
+      impact_us: "Impact on Net Liq",
+      impact_note_gli:
+        "* Impact = % contribution of bank's 1M move to total Global Liquidity.",
+      impact_note_us:
+        "* Imp = Contribution to US Net Liquidity change. RRP/TGA have an inverse effect.",
+      last_data: "Last Data:",
+      last: "Last:",
+      // Chart Headers
+      chart_gli_aggregate: "Global Liquidity Index (Aggregate)",
+      chart_us_net_liq: "US Net Liquidity Trends",
+      chart_fed_assets: "Fed Assets (USD Trillion)",
+      chart_us_credit: "US Credit Conditions",
+      chart_rrp: "Fed RRP Facility",
+      chart_tga: "Treasury General Account (TGA)",
+      chart_m2_aggregate: "Global M2 Money Supply (Aggregate)",
+      chart_inflation_exp: "Inflation Expectations (TIPS Market)",
+      chart_gli_comp: "GLI Composition & Performance",
+      chart_m2_comp: "M2 Composition & Performance",
+      chart_us_comp: "US System Components Impact",
+      // Formatting
+      spot_usd: "Spot USD",
+      const_fx: "Const FX",
       // BTC Analysis tab
       btc_analysis_title: "BTC Fair Value Model",
       btc_analysis_desc:
@@ -75,10 +127,23 @@
         "ElasticNet with 1-8 week lags for automatic feature selection",
       quant_v2_pca: "PCA GLI factor instead of raw sum (handles colinearity)",
       quant_v2_vol: "Rolling 52-week volatility for adaptive bands",
-      oos_metrics: "{currentTranslations.oos_metrics}",
-      model_params: "{currentTranslations.model_params}",
+      oos_metrics: "Out-of-Sample Metrics",
+      model_params: "Model Parameters",
       quant_chart_desc:
         "Cumulative model drift may cause divergence over time.",
+      interp_regression: "Regression using:",
+      interp_gli_lag: "GLI (45-day lag)",
+      interp_cli_lag: "CLI (14-day lag)",
+      interp_vix_coin: "VIX (coincident)",
+      interp_netliq_lag: "US Net Liq (30-day lag)",
+      interp_zones: "Deviation Zones",
+      interp_extreme: "±2σ: Extreme over/undervaluation",
+      interp_moderate: "±1σ: Moderate deviation",
+      interp_fair_range: "Within ±1σ: Fair value range",
+      interp_signals: "Trading Signals",
+      interp_profittaking: "Z > +2: Consider profit-taking",
+      interp_accumulation: "Z < -2: Potential accumulation",
+      interp_divergence: "ROC divergence: Momentum shifts",
     },
     es: {
       gli: "Suma de balances de bancos centrales en USD. ↑ Expansión = Inyección de liquidez (alcista) | ↓ Contracción = QT (bajista)",
@@ -108,6 +173,58 @@
         "Encuesta de préstamos bancarios. ↑ Endurecimiento = Restringen crédito | ↓ = Prestan libremente",
       vix: "Volatilidad implícita (indicador de miedo). Z>2 = Pánico | Z<-1 = Complacencia.",
       tips: "Breakeven (ámbar): Expectativas de inflación. Tasa Real (azul): Coste real del dinero. 5Y5Y (verde): Anclaje a largo plazo.",
+      // Navigation
+      nav_dashboard: "Panel de Control",
+      nav_gli: "Flujos Globales CB",
+      nav_m2: "M2 Global",
+      nav_us_system: "Sistema EE.UU.",
+      nav_risk_model: "Modelo de Riesgo",
+      nav_btc_analysis: "Análisis BTC",
+      nav_btc_quant: "BTC Quant v2",
+      // Header & Global
+      header_desc:
+        "Monitoreo en tiempo real de liquidez macro y crédito en 5 bancos centrales",
+      system_live: "Sistema en Vivo",
+      refresh_data: "Actualizar Datos",
+      light_mode: "Modo Claro",
+      dark_mode: "Modo Oscuro",
+      switch_lang: "Cambiar Idioma",
+      conn_error: "Error de Conexión:",
+      // Stats Cards
+      stat_gli: "Liquidez Global (GLI)",
+      stat_us_net: "Liquidez Neta EE.UU.",
+      stat_cli: "Índice de Crédito (CLI)",
+      stat_vix: "Índice de Volatilidad",
+      // Common Table Labels
+      bank: "Banco",
+      weight: "Peso",
+      economy: "Economía",
+      account: "Cuenta",
+      impact_1m: "Impacto Global 1M",
+      impact_3m: "Impacto Global 3M",
+      impact_1y: "Impacto Global 1Y",
+      impact_us: "Impacto en Liq Neta",
+      impact_note_gli:
+        "* Impacto = % contribución del movimiento 1M del banco a la Liquidez Global total.",
+      impact_note_us:
+        "* Imp = Contribución al cambio de Liquidez Neta de EE.UU. RRP/TGA tienen un efecto inverso.",
+      last_data: "Últimos Datos:",
+      last: "Último:",
+      // Chart Headers
+      chart_gli_aggregate: "Índice de Liquidez Global (Agregado)",
+      chart_us_net_liq: "Tendencias de Liquidez Neta EE.UU.",
+      chart_fed_assets: "Activos de la Fed (Trillones USD)",
+      chart_us_credit: "Condiciones Crediticias EE.UU.",
+      chart_rrp: "Facilidad RRP de la Fed",
+      chart_tga: "Cuenta General del Tesoro (TGA)",
+      chart_m2_aggregate: "Oferta Monetaria M2 Global (Agregada)",
+      chart_inflation_exp: "Expectativas de Inflación (Mercado TIPS)",
+      chart_gli_comp: "Composición y Rendimiento de GLI",
+      chart_m2_comp: "Composición y Rendimiento de M2",
+      chart_us_comp: "Impacto de Componentes del Sistema EE.UU.",
+      // Formatting
+      spot_usd: "Spot USD",
+      const_fx: "FX Const",
       // BTC Analysis tab
       btc_analysis_title: "Modelo de Valor Justo de BTC",
       btc_analysis_desc:
@@ -139,6 +256,19 @@
       model_params: "Parámetros del Modelo",
       quant_chart_desc:
         "La deriva acumulativa del modelo puede causar divergencia con el tiempo.",
+      interp_regression: "Regresión usando:",
+      interp_gli_lag: "GLI (retardo 45d)",
+      interp_cli_lag: "CLI (retardo 14d)",
+      interp_vix_coin: "VIX (coincidente)",
+      interp_netliq_lag: "Liq Neta EE.UU. (retardo 30d)",
+      interp_zones: "Zonas de Desviación",
+      interp_extreme: "±2σ: Sobre/infravaloración extrema",
+      interp_moderate: "±1σ: Desviación moderada",
+      interp_fair_range: "Dentro de ±1σ: Rango de valor justo",
+      interp_signals: "Señales de Trading",
+      interp_profittaking: "Z > +2: Considerar toma de beneficios",
+      interp_accumulation: "Z < -2: Acumulación potencial",
+      interp_divergence: "Divergencia ROC: Giros de momentum",
     },
   };
 
@@ -1510,7 +1640,8 @@
         role="button"
         tabindex="0"
       >
-        <span class="nav-icon">📊</span> Dashboard
+        <span class="nav-icon">📊</span>
+        {currentTranslations.nav_dashboard}
       </div>
       <div
         class="nav-item"
@@ -1520,7 +1651,8 @@
         role="button"
         tabindex="0"
       >
-        <span class="nav-icon">🏦</span> Global Flows CB
+        <span class="nav-icon">🏦</span>
+        {currentTranslations.nav_gli}
       </div>
       <div
         class="nav-item"
@@ -1530,7 +1662,8 @@
         role="button"
         tabindex="0"
       >
-        <span class="nav-icon">💰</span> Global M2
+        <span class="nav-icon">💰</span>
+        {currentTranslations.nav_m2}
       </div>
       <div
         class="nav-item"
@@ -1540,7 +1673,8 @@
         role="button"
         tabindex="0"
       >
-        <span class="nav-icon">🇺🇸</span> US System
+        <span class="nav-icon">🇺🇸</span>
+        {currentTranslations.nav_us_system}
       </div>
       <div
         class="nav-item"
@@ -1550,7 +1684,8 @@
         role="button"
         tabindex="0"
       >
-        <span class="nav-icon">⚠️</span> Risk Model
+        <span class="nav-icon">⚠️</span>
+        {currentTranslations.nav_risk_model}
       </div>
       <div
         class="nav-item"
@@ -1560,7 +1695,8 @@
         role="button"
         tabindex="0"
       >
-        <span class="nav-icon">₿</span> BTC Analysis
+        <span class="nav-icon">₿</span>
+        {currentTranslations.nav_btc_analysis}
       </div>
       <div
         class="nav-item"
@@ -1570,7 +1706,8 @@
         role="button"
         tabindex="0"
       >
-        <span class="nav-icon">🧪</span> BTC Quant v2
+        <span class="nav-icon">🧪</span>
+        {currentTranslations.nav_btc_quant}
       </div>
     </nav>
 
@@ -1580,21 +1717,25 @@
   <main class="content">
     <header>
       <div class="content-header">
-        <h1>{currentTab} Overview</h1>
+        <h1>
+          {currentTab}
+          {currentTranslations.nav_dashboard === "Dashboard"
+            ? "Overview"
+            : "Resumen"}
+        </h1>
         <p>
-          Real-time macro liquidity and credit monitoring across 5 major central
-          banks
+          {currentTranslations.header_desc}
         </p>
       </div>
       <div class="header-actions">
         <div class="status-indicator">
           <div class="pulse"></div>
-          System Live
+          {currentTranslations.system_live}
         </div>
         <button
           class="header-toggle"
           on:click={toggleLanguage}
-          title="Switch Language"
+          title={currentTranslations.switch_lang}
         >
           <span class="toggle-icon">🌐</span>
           <span class="toggle-label">{language === "en" ? "EN" : "ES"}</span>
@@ -1602,15 +1743,23 @@
         <button
           class="header-toggle"
           on:click={toggleDarkMode}
-          title={darkMode ? "Light Mode" : "Dark Mode"}
+          title={darkMode
+            ? currentTranslations.light_mode
+            : currentTranslations.dark_mode}
         >
           <span class="toggle-icon">{darkMode ? "☀️" : "🌙"}</span>
-          <span class="toggle-label">{darkMode ? "Light" : "Dark"}</span>
+          <span class="toggle-label"
+            >{darkMode
+              ? currentTranslations.light_mode.split(" ")[0]
+              : currentTranslations.dark_mode.split(" ")[0]}</span
+          >
         </button>
         {#if $isLoading}
           <div class="loader"></div>
         {:else}
-          <button class="refresh-btn" on:click={fetchData}>Refresh Data</button>
+          <button class="refresh-btn" on:click={fetchData}
+            >{currentTranslations.refresh_data}</button
+          >
         {/if}
       </div>
     </header>
@@ -1627,21 +1776,21 @@
         {#if $latestStats}
           <div class="stats-grid">
             <StatsCard
-              title="Global Liquidity (GLI)"
+              title={currentTranslations.stat_gli}
               value={$latestStats.gli.value}
               change={$latestStats.gli.change}
               suffix="T"
               icon="🌍"
             />
             <StatsCard
-              title="US Net Liquidity"
+              title={currentTranslations.stat_us_net}
               value={$latestStats.us_net_liq.value}
               change={$latestStats.us_net_liq.change}
               suffix="T"
               icon="🇺🇸"
             />
             <StatsCard
-              title="Credit Index (CLI)"
+              title={currentTranslations.stat_cli}
               value={$latestStats.cli.value}
               change={$latestStats.cli.change}
               suffix="Z"
@@ -1649,7 +1798,7 @@
               precision={3}
             />
             <StatsCard
-              title="Volatility Index"
+              title={currentTranslations.stat_vix}
               value={$latestStats.vix.value}
               change={$latestStats.vix.change}
               icon="🌪️"
@@ -1664,8 +1813,11 @@
                 <div class="chart-header">
                   <div class="label-group">
                     <h3>
-                      Global Liquidity Index ({$dashboardData.gli.cb_count ||
-                        15} Banks)
+                      {currentTranslations.stat_gli} ({$dashboardData.gli
+                        .cb_count || 15}
+                      {currentTranslations.nav_dashboard === "Dashboard"
+                        ? "Banks"
+                        : "Bancos"})
                     </h3>
                     <SignalBadge type={gliSignal} text={gliSignal} />
                   </div>
@@ -1675,13 +1827,13 @@
                         class="fx-btn"
                         class:active={!gliShowConstantFx}
                         on:click={() => (gliShowConstantFx = false)}
-                        >Spot USD</button
+                        >{currentTranslations.spot_usd}</button
                       >
                       <button
                         class="fx-btn"
                         class:active={gliShowConstantFx}
                         on:click={() => (gliShowConstantFx = true)}
-                        >Const FX</button
+                        >{currentTranslations.const_fx}</button
                       >
                     </div>
                     <TimeRangeSelector
@@ -1689,10 +1841,12 @@
                       onRangeChange={(r) => (gliRange = r)}
                     />
                     <span class="last-date"
-                      >Last: {getLastDate("GLI_TOTAL")}</span
+                      >{currentTranslations.last}
+                      {getLastDate("GLI_TOTAL")}</span
                     >
                   </div>
                 </div>
+                <p class="chart-description">{currentTranslations.gli}</p>
                 <div class="chart-content">
                   <Chart {darkMode} data={gliData} />
                 </div>
@@ -1700,18 +1854,18 @@
 
               <div class="metrics-sidebar">
                 <div class="metrics-section">
-                  <h4>GLI Composition & Performance</h4>
+                  <h4>{currentTranslations.chart_gli_comp}</h4>
                   <table class="metrics-table">
                     <thead>
                       <tr>
-                        <th>Bank</th>
-                        <th>Wgt</th>
+                        <th>{currentTranslations.bank}</th>
+                        <th>{currentTranslations.weight}</th>
                         <th>1M</th>
-                        <th title="1M Global Impact">Imp</th>
+                        <th title={currentTranslations.impact_1m}>Imp</th>
                         <th>3M</th>
-                        <th title="3M Global Impact">Imp</th>
+                        <th title={currentTranslations.impact_3m}>Imp</th>
                         <th>1Y</th>
-                        <th title="1Y Global Impact">Imp</th>
+                        <th title={currentTranslations.impact_1y}>Imp</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1760,8 +1914,7 @@
                     </tbody>
                   </table>
                   <p style="font-size: 10px; color: #94a3b8; margin-top: 8px;">
-                    * Impact = % contribution of bank's 1M move to total Global
-                    Liquidity.
+                    {currentTranslations.impact_note_gli}
                   </p>
                 </div>
               </div>
@@ -1773,7 +1926,7 @@
               <div class="chart-main">
                 <div class="chart-header">
                   <div class="label-group">
-                    <h3>US Net Liquidity</h3>
+                    <h3>{currentTranslations.chart_us_net_liq}</h3>
                     <SignalBadge type={liqSignal} text={liqSignal} />
                   </div>
                   <div class="header-controls">
@@ -1782,10 +1935,12 @@
                       onRangeChange={(r) => (netLiqRange = r)}
                     />
                     <span class="last-date"
-                      >Last Data: {getLastDate("FED")}</span
+                      >{currentTranslations.last_data}
+                      {getLastDate("FED")}</span
                     >
                   </div>
                 </div>
+                <p class="chart-description">{currentTranslations.net_liq}</p>
                 <div class="chart-content">
                   <Chart {darkMode} data={netLiqData} />
                 </div>
@@ -1793,17 +1948,17 @@
 
               <div class="metrics-sidebar">
                 <div class="metrics-section">
-                  <h4>US System Components Impact</h4>
+                  <h4>{currentTranslations.chart_us_comp}</h4>
                   <table class="metrics-table">
                     <thead>
                       <tr>
-                        <th>Account</th>
+                        <th>{currentTranslations.account}</th>
                         <th>1M</th>
-                        <th title="Impact on Net Liq">Imp</th>
+                        <th title={currentTranslations.impact_us}>Imp</th>
                         <th>3M</th>
-                        <th title="Impact on Net Liq">Imp</th>
+                        <th title={currentTranslations.impact_us}>Imp</th>
                         <th>1Y</th>
-                        <th title="Impact on Net Liq">Imp</th>
+                        <th title={currentTranslations.impact_us}>Imp</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1880,6 +2035,7 @@
                 <span class="last-date">Last Data: {getLastDate("NFCI")}</span>
               </div>
             </div>
+            <p class="chart-description">{currentTranslations.cli}</p>
             <div class="chart-content">
               <Chart {darkMode} data={cliData} />
             </div>
@@ -1908,17 +2064,20 @@
             <div class="gli-layout">
               <div class="chart-main">
                 <div class="chart-header">
-                  <h3>Global Liquidity Index (Aggregate)</h3>
+                  <h3>{currentTranslations.chart_gli_aggregate}</h3>
                   <div class="header-controls">
                     <TimeRangeSelector
                       selectedRange={gliRange}
                       onRangeChange={(r) => (gliRange = r)}
                     />
                     <span class="last-date"
-                      >Last: {getLastDate("GLI_TOTAL")}</span
+                      >{currentTranslations.last}: {getLastDate(
+                        "GLI_TOTAL",
+                      )}</span
                     >
                   </div>
                 </div>
+                <p class="chart-description">{currentTranslations.gli}</p>
                 <div class="chart-content">
                   <Chart {darkMode} data={gliData} />
                 </div>
@@ -1926,18 +2085,18 @@
 
               <div class="metrics-sidebar">
                 <div class="metrics-section">
-                  <h4>GLI Composition & Performance</h4>
+                  <h4>{currentTranslations.chart_gli_comp}</h4>
                   <table class="metrics-table">
                     <thead>
                       <tr>
-                        <th>Bank</th>
-                        <th>Wgt</th>
+                        <th>{currentTranslations.bank}</th>
+                        <th>{currentTranslations.weight}</th>
                         <th>1M</th>
-                        <th title="1M Global Impact">Imp</th>
+                        <th title={currentTranslations.impact_1m}>Imp</th>
                         <th>3M</th>
-                        <th title="3M Global Impact">Imp</th>
+                        <th title={currentTranslations.impact_3m}>Imp</th>
                         <th>1Y</th>
-                        <th title="1Y Global Impact">Imp</th>
+                        <th title={currentTranslations.impact_1y}>Imp</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1986,8 +2145,7 @@
                     </tbody>
                   </table>
                   <p style="font-size: 10px; color: #94a3b8; margin-top: 8px;">
-                    * Impact = % contribution of bank's 1M move to total Global
-                    Liquidity.
+                    {currentTranslations.impact_note_gli}
                   </p>
                 </div>
               </div>
@@ -2004,10 +2162,12 @@
                     onRangeChange={item.setRange}
                   />
                   <span class="last-date"
-                    >Last Data: {getLastDate(item.bank)}</span
+                    >{currentTranslations.last_data}
+                    {getLastDate(item.bank)}</span
                   >
                 </div>
               </div>
+              <p class="chart-description">{currentTranslations.gli_cb}</p>
               <div class="chart-content">
                 <Chart {darkMode} data={item.data} />
               </div>
@@ -2020,17 +2180,20 @@
             <div class="gli-layout">
               <div class="chart-main">
                 <div class="chart-header">
-                  <h3>Global M2 Money Supply (Aggregate)</h3>
+                  <h3>{currentTranslations.chart_m2_aggregate}</h3>
                   <div class="header-controls">
                     <TimeRangeSelector
                       selectedRange={m2Range}
                       onRangeChange={(r) => (m2Range = r)}
                     />
                     <span class="last-date"
-                      >Last: {getLastDate("M2_TOTAL")}</span
+                      >{currentTranslations.last}: {getLastDate(
+                        "M2_TOTAL",
+                      )}</span
                     >
                   </div>
                 </div>
+                <p class="chart-description">{currentTranslations.m2_global}</p>
                 <div class="chart-content">
                   <Chart {darkMode} data={m2TotalData} />
                 </div>
@@ -2038,18 +2201,18 @@
 
               <div class="metrics-sidebar">
                 <div class="metrics-section">
-                  <h4>M2 Composition & Performance</h4>
+                  <h4>{currentTranslations.chart_m2_comp}</h4>
                   <table class="metrics-table">
                     <thead>
                       <tr>
-                        <th>Economy</th>
-                        <th>Wgt</th>
+                        <th>{currentTranslations.economy}</th>
+                        <th>{currentTranslations.weight}</th>
                         <th>1M</th>
-                        <th title="1M Global Impact">Imp</th>
+                        <th title={currentTranslations.impact_1m}>Imp</th>
                         <th>3M</th>
-                        <th title="3M Global Impact">Imp</th>
+                        <th title={currentTranslations.impact_3m}>Imp</th>
                         <th>1Y</th>
-                        <th title="1Y Global Impact">Imp</th>
+                        <th title={currentTranslations.impact_1y}>Imp</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2130,6 +2293,7 @@
                   <span class="last-date">Last: {getLastDate(item.bank)}</span>
                 </div>
               </div>
+              <p class="chart-description">{currentTranslations.m2_country}</p>
               <div class="chart-content">
                 <Chart {darkMode} data={item.data} />
               </div>
@@ -2142,17 +2306,19 @@
             <div class="gli-layout">
               <div class="chart-main">
                 <div class="chart-header">
-                  <h3>US Net Liquidity Trends</h3>
+                  <h3>{currentTranslations.chart_us_net_liq}</h3>
                   <div class="header-controls">
                     <TimeRangeSelector
                       selectedRange={netLiqRange}
                       onRangeChange={(r) => (netLiqRange = r)}
                     />
                     <span class="last-date"
-                      >Last Data: {getLastDate("FED")}</span
+                      >{currentTranslations.last_data}
+                      {getLastDate("FED")}</span
                     >
                   </div>
                 </div>
+                <p class="chart-description">{currentTranslations.net_liq}</p>
                 <div class="chart-content">
                   <Chart {darkMode} data={netLiqData} />
                 </div>
@@ -2160,17 +2326,17 @@
 
               <div class="metrics-sidebar">
                 <div class="metrics-section">
-                  <h4>US System Components Impact</h4>
+                  <h4>{currentTranslations.chart_us_comp}</h4>
                   <table class="metrics-table">
                     <thead>
                       <tr>
-                        <th>Account</th>
+                        <th>{currentTranslations.account}</th>
                         <th>1M</th>
-                        <th title="Impact on Net Liq">Imp</th>
+                        <th title={currentTranslations.impact_us}>Imp</th>
                         <th>3M</th>
-                        <th title="Impact on Net Liq">Imp</th>
+                        <th title={currentTranslations.impact_us}>Imp</th>
                         <th>1Y</th>
-                        <th title="Impact on Net Liq">Imp</th>
+                        <th title={currentTranslations.impact_us}>Imp</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2230,8 +2396,7 @@
                     </tbody>
                   </table>
                   <p style="font-size: 10px; color: #94a3b8; margin-top: 8px;">
-                    * Imp = Contribution to US Net Liquidity change. RRP/TGA
-                    have an inverse effect.
+                    {currentTranslations.impact_note_us}
                   </p>
                 </div>
               </div>
@@ -2254,15 +2419,20 @@
           </div>
           <div class="chart-card">
             <div class="chart-header">
-              <h3>US Credit Conditions</h3>
+              <div class="label-group">
+                <h3>{currentTranslations.stat_cli}</h3>
+              </div>
               <div class="header-controls">
                 <TimeRangeSelector
                   selectedRange={cliRange}
                   onRangeChange={(r) => (cliRange = r)}
                 />
-                <span class="last-date">Last Data: {getLastDate("CLI")}</span>
+                <span class="last-date"
+                  >{currentTranslations.last_data} {getLastDate("NFCI")}</span
+                >
               </div>
             </div>
+            <p class="chart-description">{currentTranslations.cli}</p>
             <div class="chart-content">
               <Chart {darkMode} data={cliData} />
             </div>
@@ -2284,20 +2454,23 @@
             </div>
           </div>
 
-          <div class="chart-card">
-            <div class="chart-header">
-              <h3>Treasury General Account (TGA)</h3>
-              <div class="header-controls">
-                <TimeRangeSelector
-                  selectedRange={tgaRange}
-                  onRangeChange={(r) => (tgaRange = r)}
-                />
-                <span class="last-date">Last Data: {getLastDate("TGA")}</span>
-              </div>
+          <div class="chart-header">
+            <div class="label-group">
+              <h3>BTC Fair Value model</h3>
             </div>
-            <div class="chart-content">
-              <Chart {darkMode} data={tgaData} />
+            <div class="header-controls">
+              <TimeRangeSelector
+                selectedRange={btcRange}
+                onRangeChange={(r) => (btcRange = r)}
+              />
+              <span class="last-date"
+                >{currentTranslations.last_data} {getLastDate("BTC")}</span
+              >
             </div>
+          </div>
+          <p class="chart-description">{currentTranslations.btc_fair}</p>
+          <div class="chart-content">
+            <Chart {darkMode} data={btcFairValueData} />
           </div>
         </div>
       {:else if currentTab === "Risk Model"}
@@ -2343,17 +2516,19 @@
           <!-- TIPS / Inflation Expectations Chart -->
           <div class="chart-card wide">
             <div class="chart-header">
-              <h3>Inflation Expectations (TIPS Market)</h3>
+              <h3>{currentTranslations.chart_inflation_exp}</h3>
               <div class="header-controls">
                 <TimeRangeSelector
                   selectedRange={tipsRange}
                   onRangeChange={(r) => (tipsRange = r)}
                 />
                 <span class="last-date"
-                  >Last Data: {getLastDate("TIPS_BREAKEVEN")}</span
+                  >{currentTranslations.last_data}
+                  {getLastDate("TIPS_BREAKEVEN")}</span
                 >
               </div>
             </div>
+            <p class="chart-description">{currentTranslations.tips}</p>
             <p class="chart-description">{currentTranslations.tips}</p>
             <div class="chart-content">
               <Chart {darkMode} data={tipsData} layout={tipsLayout} />
@@ -2710,35 +2885,77 @@
           </div>
         </div>
       {:else if currentTab === "BTC Analysis"}
-        <div class="main-charts">
+        <div class="main-charts btc-analysis-view">
           <!-- BTC Price vs Fair Value -->
+          <div class="analysis-header">
+            <h2>{currentTranslations.btc_analysis_title}</h2>
+            <p class="description">
+              {currentTranslations.btc_analysis_desc}
+            </p>
+          </div>
+
+          <div class="btc-stats">
+            <div class="btc-stat-item">
+              <span class="btc-label"
+                >{currentTranslations.current_valuation}</span
+              >
+              <div
+                class="btc-value"
+                class:overvalued={$latestStats?.btc?.deviation_pct > 0}
+              >
+                {(($latestStats?.btc?.deviation_pct || 0) > 0 ? "+" : "") +
+                  ($latestStats?.btc?.deviation_pct || 0).toFixed(1)}%
+              </div>
+            </div>
+            <div class="btc-stat-item">
+              <span class="btc-label">{currentTranslations.btc_price}</span>
+              <span class="btc-value"
+                >${Math.round(
+                  $latestStats?.btc?.price || 0,
+                ).toLocaleString()}</span
+              >
+            </div>
+            <div class="btc-stat-item">
+              <span class="btc-label">{currentTranslations.fair_value}</span>
+              <span class="btc-value"
+                >${Math.round(
+                  $latestStats?.btc?.fair_value || 0,
+                ).toLocaleString()}</span
+              >
+            </div>
+            <div class="btc-stat-item">
+              <span class="btc-label">{currentTranslations.zscore}</span>
+              <span class="btc-value"
+                >{($latestStats?.btc?.deviation_zscore || 0).toFixed(2)}σ</span
+              >
+            </div>
+          </div>
+
           <div class="chart-card wide">
             <div class="chart-header">
-              <div class="header-with-toggle">
-                <h3>₿ Bitcoin: Price vs Fair Value Model</h3>
+              <h3>{currentTranslations.btc_analysis_title}</h3>
+              <div class="header-controls">
                 <div class="model-toggle">
                   <button
                     class="toggle-btn"
                     class:active={selectedBtcModel === "macro"}
                     on:click={() => (selectedBtcModel = "macro")}
+                    >Macro Liquidity</button
                   >
-                    Macro-Only
-                  </button>
                   <button
                     class="toggle-btn"
                     class:active={selectedBtcModel === "adoption"}
                     on:click={() => (selectedBtcModel = "adoption")}
+                    >Macro + Adoption</button
                   >
-                    Adoption-Adjusted
-                  </button>
                 </div>
+                <TimeRangeSelector
+                  selectedRange={btcRange}
+                  onRangeChange={(r) => (btcRange = r)}
+                />
               </div>
-              <span class="last-date">
-                {selectedBtcModel === "macro"
-                  ? "Liquidity-driven regression"
-                  : "Adoption curve + Liquidity regression"}
-              </span>
             </div>
+            <p class="chart-description">{currentTranslations.btc_fair}</p>
             <div class="chart-content tv-chart-wrap">
               <LightweightChart
                 {darkMode}
@@ -2752,131 +2969,60 @@
           </div>
 
           <!-- Deviation Stats -->
-          <div class="chart-card">
-            <div class="chart-header">
-              <h3>Current Valuation ({selectedBtcModel.toUpperCase()})</h3>
-            </div>
-            <div class="btc-stats">
-              <div class="btc-stat-item">
-                <span class="btc-label">{currentTranslations.btc_price}</span>
-                <span class="btc-value price">
-                  ${getLatestValue(
-                    $dashboardData.btc?.price,
-                  )?.toLocaleString() || "N/A"}
-                </span>
-              </div>
-              <div class="btc-stat-item">
-                <span class="btc-label">{currentTranslations.fair_value}</span>
-                <span class="btc-value fair">
-                  ${Math.round(
-                    getLatestValue(activeBtcModel.fair_value) || 0,
-                  ).toLocaleString()}
-                </span>
-              </div>
-              <div class="btc-stat-item">
-                <span class="btc-label">{currentTranslations.deviation}</span>
-                <span
-                  class="btc-value deviation"
-                  class:overvalued={getLatestValue(
-                    activeBtcModel.deviation_pct,
-                  ) > 0}
-                  class:undervalued={getLatestValue(
-                    activeBtcModel.deviation_pct,
-                  ) < 0}
-                >
-                  {getLatestValue(activeBtcModel.deviation_pct)?.toFixed(1) ||
-                    "0"}%
-                </span>
-              </div>
-              <div class="btc-stat-item">
-                <span class="btc-label">{currentTranslations.zscore}</span>
-                <span
-                  class="btc-value zscore"
-                  class:extreme={Math.abs(
-                    getLatestValue(activeBtcModel.deviation_zscore) || 0,
-                  ) > 2}
-                >
-                  {getLatestValue(activeBtcModel.deviation_zscore)?.toFixed(
-                    2,
-                  ) || "0"}σ
-                </span>
-              </div>
-            </div>
-          </div>
 
           <!-- Predictive Signals (CLI vs BTC Lag Correlation) -->
           <div class="chart-card wide">
             <div class="chart-header">
-              <h3>🔮 Predictive Signals: CLI → BTC Lag Analysis</h3>
-              <div class="model-toggle">
-                <button
-                  class="toggle-btn"
-                  class:active={selectedLagWindow === "7d"}
-                  on:click={() => (selectedLagWindow = "7d")}
-                >
-                  7D
-                </button>
-                <button
-                  class="toggle-btn"
-                  class:active={selectedLagWindow === "14d"}
-                  on:click={() => (selectedLagWindow = "14d")}
-                >
-                  14D
-                </button>
-                <button
-                  class="toggle-btn"
-                  class:active={selectedLagWindow === "30d"}
-                  on:click={() => (selectedLagWindow = "30d")}
-                >
-                  30D
-                </button>
+              <h3>{currentTranslations.lag_analysis}</h3>
+              <div class="header-controls">
+                <div class="model-toggle">
+                  <button
+                    class="toggle-btn"
+                    class:active={selectedLagWindow === "7d"}
+                    on:click={() => (selectedLagWindow = "7d")}>7-Day</button
+                  >
+                  <button
+                    class="toggle-btn"
+                    class:active={selectedLagWindow === "14d"}
+                    on:click={() => (selectedLagWindow = "14d")}>14-Day</button
+                  >
+                  <button
+                    class="toggle-btn"
+                    class:active={selectedLagWindow === "30d"}
+                    on:click={() => (selectedLagWindow = "30d")}>30-Day</button
+                  >
+                </div>
               </div>
             </div>
-            <div class="predictive-stats">
-              <div class="pred-stat">
-                <span class="pred-label">ROC Window</span>
-                <span class="pred-value">{selectedLagWindow.toUpperCase()}</span
-                >
+            <div class="gli-layout">
+              <div class="chart-main">
+                <div class="chart-content" style="height: 350px;">
+                  <Chart {darkMode} data={lagCorrelationChartData} />
+                </div>
               </div>
-              <div class="pred-stat">
-                <span class="pred-label">Optimal Lag</span>
-                <span class="pred-value highlight">
-                  {$dashboardData.predictive?.lag_correlations?.[
-                    selectedLagWindow
-                  ]?.optimal_lag || 0} days
-                </span>
+              <div class="metrics-sidebar">
+                <div class="interp-card">
+                  <h4>{currentTranslations.interpretation}</h4>
+                  <div class="metric-row">
+                    <span>{currentTranslations.optimal_lag}</span>
+                    <span class="val"
+                      >{$dashboardData.predictive?.lag_correlations?.[
+                        selectedLagWindow
+                      ]?.optimal_lag || 0}W</span
+                    >
+                  </div>
+                  <div class="metric-row">
+                    <span>{currentTranslations.max_correlation}</span>
+                    <span class="val"
+                      >{(
+                        ($dashboardData.predictive?.lag_correlations?.[
+                          selectedLagWindow
+                        ]?.max_correlation || 0) * 100
+                      ).toFixed(1)}%</span
+                    >
+                  </div>
+                </div>
               </div>
-              <div class="pred-stat">
-                <span class="pred-label">Max Correlation</span>
-                <span
-                  class="pred-value"
-                  class:positive={($dashboardData.predictive
-                    ?.lag_correlations?.[selectedLagWindow]?.max_corr || 0) > 0}
-                  class:negative={($dashboardData.predictive
-                    ?.lag_correlations?.[selectedLagWindow]?.max_corr || 0) < 0}
-                >
-                  {(
-                    ($dashboardData.predictive?.lag_correlations?.[
-                      selectedLagWindow
-                    ]?.max_corr || 0) * 100
-                  ).toFixed(2)}%
-                </span>
-              </div>
-              <div class="pred-stat">
-                <span class="pred-label">Interpretation</span>
-                <span class="pred-value small">
-                  {#if ($dashboardData.predictive?.lag_correlations?.[selectedLagWindow]?.optimal_lag || 0) > 0}
-                    CLI change today may predict BTC in ~{$dashboardData
-                      .predictive?.lag_correlations?.[selectedLagWindow]
-                      ?.optimal_lag} days
-                  {:else}
-                    CLI and BTC move simultaneously
-                  {/if}
-                </span>
-              </div>
-            </div>
-            <div class="chart-content">
-              <Chart {darkMode} data={lagCorrelationChartData} />
             </div>
           </div>
 
@@ -2906,7 +3052,7 @@
                 <div class="roc-col">1Y</div>
               </div>
               <div class="roc-row">
-                <div class="roc-col label">₿ Bitcoin</div>
+                <div class="roc-col label">{currentTranslations.btc_price}</div>
                 <div
                   class="roc-col"
                   class:plus={getLatestROC($dashboardData.btc?.rocs, "1M") > 0}
@@ -2929,7 +3075,6 @@
                   {getLatestROC($dashboardData.btc?.rocs, "6M").toFixed(2)}%
                 </div>
                 <div
-                  class="roc-col"
                   class:plus={getLatestROC($dashboardData.btc?.rocs, "1Y") > 0}
                   class:minus={getLatestROC($dashboardData.btc?.rocs, "1Y") < 0}
                 >
@@ -2953,14 +3098,12 @@
                   {getLatestROC($dashboardData.gli.rocs, "3M").toFixed(2)}%
                 </div>
                 <div
-                  class="roc-col"
                   class:plus={getLatestROC($dashboardData.gli.rocs, "6M") > 0}
                   class:minus={getLatestROC($dashboardData.gli.rocs, "6M") < 0}
                 >
                   {getLatestROC($dashboardData.gli.rocs, "6M").toFixed(2)}%
                 </div>
                 <div
-                  class="roc-col"
                   class:plus={getLatestROC($dashboardData.gli.rocs, "1Y") > 0}
                   class:minus={getLatestROC($dashboardData.gli.rocs, "1Y") < 0}
                 >
@@ -2968,7 +3111,9 @@
                 </div>
               </div>
               <div class="roc-row">
-                <div class="roc-col label">US Net Liq</div>
+                <div class="roc-col label">
+                  US {currentTranslations.stat_us_net}
+                </div>
                 <div
                   class="roc-col"
                   class:plus={getLatestROC(
@@ -3015,7 +3160,6 @@
                   )}%
                 </div>
                 <div
-                  class="roc-col"
                   class:plus={getLatestROC(
                     $dashboardData.us_net_liq_rocs,
                     "1Y",
@@ -3035,34 +3179,40 @@
 
           <!-- Interpretation Panel -->
           <div class="chart-card wide interpretation-panel">
-            <h4>📊 Model Interpretation</h4>
+            <h4>📊 {currentTranslations.interpretation}</h4>
             <div class="interpretation-grid">
               <div class="interp-card">
-                <h5>Fair Value Model</h5>
+                <h5>{currentTranslations.fair_value} Model</h5>
                 <p>
-                  Regression using:<br />
-                  • GLI (45-day lag)<br />
-                  • CLI (14-day lag)<br />
-                  • VIX (coincident)<br />
-                  • US Net Liq (30-day lag)
+                  {currentTranslations.interp_regression}<br />
+                  • {currentTranslations.interp_gli_lag}<br />
+                  • {currentTranslations.interp_cli_lag}<br />
+                  • {currentTranslations.interp_vix_coin}<br />
+                  • {currentTranslations.interp_netliq_lag}
                 </p>
               </div>
               <div class="interp-card">
-                <h5>Deviation Zones</h5>
+                <h5>{currentTranslations.interp_zones}</h5>
                 <p>
-                  • <span class="extreme-zone">±2σ:</span> Extreme
-                  over/undervaluation<br />
-                  • <span class="moderate-zone">±1σ:</span> Moderate deviation<br
+                  • <span class="extreme-zone"
+                    >{currentTranslations.interp_extreme}</span
+                  ><br />
+                  •
+                  <span class="moderate-zone"
+                    >{currentTranslations.interp_moderate}</span
+                  ><br />
+                  • {currentTranslations.interp_fair_range}
+                </p>
+              </div>
+              <div class="interp-card">
+                <h5>{currentTranslations.interp_signals}</h5>
+                <p>
+                  • <strong>{currentTranslations.interp_profittaking}</strong
+                  ><br />
+                  •
+                  <strong>{currentTranslations.interp_accumulation}</strong><br
                   />
-                  • Within ±1σ: Fair value range
-                </p>
-              </div>
-              <div class="interp-card">
-                <h5>Trading Signals</h5>
-                <p>
-                  • <strong>Z &gt; +2:</strong> Consider profit-taking<br />
-                  • <strong>Z &lt; -2:</strong> Potential accumulation<br />
-                  • <strong>ROC divergence:</strong> Momentum shifts
+                  • <strong>{currentTranslations.interp_divergence}</strong>
                 </p>
               </div>
             </div>
@@ -3073,33 +3223,30 @@
           <!-- Quant v2 Model Description -->
           <div class="chart-card wide">
             <div class="chart-header">
-              <h3>🧪 Quant v2: Enhanced Bitcoin Fair Value Model</h3>
+              <h3>🧪 {currentTranslations.quant_v2_title}</h3>
               <span class="last-date"
                 >Weekly Δlog returns + ElasticNet + PCA GLI Factor</span
               >
             </div>
             <div class="quant-description">
               <p>
-                This model addresses econometric issues in the legacy model:
+                {currentTranslations.quant_v2_desc}
               </p>
               <ul>
                 <li>
-                  <strong>Weekly frequency</strong> (W-FRI) instead of daily to avoid
-                  ffill autocorrelation
+                  {currentTranslations.quant_v2_weekly}
                 </li>
                 <li>
-                  <strong>Δlog(BTC) returns</strong> instead of log levels (avoids
-                  spurious regression)
+                  {currentTranslations.quant_v2_log}
                 </li>
                 <li>
-                  <strong>ElasticNet</strong> with 1-8 week lags for automatic feature
-                  selection
+                  {currentTranslations.quant_v2_elastic}
                 </li>
                 <li>
-                  <strong>PCA GLI factor</strong> instead of raw sum (handles colinearity)
+                  {currentTranslations.quant_v2_pca}
                 </li>
                 <li>
-                  <strong>Rolling 52-week volatility</strong> for adaptive bands
+                  {currentTranslations.quant_v2_vol}
                 </li>
               </ul>
             </div>
@@ -3600,10 +3747,14 @@
     box-shadow: var(--card-shadow);
   }
 
-  /* Specificity fix for Indigo theme on dark toggle */
-  .model-toggle .toggle-btn.active {
-    background: #6366f1;
-    color: white !important;
+  .btc-analysis-view {
+    margin-top: 24px;
+  }
+
+  .btc-analysis-view h2 {
+    margin-bottom: 8px;
+    font-size: 1.75rem;
+    color: var(--text-primary);
   }
 
   @keyframes slideDown {
@@ -3670,6 +3821,12 @@
     margin-bottom: 32px;
   }
 
+  .header-controls {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
   .chart-header h3 {
     margin: 0;
     font-size: 1.125rem;
@@ -3686,12 +3843,6 @@
     border-radius: 6px;
   }
 
-  .header-with-toggle {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
   .model-toggle {
     display: flex;
     gap: 8px;
@@ -3704,21 +3855,20 @@
   .model-toggle .toggle-btn {
     padding: 6px 16px;
     font-size: 0.75rem;
-    border: none; /* Reset boarder from base .toggle-btn */
+    border: none;
     background: transparent;
-    color: #64748b;
+    color: var(--text-muted);
     box-shadow: none;
   }
 
   .model-toggle .toggle-btn.active {
-    background: #ffffff;
-    color: #6366f1;
+    background: var(--bg-secondary);
+    color: var(--accent-primary);
     font-weight: 700;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   }
 
-  /* Specificity fix for Indigo theme on dark toggle */
-  .model-toggle .toggle-btn.active {
+  :global([data-theme="dark"]) .model-toggle .toggle-btn.active {
     background: #6366f1;
     color: white !important;
   }
@@ -3771,6 +3921,24 @@
     color: var(--text-primary);
   }
 
+  .roc-col {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
+
+  .roc-row.header .roc-col {
+    justify-content: flex-end;
+  }
+
+  .roc-row.header .roc-col:first-child {
+    justify-content: flex-start;
+  }
+
+  .roc-col:first-child {
+    justify-content: flex-start;
+  }
+
   .roc-col.plus {
     color: var(--positive-color);
     font-weight: 700;
@@ -3805,11 +3973,6 @@
     color: var(--text-secondary);
     line-height: 1.5;
     border-left: 3px solid var(--accent-secondary);
-  }
-
-  .chart-description strong {
-    color: var(--text-primary);
-    font-weight: 600;
   }
 
   .debug-chart-info {
@@ -4102,61 +4265,6 @@
     }
   }
 
-  /* Predictive Signals Stats */
-  .predictive-stats {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 16px;
-    padding: 16px;
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-    border-radius: 8px;
-    margin-bottom: 16px;
-  }
-
-  .pred-stat {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .pred-label {
-    font-size: 11px;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: #64748b;
-  }
-
-  .pred-value {
-    font-size: 18px;
-    font-weight: 600;
-    color: #1e293b;
-  }
-
-  .pred-value.highlight {
-    color: #6366f1;
-  }
-
-  .pred-value.positive {
-    color: #10b981;
-  }
-
-  .pred-value.negative {
-    color: #ef4444;
-  }
-
-  .pred-value.small {
-    font-size: 13px;
-    font-weight: 500;
-    color: #475569;
-  }
-
-  @media (max-width: 900px) {
-    .predictive-stats {
-      grid-template-columns: repeat(2, 1fr);
-    }
-  }
-
   @media (max-width: 768px) {
     .app-container {
       flex-direction: column;
@@ -4230,19 +4338,6 @@
   }
   .metrics-table tr:last-child td {
     border-bottom: none;
-  }
-
-  .weight-bar {
-    height: 4px;
-    background: #e2e8f0;
-    border-radius: 2px;
-    margin-top: 4px;
-    overflow: hidden;
-  }
-
-  .weight-fill {
-    height: 100%;
-    background: #3b82f6;
   }
 
   .roc-val {
