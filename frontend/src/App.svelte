@@ -2611,39 +2611,75 @@
                         >
                       </tr>
                       <tr>
-                        <td>{currentTranslations.rrp_drain}</td>
+                        <td>Δ4W NetLiq</td>
                         <td
                           class="roc-val"
                           class:positive={getLatestValue(
-                            $dashboardData.us_system_metrics?.rrp_drain_weekly,
-                          ) < 0}
-                          class:negative={getLatestValue(
-                            $dashboardData.us_system_metrics?.rrp_drain_weekly,
+                            $dashboardData.us_system_metrics?.netliq_delta_4w,
                           ) > 0}
+                          class:negative={getLatestValue(
+                            $dashboardData.us_system_metrics?.netliq_delta_4w,
+                          ) < 0}
                           >{(
                             (getLatestValue(
-                              $dashboardData.us_system_metrics
-                                ?.rrp_drain_weekly,
+                              $dashboardData.us_system_metrics?.netliq_delta_4w,
                             ) ?? 0) * 1000
-                          ).toFixed(0)}B/w</td
+                          ).toFixed(0)}B</td
                         >
                         <td
                           class="signal-cell"
                           class:plus={getLatestValue(
-                            $dashboardData.us_system_metrics?.rrp_drain_weekly,
-                          ) < -0.05}
+                            $dashboardData.us_system_metrics?.netliq_delta_4w,
+                          ) > 0.1}
                           class:minus={getLatestValue(
-                            $dashboardData.us_system_metrics?.rrp_drain_weekly,
-                          ) > 0}
+                            $dashboardData.us_system_metrics?.netliq_delta_4w,
+                          ) < -0.1}
                           >{getLatestValue(
-                            $dashboardData.us_system_metrics?.rrp_drain_weekly,
-                          ) < -0.05
+                            $dashboardData.us_system_metrics?.netliq_delta_4w,
+                          ) > 0.1
                             ? "Bullish"
                             : getLatestValue(
                                   $dashboardData.us_system_metrics
-                                    ?.rrp_drain_weekly,
-                                ) > 0
+                                    ?.netliq_delta_4w,
+                                ) < -0.1
                               ? "Bearish"
+                              : "—"}</td
+                        >
+                      </tr>
+                      <tr>
+                        <td>Δ13W NetLiq</td>
+                        <td
+                          class="roc-val"
+                          class:positive={getLatestValue(
+                            $dashboardData.us_system_metrics?.netliq_delta_13w,
+                          ) > 0}
+                          class:negative={getLatestValue(
+                            $dashboardData.us_system_metrics?.netliq_delta_13w,
+                          ) < 0}
+                          >{(
+                            (getLatestValue(
+                              $dashboardData.us_system_metrics
+                                ?.netliq_delta_13w,
+                            ) ?? 0) * 1000
+                          ).toFixed(0)}B</td
+                        >
+                        <td
+                          class="signal-cell"
+                          class:plus={getLatestValue(
+                            $dashboardData.us_system_metrics?.netliq_delta_13w,
+                          ) > 0.2}
+                          class:minus={getLatestValue(
+                            $dashboardData.us_system_metrics?.netliq_delta_13w,
+                          ) < -0.2}
+                          >{getLatestValue(
+                            $dashboardData.us_system_metrics?.netliq_delta_13w,
+                          ) > 0.2
+                            ? "Bullish Q"
+                            : getLatestValue(
+                                  $dashboardData.us_system_metrics
+                                    ?.netliq_delta_13w,
+                                ) < -0.2
+                              ? "Bearish Q"
                               : "—"}</td
                         >
                       </tr>
