@@ -2944,6 +2944,58 @@
             <div class="chart-content">
               <Chart {darkMode} data={fedData} />
             </div>
+            <!-- ROC Metrics -->
+            <div
+              class="roc-inline"
+              style="display: flex; gap: 12px; margin-top: 8px; font-size: 11px;"
+            >
+              <span>ROC:</span>
+              <span
+                class:positive={getLatestValue(
+                  $dashboardData.us_system_rocs?.fed?.["1M"],
+                ) > 0}
+                class:negative={getLatestValue(
+                  $dashboardData.us_system_rocs?.fed?.["1M"],
+                ) < 0}
+                >1M: {(
+                  getLatestValue($dashboardData.us_system_rocs?.fed?.["1M"]) ??
+                  0
+                ).toFixed(1)}%</span
+              >
+              <span
+                class:positive={getLatestValue(
+                  $dashboardData.us_system_rocs?.fed?.["3M"],
+                ) > 0}
+                class:negative={getLatestValue(
+                  $dashboardData.us_system_rocs?.fed?.["3M"],
+                ) < 0}
+                >3M: {(
+                  getLatestValue($dashboardData.us_system_rocs?.fed?.["3M"]) ??
+                  0
+                ).toFixed(1)}%</span
+              >
+              <span
+                class:positive={getLatestValue(
+                  $dashboardData.us_system_rocs?.fed?.["1Y"],
+                ) > 0}
+                class:negative={getLatestValue(
+                  $dashboardData.us_system_rocs?.fed?.["1Y"],
+                ) < 0}
+                >1Y: {(
+                  getLatestValue($dashboardData.us_system_rocs?.fed?.["1Y"]) ??
+                  0
+                ).toFixed(1)}%</span
+              >
+              <span style="margin-left: auto; color: #94a3b8;">
+                {getLatestValue($dashboardData.us_system_rocs?.fed?.["1M"]) > 0
+                  ? language === "en"
+                    ? "↑ Expansion"
+                    : "↑ Expansión"
+                  : language === "en"
+                    ? "↓ Contraction"
+                    : "↓ Contracción"}
+              </span>
+            </div>
           </div>
 
           <div class="chart-card">
@@ -2963,6 +3015,58 @@
             <div class="chart-content">
               <Chart {darkMode} data={rrpData} />
             </div>
+            <!-- ROC Metrics (inverted: RRP down = bullish) -->
+            <div
+              class="roc-inline"
+              style="display: flex; gap: 12px; margin-top: 8px; font-size: 11px;"
+            >
+              <span>ROC:</span>
+              <span
+                class:positive={getLatestValue(
+                  $dashboardData.us_system_rocs?.rrp?.["1M"],
+                ) < 0}
+                class:negative={getLatestValue(
+                  $dashboardData.us_system_rocs?.rrp?.["1M"],
+                ) > 0}
+                >1M: {(
+                  getLatestValue($dashboardData.us_system_rocs?.rrp?.["1M"]) ??
+                  0
+                ).toFixed(1)}%</span
+              >
+              <span
+                class:positive={getLatestValue(
+                  $dashboardData.us_system_rocs?.rrp?.["3M"],
+                ) < 0}
+                class:negative={getLatestValue(
+                  $dashboardData.us_system_rocs?.rrp?.["3M"],
+                ) > 0}
+                >3M: {(
+                  getLatestValue($dashboardData.us_system_rocs?.rrp?.["3M"]) ??
+                  0
+                ).toFixed(1)}%</span
+              >
+              <span
+                class:positive={getLatestValue(
+                  $dashboardData.us_system_rocs?.rrp?.["1Y"],
+                ) < 0}
+                class:negative={getLatestValue(
+                  $dashboardData.us_system_rocs?.rrp?.["1Y"],
+                ) > 0}
+                >1Y: {(
+                  getLatestValue($dashboardData.us_system_rocs?.rrp?.["1Y"]) ??
+                  0
+                ).toFixed(1)}%</span
+              >
+              <span style="margin-left: auto; color: #94a3b8;">
+                {getLatestValue($dashboardData.us_system_rocs?.rrp?.["1M"]) < 0
+                  ? language === "en"
+                    ? "↓ Draining (bullish)"
+                    : "↓ Drenando (alcista)"
+                  : language === "en"
+                    ? "↑ Filling (bearish)"
+                    : "↑ Llenando (bajista)"}
+              </span>
+            </div>
           </div>
 
           <div class="chart-card">
@@ -2981,6 +3085,58 @@
             <p class="chart-description">{currentTranslations.tga}</p>
             <div class="chart-content">
               <Chart {darkMode} data={tgaData} />
+            </div>
+            <!-- ROC Metrics (inverted: TGA down = bullish) -->
+            <div
+              class="roc-inline"
+              style="display: flex; gap: 12px; margin-top: 8px; font-size: 11px;"
+            >
+              <span>ROC:</span>
+              <span
+                class:positive={getLatestValue(
+                  $dashboardData.us_system_rocs?.tga?.["1M"],
+                ) < 0}
+                class:negative={getLatestValue(
+                  $dashboardData.us_system_rocs?.tga?.["1M"],
+                ) > 0}
+                >1M: {(
+                  getLatestValue($dashboardData.us_system_rocs?.tga?.["1M"]) ??
+                  0
+                ).toFixed(1)}%</span
+              >
+              <span
+                class:positive={getLatestValue(
+                  $dashboardData.us_system_rocs?.tga?.["3M"],
+                ) < 0}
+                class:negative={getLatestValue(
+                  $dashboardData.us_system_rocs?.tga?.["3M"],
+                ) > 0}
+                >3M: {(
+                  getLatestValue($dashboardData.us_system_rocs?.tga?.["3M"]) ??
+                  0
+                ).toFixed(1)}%</span
+              >
+              <span
+                class:positive={getLatestValue(
+                  $dashboardData.us_system_rocs?.tga?.["1Y"],
+                ) < 0}
+                class:negative={getLatestValue(
+                  $dashboardData.us_system_rocs?.tga?.["1Y"],
+                ) > 0}
+                >1Y: {(
+                  getLatestValue($dashboardData.us_system_rocs?.tga?.["1Y"]) ??
+                  0
+                ).toFixed(1)}%</span
+              >
+              <span style="margin-left: auto; color: #94a3b8;">
+                {getLatestValue($dashboardData.us_system_rocs?.tga?.["1M"]) < 0
+                  ? language === "en"
+                    ? "↓ Spending (bullish)"
+                    : "↓ Gastando (alcista)"
+                  : language === "en"
+                    ? "↑ Accumulating (bearish)"
+                    : "↑ Acumulando (bajista)"}
+              </span>
             </div>
           </div>
         </div>
