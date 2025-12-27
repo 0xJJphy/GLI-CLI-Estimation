@@ -191,7 +191,7 @@
       active_cbs: "Active CBs",
       impulse_analysis: "Liquidity Impulse Analysis",
       chart_impulse_desc:
-        "Comparing the momentum of GLI, Net Liquidity, and Credit conditions. Divergences often lead BTC price action.",
+        "Comparing the momentum of GLI, Net Liquidity, and Credit conditions (Normalized Z-Scores). Divergences often lead BTC price action.",
       btc_roc_overlay: "BTC ROC Overlay",
       period: "Period",
       lag_days: "Lag (Days)",
@@ -378,7 +378,7 @@
       active_cbs: "Bancos Activos",
       impulse_analysis: "Análisis de Impulso de Liquidez",
       chart_impulse_desc:
-        "Comparación del momentum de GLI, Liquidez Neta y condiciones de Crédito. Las divergencias suelen liderar el precio de BTC.",
+        "Comparación del momentum de GLI, Liquidez Neta y condiciones de Crédito (Z-Scores Normalizados). Las divergencias suelen liderar el precio de BTC.",
       btc_roc_overlay: "Superposición ROC BTC",
       period: "Periodo",
       lag_days: "Retardo (Días)",
@@ -737,7 +737,7 @@
 
   let btcRocPeriod = 21; // Default 1 Month (21 trading days)
   let btcLag = 0; // Default 0 lag
-  let normalizeImpulse = false; // Toggle for Z-Score Normalization
+  let normalizeImpulse = true; // Always Normalized (Z-Score)
   let showComposite = false; // Toggle for Composite Aggregate Signal
   let optimalLagLabel = "N/A"; // Display string for UI
 
@@ -3151,18 +3151,6 @@
                     style="font-size: 11px; width: 25px; text-align: right; color: var(--text-primary);"
                     >{btcLag}</span
                   >
-                </div>
-
-                <div
-                  class="control-group"
-                  style="display: flex; align-items: center; gap: 4px;"
-                >
-                  <label
-                    style="font-size: 11px; color: var(--text-primary); display: flex; align-items: center; gap: 4px; cursor: pointer;"
-                  >
-                    <input type="checkbox" bind:checked={normalizeImpulse} />
-                    Normalize (Z)
-                  </label>
                 </div>
 
                 <div
