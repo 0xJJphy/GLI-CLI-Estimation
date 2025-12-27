@@ -2411,15 +2411,24 @@
 
 <div class="app-container">
   <aside class="sidebar">
+    <svg style="position: absolute; width: 0; height: 0;" aria-hidden="true">
+      <filter id="remove-white">
+        <feColorMatrix
+          type="matrix"
+          values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 -3 -3 -3 1 8.5"
+        />
+      </filter>
+    </svg>
+
     <div class="brand">
       <div
         class="logo-box"
-        style="background: transparent; padding: 0; overflow: hidden;"
+        style="background: transparent; padding: 0; overflow: visible;"
       >
         <img
-          src="logo-quant.jpg"
+          src="logo-isometric.jpg"
           alt="Quant Terminal"
-          style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;"
+          style="width: 100%; height: 100%; object-fit: contain; filter: url(#remove-white);"
         />
       </div>
       <div class="brand-text">
