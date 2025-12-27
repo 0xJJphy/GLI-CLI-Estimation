@@ -55,6 +55,21 @@ export const dashboardData = writable({
         netliq_delta_4w: [],
         netliq_delta_13w: []
     },
+    flow_metrics: {
+        gli_impulse_4w: [],
+        gli_impulse_13w: [],
+        gli_accel: [],
+        gli_impulse_zscore: [],
+        m2_impulse_4w: [],
+        m2_impulse_13w: [],
+        m2_accel: [],
+        m2_impulse_zscore: [],
+        fed_contrib_13w: [],
+        ecb_contrib_13w: [],
+        boj_contrib_13w: [],
+        pboc_contrib_13w: [],
+        boe_contrib_13w: []
+    },
     us_system_rocs: {
         fed: {}, rrp: {}, tga: {}
     },

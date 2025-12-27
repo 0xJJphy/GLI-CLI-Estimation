@@ -127,6 +127,15 @@
       dry_env: "Dry",
       regime_qe: "QE Mode",
       regime_qt: "QT Mode",
+      // Flow/Impulse Metrics
+      flow_impulse: "Liquidity Impulse",
+      flow_accel: "Acceleration",
+      flow_zscore: "Impulse Z-Score",
+      flow_desc:
+        "Impulse tracks the rate of change in liquidity flows. Acceleration captures regime shifts.",
+      gli_impulse: "GLI Impulse (13W)",
+      m2_impulse: "M2 Impulse (13W)",
+      cb_contribution: "CB Contribution to ΔGLI",
       // Formatting
       spot_usd: "Spot USD",
       const_fx: "Const FX",
@@ -280,6 +289,15 @@
       dry_env: "Seco",
       regime_qe: "Modo QE",
       regime_qt: "Modo QT",
+      // Flow/Impulse Metrics
+      flow_impulse: "Impulso de Liquidez",
+      flow_accel: "Aceleración",
+      flow_zscore: "Z-Score del Impulso",
+      flow_desc:
+        "El impulso rastrea la tasa de cambio en los flujos. La aceleración captura cambios de régimen.",
+      gli_impulse: "Impulso GLI (13S)",
+      m2_impulse: "Impulso M2 (13S)",
+      cb_contribution: "Contribución CB a ΔGLI",
       // Formatting
       spot_usd: "Spot USD",
       const_fx: "FX Const",
@@ -2039,6 +2057,158 @@
                   <p style="font-size: 10px; color: #94a3b8; margin-top: 8px;">
                     {currentTranslations.impact_note_gli}
                   </p>
+                </div>
+
+                <div class="metrics-section" style="margin-top: 24px;">
+                  <h4>⚡ {currentTranslations.flow_impulse}</h4>
+                  <p
+                    class="section-note"
+                    style="font-size: 11px; margin-bottom: 12px; color: var(--text-muted);"
+                  >
+                    {currentTranslations.flow_desc}
+                  </p>
+                  <table class="metrics-table">
+                    <thead>
+                      <tr>
+                        <th>{currentTranslations.economy}</th>
+                        <th>Impulse (13W)</th>
+                        <th>Accel</th>
+                        <th>Z-Score</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {#each [{ name: "Global Liquidity", key: "gli" }, { name: "Global M2", key: "m2" }] as aggregate}
+                        <tr>
+                          <td><strong>{aggregate.name}</strong></td>
+                          <td
+                            class="roc-val"
+                            class:positive={getLatestValue(
+                              $dashboardData.flow_metrics?.[
+                                `${aggregate.key}_impulse_13w`
+                              ],
+                            ) > 0}
+                            class:negative={getLatestValue(
+                              $dashboardData.flow_metrics?.[
+                                `${aggregate.key}_impulse_13w`
+                              ],
+                            ) < 0}
+                          >
+                            {getLatestValue(
+                              $dashboardData.flow_metrics?.[
+                                `${aggregate.key}_impulse_13w`
+                              ],
+                            )?.toFixed(2)}T
+                          </td>
+                          <td
+                            class="roc-val"
+                            class:positive={getLatestValue(
+                              $dashboardData.flow_metrics?.[
+                                `${aggregate.key}_accel`
+                              ],
+                            ) > 0}
+                            class:negative={getLatestValue(
+                              $dashboardData.flow_metrics?.[
+                                `${aggregate.key}_accel`
+                              ],
+                            ) < 0}
+                          >
+                            {getLatestValue(
+                              $dashboardData.flow_metrics?.[
+                                `${aggregate.key}_accel`
+                              ],
+                            )?.toFixed(2)}T
+                          </td>
+                          <td
+                            class="signal-cell"
+                            class:plus={getLatestValue(
+                              $dashboardData.flow_metrics?.[
+                                `${aggregate.key}_impulse_zscore`
+                              ],
+                            ) > 1}
+                            class:minus={getLatestValue(
+                              $dashboardData.flow_metrics?.[
+                                `${aggregate.key}_impulse_zscore`
+                              ],
+                            ) < -1}
+                          >
+                            {getLatestValue(
+                              $dashboardData.flow_metrics?.[
+                                `${aggregate.key}_impulse_zscore`
+                              ],
+                            )?.toFixed(2)}σ
+                          </td>
+                        </tr>
+                      {/each}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div class="metrics-section" style="margin-top: 24px;">
+                  <h4>🏦 {currentTranslations.cb_contribution}</h4>
+                  <table class="metrics-table">
+                    <thead>
+                      <tr>
+                        <th>CB</th>
+                        <th>Contrib Δ13W</th>
+                        <th>Signal</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {#each [{ name: "Fed", key: "fed" }, { name: "ECB", key: "ecb" }, { name: "BoJ", key: "boj" }, { name: "PBoC", key: "pboc" }, { name: "BoE", key: "boe" }] as cb}
+                        {#if getLatestValue($dashboardData.flow_metrics?.[`${cb.key}_contrib_13w`]) !== undefined}
+                          <tr>
+                            <td>{cb.name}</td>
+                            <td
+                              class="roc-val"
+                              class:positive={getLatestValue(
+                                $dashboardData.flow_metrics?.[
+                                  `${cb.key}_contrib_13w`
+                                ],
+                              ) > 0}
+                              class:negative={getLatestValue(
+                                $dashboardData.flow_metrics?.[
+                                  `${cb.key}_contrib_13w`
+                                ],
+                              ) < 0}
+                            >
+                              {getLatestValue(
+                                $dashboardData.flow_metrics?.[
+                                  `${cb.key}_contrib_13w`
+                                ],
+                              )?.toFixed(1)}%
+                            </td>
+                            <td
+                              class="signal-cell"
+                              class:plus={getLatestValue(
+                                $dashboardData.flow_metrics?.[
+                                  `${cb.key}_contrib_13w`
+                                ],
+                              ) > 20}
+                              class:minus={getLatestValue(
+                                $dashboardData.flow_metrics?.[
+                                  `${cb.key}_contrib_13w`
+                                ],
+                              ) < -5}
+                            >
+                              {getLatestValue(
+                                $dashboardData.flow_metrics?.[
+                                  `${cb.key}_contrib_13w`
+                                ],
+                              ) > 20
+                                ? "Driver"
+                                : getLatestValue(
+                                      $dashboardData.flow_metrics?.[
+                                        `${cb.key}_contrib_13w`
+                                      ],
+                                    ) < -5
+                                  ? "QT"
+                                  : "—"}
+                            </td>
+                          </tr>
+                        {/if}
+                      {/each}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
