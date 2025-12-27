@@ -956,31 +956,54 @@
     const bgData = [];
     const btcData = [];
 
-    for (let i = 0; i < dates.length; i++) {
-      const d = dates[i];
-      if (!d) continue;
+    // Helper to add days to YYYY-MM-DD
+    const addDays = (dateStr, days) => {
+      const d = new Date(dateStr);
+      d.setDate(d.getDate() + days);
+      return d.toISOString().split("T")[0];
+    };
 
-      // Background (Regime) with Lag
-      const lagIdx = i - regimeLag;
-      if (
-        lagIdx >= 0 &&
-        lagIdx < gli.length &&
-        gli[lagIdx] !== undefined &&
-        netliq[lagIdx] !== undefined
-      ) {
-        const g = gli[lagIdx];
-        const n = netliq[lagIdx];
+    const lastDate = dates[dates.length - 1];
+
+    // BTC Price Data (Normal loop)
+    for (let i = 0; i < dates.length; i++) {
+      if (prices[i] !== undefined && prices[i] !== null) {
+        btcData.push({ time: dates[i], value: prices[i] });
+      }
+    }
+
+    // Regime Background Data (Extended loop)
+    // We iterate through all AVAILABLE signals.
+    // Signal at index 'i' determines Regime at 'i + regimeLag'.
+    // So we loop 'i' from 0 to dates.length.
+    // The target date is dates[i + regimeLag] (or projected if out of bounds).
+
+    for (let i = 0; i < dates.length; i++) {
+      if (gli[i] !== undefined && netliq[i] !== undefined) {
+        const g = gli[i];
+        const n = netliq[i];
         let color = "rgba(148, 163, 184, 0.08)"; // Neutral
         if (g > 0 && n > 0)
           color = "rgba(16, 185, 129, 0.15)"; // Bullish Green
         else if (g < 0 && n < 0) color = "rgba(239, 68, 68, 0.15)"; // Bearish Red
 
-        bgData.push({ time: d, value: 1, color });
-      }
+        // Calculate Target Date
+        let targetDate;
+        const targetIdx = i + regimeLag;
 
-      // BTC
-      if (prices[i] !== undefined && prices[i] !== null) {
-        btcData.push({ time: d, value: prices[i] });
+        if (targetIdx < dates.length) {
+          targetDate = dates[targetIdx];
+        } else {
+          // Future projection
+          if (lastDate) {
+            const daysToAdd = targetIdx - (dates.length - 1);
+            targetDate = addDays(lastDate, daysToAdd);
+          }
+        }
+
+        if (targetDate) {
+          bgData.push({ time: targetDate, value: 1, color });
+        }
       }
     }
 
