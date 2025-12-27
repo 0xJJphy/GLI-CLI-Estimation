@@ -117,6 +117,20 @@ export const dashboardData = writable({
             '14d': { lags: [], correlations: [], optimal_lag: 0, max_corr: 0 },
             '30d': { lags: [], correlations: [], optimal_lag: 0, max_corr: 0 }
         }
+    },
+    macro_regime: {
+        score: [],
+        regime_code: [],
+        transition: [],
+        total_z: [],
+        liquidity_z: [],
+        credit_z: [],
+        brakes_z: [],
+        cb_diffusion_13w: [],
+        cb_hhi_13w: [],
+        repo_stress: [],
+        real_rate_shock_4w: [],
+        reserves_spread_z: []
     }
 });
 

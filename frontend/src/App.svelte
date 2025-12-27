@@ -950,8 +950,8 @@
 
     const dates = $dashboardData.dates;
     const prices = $dashboardData.btc.price;
-    const gli = $dashboardData.flow_metrics?.gli_impulse_13w || [];
-    const netliq = $dashboardData.flow_metrics?.net_liquidity_impulse_13w || [];
+    // Use new multi-factor macro regime
+    const regimeCode = $dashboardData.macro_regime?.regime_code || [];
 
     const bgData = [];
     const btcData = [];
@@ -973,19 +973,14 @@
     }
 
     // Regime Background Data (Extended loop)
-    // We iterate through all AVAILABLE signals.
     // Signal at index 'i' determines Regime at 'i + regimeLag'.
-    // So we loop 'i' from 0 to dates.length.
-    // The target date is dates[i + regimeLag] (or projected if out of bounds).
-
     for (let i = 0; i < dates.length; i++) {
-      if (gli[i] !== undefined && netliq[i] !== undefined) {
-        const g = gli[i];
-        const n = netliq[i];
-        let color = "rgba(148, 163, 184, 0.08)"; // Neutral
-        if (g > 0 && n > 0)
-          color = "rgba(16, 185, 129, 0.15)"; // Bullish Green
-        else if (g < 0 && n < 0) color = "rgba(239, 68, 68, 0.15)"; // Bearish Red
+      const code = regimeCode[i];
+      if (code !== undefined && code !== null) {
+        let color = "rgba(148, 163, 184, 0.08)"; // Neutral (code == 0)
+        if (code === 1)
+          color = "rgba(16, 185, 129, 0.15)"; // Expansion (Green)
+        else if (code === -1) color = "rgba(239, 68, 68, 0.15)"; // Contraction (Red)
 
         // Calculate Target Date
         let targetDate;
@@ -1227,48 +1222,33 @@
     legend: { orientation: "h", y: 1.1 },
   };
 
-  // Liquidity Score Logic (0-100)
+  // Liquidity Score Logic (0-100) - Now uses backend multi-factor score
   $: liquidityScore = (() => {
-    const metrics = $dashboardData.flow_metrics;
-    if (!metrics) return 50;
+    const macroRegime = $dashboardData.macro_regime;
+    if (!macroRegime || !macroRegime.score || macroRegime.score.length === 0)
+      return 50;
 
-    let score = 50;
-    // GLI Impulse (Global)
-    const gli = getLatestValue(metrics.gli_impulse_13w) || 0;
-    score += gli > 0 ? 15 : -15;
-
-    // US Net Liquidity
-    const netliq = getLatestValue(metrics.net_liquidity_impulse_13w) || 0;
-    score += netliq > 0 ? 15 : -15;
-
-    // CLI Momentum (Credit)
-    const cli = getLatestValue(metrics.cli_momentum_4w) || 0;
-    score += cli > 0 ? 10 : -10;
-
-    // Acceleration (Derivative)
-    const accel = getLatestValue(metrics.gli_accel) || 0;
-    score += accel > 0 ? 10 : -10;
-
-    return Math.max(0, Math.min(100, score));
+    // Get the latest score from the backend
+    const latest = macroRegime.score[macroRegime.score.length - 1];
+    return latest !== null && latest !== undefined ? latest : 50;
   })();
 
-  // Simplified Macro Regime Logic
+  // Macro Regime Logic - Now uses backend multi-factor regime_code
   $: currentRegimeId = (() => {
-    const gli = $dashboardData.flow_metrics?.gli_impulse_13w;
-    const netliq = $dashboardData.flow_metrics?.net_liquidity_impulse_13w;
+    const macroRegime = $dashboardData.macro_regime;
+    if (
+      !macroRegime ||
+      !macroRegime.regime_code ||
+      macroRegime.regime_code.length === 0
+    )
+      return "neutral";
 
-    if (!gli || !netliq || gli.length === 0) return "neutral";
+    const lastCode =
+      macroRegime.regime_code[macroRegime.regime_code.length - 1];
 
-    const lastGli = gli[gli.length - 1] || 0;
-    const lastNetliq = netliq[netliq.length - 1] || 0;
-
-    // Simplified Logic:
-    // Bullish: Global AND US are expanding
-    if (lastGli > 0 && lastNetliq > 0) return "bullish";
-    // Bearish: Global AND US are contracting
-    if (lastGli < 0 && lastNetliq < 0) return "bearish";
-
-    // Everything else is Neutral/Mixed
+    // regime_code: 1 = expansion, -1 = contraction, 0 = neutral
+    if (lastCode === 1) return "bullish";
+    if (lastCode === -1) return "bearish";
     return "neutral";
   })();
 
