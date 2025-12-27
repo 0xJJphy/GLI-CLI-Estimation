@@ -157,6 +157,9 @@ FRED_CONFIG = {
     'T10YIE': 'TIPS_BREAKEVEN',           # 10-Year Breakeven Inflation Rate
     'DFII10': 'TIPS_REAL_RATE',           # 10-Year Real Interest Rate (TIPS Yield)
     'T5YIFR': 'TIPS_5Y5Y_FORWARD',        # 5-Year, 5-Year Forward Inflation Expectation
+    'RESBALNS': 'BANK_RESERVES',          # Bank Reserves
+    'SOFR': 'SOFR',                       # Secured Overnight Financing Rate
+    'IORB': 'IORB',                       # Interest on Reserve Balances
 }
 
 # Mapping: Symbol -> Internal Name (TradingView ECONOMICS)
@@ -652,6 +655,109 @@ def calculate_lag_correlation_analysis(df, max_lag=30):
     return results
 
 
+def calculate_reserves_metrics(df):
+    """
+    Calculates derived metrics for Bank Reserves analysis:
+    1. 3-Month ROC for Reserves and Net Liquidity
+    2. Spread (Net Liq - Reserves) with Z-Score
+    3. Momentum (12w vs 26w EMA cross)
+    4. Liquidity Coverage Ratio (Reserves / Net Liq)
+    5. Acceleration Index
+    """
+    result = {}
+    
+    reserves = df.get('BANK_RESERVES', pd.Series(dtype=float))
+    net_liq = df.get('NET_LIQUIDITY', pd.Series(dtype=float))
+    
+    if reserves.empty or net_liq.empty:
+        return result
+    
+    # 1. 3-Month ROC (63 trading days)
+    result['reserves_roc_3m'] = ((reserves / reserves.shift(63)) - 1) * 100
+    result['netliq_roc_3m'] = ((net_liq / net_liq.shift(63)) - 1) * 100
+    
+    # 2. Spread and Z-Score (1-year rolling window = 252 days)
+    spread = net_liq - reserves
+    spread_mean = spread.rolling(252, min_periods=100).mean()
+    spread_std = spread.rolling(252, min_periods=100).std()
+    result['spread'] = spread
+    result['spread_zscore'] = (spread - spread_mean) / spread_std
+    
+    # 3. Momentum (12-week = 60 days, 26-week = 130 days EMA)
+    reserves_12w = reserves.ewm(span=60, min_periods=30).mean()
+    reserves_26w = reserves.ewm(span=130, min_periods=60).mean()
+    result['momentum'] = reserves_12w - reserves_26w
+    
+    # 4. Liquidity Coverage Ratio (LCR) as percentage
+    result['lcr'] = (reserves / net_liq) * 100
+    
+    # 5. Acceleration (second derivative - diff of ROC)
+    result['acceleration'] = result['reserves_roc_3m'].diff()
+    
+    # 6. Volatility of changes (30-day rolling std of daily pct_change)
+    result['volatility'] = reserves.pct_change().rolling(30, min_periods=10).std() * 100
+    
+    return result
+
+
+def calculate_us_system_metrics(df):
+    """
+    Calculates derived metrics for US System components:
+    1. ROC 20d for Fed, RRP, TGA, Net Liquidity
+    2. RRP Drain Rate (weekly) + weeks to empty
+    3. TGA Z-Score (deviation from 90d mean)
+    4. Fed Momentum (12w vs 26w EMA)
+    5. Composite Liquidity Score
+    """
+    result = {}
+    
+    fed = df.get('FED_USD', pd.Series(dtype=float))
+    rrp = df.get('RRP_USD', pd.Series(dtype=float))
+    tga = df.get('TGA_USD', pd.Series(dtype=float))
+    net_liq = df.get('NET_LIQUIDITY', pd.Series(dtype=float))
+    
+    if fed.empty or net_liq.empty:
+        return result
+    
+    # 1. ROC 20d (monthly velocity)
+    result['fed_roc_20d'] = fed.pct_change(20) * 100
+    result['rrp_roc_20d'] = rrp.pct_change(20) * 100
+    result['tga_roc_20d'] = tga.pct_change(20) * 100
+    result['netliq_roc_20d'] = net_liq.pct_change(20) * 100
+    
+    # 2. RRP Drain Rate (weekly = 5 days)
+    result['rrp_drain_weekly'] = rrp.diff(5)
+    # Weeks to empty (latest RRP / avg weekly drain)
+    weekly_drain = rrp.diff(5).rolling(4).mean().abs()  # 4-week avg drain
+    result['rrp_weeks_to_empty'] = rrp / weekly_drain.replace(0, np.nan)
+    
+    # 3. TGA Z-Score (deviation from 90d mean)
+    tga_mean = tga.rolling(90, min_periods=30).mean()
+    tga_std = tga.rolling(90, min_periods=30).std()
+    result['tga_zscore'] = (tga - tga_mean) / tga_std.replace(0, np.nan)
+    
+    # 4. Fed Momentum (12w=60d vs 26w=130d EMA)
+    fed_12w = fed.ewm(span=60, min_periods=30).mean()
+    fed_26w = fed.ewm(span=130, min_periods=60).mean()
+    result['fed_momentum'] = fed_12w - fed_26w
+    
+    # 5. Composite Liquidity Score (z-scores normalized)
+    def zscore_252(s):
+        return (s - s.rolling(252, min_periods=100).mean()) / s.rolling(252, min_periods=100).std().replace(0, np.nan)
+    
+    fed_z = zscore_252(fed)
+    rrp_z = zscore_252(rrp) * -1  # Inverted: high RRP = bearish
+    tga_z = zscore_252(tga) * -1  # Inverted: high TGA = bearish
+    result['liquidity_score'] = (fed_z + rrp_z + tga_z) / 3
+    
+    # 6. Individual z-scores for display
+    result['fed_zscore'] = fed_z
+    result['rrp_zscore'] = rrp_z
+    result['tga_zscore_norm'] = tga_z
+    
+    return result
+
+
 def calculate_btc_fair_value(df_t):
     """
     Calculates dual Bitcoin fair value models:
@@ -1054,6 +1160,9 @@ def run_pipeline():
     df_fred_t['TIPS_BREAKEVEN'] = df_fred.get('TIPS_BREAKEVEN', pd.Series(dtype=float))
     df_fred_t['TIPS_REAL_RATE'] = df_fred.get('TIPS_REAL_RATE', pd.Series(dtype=float))
     df_fred_t['TIPS_5Y5Y_FORWARD'] = df_fred.get('TIPS_5Y5Y_FORWARD', pd.Series(dtype=float))
+    df_fred_t['BANK_RESERVES'] = df_fred.get('BANK_RESERVES', pd.Series(dtype=float)) / 1e6 # Trillions
+    df_fred_t['SOFR'] = df_fred.get('SOFR', pd.Series(dtype=float))
+    df_fred_t['IORB'] = df_fred.get('IORB', pd.Series(dtype=float))
     df_fred_t['CLI'] = calculate_cli(df_fred)['CLI']
 
     # 2. Fetch TV and Normalize to Trillions
@@ -1187,7 +1296,8 @@ def run_pipeline():
         # Then we ffill() to carry the last FRED value forward to the latest TV date
         fred_cols_to_sync = ['TGA_USD', 'RRP_USD', 'VIX', 'HY_SPREAD', 'IG_SPREAD', 
                              'NFCI', 'NFCI_CREDIT', 'NFCI_RISK', 'LENDING_STD', 'CLI',
-                             'TIPS_BREAKEVEN', 'TIPS_REAL_RATE', 'TIPS_5Y5Y_FORWARD']
+                             'TIPS_BREAKEVEN', 'TIPS_REAL_RATE', 'TIPS_5Y5Y_FORWARD',
+                             'BANK_RESERVES', 'SOFR', 'IORB']
         res_tv_t = res_tv_t.combine_first(df_fred_t[fred_cols_to_sync]).ffill()
         # Preserve RAW local units in the hybrid dataframe
         df_hybrid_processed = res_tv_t.combine_first(df_tv_t)
@@ -1269,6 +1379,22 @@ def run_pipeline():
             })
             predictive = calculate_lag_correlation_analysis(analysis_df.dropna(), max_lag=30)
 
+        # Bank Reserves Derived Metrics
+        reserves_df = pd.DataFrame({
+            'BANK_RESERVES': df_t.get('BANK_RESERVES', pd.Series(dtype=float)),
+            'NET_LIQUIDITY': us_net_liq.get('NET_LIQUIDITY', pd.Series(dtype=float))
+        }).ffill()
+        reserves_metrics = calculate_reserves_metrics(reserves_df)
+
+        # US System Composite Metrics
+        us_system_df = pd.DataFrame({
+            'FED_USD': df_t.get('FED_USD', pd.Series(dtype=float)),
+            'RRP_USD': df_t.get('RRP_USD', pd.Series(dtype=float)),
+            'TGA_USD': df_t.get('TGA_USD', pd.Series(dtype=float)),
+            'NET_LIQUIDITY': us_net_liq.get('NET_LIQUIDITY', pd.Series(dtype=float))
+        }).ffill()
+        us_system_metrics = calculate_us_system_metrics(us_system_df)
+
         # JSON structure (same as before)
         # Identify all active M2 columns
         m2_cols_agg = [c for c in m2_data.columns if c.endswith('_M2_USD')]
@@ -1344,7 +1470,28 @@ def run_pipeline():
             'us_net_liq': clean_for_json(us_net_liq['NET_LIQUIDITY']),
             'us_net_liq_rrp': clean_for_json(df_t.get('RRP_USD', pd.Series(dtype=float))),
             'us_net_liq_tga': clean_for_json(df_t.get('TGA_USD', pd.Series(dtype=float))),
+            'us_net_liq_reserves': clean_for_json(df_t.get('BANK_RESERVES', pd.Series(dtype=float))),
             'us_net_liq_rocs': {k: clean_for_json(v) for k, v in net_liq_rocs.items()},
+            'reserves_metrics': {
+                'reserves_roc_3m': clean_for_json(reserves_metrics.get('reserves_roc_3m', pd.Series(dtype=float))),
+                'netliq_roc_3m': clean_for_json(reserves_metrics.get('netliq_roc_3m', pd.Series(dtype=float))),
+                'spread_zscore': clean_for_json(reserves_metrics.get('spread_zscore', pd.Series(dtype=float))),
+                'momentum': clean_for_json(reserves_metrics.get('momentum', pd.Series(dtype=float))),
+                'lcr': clean_for_json(reserves_metrics.get('lcr', pd.Series(dtype=float))),
+                'acceleration': clean_for_json(reserves_metrics.get('acceleration', pd.Series(dtype=float))),
+                'volatility': clean_for_json(reserves_metrics.get('volatility', pd.Series(dtype=float))),
+            },
+            'us_system_metrics': {
+                'fed_roc_20d': clean_for_json(us_system_metrics.get('fed_roc_20d', pd.Series(dtype=float))),
+                'rrp_roc_20d': clean_for_json(us_system_metrics.get('rrp_roc_20d', pd.Series(dtype=float))),
+                'tga_roc_20d': clean_for_json(us_system_metrics.get('tga_roc_20d', pd.Series(dtype=float))),
+                'netliq_roc_20d': clean_for_json(us_system_metrics.get('netliq_roc_20d', pd.Series(dtype=float))),
+                'rrp_drain_weekly': clean_for_json(us_system_metrics.get('rrp_drain_weekly', pd.Series(dtype=float))),
+                'rrp_weeks_to_empty': clean_for_json(us_system_metrics.get('rrp_weeks_to_empty', pd.Series(dtype=float))),
+                'tga_zscore': clean_for_json(us_system_metrics.get('tga_zscore', pd.Series(dtype=float))),
+                'fed_momentum': clean_for_json(us_system_metrics.get('fed_momentum', pd.Series(dtype=float))),
+                'liquidity_score': clean_for_json(us_system_metrics.get('liquidity_score', pd.Series(dtype=float))),
+            },
             'us_system_rocs': (lambda total_nl: {
                 comp: {
                     k: clean_for_json(calculate_rocs(df_t.get(col, pd.Series(0.0, index=df_t.index)))[k])
@@ -1393,6 +1540,10 @@ def run_pipeline():
             'tips_breakeven': clean_for_json(df_t.get('TIPS_BREAKEVEN', pd.Series(dtype=float))),
             'tips_real_rate': clean_for_json(df_t.get('TIPS_REAL_RATE', pd.Series(dtype=float))),
             'tips_5y5y_forward': clean_for_json(df_t.get('TIPS_5Y5Y_FORWARD', pd.Series(dtype=float))),
+            'repo_stress': {
+                'sofr': clean_for_json(df_t.get('SOFR', pd.Series(dtype=float))),
+                'iorb': clean_for_json(df_t.get('IORB', pd.Series(dtype=float))),
+            },
             'btc': {
                 'price': clean_for_json(btc_analysis.get('BTC_ACTUAL', pd.Series(dtype=float))),
                 'models': {

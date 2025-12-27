@@ -49,6 +49,10 @@
         "Senior Loan Officer Survey. ↑ Tightening = Banks restrict credit | ↓ Easing = Free lending",
       vix: "Implied volatility (fear gauge). Z>2 = Panic | Z<-1 = Complacency. Mean-reverts.",
       tips: "Breakeven (amber): Inflation expectations. Real Rate (blue): True cost of money. 5Y5Y (green): Long-term anchor.",
+      bank_reserves:
+        "Total reserves maintained by depository institutions at Federal Reserve Banks. When reserves fall, liquidity stress increases.",
+      repo_stress:
+        "Comparison between SOFR (market rate) and IORB (Fed floor). If SOFR stays above IORB, it indicates systemic liquidity shortage.",
       // Navigation
       nav_dashboard: "Dashboard",
       nav_gli: "Global Flows CB",
@@ -98,6 +102,31 @@
       chart_gli_comp: "GLI Composition & Performance",
       chart_m2_comp: "M2 Composition & Performance",
       chart_us_comp: "US System Components Impact",
+      chart_bank_reserves: "Bank Reserves vs Net Liquidity",
+      chart_repo_stress: "Repo Market Stress (SOFR vs IORB)",
+      // Reserves Metrics
+      reserves_velocity: "Reserves Velocity",
+      roc_3m: "3M ROC",
+      spread_zscore: "Spread Z-Score",
+      momentum: "Momentum",
+      lcr: "LCR",
+      reserves_high_stress: "High Stress",
+      reserves_normal: "Normal",
+      reserves_low_stress: "Low Stress",
+      reserves_bullish: "Bullish",
+      reserves_bearish: "Bearish",
+      reserves_neutral: "Neutral",
+      // US System Metrics
+      liquidity_score: "Liquidity Score",
+      rrp_drain: "RRP Drain",
+      weeks_to_empty: "Weeks to Empty",
+      tga_deviation: "TGA Deviation",
+      fed_momentum_label: "Fed Momentum",
+      netliq_roc: "Net Liq ROC",
+      liquid_env: "Liquid",
+      dry_env: "Dry",
+      regime_qe: "QE Mode",
+      regime_qt: "QT Mode",
       // Formatting
       spot_usd: "Spot USD",
       const_fx: "Const FX",
@@ -173,6 +202,10 @@
         "Encuesta de préstamos bancarios. ↑ Endurecimiento = Restringen crédito | ↓ = Prestan libremente",
       vix: "Volatilidad implícita (indicador de miedo). Z>2 = Pánico | Z<-1 = Complacencia.",
       tips: "Breakeven (ámbar): Expectativas de inflación. Tasa Real (azul): Coste real del dinero. 5Y5Y (verde): Anclaje a largo plazo.",
+      bank_reserves:
+        "Reservas totales mantenidas por instituciones depositarias en los Bancos de la Reserva Federal. Cuando las reservas caen, el estrés de liquidez aumenta.",
+      repo_stress:
+        "Comparativa entre el SOFR (tipo de mercado) y el IORB (suelo de la Fed). Si el SOFR se mantiene por encima del IORB, indica escasez sistémica de liquidez.",
       // Navigation
       nav_dashboard: "Panel de Control",
       nav_gli: "Flujos Globales CB",
@@ -222,6 +255,31 @@
       chart_gli_comp: "Composición y Rendimiento de GLI",
       chart_m2_comp: "Composición y Rendimiento de M2",
       chart_us_comp: "Impacto de Componentes del Sistema EE.UU.",
+      chart_bank_reserves: "Reservas Bancarias vs Liquidez Neta",
+      chart_repo_stress: "Estrés del Mercado Repo (SOFR vs IORB)",
+      // Reserves Metrics
+      reserves_velocity: "Velocidad de Reservas",
+      roc_3m: "ROC 3M",
+      spread_zscore: "Z-Score Spread",
+      momentum: "Momentum",
+      lcr: "LCR",
+      reserves_high_stress: "Alto Estrés",
+      reserves_normal: "Normal",
+      reserves_low_stress: "Bajo Estrés",
+      reserves_bullish: "Alcista",
+      reserves_bearish: "Bajista",
+      reserves_neutral: "Neutral",
+      // US System Metrics
+      liquidity_score: "Índice de Liquidez",
+      rrp_drain: "Drenaje RRP",
+      weeks_to_empty: "Semanas hasta vacío",
+      tga_deviation: "Desviación TGA",
+      fed_momentum_label: "Momentum Fed",
+      netliq_roc: "ROC Liq Neta",
+      liquid_env: "Líquido",
+      dry_env: "Seco",
+      regime_qe: "Modo QE",
+      regime_qt: "Modo QT",
       // Formatting
       spot_usd: "Spot USD",
       const_fx: "FX Const",
@@ -333,7 +391,11 @@
   let hyRange = "ALL",
     igRange = "ALL",
     nfciRange = "ALL",
-    lendingRange = "ALL";
+    lendingRange = "ALL",
+    reservesRange = "ALL",
+    repoStressRange = "ALL",
+    tgaRange = "ALL",
+    rrpRange = "ALL";
 
   // Individual M2 time ranges
   let usM2Range = "ALL",
@@ -804,6 +866,99 @@
     legend: { orientation: "h", y: 1.1 },
     margin: { t: 40, r: 60 },
   };
+
+  // Bank Reserves Chart Data
+  $: bankReservesDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.us_net_liq_reserves,
+      name: "Bank Reserves (T)",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#22c55e", width: 2, shape: "spline" },
+      fill: "tozeroy",
+      fillcolor: "rgba(34, 197, 94, 0.05)",
+    },
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.us_net_liq,
+      name: "Net Liquidity (T)",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#3b82f6", width: 2, dash: "dot", shape: "spline" },
+      yaxis: "y2",
+    },
+  ];
+  $: bankReservesData = filterPlotlyData(
+    bankReservesDataRaw,
+    $dashboardData.dates,
+    reservesRange,
+  );
+  $: bankReservesLayout = {
+    yaxis: { title: "Reserves (T)", side: "left", showgrid: false },
+    yaxis2: {
+      title: "Net Liq (T)",
+      overlaying: "y",
+      side: "right",
+      showgrid: false,
+    },
+    legend: { orientation: "h", y: 1.1 },
+  };
+
+  // Repo Stress Chart Data (SOFR vs IORB)
+  $: repoStressDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.repo_stress?.sofr,
+      name: "SOFR (%)",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#f59e0b", width: 2, shape: "spline" },
+    },
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.repo_stress?.iorb,
+      name: "IORB (%)",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#8b5cf6", width: 2, dash: "dash", shape: "spline" },
+    },
+  ];
+  $: repoStressData = filterPlotlyData(
+    repoStressDataRaw,
+    $dashboardData.dates,
+    repoStressRange,
+  );
+
+  // RRP (Reverse Repo) Chart Data
+  $: rrpDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.us_net_liq_rrp,
+      name: "Fed RRP (T)",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#ef4444", width: 2, shape: "spline" },
+      fill: "tozeroy",
+      fillcolor: "rgba(239, 68, 68, 0.05)",
+    },
+  ];
+  $: rrpData = filterPlotlyData(rrpDataRaw, $dashboardData.dates, rrpRange);
+
+  // TGA (Treasury General Account) Chart Data
+  $: tgaDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.us_net_liq_tga,
+      name: "TGA (T)",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#f59e0b", width: 2, shape: "spline" },
+      fill: "tozeroy",
+      fillcolor: "rgba(245, 158, 11, 0.05)",
+    },
+  ];
+  $: tgaData = filterPlotlyData(tgaDataRaw, $dashboardData.dates, tgaRange);
 
   // GLI Metrics Helpers
   $: gliWeights = Object.entries($dashboardData.gli_weights || {})
@@ -1501,38 +1656,6 @@
       },
     ];
   })();
-
-  // --- US System Data ---
-  let rrpRange = "1Y";
-  let tgaRange = "1Y";
-
-  $: rrpDataRaw = [
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.us_net_liq_rrp,
-      name: "RRP Balance (Trillion USD)",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#ec4899", width: 2 },
-      fill: "tozeroy",
-      fillcolor: "rgba(236, 72, 153, 0.1)",
-    },
-  ];
-  $: rrpData = filterPlotlyData(rrpDataRaw, $dashboardData.dates, rrpRange);
-
-  $: tgaDataRaw = [
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.us_net_liq_tga,
-      name: "TGA Balance (Trillion USD)",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#6366f1", width: 2 },
-      fill: "tozeroy",
-      fillcolor: "rgba(99, 102, 241, 0.1)",
-    },
-  ];
-  $: tgaData = filterPlotlyData(tgaDataRaw, $dashboardData.dates, tgaRange);
 
   // Returns comparison chart data (Plotly bar chart)
   $: quantV2ReturnsData = (() => {
@@ -2402,75 +2525,261 @@
               </div>
             </div>
           </div>
+          <div class="chart-card wide">
+            <div class="gli-layout">
+              <div class="chart-main">
+                <div class="chart-header">
+                  <h3>{currentTranslations.chart_bank_reserves}</h3>
+                  <div class="header-controls">
+                    <TimeRangeSelector
+                      selectedRange={reservesRange}
+                      onRangeChange={(r) => (reservesRange = r)}
+                    />
+                    <span class="last-date"
+                      >{currentTranslations.last_data}
+                      {getLastDate("RESBALNS")}</span
+                    >
+                  </div>
+                </div>
+                <p class="chart-description">
+                  {currentTranslations.bank_reserves}
+                </p>
+                <div class="chart-content">
+                  <Chart
+                    {darkMode}
+                    data={bankReservesData}
+                    layout={bankReservesLayout}
+                  />
+                </div>
+              </div>
+
+              <div class="metrics-sidebar">
+                <div class="metrics-section">
+                  <h4>{currentTranslations.reserves_velocity}</h4>
+                  <table class="metrics-table compact">
+                    <thead>
+                      <tr>
+                        <th>Metric</th>
+                        <th>Value</th>
+                        <th>Signal</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>{currentTranslations.roc_3m} (Res)</td>
+                        <td
+                          class="roc-val"
+                          class:positive={getLatestValue(
+                            $dashboardData.reserves_metrics?.reserves_roc_3m,
+                          ) > 0}
+                          class:negative={getLatestValue(
+                            $dashboardData.reserves_metrics?.reserves_roc_3m,
+                          ) < 0}
+                          >{(
+                            getLatestValue(
+                              $dashboardData.reserves_metrics?.reserves_roc_3m,
+                            ) ?? 0
+                          ).toFixed(2)}%</td
+                        >
+                        <td
+                          class="signal-cell"
+                          class:plus={getLatestValue(
+                            $dashboardData.reserves_metrics?.reserves_roc_3m,
+                          ) > 0}
+                          class:minus={getLatestValue(
+                            $dashboardData.reserves_metrics?.reserves_roc_3m,
+                          ) < 0}
+                          >{getLatestValue(
+                            $dashboardData.reserves_metrics?.reserves_roc_3m,
+                          ) > 0
+                            ? "QE"
+                            : "QT"}</td
+                        >
+                      </tr>
+                      <tr>
+                        <td>{currentTranslations.roc_3m} (NL)</td>
+                        <td
+                          class="roc-val"
+                          class:positive={getLatestValue(
+                            $dashboardData.reserves_metrics?.netliq_roc_3m,
+                          ) > 0}
+                          class:negative={getLatestValue(
+                            $dashboardData.reserves_metrics?.netliq_roc_3m,
+                          ) < 0}
+                          >{(
+                            getLatestValue(
+                              $dashboardData.reserves_metrics?.netliq_roc_3m,
+                            ) ?? 0
+                          ).toFixed(2)}%</td
+                        >
+                        <td
+                          class="signal-cell"
+                          class:plus={getLatestValue(
+                            $dashboardData.reserves_metrics?.netliq_roc_3m,
+                          ) > 0}
+                          class:minus={getLatestValue(
+                            $dashboardData.reserves_metrics?.netliq_roc_3m,
+                          ) < 0}
+                          >{getLatestValue(
+                            $dashboardData.reserves_metrics?.netliq_roc_3m,
+                          ) > 0
+                            ? "↑"
+                            : "↓"}</td
+                        >
+                      </tr>
+                      <tr>
+                        <td>{currentTranslations.spread_zscore}</td>
+                        <td
+                          class="roc-val"
+                          class:positive={getLatestValue(
+                            $dashboardData.reserves_metrics?.spread_zscore,
+                          ) < -1}
+                          class:negative={getLatestValue(
+                            $dashboardData.reserves_metrics?.spread_zscore,
+                          ) > 2}
+                          >{(
+                            getLatestValue(
+                              $dashboardData.reserves_metrics?.spread_zscore,
+                            ) ?? 0
+                          ).toFixed(2)}</td
+                        >
+                        <td
+                          class="signal-cell"
+                          class:minus={getLatestValue(
+                            $dashboardData.reserves_metrics?.spread_zscore,
+                          ) > 2}
+                          class:plus={getLatestValue(
+                            $dashboardData.reserves_metrics?.spread_zscore,
+                          ) < -1}
+                          >{getLatestValue(
+                            $dashboardData.reserves_metrics?.spread_zscore,
+                          ) > 2
+                            ? currentTranslations.reserves_high_stress
+                            : getLatestValue(
+                                  $dashboardData.reserves_metrics
+                                    ?.spread_zscore,
+                                ) < -1
+                              ? currentTranslations.reserves_low_stress
+                              : currentTranslations.reserves_normal}</td
+                        >
+                      </tr>
+                      <tr>
+                        <td>{currentTranslations.momentum}</td>
+                        <td
+                          class="roc-val"
+                          class:positive={getLatestValue(
+                            $dashboardData.reserves_metrics?.momentum,
+                          ) > 0}
+                          class:negative={getLatestValue(
+                            $dashboardData.reserves_metrics?.momentum,
+                          ) < 0}
+                          >{(
+                            getLatestValue(
+                              $dashboardData.reserves_metrics?.momentum,
+                            ) ?? 0
+                          ).toFixed(4)}T</td
+                        >
+                        <td
+                          class="signal-cell"
+                          class:plus={getLatestValue(
+                            $dashboardData.reserves_metrics?.momentum,
+                          ) > 0}
+                          class:minus={getLatestValue(
+                            $dashboardData.reserves_metrics?.momentum,
+                          ) < 0}
+                          >{getLatestValue(
+                            $dashboardData.reserves_metrics?.momentum,
+                          ) > 0
+                            ? currentTranslations.reserves_bullish
+                            : getLatestValue(
+                                  $dashboardData.reserves_metrics?.momentum,
+                                ) < 0
+                              ? currentTranslations.reserves_bearish
+                              : currentTranslations.reserves_neutral}</td
+                        >
+                      </tr>
+                      <tr>
+                        <td>{currentTranslations.lcr}</td>
+                        <td class="roc-val"
+                          >{(
+                            getLatestValue(
+                              $dashboardData.reserves_metrics?.lcr,
+                            ) ?? 0
+                          ).toFixed(2)}%</td
+                        >
+                        <td class="signal-cell"
+                          >{getLatestValue(
+                            $dashboardData.reserves_metrics?.lcr,
+                          ) < 30
+                            ? "⚠️"
+                            : "✓"}</td
+                        >
+                      </tr>
+                    </tbody>
+                  </table>
+                  <p style="font-size: 10px; color: #94a3b8; margin-top: 8px;">
+                    * Z&gt;2 = Liquidity blocked | Z&lt;-1 = Excess liquidity
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div class="chart-card">
             <div class="chart-header">
-              <h3>Fed Assets (USD Trillion)</h3>
+              <h3>{currentTranslations.chart_fed_assets}</h3>
               <div class="header-controls">
                 <TimeRangeSelector
                   selectedRange={fedRange}
                   onRangeChange={(r) => (fedRange = r)}
                 />
-                <span class="last-date">Last Data: {getLastDate("FED")}</span>
-              </div>
-            </div>
-            <div class="chart-content">
-              <Chart {darkMode} data={fedData} />
-            </div>
-          </div>
-          <div class="chart-card">
-            <div class="chart-header">
-              <div class="label-group">
-                <h3>{currentTranslations.stat_cli}</h3>
-              </div>
-              <div class="header-controls">
-                <TimeRangeSelector
-                  selectedRange={cliRange}
-                  onRangeChange={(r) => (cliRange = r)}
-                />
                 <span class="last-date"
-                  >{currentTranslations.last_data} {getLastDate("NFCI")}</span
+                  >{currentTranslations.last_data} {getLastDate("FED")}</span
                 >
               </div>
             </div>
-            <p class="chart-description">{currentTranslations.cli}</p>
+            <p class="chart-description">{currentTranslations.gli_cb}</p>
             <div class="chart-content">
-              <Chart {darkMode} data={cliData} />
+              <Chart {darkMode} data={fedData} />
             </div>
           </div>
 
           <div class="chart-card">
             <div class="chart-header">
-              <h3>Fed RRP Facility</h3>
+              <h3>{currentTranslations.chart_rrp}</h3>
               <div class="header-controls">
                 <TimeRangeSelector
                   selectedRange={rrpRange}
                   onRangeChange={(r) => (rrpRange = r)}
                 />
-                <span class="last-date">Last Data: {getLastDate("RRP")}</span>
+                <span class="last-date"
+                  >{currentTranslations.last_data} {getLastDate("RRP")}</span
+                >
               </div>
             </div>
+            <p class="chart-description">{currentTranslations.rrp}</p>
             <div class="chart-content">
               <Chart {darkMode} data={rrpData} />
             </div>
           </div>
 
-          <div class="chart-header">
-            <div class="label-group">
-              <h3>BTC Fair Value model</h3>
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>{currentTranslations.chart_tga}</h3>
+              <div class="header-controls">
+                <TimeRangeSelector
+                  selectedRange={tgaRange}
+                  onRangeChange={(r) => (tgaRange = r)}
+                />
+                <span class="last-date"
+                  >{currentTranslations.last_data} {getLastDate("TGA")}</span
+                >
+              </div>
             </div>
-            <div class="header-controls">
-              <TimeRangeSelector
-                selectedRange={btcRange}
-                onRangeChange={(r) => (btcRange = r)}
-              />
-              <span class="last-date"
-                >{currentTranslations.last_data} {getLastDate("BTC")}</span
-              >
+            <p class="chart-description">{currentTranslations.tga}</p>
+            <div class="chart-content">
+              <Chart {darkMode} data={tgaData} />
             </div>
-          </div>
-          <p class="chart-description">{currentTranslations.btc_fair}</p>
-          <div class="chart-content">
-            <Chart {darkMode} data={btcFairValueData} />
           </div>
         </div>
       {:else if currentTab === "Risk Model"}
@@ -2529,9 +2838,134 @@
               </div>
             </div>
             <p class="chart-description">{currentTranslations.tips}</p>
-            <p class="chart-description">{currentTranslations.tips}</p>
             <div class="chart-content">
               <Chart {darkMode} data={tipsData} layout={tipsLayout} />
+            </div>
+          </div>
+
+          <div class="chart-card wide">
+            <div class="gli-layout">
+              <div class="chart-main">
+                <div class="chart-header">
+                  <h3>{currentTranslations.chart_repo_stress}</h3>
+                  <div class="header-controls">
+                    <TimeRangeSelector
+                      selectedRange={repoStressRange}
+                      onRangeChange={(r) => (repoStressRange = r)}
+                    />
+                    <span class="last-date"
+                      >{currentTranslations.last_data}
+                      {getLastDate("SOFR")}</span
+                    >
+                  </div>
+                </div>
+                <p class="chart-description">
+                  {currentTranslations.repo_stress}
+                </p>
+                <div class="chart-content">
+                  <Chart {darkMode} data={repoStressData} />
+                </div>
+              </div>
+
+              <div class="metrics-sidebar">
+                <div class="metrics-section">
+                  <h4>SOFR vs IORB</h4>
+                  <table class="metrics-table compact">
+                    <thead>
+                      <tr>
+                        <th>Rate</th>
+                        <th>Value</th>
+                        <th>Role</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td style="color: #f59e0b; font-weight: 600;">SOFR</td>
+                        <td
+                          >{(
+                            getLatestValue($dashboardData.repo_stress?.sofr) ??
+                            0
+                          ).toFixed(2)}%</td
+                        >
+                        <td style="font-size: 10px;"
+                          >{language === "en"
+                            ? "Market Rate"
+                            : "Tasa Mercado"}</td
+                        >
+                      </tr>
+                      <tr>
+                        <td style="color: #8b5cf6; font-weight: 600;">IORB</td>
+                        <td
+                          >{(
+                            getLatestValue($dashboardData.repo_stress?.iorb) ??
+                            0
+                          ).toFixed(2)}%</td
+                        >
+                        <td style="font-size: 10px;"
+                          >{language === "en" ? "Fed Floor" : "Piso Fed"}</td
+                        >
+                      </tr>
+                      <tr>
+                        <td>Spread</td>
+                        <td
+                          class:positive={getLatestValue(
+                            $dashboardData.repo_stress?.sofr,
+                          ) -
+                            getLatestValue($dashboardData.repo_stress?.iorb) >
+                            0}
+                          class:negative={getLatestValue(
+                            $dashboardData.repo_stress?.sofr,
+                          ) -
+                            getLatestValue($dashboardData.repo_stress?.iorb) <
+                            -0.05}
+                          >{(
+                            (getLatestValue($dashboardData.repo_stress?.sofr) ??
+                              0) -
+                            (getLatestValue($dashboardData.repo_stress?.iorb) ??
+                              0)
+                          ).toFixed(2)} bps</td
+                        >
+                        <td
+                          class="signal-cell"
+                          class:plus={getLatestValue(
+                            $dashboardData.repo_stress?.sofr,
+                          ) -
+                            getLatestValue($dashboardData.repo_stress?.iorb) >
+                            0}
+                          class:minus={getLatestValue(
+                            $dashboardData.repo_stress?.sofr,
+                          ) -
+                            getLatestValue($dashboardData.repo_stress?.iorb) <
+                            -0.05}
+                          >{getLatestValue($dashboardData.repo_stress?.sofr) >
+                          getLatestValue($dashboardData.repo_stress?.iorb)
+                            ? "OK"
+                            : "⚠️"}</td
+                        >
+                      </tr>
+                    </tbody>
+                  </table>
+                  <div
+                    style="margin-top: 10px; font-size: 10px; color: #94a3b8;"
+                  >
+                    <p>
+                      <strong>SOFR</strong>: {language === "en"
+                        ? "Secured Overnight Financing Rate - market repo rate"
+                        : "Tasa de Financiamiento Garantizado - tasa repo de mercado"}
+                    </p>
+                    <p>
+                      <strong>IORB</strong>: {language === "en"
+                        ? "Interest on Reserve Balances - Fed floor rate"
+                        : "Interés sobre Reservas - tasa piso de Fed"}
+                    </p>
+                    <p style="margin-top: 6px; color: #ef4444;">
+                      {language === "en"
+                        ? "⚠️ SOFR < IORB = Funding stress (like Sep 2019)"
+                        : "⚠️ SOFR < IORB = Estrés de financiamiento (como Sep 2019)"}
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

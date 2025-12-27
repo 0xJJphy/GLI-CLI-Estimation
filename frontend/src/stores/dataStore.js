@@ -25,7 +25,28 @@ export const dashboardData = writable({
     us_net_liq: [],
     us_net_liq_rrp: [],
     us_net_liq_tga: [],
+    us_net_liq_reserves: [],
     us_net_liq_rocs: {},
+    reserves_metrics: {
+        reserves_roc_3m: [],
+        netliq_roc_3m: [],
+        spread_zscore: [],
+        momentum: [],
+        lcr: [],
+        acceleration: [],
+        volatility: []
+    },
+    us_system_metrics: {
+        fed_roc_20d: [],
+        rrp_roc_20d: [],
+        tga_roc_20d: [],
+        netliq_roc_20d: [],
+        rrp_drain_weekly: [],
+        rrp_weeks_to_empty: [],
+        tga_zscore: [],
+        fed_momentum: [],
+        liquidity_score: []
+    },
     us_system_rocs: {
         fed: {}, rrp: {}, tga: {}
     },
@@ -46,6 +67,10 @@ export const dashboardData = writable({
     tips_breakeven: [],
     tips_real_rate: [],
     tips_5y5y_forward: [],
+    repo_stress: {
+        sofr: [],
+        iorb: []
+    },
     btc: {
         price: [], fair_value: [], upper_2sd: [], upper_1sd: [],
         lower_1sd: [], lower_2sd: [], deviation_zscore: [], rocs: {}
