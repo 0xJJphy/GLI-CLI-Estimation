@@ -761,6 +761,51 @@ def calculate_us_system_metrics(df):
     return result
 
 
+def calculate_flow_metrics(df):
+    """
+    Calculates flow/impulse-based metrics (more useful for trading than levels):
+    1. Impulse (Δ4w, Δ13w) for GLI, M2, NetLiq
+    2. Acceleration (change in impulse)
+    3. Impulse Z-scores (not level z-scores - more stable)
+    4. CB contribution decomposition to ΔGLI
+    """
+    result = {}
+    
+    # Define z-score function for impulse
+    def zscore_252(s):
+        return (s - s.rolling(252, min_periods=100).mean()) / s.rolling(252, min_periods=100).std().replace(0, np.nan)
+    
+    # 1. Impulse (Δ in $T) for major aggregates
+    for col in ['GLI_TOTAL', 'M2_TOTAL']:
+        s = df.get(col, pd.Series(dtype=float))
+        if not s.empty:
+            key = col.lower().replace('_total', '')
+            result[f'{key}_impulse_4w'] = s.diff(20)   # 4W = 20 days
+            result[f'{key}_impulse_13w'] = s.diff(65)  # 13W = 65 days
+            
+            # 2. Acceleration (change in 13w impulse)
+            impulse_13w = s.diff(65)
+            result[f'{key}_accel'] = impulse_13w - impulse_13w.shift(65)
+            
+            # 3. Impulse Z-score (more stable than level z-score)
+            result[f'{key}_impulse_zscore'] = zscore_252(impulse_13w)
+    
+    # 4. CB contribution decomposition to ΔGLI
+    gli = df.get('GLI_TOTAL', pd.Series(dtype=float))
+    gli_delta_13w = gli.diff(65)
+    
+    cb_list = ['FED', 'ECB', 'BOJ', 'PBOC', 'BOE', 'BOC', 'RBA', 'SNB', 'CBR', 'BCB', 'BOK', 'RBI', 'RBNZ', 'SR', 'BNM']
+    for cb in cb_list:
+        cb_col = f'{cb}_USD'
+        cb_series = df.get(cb_col, pd.Series(dtype=float))
+        if not cb_series.empty and not gli_delta_13w.empty:
+            cb_delta = cb_series.diff(65)
+            # % contribution = (CB Δ13w / GLI Δ13w) * 100
+            result[f'{cb.lower()}_contrib_13w'] = (cb_delta / gli_delta_13w.replace(0, np.nan)) * 100
+    
+    return result
+
+
 def calculate_btc_fair_value(df_t):
     """
     Calculates dual Bitcoin fair value models:
@@ -1398,6 +1443,14 @@ def run_pipeline():
         }).ffill()
         us_system_metrics = calculate_us_system_metrics(us_system_df)
 
+        # Flow/Impulse Metrics (more useful for trading than levels)
+        flow_df = pd.DataFrame({
+            'GLI_TOTAL': gli['GLI_TOTAL'],
+            'M2_TOTAL': m2_data.get('M2_TOTAL', pd.Series(dtype=float)),
+            **{f'{cb}_USD': df_t.get(f'{cb}_USD', pd.Series(dtype=float)) for cb in ['FED', 'ECB', 'BOJ', 'PBOC', 'BOE', 'BOC', 'RBA', 'SNB', 'CBR', 'BCB', 'BOK', 'RBI', 'RBNZ', 'SR', 'BNM']}
+        }).ffill()
+        flow_metrics = calculate_flow_metrics(flow_df)
+
         # JSON structure (same as before)
         # Identify all active M2 columns
         m2_cols_agg = [c for c in m2_data.columns if c.endswith('_M2_USD')]
@@ -1502,6 +1555,25 @@ def run_pipeline():
                 # Net Liquidity Impulse ($T)
                 'netliq_delta_4w': clean_for_json(us_system_metrics.get('netliq_delta_4w', pd.Series(dtype=float))),
                 'netliq_delta_13w': clean_for_json(us_system_metrics.get('netliq_delta_13w', pd.Series(dtype=float))),
+            },
+            # Flow/Impulse Metrics (trading-focused)
+            'flow_metrics': {
+                # GLI impulse and acceleration
+                'gli_impulse_4w': clean_for_json(flow_metrics.get('gli_impulse_4w', pd.Series(dtype=float))),
+                'gli_impulse_13w': clean_for_json(flow_metrics.get('gli_impulse_13w', pd.Series(dtype=float))),
+                'gli_accel': clean_for_json(flow_metrics.get('gli_accel', pd.Series(dtype=float))),
+                'gli_impulse_zscore': clean_for_json(flow_metrics.get('gli_impulse_zscore', pd.Series(dtype=float))),
+                # M2 impulse and acceleration
+                'm2_impulse_4w': clean_for_json(flow_metrics.get('m2_impulse_4w', pd.Series(dtype=float))),
+                'm2_impulse_13w': clean_for_json(flow_metrics.get('m2_impulse_13w', pd.Series(dtype=float))),
+                'm2_accel': clean_for_json(flow_metrics.get('m2_accel', pd.Series(dtype=float))),
+                'm2_impulse_zscore': clean_for_json(flow_metrics.get('m2_impulse_zscore', pd.Series(dtype=float))),
+                # CB contributions to ΔGLI (top 5)
+                'fed_contrib_13w': clean_for_json(flow_metrics.get('fed_contrib_13w', pd.Series(dtype=float))),
+                'ecb_contrib_13w': clean_for_json(flow_metrics.get('ecb_contrib_13w', pd.Series(dtype=float))),
+                'boj_contrib_13w': clean_for_json(flow_metrics.get('boj_contrib_13w', pd.Series(dtype=float))),
+                'pboc_contrib_13w': clean_for_json(flow_metrics.get('pboc_contrib_13w', pd.Series(dtype=float))),
+                'boe_contrib_13w': clean_for_json(flow_metrics.get('boe_contrib_13w', pd.Series(dtype=float))),
             },
             'us_system_rocs': (lambda total_nl: {
                 comp: {
