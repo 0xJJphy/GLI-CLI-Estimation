@@ -182,6 +182,28 @@
       interp_profittaking: "Z > +2: Consider profit-taking",
       interp_accumulation: "Z < -2: Potential accumulation",
       interp_divergence: "ROC divergence: Momentum shifts",
+      // Data Health & Pulse
+      data_health: "Data Health & Coverage",
+      series: "Series",
+      freshness: "Freshness",
+      real_date: "Real Date",
+      coverage: "Coverage",
+      active_cbs: "Active CBs",
+      impulse_analysis: "Liquidity Impulse Analysis",
+      chart_impulse_desc:
+        "Comparing the momentum of GLI, Net Liquidity, and Credit conditions. Divergences often lead BTC price action.",
+      btc_roc_overlay: "BTC ROC Overlay",
+      period: "Period",
+      lag_days: "Lag (Days)",
+      // Macro Regimes
+      regime_bullish: "Bullish Macro",
+      regime_bearish: "Bearish Macro",
+      regime_global_inj: "Global Injection",
+      regime_us_inj: "US Injection",
+      regime_early_warning: "Early Warning",
+      regime_losing_steam: "Losing Steam",
+      regime_neutral: "Neutral / Transition",
+      regime_signal: "Macro Pulse & Regime",
     },
     es: {
       gli: "Suma de balances de bancos centrales en USD. ↑ Expansión = Inyección de liquidez (alcista) | ↓ Contracción = QT (bajista)",
@@ -344,7 +366,29 @@
       interp_signals: "Señales de Trading",
       interp_profittaking: "Z > +2: Considerar toma de beneficios",
       interp_accumulation: "Z < -2: Acumulación potencial",
-      interp_divergence: "Divergencia ROC: Giros de momentum",
+      interp_divergence: "Divergencia ROC: Cambios de momentum",
+      // Data Health & Pulse
+      data_health: "Salud y Cobertura de Datos",
+      series: "Serie",
+      freshness: "Antigüedad",
+      real_date: "Fecha Real",
+      coverage: "Cobertura",
+      active_cbs: "Bancos Activos",
+      impulse_analysis: "Análisis de Impulso de Liquidez",
+      chart_impulse_desc:
+        "Comparación del momentum de GLI, Liquidez Neta y condiciones de Crédito. Las divergencias suelen liderar el precio de BTC.",
+      btc_roc_overlay: "Superposición ROC BTC",
+      period: "Periodo",
+      lag_days: "Retardo (Días)",
+      // Macro Regimes
+      regime_bullish: "Macro Alcista",
+      regime_bearish: "Macro Bajista",
+      regime_global_inj: "Inyección Global",
+      regime_us_inj: "Inyección EE.UU.",
+      regime_early_warning: "Aviso Temprano",
+      regime_losing_steam: "Perdiendo Fuelle",
+      regime_neutral: "Neutral / Transición",
+      regime_signal: "Pulso Macro y Régimen",
     },
   };
 
@@ -402,6 +446,8 @@
     bnmRange = "ALL";
   let netLiqRange = "ALL";
   let cliRange = "ALL";
+  let impulseRange = "ALL";
+  let inflationRange = "ALL";
   let btcRange = "ALL";
   let m2Range = "ALL";
   let vixRange = "ALL";
@@ -684,6 +730,234 @@
     },
   ];
   $: bocData = filterPlotlyData(bocDataRaw, $dashboardData.dates, bocRange);
+
+  $: btcRocPeriod = 21; // Default 1 Month (21 trading days)
+  $: btcLag = 0; // Default 0 lag
+
+  function calculateBtcRoc(prices, dates, period, lag) {
+    if (!prices || prices.length === 0 || !dates) return [];
+
+    const rocData = [];
+    // Align data based on dates if needed, but assuming index alignment for now since dates are shared
+    // Period is in days/indices. If daily data (approx), period=21 is 1M.
+
+    for (let i = period; i < prices.length; i++) {
+      const currentPrice = prices[i];
+      const pastPrice = prices[i - period];
+
+      if (pastPrice && pastPrice !== 0) {
+        const roc = ((currentPrice - pastPrice) / pastPrice) * 100; // Percentage
+
+        // Apply Lag: Shift the DATE of the point.
+        // Let's implement visual shift: index + lag.
+
+        const targetIndex = i + lag;
+        if (targetIndex >= 0 && targetIndex < dates.length) {
+          rocData.push({
+            x: dates[targetIndex],
+            y: roc,
+          });
+        }
+      }
+    }
+    return rocData;
+  }
+
+  $: btcRocTrace = (() => {
+    if (!$dashboardData.btc || !$dashboardData.btc.full_price) return null;
+    // We need a price series aligned with dates.
+    // data_pipeline exports 'btc' object with 'full_price' (Series) which might be just values or index.
+    // However main dashboard structure uses 'btc_price' in store usually or we check the dataStore.
+    // Let's rely on dashboardData.btc.full_price as checked in line 2741 of previous view.
+    const prices = $dashboardData.btc.full_price || [];
+    const dates = $dashboardData.dates;
+
+    if (!prices.length) return null;
+
+    const computed = calculateBtcRoc(prices, dates, btcRocPeriod, btcLag);
+
+    return {
+      x: computed.map((p) => p.x),
+      y: computed.map((p) => p.y),
+      name:
+        `BTC ROC (${btcRocPeriod}d) ` + (btcLag !== 0 ? `Lag ${btcLag}d` : ""),
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#808080", width: 1.5, dash: "dot" }, // Grey dotted line
+      yaxis: "y2", // Overlay on right axis (CLI Momentum)
+      opacity: 0.7,
+    };
+  })();
+
+  // Impulse Analysis Data
+  $: impulseDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.flow_metrics.gli_impulse_13w || [],
+      name: currentTranslations.gli_impulse,
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#3b82f6", width: 2, shape: "spline" },
+    },
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.flow_metrics.net_liquidity_impulse_13w || [],
+      name: "NetLiq Impulse (13W)",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#10b981", width: 2, shape: "spline" },
+    },
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.flow_metrics.cli_momentum_4w || [],
+      name: "CLI Momentum (4W)",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#f59e0b", width: 2, shape: "spline" },
+      yaxis: "y2",
+    },
+    ...(btcRocTrace ? [btcRocTrace] : []),
+  ];
+
+  $: impulseData = filterPlotlyData(
+    impulseDataRaw,
+    $dashboardData.dates,
+    impulseRange,
+  );
+
+  $: impulseLayout = {
+    yaxis: {
+      title: "Impulse ($ Trillion)",
+      gridcolor: darkMode ? "#334155" : "#e2e8f0",
+    },
+    yaxis2: {
+      title: "CLI Momentum (ΔZ)",
+      overlaying: "y",
+      side: "right",
+      showgrid: false,
+    },
+    margin: { t: 30, b: 30, l: 50, r: 50 },
+    legend: { orientation: "h", y: 1.1 },
+  };
+
+  // Macro Regime Logic
+  $: currentRegimeId = (() => {
+    const gli = $dashboardData.flow_metrics?.gli_impulse_13w;
+    const netliq = $dashboardData.flow_metrics?.net_liquidity_impulse_13w;
+    const cli = $dashboardData.flow_metrics?.cli_momentum_4w;
+    const accel = $dashboardData.flow_metrics?.gli_accel;
+
+    if (!gli || !netliq || !cli || gli.length === 0) return "neutral";
+
+    const lastGli = gli[gli.length - 1] || 0;
+    const lastNetliq = netliq[netliq.length - 1] || 0;
+    const lastCli = cli[cli.length - 1] || 0;
+    const lastAccel = accel ? accel[accel.length - 1] || 0 : 0;
+
+    // Highest Priority: Extreme Regimes (Full Consensus)
+    if (lastGli > 0 && lastNetliq > 0 && lastCli > 0) return "bullish";
+    if (lastGli < 0 && lastNetliq < 0 && lastCli < 0) return "bearish";
+
+    // Secondary: Logic of "Turning points" (Acceleration precedes level)
+    if (lastGli < 0 && lastAccel > 0) return "early_warning";
+    if (lastGli > 0 && lastAccel < 0) return "losing_steam";
+
+    // Tertiary: Divergences (Regional variations)
+    if (lastGli > 0 && lastNetliq < 0) return "global_inj";
+    if (lastGli < 0 && lastNetliq > 0) return "us_inj";
+
+    return "neutral";
+  })();
+
+  $: currentRegime = (() => {
+    const isEs = language === "es";
+    switch (currentRegimeId) {
+      case "bullish":
+        return {
+          name: currentTranslations.regime_bullish,
+          emoji: "🐂",
+          color: "bullish",
+          desc: isEs
+            ? "Expansión total de liquidez: Los Bancos Centrales inyectan, el 'plumbing' de EE.UU. apoya y el crédito se relaja."
+            : "Full Liquidity Expansion: Central Banks are injecting, US plumbing is supportive, and credit conditions are easing.",
+          details: isEs
+            ? "Alta probabilidad de soporte de tendencia para activos de riesgo."
+            : "High probability trend support for risk assets.",
+        };
+      case "bearish":
+        return {
+          name: currentTranslations.regime_bearish,
+          emoji: "🐻",
+          color: "bearish",
+          desc: isEs
+            ? "Contracción total de liquidez: QT global activo, drenaje en EE.UU. y endurecimiento del crédito."
+            : "Full Liquidity Contraction: Global QT is active, US plumbing is draining, and credit is tightening.",
+          details: isEs
+            ? "Viento en contra estructural para Bitcoin y renta variable."
+            : "Structural headwind for Bitcoin and equities.",
+        };
+      case "global_inj":
+        return {
+          name: currentTranslations.regime_global_inj,
+          emoji: "🌍",
+          color: "global_inj",
+          desc: isEs
+            ? "Divergencia: El resto del mundo inyecta liquidez, pero el sistema de EE.UU. (Net Liq) sigue drenando."
+            : "Divergence: Rest of the world is injecting liquidity, but US plumbing (Net Liq) remains a drag.",
+          details: isEs
+            ? "Probable comportamiento errático; foco en fortaleza relativa."
+            : "Choppy market behavior likely; focus on relative strength.",
+        };
+      case "us_inj":
+        return {
+          name: currentTranslations.regime_us_inj,
+          emoji: "🇺🇸",
+          color: "us_inj",
+          desc: isEs
+            ? "Divergencia: El 'plumbing' de EE.UU. apoya (vía TGA/RRP), pero los Bancos Globales no acompañan."
+            : "Divergence: US plumbing is supportive (via TGA/RRP), but Global CBs are not following suit.",
+          details: isEs
+            ? "Rallies frágiles impulsados por cambios técnicos domésticos."
+            : "Fragile rallies driven by domestic plumbing shifts.",
+        };
+      case "early_warning":
+        return {
+          name: currentTranslations.regime_early_warning,
+          emoji: "⚠️",
+          color: "early_warning",
+          desc: isEs
+            ? "Cambio de Velocidad: La liquidez aún se contrae, pero el ritmo se está frenando (aceleración positiva)."
+            : "Change in Velocity: Liquidity is still contracting, but the pace is slowing down (positive acceleration).",
+          details: isEs
+            ? "Señal temprana de suelo potencial o cambio de régimen."
+            : "Early signal of a potential bottom or regime shift.",
+        };
+      case "losing_steam":
+        return {
+          name: currentTranslations.regime_losing_steam,
+          emoji: "🌬️",
+          color: "losing_steam",
+          desc: isEs
+            ? "Agotamiento de Momentum: La liquidez se expande, pero a un ritmo decreciente (aceleración negativa)."
+            : "Momentum Fade: Liquidity is expanding, but at a decreasing rate (negative acceleration).",
+          details: isEs
+            ? "Fatiga de tendencia; vigilar posibles techos locales."
+            : "Trend fatigue; watch for local tops.",
+        };
+      default:
+        return {
+          name: currentTranslations.regime_neutral,
+          emoji: "⚖️",
+          color: "neutral",
+          desc: isEs
+            ? "Neutral / Transición: Sin vectores claros de dominancia en los flujos de liquidez o crédito."
+            : "Neutral / Transition: No clear dominance in liquidity or credit impulse vectors.",
+          details: isEs
+            ? "Esperar confirmación de tendencia."
+            : "Wait for trend confirmation.",
+        };
+    }
+  })();
 
   $: rbaDataRaw = [
     {
@@ -2011,6 +2285,50 @@
               </div>
 
               <div class="metrics-sidebar">
+                <!-- Data Health Panel -->
+                <div class="metrics-section data-health-section">
+                  <h4 style="display: flex; align-items: center; gap: 8px;">
+                    <span class="health-dot"></span>
+                    {currentTranslations.data_health}
+                  </h4>
+                  <table class="metrics-table health-table">
+                    <thead>
+                      <tr>
+                        <th>{currentTranslations.series}</th>
+                        <th>{currentTranslations.real_date}</th>
+                        <th>{currentTranslations.freshness}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {#each Object.entries($dashboardData.series_metadata || {}) as [id, meta]}
+                        <tr>
+                          <td><strong>{id}</strong></td>
+                          <td>{meta.last_date || "N/A"}</td>
+                          <td>
+                            <span
+                              class="freshness-tag"
+                              class:stale={meta.freshness > 7}
+                            >
+                              {meta.freshness === 0
+                                ? "Today"
+                                : (meta.freshness || "?") + "d"}
+                            </span>
+                          </td>
+                        </tr>
+                      {/each}
+                    </tbody>
+                  </table>
+                  {#if $dashboardData.series_metadata?.GLI?.cb_count}
+                    <div class="coverage-note">
+                      {currentTranslations.active_cbs}:
+                      <strong
+                        >{$dashboardData.series_metadata.GLI
+                          .cb_count}/15</strong
+                      >
+                    </div>
+                  {/if}
+                </div>
+
                 <div class="metrics-section">
                   <h4>{currentTranslations.chart_gli_comp}</h4>
                   <table class="metrics-table">
@@ -2417,101 +2735,84 @@
               <Chart {darkMode} data={cliComponentData} />
             </div>
           </div>
-        </div>
-      {:else if currentTab === "Global Flows CB"}
-        <div class="main-charts">
-          <div class="chart-card wide">
-            <div class="gli-layout">
-              <div class="chart-main">
-                <div class="chart-header">
-                  <h3>{currentTranslations.chart_gli_aggregate}</h3>
-                  <div class="header-controls">
-                    <TimeRangeSelector
-                      selectedRange={gliRange}
-                      onRangeChange={(r) => (gliRange = r)}
-                    />
-                    <span class="last-date"
-                      >{currentTranslations.last}: {getLastDate(
-                        "GLI_TOTAL",
-                      )}</span
-                    >
-                  </div>
-                </div>
-                <p class="chart-description">{currentTranslations.gli}</p>
-                <div class="chart-content">
-                  <Chart {darkMode} data={gliData} />
-                </div>
-              </div>
 
-              <div class="metrics-sidebar">
-                <div class="metrics-section">
-                  <h4>{currentTranslations.chart_gli_comp}</h4>
-                  <table class="metrics-table">
-                    <thead>
-                      <tr>
-                        <th>{currentTranslations.bank}</th>
-                        <th>{currentTranslations.weight}</th>
-                        <th>1M</th>
-                        <th title={currentTranslations.impact_1m}>Imp</th>
-                        <th>3M</th>
-                        <th title={currentTranslations.impact_3m}>Imp</th>
-                        <th>1Y</th>
-                        <th title={currentTranslations.impact_1y}>Imp</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {#each gliWeights.slice(0, 10) as bank}
-                        <tr>
-                          <td>{bank.name}</td>
-                          <td>{bank.weight.toFixed(0)}%</td>
-                          <td
-                            class="roc-val"
-                            class:positive={bank.m1 > 0}
-                            class:negative={bank.m1 < 0}
-                            >{bank.m1.toFixed(1)}%</td
-                          >
-                          <td
-                            class="roc-val impact-cell"
-                            class:positive={bank.imp1 > 0}
-                            class:negative={bank.imp1 < 0}
-                            >{bank.imp1.toFixed(2)}%</td
-                          >
-                          <td
-                            class="roc-val"
-                            class:positive={bank.m3 > 0}
-                            class:negative={bank.m3 < 0}
-                            >{bank.m3.toFixed(1)}%</td
-                          >
-                          <td
-                            class="roc-val impact-cell"
-                            class:positive={bank.imp3 > 0}
-                            class:negative={bank.imp3 < 0}
-                            >{bank.imp3.toFixed(2)}%</td
-                          >
-                          <td
-                            class="roc-val"
-                            class:positive={bank.y1 > 0}
-                            class:negative={bank.y1 < 0}
-                            >{bank.y1.toFixed(1)}%</td
-                          >
-                          <td
-                            class="roc-val impact-cell"
-                            class:positive={bank.imp1y > 0}
-                            class:negative={bank.imp1y < 0}
-                            >{bank.imp1y.toFixed(2)}%</td
-                          >
-                        </tr>
-                      {/each}
-                    </tbody>
-                  </table>
-                  <p style="font-size: 10px; color: #94a3b8; margin-top: 8px;">
-                    {currentTranslations.impact_note_gli}
-                  </p>
-                </div>
+          <div class="regime-card wide">
+            <div class="regime-header">
+              <span class="regime-title"
+                >{currentTranslations.regime_signal}</span
+              >
+              <div class="regime-badge bg-{currentRegime.color}">
+                <span>{currentRegime.emoji}</span>
+                <span>{currentRegime.name}</span>
               </div>
             </div>
+            <div class="regime-body">
+              <p class="regime-description">{currentRegime.desc}</p>
+              <p class="regime-details">{currentRegime.details}</p>
+            </div>
+            <div class="regime-glow glow-{currentRegime.color}"></div>
           </div>
 
+          <div class="chart-card wide">
+            <div class="chart-header">
+              <div class="label-group">
+                <h3>{currentTranslations.impulse_analysis}</h3>
+              </div>
+              <div class="header-controls">
+                <div
+                  class="control-group"
+                  style="display: flex; align-items: center; gap: 8px;"
+                >
+                  <span style="font-size: 11px; color: var(--text-muted);"
+                    >{currentTranslations.period}:</span
+                  >
+                  <select
+                    bind:value={btcRocPeriod}
+                    style="background: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); padding: 4px; border-radius: 4px; font-size: 11px;"
+                  >
+                    <option value={21}>1M</option>
+                    <option value={63}>3M</option>
+                    <option value={126}>6M</option>
+                    <option value={252}>1Y</option>
+                  </select>
+                </div>
+                <div
+                  class="control-group"
+                  style="display: flex; align-items: center; gap: 8px;"
+                >
+                  <span style="font-size: 11px; color: var(--text-muted);"
+                    >{currentTranslations.lag_days}:</span
+                  >
+                  <input
+                    type="range"
+                    min="-60"
+                    max="60"
+                    step="1"
+                    bind:value={btcLag}
+                    style="width: 80px;"
+                    title="{btcLag} days"
+                  />
+                  <span
+                    style="font-size: 11px; width: 25px; text-align: right; color: var(--text-primary);"
+                    >{btcLag}</span
+                  >
+                </div>
+                <TimeRangeSelector
+                  selectedRange={impulseRange}
+                  onRangeChange={(r) => (impulseRange = r)}
+                />
+              </div>
+            </div>
+            <p class="chart-description">
+              {currentTranslations.chart_impulse_desc}
+            </p>
+            <div class="chart-content">
+              <Chart {darkMode} data={impulseData} layout={impulseLayout} />
+            </div>
+          </div>
+        </div>
+      {:else if currentTab === "Global Flows CB"}
+        <div class="dashboard-grid no-margin">
           {#each [{ name: "Federal Reserve (Fed)", data: fedData, range: fedRange, setRange: (r) => (fedRange = r), bank: "FED" }, { name: "European Central Bank (ECB)", data: ecbData, range: ecbRange, setRange: (r) => (ecbRange = r), bank: "ECB" }, { name: "Bank of Japan (BoJ)", data: bojData, range: bojRange, setRange: (r) => (bojRange = r), bank: "BOJ" }, { name: "Bank of England (BoE)", data: boeData, range: boeRange, setRange: (r) => (boeRange = r), bank: "BOE" }, { name: "People's Bank of China (PBoC)", data: pbocData, range: pbocRange, setRange: (r) => (pbocRange = r), bank: "PBOC" }, { name: "Bank of Canada (BoC)", data: bocData, range: bocRange, setRange: (r) => (bocRange = r), bank: "BOC" }, { name: "Reserve Bank of Australia (RBA)", data: rbaData, range: rbaRange, setRange: (r) => (rbaRange = r), bank: "RBA" }, { name: "Swiss National Bank (SNB)", data: snbData, range: snbRange, setRange: (r) => (snbRange = r), bank: "SNB" }, { name: "Bank of Korea (BoK)", data: bokData, range: bokRange, setRange: (r) => (bokRange = r), bank: "BOK" }, { name: "Reserve Bank of India (RBI)", data: rbiData, range: rbiRange, setRange: (r) => (rbiRange = r), bank: "RBI" }, { name: "Central Bank of Russia (CBR)", data: cbrData, range: cbrRange, setRange: (r) => (cbrRange = r), bank: "CBR" }, { name: "Central Bank of Brazil (BCB)", data: bcbData, range: bcbRange, setRange: (r) => (bcbRange = r), bank: "BCB" }, { name: "Reserve Bank of New Zealand (RBNZ)", data: rbnzData, range: rbnzRange, setRange: (r) => (rbnzRange = r), bank: "RBNZ" }, { name: "Sveriges Riksbank (SR)", data: srData, range: srRange, setRange: (r) => (srRange = r), bank: "SR" }, { name: "Bank Negara Malaysia (BNM)", data: bnmData, range: bnmRange, setRange: (r) => (bnmRange = r), bank: "BNM" }] as item}
             <div class="chart-card">
               <div class="chart-header">
@@ -5495,6 +5796,60 @@
     color: #ef4444;
   }
 
+  /* Data Health Panel Styles */
+  .data-health-section {
+    border-left: 3px solid #10b981;
+    background: rgba(16, 185, 129, 0.03);
+    padding: 16px;
+    margin-bottom: 8px;
+  }
+
+  .health-dot {
+    width: 8px;
+    height: 8px;
+    background: #10b981;
+    border-radius: 50%;
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+    animation: pulse-green 2s infinite;
+  }
+
+  @keyframes pulse-green {
+    0% {
+      box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+    }
+    70% {
+      box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+    }
+  }
+
+  .health-table td {
+    border-bottom: 1px solid rgba(148, 163, 184, 0.1) !important;
+  }
+
+  .freshness-tag {
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+    font-size: 9px;
+    font-weight: 700;
+  }
+
+  .freshness-tag.stale {
+    background: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
+  }
+
+  .coverage-note {
+    margin-top: 12px;
+    font-size: 11px;
+    color: var(--text-muted);
+    text-align: right;
+  }
+
   @media (max-width: 1200px) {
     .gli-layout {
       grid-template-columns: 1fr;
@@ -5507,5 +5862,131 @@
   .total-row td {
     padding-top: 10px !important;
     padding-bottom: 10px !important;
+  }
+
+  /* Macro Regime Panel */
+  .regime-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--card-shadow);
+    margin-bottom: 24px;
+  }
+
+  .regime-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 16px;
+  }
+
+  .regime-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .regime-badge {
+    padding: 6px 14px;
+    border-radius: 99px;
+    font-size: 13px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: white;
+  }
+
+  .bg-bullish {
+    background: #10b981;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+  }
+  .bg-bearish {
+    background: #ef4444;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+  }
+  .bg-global_inj {
+    background: #3b82f6;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+  }
+  .bg-us_inj {
+    background: #8b5cf6;
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
+  }
+  .bg-early_warning {
+    background: #f59e0b;
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
+  }
+  .bg-losing_steam {
+    background: #6366f1;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+  }
+  .bg-neutral {
+    background: #94a3b8;
+    box-shadow: 0 4px 12px rgba(148, 163, 184, 0.2);
+  }
+
+  .regime-body {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .regime-description {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+
+  .regime-details {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-style: italic;
+  }
+
+  .regime-glow {
+    position: absolute;
+    top: -30px;
+    right: -30px;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    opacity: 0.15;
+    filter: blur(40px);
+    transition: all 0.5s ease;
+  }
+
+  .glow-bullish {
+    background: #10b981;
+  }
+  .glow-bearish {
+    background: #ef4444;
+  }
+  .glow-global_inj {
+    background: #3b82f6;
+  }
+  .glow-us_inj {
+    background: #8b5cf6;
+  }
+  .glow-early_warning {
+    background: #f59e0b;
+  }
+  .glow-losing_steam {
+    background: #6366f1;
+  }
+  .glow-neutral {
+    background: #94a3b8;
   }
 </style>

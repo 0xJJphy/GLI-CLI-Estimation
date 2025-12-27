@@ -68,7 +68,18 @@ export const dashboardData = writable({
         ecb_contrib_13w: [],
         boj_contrib_13w: [],
         pboc_contrib_13w: [],
-        boe_contrib_13w: []
+        boe_contrib_13w: [],
+        net_liquidity_impulse_4w: [],
+        net_liquidity_impulse_13w: [],
+        cli_momentum_4w: [],
+        cli_momentum_13w: []
+    },
+    series_metadata: {
+        GLI: { last_date: null, freshness: null, cb_count: 0 },
+        M2: { last_date: null, freshness: null },
+        CLI: { last_date: null, freshness: null },
+        NET_LIQ: { last_date: null, freshness: null },
+        BTC: { last_date: null, freshness: null }
     },
     us_system_rocs: {
         fed: {}, rrp: {}, tga: {}

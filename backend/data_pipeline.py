@@ -7,6 +7,28 @@ from fredapi import Fred
 from dotenv import load_dotenv
 import json
 import time
+import logging
+from typing import Dict, List, Any, Optional
+
+# Helper functions for JSON serialization and date handling
+def clean_for_json(obj):
+    if isinstance(obj, pd.Series):
+        # Return None (null in JSON) instead of 0 for NaN/Inf to avoid invalid JSON
+        return [float(x) if pd.notnull(x) and np.isfinite(x) else None for x in obj.tolist()]
+    elif isinstance(obj, dict):
+        return {k: clean_for_json(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [clean_for_json(x) for x in obj]
+    return obj
+
+def get_safe_last_date(series):
+    try:
+        valid = series.dropna()
+        if not valid.empty:
+            return valid.index[-1].strftime('%Y-%m-%d')
+    except:
+        pass
+    return "N/A"
 
 # tvDatafeed import
 try:
@@ -359,7 +381,7 @@ def calculate_gli_constant_fx(df):
         'CBR': 0.016 / 1e12,      # RUB -> USD -> Trillions
         'BCB': 0.25 / 1e12,       # BRL -> USD -> Trillions
         'BOK': 0.00087 / 1e12,    # KRW -> USD -> Trillions
-        'RBNZ': 0.67 / 1e12,      # NZD -> USD -> Trillions
+        'RBNZ': 0.67 / 1e12,     # NZD -> USD -> Trillions
         'SR': 0.107 / 1e12,       # SEK -> USD -> Trillions
         'BNM': 0.24 / 1e12,       # MYR -> USD -> Trillions
     }
@@ -516,16 +538,12 @@ def calculate_global_m2(df):
         return pd.Series(dtype=float)
     
     # Major 4 M2s
-    res['US_M2_USD'] = df.get('USM2', 0) / 1e3  # Already in USD billions
+    res['US_M2_USD'] = convert_m2('USM2', None, 1.0)
     res['EU_M2_USD'] = convert_m2('EUM2', 'EURUSD', 1.08)
     res['CN_M2_USD'] = convert_m2('CNM2', 'CNYUSD', 0.14)
     
     # Japan M2 uses JPYUSD
-    if 'JPM2' in df.columns:
-        if 'JPYUSD' in df.columns:
-            res['JP_M2_USD'] = (df['JPM2'] * df['JPYUSD']) / 1e3
-        else:
-            res['JP_M2_USD'] = df['JPM2'] / 150e3  # Fallback
+    res['JP_M2_USD'] = convert_m2('JPM2', 'JPYUSD', 0.0067)
     
     # Additional 10 M2s (matching PineScript "other_m2_active")
     res['UK_M2_USD'] = convert_m2('GBM2', 'GBPUSD', 1.27)
@@ -787,9 +805,15 @@ def calculate_flow_metrics(df):
         return (s - s.rolling(252, min_periods=100).mean()) / s.rolling(252, min_periods=100).std().replace(0, np.nan)
     
     # 1. Impulse (Δ in $T) for major aggregates
-    for col in ['GLI_TOTAL', 'M2_TOTAL']:
+    for col in ['GLI_TOTAL', 'M2_TOTAL', 'NET_LIQUIDITY', 'CLI']:
         s = df.get(col, pd.Series(dtype=float))
         if not s.empty:
+            if col == 'CLI':
+                # CLI is a Z-score, so impulse is a diff of z-score
+                result['cli_momentum_4w'] = s.diff(20)
+                result['cli_momentum_13w'] = s.diff(65)
+                continue
+                
             key = col.lower().replace('_total', '')
             result[f'{key}_impulse_4w'] = s.diff(20)   # 4W = 20 days
             result[f'{key}_impulse_13w'] = s.diff(65)  # 13W = 65 days
@@ -1458,9 +1482,31 @@ def run_pipeline():
         flow_df = pd.DataFrame({
             'GLI_TOTAL': gli['GLI_TOTAL'],
             'M2_TOTAL': m2_data.get('M2_TOTAL', pd.Series(dtype=float)),
+            'NET_LIQUIDITY': us_net_liq.get('NET_LIQUIDITY', pd.Series(dtype=float)),
+            'CLI': df_t.get('CLI', pd.Series(dtype=float)),
             **{f'{cb}_USD': df_t.get(f'{cb}_USD', pd.Series(dtype=float)) for cb in ['FED', 'ECB', 'BOJ', 'PBOC', 'BOE', 'BOC', 'RBA', 'SNB', 'CBR', 'BCB', 'BOK', 'RBI', 'RBNZ', 'SR', 'BNM']}
         }).ffill()
-        flow_metrics = calculate_flow_metrics(flow_df)
+        flow_metrics = {k: clean_for_json(v) for k, v in calculate_flow_metrics(flow_df).items()}
+
+        # Helper for Series Metadata (Last Real Date & Coverage)
+        def get_series_info(series, df_ref):
+            if series is None or series.empty:
+                return {"last_date": None, "freshness": None}
+            # Find the last non-NaN index in the RAW data before ffill
+            last_idx = series.dropna().index[-1] if not series.dropna().empty else None
+            if last_idx:
+                last_date_str = last_idx.strftime('%Y-%m-%d')
+                days_ago = (df_ref.index[-1] - last_idx).days
+                return {"last_date": last_date_str, "freshness": days_ago}
+            return {"last_date": None, "freshness": None}
+
+        series_metadata = {
+            "GLI": get_series_info(gli['GLI_TOTAL'], df_t) | {"cb_count": int(df_t.get('CB_COUNT', pd.Series([0])).iloc[-1])},
+            "M2": get_series_info(m2_data.get('M2_TOTAL'), df_t),
+            "CLI": get_series_info(df_t.get('CLI'), df_t),
+            "NET_LIQ": get_series_info(us_net_liq.get('NET_LIQUIDITY'), df_t),
+            "BTC": get_series_info(df_t.get('BTC'), df_t)
+        }
 
         # JSON structure (same as before)
         # Identify all active M2 columns
@@ -1469,24 +1515,9 @@ def run_pipeline():
         
         gli_rocs = calculate_rocs(gli['GLI_TOTAL'])
         m2_rocs_total = calculate_rocs(m2_data.get('M2_TOTAL', pd.Series(dtype=float)))
+        # Net Liquidity ROCs (for the sidebar)
         net_liq_rocs = calculate_rocs(us_net_liq['NET_LIQUIDITY'])
         
-        def clean_for_json(obj):
-            if isinstance(obj, pd.Series):
-                # Return None (null in JSON) instead of 0 for NaN/Inf to avoid invalid JSON
-                return [float(x) if pd.notnull(x) and np.isfinite(x) else None for x in obj.tolist()]
-            return obj
-
-        # Helper for safer last date extraction
-        def get_safe_last_date(series):
-            try:
-                valid = series.dropna()
-                if not valid.empty:
-                    return valid.index[-1].strftime('%Y-%m-%d')
-            except:
-                pass
-            return "N/A"
-
         data_output = {
             'dates': df_t.index.strftime('%Y-%m-%d').tolist(),
             'last_dates': {k: get_safe_last_date(df_t[k]) for k in df_t.columns},
@@ -1669,6 +1700,11 @@ def run_pipeline():
                 },
                 'rocs': {k: clean_for_json(v) for k, v in btc_rocs.items()} if btc_rocs else {}
             },
+            'flow_metrics': clean_for_json(flow_metrics),
+            'reserves_metrics': clean_for_json(reserves_metrics),
+            'us_system_metrics': clean_for_json(us_system_metrics),
+            'series_metadata': series_metadata,
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'correlations': correlations,
             'predictive': predictive
         }
