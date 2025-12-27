@@ -755,6 +755,16 @@ def calculate_us_system_metrics(df):
     result['rrp_zscore'] = rrp_z
     result['tga_zscore_norm'] = tga_z
     
+    # 7. Absolute $ changes (avoid % base effect issues for RRP/TGA)
+    result['rrp_delta_4w'] = rrp.diff(20)   # 4 weeks = 20 trading days
+    result['rrp_delta_13w'] = rrp.diff(65)  # 13 weeks = 65 trading days
+    result['tga_delta_4w'] = tga.diff(20)
+    result['tga_delta_13w'] = tga.diff(65)
+    
+    # 8. Net Liquidity Impulse (Δ in $T - most useful for trading)
+    result['netliq_delta_4w'] = net_liq.diff(20)   # Δ4W NetLiq ($T)
+    result['netliq_delta_13w'] = net_liq.diff(65)  # Δ13W NetLiq ($T)
+    
     return result
 
 
@@ -1491,6 +1501,14 @@ def run_pipeline():
                 'tga_zscore': clean_for_json(us_system_metrics.get('tga_zscore', pd.Series(dtype=float))),
                 'fed_momentum': clean_for_json(us_system_metrics.get('fed_momentum', pd.Series(dtype=float))),
                 'liquidity_score': clean_for_json(us_system_metrics.get('liquidity_score', pd.Series(dtype=float))),
+                # Absolute $ deltas (avoid % base effect)
+                'rrp_delta_4w': clean_for_json(us_system_metrics.get('rrp_delta_4w', pd.Series(dtype=float))),
+                'rrp_delta_13w': clean_for_json(us_system_metrics.get('rrp_delta_13w', pd.Series(dtype=float))),
+                'tga_delta_4w': clean_for_json(us_system_metrics.get('tga_delta_4w', pd.Series(dtype=float))),
+                'tga_delta_13w': clean_for_json(us_system_metrics.get('tga_delta_13w', pd.Series(dtype=float))),
+                # Net Liquidity Impulse ($T)
+                'netliq_delta_4w': clean_for_json(us_system_metrics.get('netliq_delta_4w', pd.Series(dtype=float))),
+                'netliq_delta_13w': clean_for_json(us_system_metrics.get('netliq_delta_13w', pd.Series(dtype=float))),
             },
             'us_system_rocs': (lambda total_nl: {
                 comp: {

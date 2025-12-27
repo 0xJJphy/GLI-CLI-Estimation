@@ -45,7 +45,15 @@ export const dashboardData = writable({
         rrp_weeks_to_empty: [],
         tga_zscore: [],
         fed_momentum: [],
-        liquidity_score: []
+        liquidity_score: [],
+        // Absolute $ deltas (avoid % base effect)
+        rrp_delta_4w: [],
+        rrp_delta_13w: [],
+        tga_delta_4w: [],
+        tga_delta_13w: [],
+        // Net Liquidity Impulse ($T)
+        netliq_delta_4w: [],
+        netliq_delta_13w: []
     },
     us_system_rocs: {
         fed: {}, rrp: {}, tga: {}
