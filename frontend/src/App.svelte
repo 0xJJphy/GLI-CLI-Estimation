@@ -950,8 +950,8 @@
 
     const dates = $dashboardData.dates;
     const prices = $dashboardData.btc.price;
-    // Use new multi-factor macro regime
-    const regimeCode = $dashboardData.macro_regime?.regime_code || [];
+    // Use new multi-factor macro regime SCORE for gradient coloring
+    const regimeScore = $dashboardData.macro_regime?.score || [];
 
     const bgData = [];
     const btcData = [];
@@ -963,6 +963,29 @@
       return d.toISOString().split("T")[0];
     };
 
+    // Helper: Convert score (0-100) to gradient color
+    // score < 50 = soft red (more red as score approaches 0)
+    // score > 50 = soft green (more green as score approaches 100)
+    // score = 50 = neutral grey
+    const scoreToColor = (score) => {
+      if (score === null || score === undefined) return null;
+
+      const deviation = (score - 50) / 50; // -1 to +1
+      const absDeviation = Math.abs(deviation);
+      const alpha = 0.05 + absDeviation * 0.15; // 0.05 to 0.20 opacity
+
+      if (deviation > 0.02) {
+        // Green gradient (bullish lean)
+        return `rgba(16, 185, 129, ${alpha.toFixed(2)})`;
+      } else if (deviation < -0.02) {
+        // Red gradient (bearish lean)
+        return `rgba(239, 68, 68, ${alpha.toFixed(2)})`;
+      } else {
+        // Neutral grey (very close to 50)
+        return `rgba(148, 163, 184, 0.06)`;
+      }
+    };
+
     const lastDate = dates[dates.length - 1];
 
     // BTC Price Data (Normal loop)
@@ -972,24 +995,21 @@
       }
     }
 
-    // Regime Background Data (Extended loop)
+    // Regime Background Data (Extended loop with offset)
     // Signal at index 'i' determines Regime at 'i + regimeLag'.
     for (let i = 0; i < dates.length; i++) {
-      const code = regimeCode[i];
-      if (code !== undefined && code !== null) {
-        let color = "rgba(148, 163, 184, 0.08)"; // Neutral (code == 0)
-        if (code === 1)
-          color = "rgba(16, 185, 129, 0.15)"; // Expansion (Green)
-        else if (code === -1) color = "rgba(239, 68, 68, 0.15)"; // Contraction (Red)
+      const score = regimeScore[i];
+      const color = scoreToColor(score);
 
-        // Calculate Target Date
+      if (color) {
+        // Calculate Target Date with offset
         let targetDate;
         const targetIdx = i + regimeLag;
 
         if (targetIdx < dates.length) {
           targetDate = dates[targetIdx];
         } else {
-          // Future projection
+          // Future projection beyond available dates
           if (lastDate) {
             const daysToAdd = targetIdx - (dates.length - 1);
             targetDate = addDays(lastDate, daysToAdd);
