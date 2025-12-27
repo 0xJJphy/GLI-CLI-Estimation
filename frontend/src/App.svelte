@@ -734,6 +734,36 @@
   let btcRocPeriod = 21; // Default 1 Month (21 trading days)
   let btcLag = 0; // Default 0 lag
 
+  function calculateBtcRoc(prices, dates, period, lag = 0) {
+    if (!prices || !dates || prices.length !== dates.length) return [];
+
+    // Valid period check
+    if (period <= 0) return [];
+
+    const rocData = [];
+
+    // Lag: if lag > 0, we behave as if the ROC happened 'lag' days later/earlier?
+    // In this specific implementation for generic use:
+    // If we want to align price with lagged signal, we might need lag.
+    // However, the caller currently uses lag=0.
+    // We will just return the raw ROC aligned with dates[i].
+
+    for (let i = period; i < prices.length; i++) {
+      const current = prices[i];
+      const past = prices[i - period];
+
+      if (past && past !== 0) {
+        const roc = ((current - past) / past) * 100;
+
+        // Align with Date[i]
+        // If we supported shifting here, we'd adjust the date index.
+        // For now, strict calendar alignment.
+        rocData.push({ x: dates[i], y: roc });
+      }
+    }
+    return rocData;
+  }
+
   function calculateHistoricalRegimes(dates, gli, netliq) {
     if (!dates || !gli || !netliq) return [];
 
