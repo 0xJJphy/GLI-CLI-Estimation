@@ -1037,8 +1037,11 @@
     ];
   }
 
-  // Reactive regime chart data - regimeLag is now explicitly in the reactive expression
+  // Reactive regime chart data - ALL LOGIC INLINE for proper regimeLag reactivity
   $: regimeLCData = (() => {
+    // Explicitly reference regimeLag at the TOP for Svelte to track it
+    const currentOffset = regimeLag;
+
     if (!$dashboardData.dates || !$dashboardData.btc?.price) return [];
 
     const dates = $dashboardData.dates;
@@ -1046,8 +1049,85 @@
     const regimeScore = $dashboardData.macro_regime?.score || [];
     const lastDate = dates[dates.length - 1];
 
-    // regimeLag is accessed here at top level for Svelte reactivity
-    return buildRegimeLCData(dates, prices, regimeScore, regimeLag, lastDate);
+    const bgData = [];
+    const btcData = [];
+
+    // Helper to add days to YYYY-MM-DD
+    const addDays = (dateStr, days) => {
+      const d = new Date(dateStr);
+      d.setDate(d.getDate() + days);
+      return d.toISOString().split("T")[0];
+    };
+
+    // Helper: Convert score (0-100) to gradient color
+    const scoreToColor = (score) => {
+      if (score === null || score === undefined) return null;
+
+      const deviation = (score - 50) / 50; // -1 to +1
+      const absDeviation = Math.abs(deviation);
+      const alpha = 0.08 + absDeviation * 0.18; // 0.08 to 0.26 opacity
+
+      if (deviation > 0.02) {
+        return `rgba(16, 185, 129, ${alpha.toFixed(2)})`; // Green
+      } else if (deviation < -0.02) {
+        return `rgba(239, 68, 68, ${alpha.toFixed(2)})`; // Red
+      } else {
+        return `rgba(148, 163, 184, 0.08)`; // Neutral grey
+      }
+    };
+
+    // BTC Price Data
+    for (let i = 0; i < dates.length; i++) {
+      if (prices[i] !== undefined && prices[i] !== null) {
+        btcData.push({ time: dates[i], value: prices[i] });
+      }
+    }
+
+    // Regime Background Data with offset
+    for (let i = 0; i < regimeScore.length && i < dates.length; i++) {
+      const score = regimeScore[i];
+      const color = scoreToColor(score);
+
+      if (color) {
+        // Map signal date to projected date with offset
+        let targetDate;
+        const targetIdx = i + currentOffset;
+
+        if (targetIdx < dates.length) {
+          targetDate = dates[targetIdx];
+        } else if (lastDate) {
+          const daysToAdd = targetIdx - (dates.length - 1);
+          targetDate = addDays(lastDate, daysToAdd);
+        }
+
+        if (targetDate) {
+          bgData.push({ time: targetDate, value: 1, color });
+        }
+      }
+    }
+
+    return [
+      {
+        name: "Regime",
+        type: "histogram",
+        data: bgData,
+        color: "transparent",
+        options: {
+          priceScaleId: "left",
+          priceFormat: { type: "custom", formatter: () => "" },
+          scaleMargins: { top: 0, bottom: 0 },
+        },
+      },
+      {
+        name: "BTC Price",
+        type: "area",
+        data: btcData,
+        color: "#94a3b8",
+        topColor: "rgba(148, 163, 184, 0.4)",
+        bottomColor: "rgba(148, 163, 184, 0.01)",
+        width: 2,
+      },
+    ];
   })();
 
   // --- Signal Lagging Logic ---
@@ -1255,6 +1335,25 @@
     // Get the latest score from the backend
     const latest = macroRegime.score[macroRegime.score.length - 1];
     return latest !== null && latest !== undefined ? latest : 50;
+  })();
+
+  // Regime diagnostic values (latest z-scores for display)
+  $: regimeDiagnostics = (() => {
+    const mr = $dashboardData.macro_regime;
+    if (!mr) return { liquidity_z: 0, credit_z: 0, brakes_z: 0, total_z: 0 };
+
+    const getLatest = (arr) => {
+      if (!arr || arr.length === 0) return 0;
+      const val = arr[arr.length - 1];
+      return val !== null && val !== undefined ? val : 0;
+    };
+
+    return {
+      liquidity_z: getLatest(mr.liquidity_z),
+      credit_z: getLatest(mr.credit_z),
+      brakes_z: getLatest(mr.brakes_z),
+      total_z: getLatest(mr.total_z),
+    };
   })();
 
   // Macro Regime Logic - Now uses backend multi-factor regime_code
@@ -3178,9 +3277,89 @@
                 <p style="margin: 0; color: #10b981;">
                   • {currentTranslations.regime_score_bullish}
                 </p>
-                <p style="margin: 0; color: #ef4444;">
+                <p style="margin: 0 0 8px 0; color: #ef4444;">
                   • {currentTranslations.regime_score_bearish}
                 </p>
+
+                <!-- Live Z-Score Values -->
+                <div
+                  style="margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-color, rgba(255,255,255,0.1));"
+                >
+                  <p
+                    style="margin: 0 0 4px 0; font-size: 10px; color: var(--text-muted);"
+                  >
+                    {language === "es"
+                      ? "Valores Actuales:"
+                      : "Current Values:"}
+                  </p>
+                  <div
+                    style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;"
+                  >
+                    <span
+                      style="color: {regimeDiagnostics.liquidity_z >= 0
+                        ? '#10b981'
+                        : '#ef4444'};"
+                    >
+                      Liquidity: {regimeDiagnostics.liquidity_z >= 0
+                        ? "+"
+                        : ""}{regimeDiagnostics.liquidity_z.toFixed(2)}
+                      → {regimeDiagnostics.liquidity_z >= 0
+                        ? language === "es"
+                          ? "Expansión"
+                          : "Expansion"
+                        : language === "es"
+                          ? "Contracción"
+                          : "Contraction"}
+                    </span>
+                    <span
+                      style="color: {regimeDiagnostics.credit_z >= 0
+                        ? '#10b981'
+                        : '#ef4444'};"
+                    >
+                      Credit: {regimeDiagnostics.credit_z >= 0
+                        ? "+"
+                        : ""}{regimeDiagnostics.credit_z.toFixed(2)}
+                      → {regimeDiagnostics.credit_z >= 0
+                        ? language === "es"
+                          ? "Relajándose"
+                          : "Easing"
+                        : language === "es"
+                          ? "Endureciéndose"
+                          : "Tightening"}
+                    </span>
+                    <span
+                      style="color: {regimeDiagnostics.brakes_z >= 0
+                        ? '#10b981'
+                        : '#ef4444'};"
+                    >
+                      Brakes: {regimeDiagnostics.brakes_z >= 0
+                        ? "+"
+                        : ""}{regimeDiagnostics.brakes_z.toFixed(2)}
+                      → {regimeDiagnostics.brakes_z >= 0
+                        ? language === "es"
+                          ? "Sin estrés"
+                          : "No stress"
+                        : language === "es"
+                          ? "Estrés"
+                          : "Stress"}
+                    </span>
+                    <span
+                      style="font-weight: 600; color: {regimeDiagnostics.total_z >=
+                      0
+                        ? '#10b981'
+                        : '#ef4444'};"
+                    >
+                      Total Z: {regimeDiagnostics.total_z >= 0
+                        ? "+"
+                        : ""}{regimeDiagnostics.total_z.toFixed(2)}
+                      → {regimeDiagnostics.total_z > 0.5
+                        ? "🐂"
+                        : regimeDiagnostics.total_z < -0.5
+                          ? "🐻"
+                          : "⚖️"}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
 

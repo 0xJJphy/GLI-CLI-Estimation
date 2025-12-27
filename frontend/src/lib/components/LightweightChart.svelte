@@ -207,18 +207,21 @@
         const currentLogScaleValue = logScale;
         const currentDataValue = data;
 
-        // Create a key that includes series names and sample values to detect deep changes
+        // Create a key that includes series names, times, and values to detect deep changes
         const getSeriesKey = (seriesArr) => {
             if (!seriesArr) return "";
             return seriesArr
                 .map((s) => {
                     const vals = s.data || [];
-                    // Include first, last, and a middle value for change detection
+                    // Include first, last, and middle time+value for change detection
                     const sample =
                         vals.length > 0
                             ? [
+                                  vals[0]?.time,
                                   vals[0]?.value,
+                                  vals[Math.floor(vals.length / 2)]?.time,
                                   vals[Math.floor(vals.length / 2)]?.value,
+                                  vals[vals.length - 1]?.time,
                                   vals[vals.length - 1]?.value,
                               ]
                             : [];
