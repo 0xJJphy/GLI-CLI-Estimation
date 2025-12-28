@@ -6,9 +6,9 @@
 export { default as GlobalFlowsCbTab } from './GlobalFlowsCbTab.svelte';
 export { default as GlobalM2Tab } from './GlobalM2Tab.svelte';
 export { default as RiskModelTab } from './RiskModelTab.svelte';
+export { default as UsSystemTab } from './UsSystemTab.svelte';
+export { default as BtcAnalysisTab } from './BtcAnalysisTab.svelte';
+export { default as BtcQuantV2Tab } from './BtcQuantV2Tab.svelte';
 
-// Additional tabs to be added:
+// Dashboard tab is the most complex - requires further decomposition
 // export { default as DashboardTab } from './DashboardTab.svelte';
-// export { default as UsSystemTab } from './UsSystemTab.svelte';
-// export { default as BtcAnalysisTab } from './BtcAnalysisTab.svelte';
-// export { default as BtcQuantV2Tab } from './BtcQuantV2Tab.svelte';
