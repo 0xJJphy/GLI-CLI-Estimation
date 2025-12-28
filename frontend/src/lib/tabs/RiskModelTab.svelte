@@ -145,60 +145,163 @@
         return shapes;
     }
 
-    function calculateSignalArray(
-        zScores,
-        {
-            bullishThreshold = 1.0,
-            bearishThreshold = -1.0,
-            invertLogic = false,
-            requireMomentum = false,
-            momentumBars = 21,
-        } = {},
+    function createPercentileBands(
+        darkMode,
+        { bullishPct = 70, bearishPct = 30, invert = false } = {},
     ) {
-        if (!zScores || !Array.isArray(zScores)) return [];
-        return zScores.map((z, i) => {
-            if (z === null || z === undefined || !Number.isFinite(z))
-                return "neutral";
-            let momentumOk = true;
-            if (requireMomentum && i >= momentumBars) {
-                const prev = zScores[i - momentumBars];
-                if (Number.isFinite(prev)) {
-                    const momentum = z - prev;
-                    if (z > bullishThreshold && momentum < 0)
-                        momentumOk = false;
-                    if (z < bearishThreshold && momentum > 0)
-                        momentumOk = false;
-                }
-            }
-            if (!momentumOk) return "neutral";
-            if (invertLogic) {
-                if (z < -Math.abs(bullishThreshold)) return "bullish";
-                if (z > Math.abs(bearishThreshold)) return "bearish";
-            } else {
-                if (z > bullishThreshold) return "bullish";
-                if (z < bearishThreshold) return "bearish";
-            }
-            return "neutral";
-        });
+        const greenColor = darkMode
+            ? "rgba(16, 185, 129, 0.10)"
+            : "rgba(16, 185, 129, 0.12)";
+        const redColor = darkMode
+            ? "rgba(239, 68, 68, 0.10)"
+            : "rgba(239, 68, 68, 0.12)";
+
+        // For inverted series (VIX, spreads): low = green
+        const topColor = invert ? redColor : greenColor;
+        const bottomColor = invert ? greenColor : redColor;
+
+        return [
+            {
+                type: "rect",
+                xref: "paper",
+                yref: "y",
+                x0: 0,
+                x1: 1,
+                y0: bullishPct,
+                y1: 100,
+                fillcolor: topColor,
+                line: { width: 0 },
+                layer: "below",
+            },
+            {
+                type: "rect",
+                xref: "paper",
+                yref: "y",
+                x0: 0,
+                x1: 1,
+                y0: 0,
+                y1: bearishPct,
+                fillcolor: bottomColor,
+                line: { width: 0 },
+                layer: "below",
+            },
+            {
+                type: "line",
+                xref: "paper",
+                yref: "y",
+                x0: 0,
+                x1: 1,
+                y0: 50,
+                y1: 50,
+                line: {
+                    color: darkMode
+                        ? "rgba(148, 163, 184, 0.4)"
+                        : "rgba(100, 116, 139, 0.4)",
+                    width: 1,
+                    dash: "dot",
+                },
+                layer: "below",
+            },
+        ];
     }
 
-    // Chart data
+    const PERCENTILE_CONFIG = {
+        cli: { bullishPct: 70, bearishPct: 30, invert: false },
+        hy_spread: { bullishPct: 30, bearishPct: 70, invert: true },
+        ig_spread: { bullishPct: 30, bearishPct: 70, invert: true },
+        nfci_credit: { bullishPct: 30, bearishPct: 60, invert: true },
+        nfci_risk: { bullishPct: 30, bearishPct: 80, invert: true },
+        lending: { bullishPct: 40, bearishPct: 60, invert: true },
+        vix: { bullishPct: 25, bearishPct: 90, invert: true },
+        tips_real: { bullishPct: 30, bearishPct: 75, invert: true },
+    };
+
+    // Chart data - Z-Score
     export let cliData = [];
+    export let cliPercentileData = [];
     export let hyZData = [];
+    export let hyPctData = [];
     export let igZData = [];
+    export let igPctData = [];
     export let nfciCreditZData = [];
+    export let nfciCreditPctData = [];
     export let nfciRiskZData = [];
+    export let nfciRiskPctData = [];
     export let lendingZData = [];
+    export let lendingPctData = [];
     export let vixZData = [];
+    export let vixPctData = [];
     export let tipsData = [];
     export let tipsLayout = {};
     export let repoStressData = [];
+
+    // View mode per chart: 'zscore' or 'percentile'
+    let cliViewMode = "zscore";
+    let hyViewMode = "zscore";
+    let igViewMode = "zscore";
+    let nfciCreditViewMode = "zscore";
+    let nfciRiskViewMode = "zscore";
+    let lendingViewMode = "zscore";
+    let vixViewMode = "zscore";
 
     // Last date lookup function
     export let getLastDate = (bank) => "N/A";
     export let getLatestValue = (arr) => arr?.[arr?.length - 1] ?? 0;
     export let getLatestROC = (rocs, period) =>
         rocs?.[period]?.[rocs?.[period]?.length - 1] ?? 0;
+
+    // Signal justification text based on indicator and state
+    function getSignalReason(signalKey, state) {
+        const reasons = {
+            hy_spread: {
+                bullish:
+                    "HY spread contraído: apetito por riesgo, crédito fácil.",
+                bearish:
+                    "HY spread ampliado: aversión al riesgo, estrés crediticio.",
+                neutral: "HY spread en rango normal, sin señal extrema.",
+            },
+            ig_spread: {
+                bullish: "IG spread bajo: condiciones crediticias sólidas.",
+                bearish: "IG spread elevado: tensión en mercado de crédito.",
+                neutral: "IG spread estable, condiciones normales.",
+            },
+            nfci_credit: {
+                bullish: "NFCI Credit negativo: condiciones crediticias laxas.",
+                bearish:
+                    "NFCI Credit positivo: condiciones crediticias restrictivas.",
+                neutral: "NFCI Credit neutral, sin presión extrema.",
+            },
+            nfci_risk: {
+                bullish: "NFCI Risk bajo: riesgo sistémico contenido.",
+                bearish: "NFCI Risk elevado: mayor riesgo sistémico percibido.",
+                neutral: "NFCI Risk en niveles normales.",
+            },
+            lending: {
+                bullish:
+                    "Estándares de crédito relajados: expansión crediticia.",
+                bearish: "Estándares restrictivos: contracción crediticia.",
+                neutral: "Estándares de préstamo sin cambio significativo.",
+            },
+            vix: {
+                bullish: "VIX bajo: complacencia/confianza en el mercado.",
+                bearish: "VIX elevado: miedo y volatilidad en el mercado.",
+                neutral: "VIX en rango normal, volatilidad moderada.",
+            },
+            cli: {
+                bullish:
+                    "CLI indica expansión crediticia y apetito por riesgo.",
+                bearish:
+                    "CLI indica contracción crediticia y aversión al riesgo.",
+                neutral: "CLI neutral, condiciones de liquidez equilibradas.",
+            },
+            repo: {
+                bullish: "SOFR ≈ IORB: liquidez interbancaria adecuada.",
+                bearish: "SOFR >> IORB: tensión de liquidez en repo.",
+                neutral: "Spread repo en rangos normales.",
+            },
+        };
+        return reasons[signalKey]?.[state] || "Sin información adicional.";
+    }
 
     // Time range states - managed locally
     export let cliRange = "ALL";
@@ -211,69 +314,114 @@
     export let tipsRange = "ALL";
     export let repoStressRange = "ALL";
 
-    $: hyLayout = {
-        shapes: createZScoreBands(darkMode, {
-            bullishThreshold: 1.0,
-            bearishThreshold: -1.0,
-        }),
+    // Z-Score Layouts (using original createZScoreBands from line 20)
+    $: hyZLayout = {
+        shapes: createZScoreBands(darkMode),
         yaxis: { title: "Z-Score", dtick: 2.5, autorange: true },
     };
-    $: igLayout = {
-        shapes: createZScoreBands(darkMode, {
-            bullishThreshold: 1.0,
-            bearishThreshold: -1.0,
-        }),
+    $: igZLayout = {
+        shapes: createZScoreBands(darkMode),
         yaxis: { title: "Z-Score", dtick: 2.5, autorange: true },
     };
-    $: nfciCreditLayout = {
-        shapes: createZScoreBands(darkMode, {
-            bullishThreshold: 0.5,
-            bearishThreshold: -0.5,
-            invertColors: true,
-        }),
+    $: nfciCreditZLayout = {
+        shapes: createZScoreBands(darkMode),
         yaxis: { title: "Z-Score", dtick: 2.5, autorange: true },
     };
-    $: nfciRiskLayout = {
-        shapes: createZScoreBands(darkMode, {
-            bullishThreshold: -0.5,
-            bearishThreshold: 1.0,
-            invertColors: true,
-        }),
+    $: nfciRiskZLayout = {
+        shapes: createZScoreBands(darkMode),
         yaxis: { title: "Z-Score", dtick: 2.5, autorange: true },
     };
-    $: lendingLayout = {
-        shapes: createZScoreBands(darkMode, {
-            bullishThreshold: 0,
-            bearishThreshold: 0.5,
-            invertColors: true,
-        }),
+    $: lendingZLayout = {
+        shapes: createZScoreBands(darkMode),
         yaxis: { title: "Z-Score", dtick: 2.5, autorange: true },
     };
-    $: vixLayout = {
-        shapes: createZScoreBands(darkMode, {
-            bullishThreshold: -0.5,
-            bearishThreshold: 2.0,
-            invertColors: true,
-        }),
+    $: vixZLayout = {
+        shapes: createZScoreBands(darkMode),
         yaxis: { title: "Z-Score", dtick: 2.5, autorange: true },
     };
 
-    // CLI Composite Regime
-    $: cliSignals = calculateSignalArray(dashboardData.cli, {
-        bullishThreshold: 0.5,
-        bearishThreshold: -0.5,
-        requireMomentum: true,
-        momentumBars: 20,
-    });
-    $: cliLayout = {
-        shapes: createRegimeShapes(
-            cliData[0]?.x || [],
-            dashboardData.dates,
-            cliSignals,
-            darkMode,
-        ),
-        yaxis: { title: "CLI Index", dtick: 2.5, autorange: true },
+    // Percentile Layouts (when viewMode is 'percentile')
+    $: hyLayout = {
+        shapes: createPercentileBands(darkMode, PERCENTILE_CONFIG.hy_spread),
+        yaxis: {
+            title: "Percentile",
+            range: [-5, 105],
+            dtick: 25,
+            autorange: false,
+        },
+        margin: { l: 50, r: 20, t: 20, b: 40 },
     };
+    $: igLayout = {
+        shapes: createPercentileBands(darkMode, PERCENTILE_CONFIG.ig_spread),
+        yaxis: {
+            title: "Percentile",
+            range: [-5, 105],
+            dtick: 25,
+            autorange: false,
+        },
+        margin: { l: 50, r: 20, t: 20, b: 40 },
+    };
+    $: nfciCreditLayout = {
+        shapes: createPercentileBands(darkMode, PERCENTILE_CONFIG.nfci_credit),
+        yaxis: {
+            title: "Percentile",
+            range: [-5, 105],
+            dtick: 25,
+            autorange: false,
+        },
+        margin: { l: 50, r: 20, t: 20, b: 40 },
+    };
+    $: nfciRiskLayout = {
+        shapes: createPercentileBands(darkMode, PERCENTILE_CONFIG.nfci_risk),
+        yaxis: {
+            title: "Percentile",
+            range: [-5, 105],
+            dtick: 25,
+            autorange: false,
+        },
+        margin: { l: 50, r: 20, t: 20, b: 40 },
+    };
+    $: lendingLayout = {
+        shapes: createPercentileBands(darkMode, PERCENTILE_CONFIG.lending),
+        yaxis: {
+            title: "Percentile",
+            range: [-5, 105],
+            dtick: 25,
+            autorange: false,
+        },
+        margin: { l: 50, r: 20, t: 20, b: 40 },
+    };
+    $: vixLayout = {
+        shapes: createPercentileBands(darkMode, PERCENTILE_CONFIG.vix),
+        yaxis: {
+            title: "Percentile",
+            range: [-5, 105],
+            dtick: 25,
+            autorange: false,
+        },
+        margin: { l: 50, r: 20, t: 20, b: 40 },
+    };
+
+    // CLI Chart - use cliData for Z-score, or cliPercentileData for percentile
+    $: cliChartData =
+        cliViewMode === "percentile" ? cliPercentileData : cliData;
+    $: cliLayout =
+        cliViewMode === "percentile"
+            ? {
+                  shapes: createPercentileBands(
+                      darkMode,
+                      PERCENTILE_CONFIG.cli,
+                  ),
+                  yaxis: {
+                      title: "Percentile",
+                      range: [0, 100],
+                      dtick: 25,
+                  },
+              }
+            : {
+                  shapes: createZScoreBands(darkMode),
+                  yaxis: { title: "CLI Index", dtick: 2.5, autorange: true },
+              };
 
     // TIPS Composite Regime
     $: tipsRegimeSignals = (() => {
@@ -313,9 +461,68 @@
             tipsRegimeSignals,
             darkMode,
         ),
-        yaxis: { ...tipsLayout.yaxis, dtick: 0.5, autorange: true },
-        yaxis2: { ...tipsLayout.yaxis2, dtick: 0.5, autorange: true },
+        yaxis: {
+            ...tipsLayout.yaxis,
+            title: "Breakeven & 5Y5Y (%)",
+            dtick: 0.5,
+            autorange: true,
+        },
+        yaxis2: {
+            ...tipsLayout.yaxis2,
+            title: "Real Rate (%)",
+            dtick: 0.5,
+            autorange: true,
+            side: "right",
+            overlaying: "y",
+        },
+        showlegend: false,
+        height: 350,
+        margin: { l: 60, r: 60, t: 20, b: 40 },
     };
+
+    // Computed TIPS signal from frontend data (fallback if backend signal_metrics.tips not populated)
+    $: computedTipsSignal = (() => {
+        const be = dashboardData.tips_breakeven;
+        const rr = dashboardData.tips_real_rate;
+        if (!be || !rr || be.length < 63) return null;
+
+        const latestBE = be[be.length - 1];
+        const latestRR = rr[rr.length - 1];
+        const beAvg =
+            be.slice(-252).reduce((a, b) => a + b, 0) /
+            Math.min(252, be.length);
+        const rrAvg =
+            rr.slice(-252).reduce((a, b) => a + b, 0) /
+            Math.min(252, rr.length);
+
+        const beHigh = latestBE > beAvg * 1.1;
+        const rrHigh = latestRR > rrAvg + 0.5;
+        const beLow = latestBE < beAvg * 0.9;
+        const rrLow = latestRR < rrAvg - 0.3;
+
+        let state = "neutral";
+        let reason = "Goldilocks: BE & RR en rango normal, equilibrio macro.";
+
+        if (beHigh && rrHigh) {
+            state = "warning";
+            reason =
+                "Stagflation: Inflación alta + Fed hawkish. Condiciones adversas.";
+        } else if (beHigh && !rrHigh) {
+            state = "bullish";
+            reason =
+                "Reflación: BE alto + RR bajo. Fed dovish, expansión económica.";
+        } else if (rrHigh && !beHigh) {
+            state = "bearish";
+            reason =
+                "Tightening: RR alto + BE bajo. Fed hawkish, restricción monetaria.";
+        } else if (beLow && rrLow) {
+            state = "neutral";
+            reason =
+                "Desinflación: BE y RR bajos. Posible desaceleración o deflación.";
+        }
+
+        return { state, value: latestRR, valueBE: latestBE, reason };
+    })();
 
     // Repo Regime
     $: repoRegimeSignals = (() => {
@@ -340,72 +547,108 @@
         yaxis: { title: "Percent (%)", dtick: 1.0, autorange: true },
     };
 
-    // Credit indicators configuration
+    // Credit indicators configuration - each chart has independent viewMode
     $: creditIndicators = [
         {
             id: "hy",
             name: "HY Spread Contrast",
-            data: hyZData,
+            signalKey: "hy_spread",
+            desc: "High Yield spread vs Treasury. Higher = Risk-off, Lower = Risk-on.",
+            data: hyViewMode === "percentile" ? hyPctData : hyZData,
             range: hyRange,
             setRange: (r) => (hyRange = r),
             bank: "HY_SPREAD",
-            descKey: "hy_spread",
-            layout: hyLayout,
+            layout: hyViewMode === "percentile" ? hyLayout : hyZLayout,
+            viewMode: hyViewMode,
+            setViewMode: (m) => (hyViewMode = m),
         },
         {
             id: "ig",
             name: "IG Spread Contrast",
-            data: igZData,
+            signalKey: "ig_spread",
+            desc: "Investment Grade spread vs Treasury. Higher = Stress, Lower = Calm.",
+            data: igViewMode === "percentile" ? igPctData : igZData,
             range: igRange,
             setRange: (r) => (igRange = r),
             bank: "IG_SPREAD",
-            descKey: "ig_spread",
-            layout: igLayout,
+            layout: igViewMode === "percentile" ? igLayout : igZLayout,
+            viewMode: igViewMode,
+            setViewMode: (m) => (igViewMode = m),
         },
         {
             id: "nfci_credit",
             name: "NFCI Credit Contrast",
-            data: nfciCreditZData,
+            signalKey: "nfci_credit",
+            desc: "Fed Chicago NFCI Credit subindex. Positive = Tighter, Negative = Easier.",
+            data:
+                nfciCreditViewMode === "percentile"
+                    ? nfciCreditPctData
+                    : nfciCreditZData,
             range: nfciCreditRange,
             setRange: (r) => (nfciCreditRange = r),
-            bank: "NFCI",
-            descKey: "nfci_credit",
-            layout: nfciCreditLayout,
+            bank: "NFCI_CREDIT",
+            layout:
+                nfciCreditViewMode === "percentile"
+                    ? nfciCreditLayout
+                    : nfciCreditZLayout,
+            viewMode: nfciCreditViewMode,
+            setViewMode: (m) => (nfciCreditViewMode = m),
         },
         {
             id: "nfci_risk",
             name: "NFCI Risk Contrast",
-            data: nfciRiskZData,
+            signalKey: "nfci_risk",
+            desc: "Fed Chicago NFCI Risk subindex. Positive = Higher risk, Negative = Lower risk.",
+            data:
+                nfciRiskViewMode === "percentile"
+                    ? nfciRiskPctData
+                    : nfciRiskZData,
             range: nfciRiskRange,
             setRange: (r) => (nfciRiskRange = r),
-            bank: "NFCI",
-            descKey: "nfci_risk",
-            layout: nfciRiskLayout,
+            bank: "NFCI_RISK",
+            layout:
+                nfciRiskViewMode === "percentile"
+                    ? nfciRiskLayout
+                    : nfciRiskZLayout,
+            viewMode: nfciRiskViewMode,
+            setViewMode: (m) => (nfciRiskViewMode = m),
         },
         {
             id: "lending",
             name: "Lending Standards Contrast",
-            data: lendingZData,
+            signalKey: "lending",
+            desc: "Fed SLOOS survey. Positive = Tighter lending, Negative = Easier lending.",
+            data:
+                lendingViewMode === "percentile"
+                    ? lendingPctData
+                    : lendingZData,
             range: lendingRange,
             setRange: (r) => (lendingRange = r),
             bank: "LENDING_STD",
-            descKey: "lending",
-            layout: lendingLayout,
+            layout:
+                lendingViewMode === "percentile"
+                    ? lendingLayout
+                    : lendingZLayout,
+            viewMode: lendingViewMode,
+            setViewMode: (m) => (lendingViewMode = m),
         },
         {
-            id: "vix_z",
-            name: "VIX Contrast (Z-Score)",
-            data: vixZData,
+            id: "vix",
+            name: "VIX Contrast",
+            signalKey: "vix",
+            desc: "CBOE Volatility Index. Higher = Fear/Stress, Lower = Complacency.",
+            data: vixViewMode === "percentile" ? vixPctData : vixZData,
             range: vixRange,
             setRange: (r) => (vixRange = r),
             bank: "VIX",
-            descKey: "vix",
-            layout: vixLayout,
+            layout: vixViewMode === "percentile" ? vixLayout : vixZLayout,
+            viewMode: vixViewMode,
+            setViewMode: (m) => (vixViewMode = m),
         },
     ];
 
-    // --- Backend Signals Integration ---
-    $: signals = dashboardData?.signals || {};
+    // Unified signal derived from signal_metrics
+    $: signalsFromMetrics = dashboardData.signal_metrics || {};
 
     const signalConfig = [
         { id: "cli", label: "CLI Stance" },
@@ -419,18 +662,16 @@
         { id: "repo", label: "Liquidity (SOFR)" },
     ];
 
-    const getStatusLabel = (state) => {
-        if (state === "bullish") return "BULLISH";
-        if (state === "bearish") return "BEARISH";
-        if (state === "warning") return "WARNING";
-        return "NEUTRAL";
-    };
+    function getStatusLabel(state) {
+        if (!state) return "NEUTRAL";
+        return state.toUpperCase();
+    }
 
-    $: bullCount = Object.values(signals).filter(
-        (s) => s.state === "bullish",
+    $: bullCount = Object.values(signalsFromMetrics).filter(
+        (s) => s.latest?.state === "bullish",
     ).length;
-    $: bearCount = Object.values(signals).filter(
-        (s) => s.state === "bearish",
+    $: bearCount = Object.values(signalsFromMetrics).filter(
+        (s) => s.latest?.state === "bearish",
     ).length;
     $: aggregateState =
         bullCount > bearCount + 1
@@ -440,7 +681,7 @@
               : "neutral";
 </script>
 
-<!-- Header with Aggregate Stance -->
+<!-- Header with Aggregate Stance & View Mode Toggle -->
 <div class="risk-header-summary">
     <div class="regime-badge bg-{aggregateState}">
         <span style="font-size: 1.2rem;"
@@ -477,9 +718,23 @@
                     >
                 </div>
             </div>
-            <p class="chart-description">
-                {translations.tips || "Breakeven, Real Rate, and 5Y5Y Forward."}
-            </p>
+            <div class="chart-legend">
+                <span class="legend-item">
+                    <span class="legend-dot" style="background: #f59e0b"></span>
+                    <span class="legend-label">Breakeven</span>
+                    <span class="legend-desc">Inflation expectations</span>
+                </span>
+                <span class="legend-item">
+                    <span class="legend-dot" style="background: #3b82f6"></span>
+                    <span class="legend-label">Real Rate</span>
+                    <span class="legend-desc">Cost of money</span>
+                </span>
+                <span class="legend-item">
+                    <span class="legend-dot" style="background: #10b981"></span>
+                    <span class="legend-label">5Y5Y Forward</span>
+                    <span class="legend-desc">Long-term anchor</span>
+                </span>
+            </div>
             <div class="chart-content">
                 <Chart
                     {darkMode}
@@ -488,7 +743,8 @@
                 />
             </div>
 
-            {#if signals.tips}
+            {#if signalsFromMetrics.tips?.latest}
+                {@const s = signalsFromMetrics.tips.latest}
                 <div
                     class="metrics-section"
                     style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;"
@@ -497,45 +753,63 @@
                         class="signal-item"
                         style="background: rgba(0,0,0,0.15); border: none;"
                     >
-                        <div class="signal-label">Macro Signal (TIPS)</div>
-                        <div class="signal-status text-{signals.tips.state}">
+                        <div class="signal-label">TIPS Macro Signal</div>
+                        <div class="signal-status text-{s.state}">
                             <span class="signal-dot"></span>
-                            {getStatusLabel(signals.tips.state)}
+                            {getStatusLabel(s.state)}
+                        </div>
+                        <div class="signal-value">
+                            Value: {s.value?.toFixed(2) ?? "N/A"} | Percentile: P{s.percentile?.toFixed(
+                                0,
+                            ) ?? "N/A"}
+                        </div>
+                    </div>
+                </div>
+            {:else if computedTipsSignal}
+                {@const s = computedTipsSignal}
+                <div
+                    class="metrics-section"
+                    style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;"
+                >
+                    <div
+                        class="signal-item"
+                        style="background: rgba(0,0,0,0.15); border: none;"
+                    >
+                        <div class="signal-label">TIPS Macro Signal</div>
+                        <div class="signal-status text-{s.state}">
+                            <span class="signal-dot"></span>
+                            {s.state === "warning"
+                                ? "⚠️ WARNING"
+                                : getStatusLabel(s.state)}
                         </div>
                         <div
                             class="signal-value"
-                            style="font-size: 0.8rem; display: flex; gap: 12px;"
+                            style="display: flex; gap: 12px;"
                         >
-                            <span
-                                >RR Δ: <b
-                                    class={signals.tips.rr_delta > 0.4
-                                        ? "text-bearish"
-                                        : "text-neutral"}
-                                    >{signals.tips.rr_delta > 0
-                                        ? "+"
-                                        : ""}{signals.tips.rr_delta}</b
-                                ></span
-                            >
-                            <span
-                                >BE Δ: <b
-                                    class={signals.tips.be_delta > 0.15
-                                        ? "text-bullish"
-                                        : "text-neutral"}
-                                    >{signals.tips.be_delta > 0
-                                        ? "+"
-                                        : ""}{signals.tips.be_delta}</b
-                                ></span
-                            >
-                            <span
-                                >5Y5Y Δ: <b
-                                    class={signals.tips.fwd_delta < -0.15
-                                        ? "text-warning"
-                                        : "text-neutral"}
-                                    >{signals.tips.fwd_delta > 0
-                                        ? "+"
-                                        : ""}{signals.tips.fwd_delta}</b
-                                ></span
-                            >
+                            <span>BE: {s.valueBE?.toFixed(2) ?? "N/A"}%</span>
+                            <span>RR: {s.value?.toFixed(2) ?? "N/A"}%</span>
+                        </div>
+                        <div
+                            class="signal-reason"
+                            style="font-size: 11px; color: rgba(255,255,255,0.55); margin-top: 6px; font-style: italic;"
+                        >
+                            {s.reason}
+                        </div>
+                    </div>
+                </div>
+            {:else}
+                <div
+                    class="metrics-section"
+                    style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;"
+                >
+                    <div
+                        class="signal-item"
+                        style="background: rgba(0,0,0,0.15); border: none;"
+                    >
+                        <div class="signal-label">TIPS Macro Signal</div>
+                        <div class="signal-status text-neutral">
+                            <span class="signal-dot"></span>
+                            Loading...
                         </div>
                     </div>
                 </div>
@@ -547,6 +821,17 @@
             <div class="chart-header">
                 <h3>Credit Liquidity Index (CLI Aggregate)</h3>
                 <div class="header-controls">
+                    <div class="view-mode-toggle">
+                        <button
+                            class:active={cliViewMode === "zscore"}
+                            on:click={() => (cliViewMode = "zscore")}>Z</button
+                        >
+                        <button
+                            class:active={cliViewMode === "percentile"}
+                            on:click={() => (cliViewMode = "percentile")}
+                            >%</button
+                        >
+                    </div>
                     <TimeRangeSelector
                         selectedRange={cliRange}
                         onRangeChange={(r) => (cliRange = r)}
@@ -559,34 +844,42 @@
             <p class="chart-description">
                 {translations.cli ||
                     "Aggregates credit conditions, volatility, and lending."}
+                {cliViewMode === "percentile"
+                    ? "↑ CLI = Easier credit (bullish) ↓ Contraction = Tighter (bearish)"
+                    : ""}
             </p>
             <div class="chart-content">
-                <Chart {darkMode} data={cliData} layout={cliLayout} />
+                <Chart {darkMode} data={cliChartData} layout={cliLayout} />
             </div>
 
-            {#if signals.cli}
-                <div
-                    class="metrics-section"
-                    style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;"
-                >
+            <!-- Signal Box -->
+            {#if dashboardData.signal_metrics?.cli?.latest}
+                {@const s = dashboardData.signal_metrics.cli.latest}
+                <div class="signal-box">
+                    <div class="signal-header">CLI STANCE</div>
+                    <div class="signal-badge {s.state}">
+                        {s.state === "bullish"
+                            ? "🟢"
+                            : s.state === "bearish"
+                              ? "🔴"
+                              : "⚪"}
+                        {s.state.toUpperCase()}
+                    </div>
+                    <div class="signal-details">
+                        Percentile: {s.percentile?.toFixed(0) ?? "N/A"}
+                        <span class="signal-hint">
+                            ({s.percentile >= 70
+                                ? "Top 30%"
+                                : s.percentile <= 30
+                                  ? "Bottom 30%"
+                                  : "Middle range"})
+                        </span>
+                    </div>
                     <div
-                        class="signal-item"
-                        style="background: rgba(0,0,0,0.15); border: none;"
+                        class="signal-reason"
+                        style="font-size: 11px; color: rgba(255,255,255,0.55); margin-top: 6px; font-style: italic;"
                     >
-                        <div class="signal-label">CLI Stance</div>
-                        <div class="signal-status text-{signals.cli.state}">
-                            <span class="signal-dot"></span>
-                            {getStatusLabel(signals.cli.state)}
-                        </div>
-                        <div class="signal-value">
-                            Score: {signals.cli.value > 0 ? "+" : ""}{signals
-                                .cli.value}
-                            <span style="margin-left: 8px; opacity: 0.7;"
-                                >(Momentum: {signals.cli.momentum > 0
-                                    ? "+"
-                                    : ""}{signals.cli.momentum})</span
-                            >
-                        </div>
+                        {getSignalReason("cli", s.state)}
                     </div>
                 </div>
             {/if}
@@ -653,20 +946,27 @@
                                     style="vertical-align: middle; text-align: center; background: rgba(0,0,0,0.1); border-radius: 8px;"
                                 >
                                     <div
-                                        class:text-bullish={signals.repo
-                                            ?.state === "bullish"}
-                                        class:text-bearish={signals.repo
-                                            ?.state === "bearish"}
+                                        class:text-bullish={signalsFromMetrics
+                                            .repo?.latest?.state === "bullish"}
+                                        class:text-bearish={signalsFromMetrics
+                                            .repo?.latest?.state === "bearish"}
                                         style="font-weight: 800; font-size: 1.1rem;"
                                     >
                                         {(
-                                            (signals.repo?.value ?? 0) * 100
+                                            (getLatestValue(
+                                                dashboardData.repo_stress?.sofr,
+                                            ) -
+                                                getLatestValue(
+                                                    dashboardData.repo_stress
+                                                        ?.iorb,
+                                                )) *
+                                            100
                                         ).toFixed(1)} bps
                                     </div>
                                     <div
                                         style="font-size: 14px; margin-top: 4px;"
                                     >
-                                        {#if signals.repo?.state === "bullish" || signals.repo?.state === "neutral"}
+                                        {#if signalsFromMetrics.repo?.latest?.state === "bullish" || signalsFromMetrics.repo?.latest?.state === "neutral"}
                                             ✅ OK
                                         {:else}
                                             ⚠️ STRESS
@@ -698,6 +998,18 @@
                 <div class="chart-header">
                     <h3>{item.name}</h3>
                     <div class="header-controls">
+                        <div class="view-mode-toggle">
+                            <button
+                                class:active={item.viewMode === "zscore"}
+                                on:click={() => item.setViewMode("zscore")}
+                                >Z</button
+                            >
+                            <button
+                                class:active={item.viewMode === "percentile"}
+                                on:click={() => item.setViewMode("percentile")}
+                                >%</button
+                            >
+                        </div>
                         <TimeRangeSelector
                             selectedRange={item.range}
                             onRangeChange={item.setRange}
@@ -708,14 +1020,14 @@
                     </div>
                 </div>
                 <p class="chart-description">
-                    {translations[item.descKey] || ""}
+                    {item.desc}
                 </p>
                 <div class="chart-content">
                     <Chart {darkMode} data={item.data} layout={item.layout} />
                 </div>
 
-                {#if signals[item.id === "vix_z" ? "vix" : item.id]}
-                    {@const s = signals[item.id === "vix_z" ? "vix" : item.id]}
+                {#if signalsFromMetrics[item.signalKey]?.latest}
+                    {@const s = signalsFromMetrics[item.signalKey].latest}
                     <div
                         class="metrics-section"
                         style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;"
@@ -729,8 +1041,25 @@
                                 <span class="signal-dot"></span>
                                 {getStatusLabel(s.state)}
                             </div>
-                            <div class="signal-value">
-                                Z-Score: {s.value > 0 ? "+" : ""}{s.value}
+                            <div
+                                class="signal-value"
+                                style="display: flex; gap: 15px;"
+                            >
+                                <span
+                                    >Value: <b>{s.value?.toFixed(2) ?? "N/A"}</b
+                                    ></span
+                                >
+                                <span
+                                    >Percentile: <b
+                                        >P{s.percentile?.toFixed(0) ?? "N/A"}</b
+                                    ></span
+                                >
+                            </div>
+                            <div
+                                class="signal-reason"
+                                style="font-size: 11px; color: rgba(255,255,255,0.55); margin-top: 6px; font-style: italic;"
+                            >
+                                {getSignalReason(item.signalKey, s.state)}
                             </div>
                         </div>
                     </div>
@@ -1021,3 +1350,165 @@
         </div>
     </div>
 </div>
+
+<style>
+    /* Toggle button styling */
+    .view-mode-toggle {
+        display: inline-flex;
+        gap: 2px;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 6px;
+        padding: 2px;
+        margin-right: 8px;
+    }
+    .view-mode-toggle button {
+        padding: 4px 10px;
+        font-size: 11px;
+        font-weight: 600;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        background: transparent;
+        color: rgba(255, 255, 255, 0.5);
+    }
+    .view-mode-toggle button:hover {
+        color: rgba(255, 255, 255, 0.8);
+    }
+    .view-mode-toggle button.active {
+        background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+        color: white;
+        box-shadow: 0 2px 4px rgba(99, 102, 241, 0.3);
+    }
+
+    /* Signal Box for CLI */
+    .signal-box {
+        margin-top: 15px;
+        padding: 12px 16px;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .signal-header {
+        font-size: 11px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.5);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 6px;
+    }
+    .signal-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 14px;
+        font-weight: 700;
+        padding: 4px 0;
+    }
+    .signal-badge.bullish {
+        color: #10b981;
+    }
+    .signal-badge.bearish {
+        color: #ef4444;
+    }
+    .signal-badge.neutral {
+        color: #94a3b8;
+    }
+    .signal-details {
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.7);
+        margin-top: 4px;
+    }
+    .signal-hint {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.4);
+        margin-left: 4px;
+    }
+
+    /* Signal Item - for credit indicators */
+    .signal-item {
+        padding: 10px 12px;
+        border-radius: 6px;
+    }
+    .signal-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.5);
+        text-transform: uppercase;
+        margin-bottom: 4px;
+    }
+    .signal-status {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        font-weight: 700;
+    }
+    .signal-status.text-bullish {
+        color: #10b981;
+    }
+    .signal-status.text-bearish {
+        color: #ef4444;
+    }
+    .signal-status.text-neutral {
+        color: #94a3b8;
+    }
+    .signal-status.text-warning {
+        color: #f59e0b;
+    }
+    .signal-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: currentColor;
+    }
+    .signal-value {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.6);
+        margin-top: 4px;
+    }
+
+    /* Chart description styling */
+    .chart-description {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.65);
+        line-height: 1.5;
+        padding: 8px 12px;
+        background: rgba(0, 0, 0, 0.15);
+        border-radius: 6px;
+        border-left: 3px solid rgba(99, 102, 241, 0.5);
+        margin: 8px 0;
+    }
+
+    /* Chart legend styling */
+    .chart-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        padding: 10px 14px;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 8px;
+        margin: 8px 0 12px;
+    }
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .legend-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+    .legend-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.9);
+    }
+    .legend-desc {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.45);
+        font-style: italic;
+    }
+</style>

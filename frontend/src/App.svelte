@@ -1573,31 +1573,53 @@
     {
       x: $dashboardData.dates,
       y: $dashboardData.cli_components.hy_z,
-      name: "HY Spread Contrast",
+      name: "HY Spread (Z-Score)",
       type: "scatter",
       mode: "lines",
       line: { color: "#ef4444", width: 2 },
     },
   ];
   $: hyZData = filterPlotlyData(hyZDataRaw, $dashboardData.dates, hyRange);
+  $: hyPctDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.signal_metrics?.hy_spread?.percentile || [],
+      name: "HY Spread (Percentile)",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#ef4444", width: 2 },
+    },
+  ];
+  $: hyPctData = filterPlotlyData(hyPctDataRaw, $dashboardData.dates, hyRange);
 
   $: igZDataRaw = [
     {
       x: $dashboardData.dates,
       y: $dashboardData.cli_components.ig_z,
-      name: "IG Spread Contrast",
+      name: "IG Spread (Z-Score)",
       type: "scatter",
       mode: "lines",
       line: { color: "#f97316", width: 2 },
     },
   ];
   $: igZData = filterPlotlyData(igZDataRaw, $dashboardData.dates, igRange);
+  $: igPctDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.signal_metrics?.ig_spread?.percentile || [],
+      name: "IG Spread (Percentile)",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#f97316", width: 2 },
+    },
+  ];
+  $: igPctData = filterPlotlyData(igPctDataRaw, $dashboardData.dates, igRange);
 
   $: nfciCreditZDataRaw = [
     {
       x: $dashboardData.dates,
       y: $dashboardData.cli_components.nfci_credit_z,
-      name: "NFCI Credit Contrast",
+      name: "NFCI Credit (Z-Score)",
       type: "scatter",
       mode: "lines",
       line: { color: "#eab308", width: 2 },
@@ -1608,12 +1630,27 @@
     $dashboardData.dates,
     nfciCreditRange,
   );
+  $: nfciCreditPctDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.signal_metrics?.nfci_credit?.percentile || [],
+      name: "NFCI Credit (Percentile)",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#eab308", width: 2 },
+    },
+  ];
+  $: nfciCreditPctData = filterPlotlyData(
+    nfciCreditPctDataRaw,
+    $dashboardData.dates,
+    nfciCreditRange,
+  );
 
   $: nfciRiskZDataRaw = [
     {
       x: $dashboardData.dates,
       y: $dashboardData.cli_components.nfci_risk_z,
-      name: "NFCI Risk Contrast",
+      name: "NFCI Risk (Z-Score)",
       type: "scatter",
       mode: "lines",
       line: { color: "#a855f7", width: 2 },
@@ -1624,12 +1661,27 @@
     $dashboardData.dates,
     nfciRiskRange,
   );
+  $: nfciRiskPctDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.signal_metrics?.nfci_risk?.percentile || [],
+      name: "NFCI Risk (Percentile)",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#a855f7", width: 2 },
+    },
+  ];
+  $: nfciRiskPctData = filterPlotlyData(
+    nfciRiskPctDataRaw,
+    $dashboardData.dates,
+    nfciRiskRange,
+  );
 
   $: lendingZDataRaw = [
     {
       x: $dashboardData.dates,
       y: $dashboardData.cli_components.lending_z,
-      name: "Lending Standards Contrast",
+      name: "Lending Standards (Z-Score)",
       type: "scatter",
       mode: "lines",
       line: { color: "#3b82f6", width: 2 },
@@ -1640,18 +1692,64 @@
     $dashboardData.dates,
     lendingRange,
   );
+  $: lendingPctDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.signal_metrics?.lending?.percentile || [],
+      name: "Lending Standards (Percentile)",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#3b82f6", width: 2 },
+    },
+  ];
+  $: lendingPctData = filterPlotlyData(
+    lendingPctDataRaw,
+    $dashboardData.dates,
+    lendingRange,
+  );
 
   $: vixZDataRaw = [
     {
       x: $dashboardData.dates,
       y: $dashboardData.cli_components.vix_z,
-      name: "VIX Contrast",
+      name: "VIX (Z-Score)",
       type: "scatter",
       mode: "lines",
       line: { color: "#6b7280", width: 2 },
     },
   ];
   $: vixZData = filterPlotlyData(vixZDataRaw, $dashboardData.dates, vixRange);
+  $: vixPctDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.signal_metrics?.vix?.percentile || [],
+      name: "VIX (Percentile)",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#6b7280", width: 2 },
+    },
+  ];
+  $: vixPctData = filterPlotlyData(
+    vixPctDataRaw,
+    $dashboardData.dates,
+    vixRange,
+  );
+
+  $: cliPercentileDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.cli_percentile || [],
+      name: "CLI (Percentile)",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#f59e0b", width: 3, shape: "spline" },
+    },
+  ];
+  $: cliPercentileData = filterPlotlyData(
+    cliPercentileDataRaw,
+    $dashboardData.dates,
+    cliRange,
+  );
 
   // --- M2 Money Supply Chart Data ---
   $: m2TotalDataRaw = [
@@ -2473,12 +2571,19 @@
           translations={$currentTranslations}
           dashboardData={$dashboardData}
           {cliData}
+          {cliPercentileData}
           {hyZData}
+          {hyPctData}
           {igZData}
+          {igPctData}
           {nfciCreditZData}
+          {nfciCreditPctData}
           {nfciRiskZData}
+          {nfciRiskPctData}
           {lendingZData}
+          {lendingPctData}
           {vixZData}
+          {vixPctData}
           {tipsData}
           {tipsLayout}
           {repoStressData}

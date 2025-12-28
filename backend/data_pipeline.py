@@ -840,6 +840,152 @@ def calculate_flow_metrics(df):
     
     return result
 
+# ============================================
+# PERCENTILE CALCULATIONS
+# ============================================
+
+def rolling_percentile(series: pd.Series, window: int = 252*5, min_periods: int = 126) -> pd.Series:
+    """
+    Calcula el percentil rolling de cada valor respecto a su ventana histórica.
+    
+    Retorna valores entre 0 y 100.
+    - 0 = mínimo histórico de la ventana
+    - 50 = mediana
+    - 100 = máximo histórico de la ventana
+    
+    Args:
+        series: Serie de datos
+        window: Ventana en días (default 5 años = 252*5 = 1260 días)
+        min_periods: Mínimo de observaciones requeridas
+    """
+    def percentile_rank(arr):
+        if len(arr) < min_periods:
+            return np.nan
+        current = arr[-1]
+        if np.isnan(current):
+            return np.nan
+        # Rank del valor actual dentro de la ventana (excluyendo NaN)
+        valid = arr[~np.isnan(arr)]
+        if len(valid) < min_periods:
+            return np.nan
+        rank = (valid < current).sum() + 0.5 * (valid == current).sum()
+        return 100 * rank / len(valid)
+    
+    return series.rolling(window, min_periods=min_periods).apply(percentile_rank, raw=True)
+
+
+def compute_signal_metrics(df: pd.DataFrame, cli_df: pd.DataFrame, window: int = 1260) -> dict:
+    """
+    Calcula métricas de señal para todas las series relevantes.
+    Retorna dict con percentiles, z-scores, y señales.
+    """
+    metrics = {}
+    
+    def clean_for_json_series(s):
+        if s is None: return []
+        return [float(x) if np.isfinite(x) else None for x in s]
+
+    # Combine relevant columns from both dataframes
+    all_data = pd.DataFrame(index=df.index)
+    
+    # Map friendly keys to columns in df or cli_df
+    series_config = {
+        'cli': {
+            'source': cli_df,
+            'col': 'CLI',
+            'invert': False,  # Positivo = bueno
+            'bullish_pct': 70,
+            'bearish_pct': 30,
+        },
+        'hy_spread': {
+            'source': df,
+            'col': 'HY_SPREAD',
+            'invert': True,   # Spread bajo = bueno, así que invertimos
+            'bullish_pct': 30,  # Percentil bajo del spread = bullish
+            'bearish_pct': 75,  # Percentil alto del spread = bearish
+        },
+        'ig_spread': {
+            'source': df,
+            'col': 'IG_SPREAD',
+            'invert': True,
+            'bullish_pct': 30,
+            'bearish_pct': 75,
+        },
+        'vix': {
+            'source': df,
+            'col': 'VIX',
+            'invert': True,   # VIX bajo = bueno
+            'bullish_pct': 30,
+            'bearish_pct': 85,  # Asimétrico - solo panic extremo es bearish
+        },
+        'tips_real_rate': {
+            'source': df,
+            'col': 'TIPS_REAL_RATE',
+            'invert': True,   # Real rate bajo = más fácil = bueno
+            'bullish_pct': 30,
+            'bearish_pct': 80,
+        },
+        'tips_breakeven': {
+            'source': df,
+            'col': 'TIPS_BREAKEVEN',
+            'invert': False,
+            'bullish_pct': 40,  # Reflación moderada es OK
+            'bearish_pct': 20,  # Muy bajo = deflación scare
+        },
+    }
+    
+    for key, config in series_config.items():
+        source = config['source']
+        col = config['col']
+        if col not in source.columns:
+            continue
+            
+        series = source[col].astype(float)
+        
+        # Percentil rolling
+        pct = rolling_percentile(series, window=window)
+        
+        # Z-score rolling (para compatibilidad)
+        mean = series.rolling(window, min_periods=126).mean()
+        std = series.rolling(window, min_periods=126).std().replace(0, np.nan)
+        zscore = (series - mean) / std
+        
+        # Momentum (cambio en 63 días ~ 3 meses)
+        momentum = series.diff(63)
+        # Momentum relative to its own history
+        momentum_pct = rolling_percentile(momentum, window=window)
+        
+        # Señal basada en percentil
+        signals = []
+        for val in pct:
+            if np.isnan(val):
+                signals.append('neutral')
+            elif config['invert']:
+                # Para series invertidas (spread, VIX): bajo = bullish
+                if val <= config['bullish_pct']: signals.append('bullish')
+                elif val >= config['bearish_pct']: signals.append('bearish')
+                else: signals.append('neutral')
+            else:
+                # Para series normales: alto = bullish
+                if val >= config['bullish_pct']: signals.append('bullish')
+                elif val <= config['bearish_pct']: signals.append('bearish')
+                else: signals.append('neutral')
+        
+        metrics[key] = {
+            'percentile': clean_for_json_series(pct),
+            'zscore': clean_for_json_series(zscore),
+            'momentum_pct': clean_for_json_series(momentum_pct),
+            'signal_series': signals,
+            'latest': {
+                'value': float(series.iloc[-1]) if not np.isnan(series.iloc[-1]) else None,
+                'percentile': float(pct.iloc[-1]) if not np.isnan(pct.iloc[-1]) else None,
+                'zscore': float(zscore.iloc[-1]) if not np.isnan(zscore.iloc[-1]) else None,
+                'state': signals[-1] if len(signals) > 0 else 'neutral',
+            }
+        }
+    
+    return metrics
+
 
 def calculate_signals(df, cli_df):
     """
@@ -1955,6 +2101,8 @@ def run_pipeline():
                 for b in ['fed', 'ecb', 'boj', 'boe', 'pboc', 'boc', 'rba', 'snb', 'bok', 'rbi', 'cbr', 'bcb', 'rbnz', 'sr', 'bnm']
             })(gli.iloc[-1] if not gli.empty else {}),
             'cli': clean_for_json(df_t['CLI']),
+            'cli_percentile': clean_for_json(rolling_percentile(df_t['CLI'], window=1260)),
+            'signal_metrics': compute_signal_metrics(df_t, cli_df, window=1260),
             'cli_components': {
                 'hy_z': clean_for_json(cli_df.get('HY_SPREAD_Z', pd.Series(dtype=float))),
                 'ig_z': clean_for_json(cli_df.get('IG_SPREAD_Z', pd.Series(dtype=float))),

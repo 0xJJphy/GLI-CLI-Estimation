@@ -132,7 +132,19 @@ export const dashboardData = writable({
         real_rate_shock_4w: [],
         reserves_spread_z: []
     },
-    signals: {}
+    signals: {},
+    cli_percentile: [],
+    signal_metrics: {
+        cli: { latest: { state: "neutral", percentile: 50 }, percentile: [] },
+        hy_spread: { latest: { state: "neutral", percentile: 50 }, percentile: [] },
+        ig_spread: { latest: { state: "neutral", percentile: 50 }, percentile: [] },
+        nfci_credit: { latest: { state: "neutral", percentile: 50 }, percentile: [] },
+        nfci_risk: { latest: { state: "neutral", percentile: 50 }, percentile: [] },
+        lending: { latest: { state: "neutral", percentile: 50 }, percentile: [] },
+        vix: { latest: { state: "neutral", percentile: 50 }, percentile: [] },
+        tips: { latest: { state: "neutral", percentile: 50 }, percentile: [] },
+        repo: { latest: { state: "neutral", percentile: 50 }, percentile: [] }
+    }
 });
 
 export const isLoading = writable(true);
