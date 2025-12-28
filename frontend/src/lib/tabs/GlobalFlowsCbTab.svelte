@@ -54,7 +54,6 @@
     export let bnmRange = "ALL";
     export let cbBreadthRange = "ALL";
     export let cbConcentrationRange = "ALL";
-    export let cbRange = "ALL";
 
     // Bank configuration
     $: banks = [

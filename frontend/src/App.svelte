@@ -176,7 +176,7 @@
       let firstValidIdx = -1;
       for (let i = 0; i < dates.length; i++) {
         const hasData = traceArray.some((trace) => {
-          const val = trace.y[i];
+          const val = trace.y ? trace.y[i] : undefined;
           return val !== null && val !== undefined && val !== 0;
         });
         if (hasData) {
@@ -192,8 +192,8 @@
 
     return traceArray.map((trace) => ({
       ...trace,
-      x: indices.map((i) => trace.x[i]),
-      y: indices.map((i) => trace.y[i]),
+      x: trace.x ? indices.map((i) => trace.x[i]) : [],
+      y: trace.y ? indices.map((i) => trace.y[i]) : [],
     }));
   };
 
@@ -1231,8 +1231,8 @@
   $: cliDataRaw = [
     {
       x: $dashboardData.dates,
-      y: $dashboardData.cli_components.cli_total,
-      name: "CLI Total",
+      y: $dashboardData.cli,
+      name: "CLI",
       type: "scatter",
       mode: "lines",
       line: { color: "#f59e0b", width: 3, shape: "spline" },
@@ -2407,7 +2407,6 @@
           bind:bnmRange
           bind:cbBreadthRange
           bind:cbConcentrationRange
-          bind:cbRange
         />
       {:else if currentTab === "Global M2"}
         <GlobalM2Tab
