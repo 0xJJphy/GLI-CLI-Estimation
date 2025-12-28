@@ -1061,7 +1061,8 @@
 
     // Helper: Convert score (0-100) to gradient color
     const scoreToColor = (score) => {
-      if (score === null || score === undefined) return null;
+      if (score === null || score === undefined || isNaN(score))
+        return "rgba(148, 163, 184, 0.05)";
 
       const deviation = (score - 50) / 50; // -1 to +1
       const absDeviation = Math.abs(deviation);
