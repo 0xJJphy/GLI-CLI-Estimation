@@ -3484,13 +3484,39 @@
     color: var(--text-secondary);
   }
 
-  /* Statistics Grid (4 columns for charts/metrics) */
   :global(.stats-grid) {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: 20px;
     margin-bottom: 24px;
     width: 100%;
+  }
+
+  :global(.grid-2) {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 20px;
+    width: 100%;
+  }
+
+  :global(.grid-4) {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 20px;
+    width: 100%;
+  }
+
+  @media (max-width: 1200px) {
+    :global(.grid-4) {
+      grid-template-columns: repeat(2, 1fr) !important;
+    }
+  }
+
+  @media (max-width: 768px) {
+    :global(.grid-2),
+    :global(.grid-4) {
+      grid-template-columns: 1fr !important;
+    }
   }
 
   /* Premium Cards (Quant v2) */

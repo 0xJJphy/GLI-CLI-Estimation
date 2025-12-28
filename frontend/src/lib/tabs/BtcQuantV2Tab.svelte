@@ -65,7 +65,7 @@
     </div>
 
     <!-- Top Row Statistics Grid -->
-    <div class="stats-grid">
+    <div class="grid-4">
         <!-- OOS Metrics Panel -->
         <div class="chart-card premium purple">
             <div class="chart-header">
