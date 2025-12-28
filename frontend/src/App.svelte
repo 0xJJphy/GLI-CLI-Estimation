@@ -821,26 +821,24 @@
       return { x: dates || [], y: values || [] };
     if (lagDays === 0) return { x: dates, y: values };
 
-    // Since dates are strings YYYY-MM-DD, we assume index shifting is sufficient if data is daily.
-    // 1 index approx 1 day (trading day).
-    // Shift Right (Positive Lag): Prepend nulls/cut start, or simply shift the x-axis?
-    // Easiest is to keep Y values and SHIFT X array.
-    // If we shift signal to the right, Signal[i] happens at Date[i+lag].
-
-    // Actually, easier way for Plotly:
-    // If we want to move line to the RIGHT (+), we add days to the date object.
-    // But we have a discrete date list.
-    // Let's use index shifting.
-
+    // Create shifted dates by adding/subtracting lagDays to each original date
+    // This properly extends into the future when lagDays > 0
     const shiftedX = [];
     const shiftedY = [];
 
     for (let i = 0; i < values.length; i++) {
-      const targetIdx = i + lagDays;
-      if (targetIdx >= 0 && targetIdx < dates.length) {
-        shiftedX.push(dates[targetIdx]);
-        shiftedY.push(values[i]);
-      }
+      if (values[i] === null || values[i] === undefined) continue;
+
+      // Parse the original date and add lagDays
+      const originalDate = new Date(dates[i]);
+      const shiftedDate = new Date(originalDate);
+      shiftedDate.setDate(shiftedDate.getDate() + lagDays);
+
+      // Format as YYYY-MM-DD
+      const shiftedDateStr = shiftedDate.toISOString().split("T")[0];
+
+      shiftedX.push(shiftedDateStr);
+      shiftedY.push(values[i]);
     }
     return { x: shiftedX, y: shiftedY };
   }
