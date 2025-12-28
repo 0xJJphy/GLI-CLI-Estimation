@@ -56,7 +56,7 @@
             processedData,
             {
                 ...defaultLayout,
-                yaxis: { ...defaultLayout.yaxis, type: yType },
+                yaxis: { ...defaultLayout.yaxis, type: yType, autorange: true },
                 ...layout,
             },
             config,
@@ -86,7 +86,7 @@
             processedData,
             {
                 ...defaultLayout,
-                yaxis: { ...defaultLayout.yaxis, type: yType },
+                yaxis: { ...defaultLayout.yaxis, type: yType, autorange: true },
                 ...layout,
             },
             config,

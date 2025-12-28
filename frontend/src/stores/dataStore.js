@@ -169,9 +169,12 @@ export const latestStats = derived(dashboardData, ($data) => {
     const lastIdx = $data.dates.length - 1;
     const prevIdx = lastIdx - 1;
 
-    const getChange = (arr) => {
-        if (!arr || arr.length < 2) return 0;
-        return ((arr[lastIdx] - arr[prevIdx]) / arr[prevIdx]) * 100;
+    const getChange = (arr, period = 7) => {
+        if (!arr || arr.length <= period) return 0;
+        const current = arr[lastIdx];
+        const previous = arr[lastIdx - period];
+        if (previous === 0 || previous === null || previous === undefined) return 0;
+        return ((current - previous) / previous) * 100;
     };
 
     const safeGet = (arr, idx) => {
