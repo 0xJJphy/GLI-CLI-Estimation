@@ -1,4 +1,4 @@
-<script>
+﻿<script>
   import { onMount } from "svelte";
   import {
     fetchData,
@@ -13,6 +13,17 @@
   import SignalBadge from "./lib/components/SignalBadge.svelte";
   import TimeRangeSelector from "./lib/components/TimeRangeSelector.svelte";
 
+  // Tab Components
+  import {
+    DashboardTab,
+    GlobalFlowsCbTab,
+    GlobalM2Tab,
+    UsSystemTab,
+    RiskModelTab,
+    BtcAnalysisTab,
+    BtcQuantV2Tab,
+  } from "./lib/tabs";
+
   // Dark mode state
   let darkMode = false;
 
@@ -22,31 +33,31 @@
   // Translations for chart descriptions
   const translations = {
     en: {
-      gli: "Sum of global central bank balance sheets in USD. ↑ Expansion = Liquidity injection (bullish) | ↓ Contraction = QT (bearish)",
+      gli: "Sum of global central bank balance sheets in USD. â†‘ Expansion = Liquidity injection (bullish) | â†“ Contraction = QT (bearish)",
       gli_cb:
         "Individual central bank assets in USD. Larger = more weight in global liquidity.",
       btc_fair:
         "BTC fair value derived from macro liquidity factors. Price above = overvalued, below = undervalued.",
       btc_bands:
-        "±1σ/2σ bands show historical deviation range. Mean-reverts over time.",
+        "Â±1Ïƒ/2Ïƒ bands show historical deviation range. Mean-reverts over time.",
       net_liq:
         "Fed Balance Sheet minus TGA and RRP. Key driver of US dollar liquidity.",
-      rrp: "Reverse Repo drains liquidity from the system. ↓ RRP = Liquidity release (bullish)",
-      tga: "Treasury General Account. ↓ TGA = Treasury spending = Liquidity injection",
+      rrp: "Reverse Repo drains liquidity from the system. â†“ RRP = Liquidity release (bullish)",
+      tga: "Treasury General Account. â†“ TGA = Treasury spending = Liquidity injection",
       m2_global:
         "Global money supply in USD. Leading indicator for asset prices (45-90 day lag).",
       m2_country: "Country M2 money supply in local currency converted to USD.",
-      cli: "Aggregates credit conditions, volatility, and lending. ↑ CLI = Easier credit (bullish) | ↓ Contraction = Tighter (bearish)",
+      cli: "Aggregates credit conditions, volatility, and lending. â†‘ CLI = Easier credit (bullish) | â†“ Contraction = Tighter (bearish)",
       hy_spread:
-        "High Yield bond spreads vs Treasuries. ↓ Spread = Risk-on (bullish) | ↑ Spread = Risk-off",
+        "High Yield bond spreads vs Treasuries. â†“ Spread = Risk-on (bullish) | â†‘ Spread = Risk-off",
       ig_spread:
-        "Investment Grade spreads. ↓ Spread = Credit easing | ↑ Spread = Credit stress",
+        "Investment Grade spreads. â†“ Spread = Credit easing | â†‘ Spread = Credit stress",
       nfci_credit:
-        "Fed's NFCI Credit subindex. ↓ Below 0 = Loose conditions | ↑ Above 0 = Tight",
+        "Fed's NFCI Credit subindex. â†“ Below 0 = Loose conditions | â†‘ Above 0 = Tight",
       nfci_risk:
-        "Fed's NFCI Risk subindex. ↓ Below 0 = Low fear | ↑ Above 0 = Elevated fear",
+        "Fed's NFCI Risk subindex. â†“ Below 0 = Low fear | â†‘ Above 0 = Elevated fear",
       lending:
-        "Senior Loan Officer Survey. ↑ Tightening = Banks restrict credit | ↓ Easing = Free lending",
+        "Senior Loan Officer Survey. â†‘ Tightening = Banks restrict credit | â†“ Easing = Free lending",
       vix: "Implied volatility (fear gauge). Z>2 = Panic | Z<-1 = Complacency. Mean-reverts.",
       tips: "Breakeven (amber): Inflation expectations. Real Rate (blue): True cost of money. 5Y5Y (green): Long-term anchor.",
       bank_reserves:
@@ -135,7 +146,7 @@
         "Impulse tracks the rate of change in liquidity flows. Acceleration captures regime shifts.",
       gli_impulse: "GLI Impulse (13W)",
       m2_impulse: "M2 Impulse (13W)",
-      cb_contribution: "CB Contribution to ΔGLI",
+      cb_contribution: "CB Contribution to Î”GLI",
       // Formatting
       spot_usd: "Spot USD",
       const_fx: "Const FX",
@@ -148,7 +159,7 @@
       fair_value: "Fair Value",
       deviation: "Deviation",
       zscore: "Z-Score",
-      lag_analysis: "Predictive Signals: CLI → BTC Lag Analysis",
+      lag_analysis: "Predictive Signals: CLI â†’ BTC Lag Analysis",
       roc_window: "ROC Window",
       optimal_lag: "Optimal Lag",
       max_correlation: "Max Correlation",
@@ -160,7 +171,7 @@
       quant_v2_weekly:
         "Weekly frequency (W-FRI) instead of daily to avoid FRI autocorrelation",
       quant_v2_log:
-        "Δlog(BTC) returns instead of log levels (avoids spurious regression)",
+        "Î”log(BTC) returns instead of log levels (avoids spurious regression)",
       quant_v2_elastic:
         "ElasticNet with 1-8 week lags for automatic feature selection",
       quant_v2_pca: "PCA GLI factor instead of raw sum (handles colinearity)",
@@ -175,9 +186,9 @@
       interp_vix_coin: "VIX (coincident)",
       interp_netliq_lag: "US Net Liq (30-day lag)",
       interp_zones: "Deviation Zones",
-      interp_extreme: "±2σ: Extreme over/undervaluation",
-      interp_moderate: "±1σ: Moderate deviation",
-      interp_fair_range: "Within ±1σ: Fair value range",
+      interp_extreme: "Â±2Ïƒ: Extreme over/undervaluation",
+      interp_moderate: "Â±1Ïƒ: Moderate deviation",
+      interp_fair_range: "Within Â±1Ïƒ: Fair value range",
       interp_signals: "Trading Signals",
       interp_profittaking: "Z > +2: Consider profit-taking",
       interp_accumulation: "Z < -2: Potential accumulation",
@@ -208,205 +219,205 @@
         "Log-scale BTC Price overlaid on Macro Regime. Background tracks combined Global (GLI) and US (NetLiq) liquidity momentum. Green: Dual Expansion (Bullish). Red: Dual Contraction (Bearish). Grey: Mixed/Neutral.",
       regime_formula_title: "Regime Formula",
       regime_formula_desc:
-        "Score = 50 + 15 × Total_Z | Liquidity (35% GLI + 35% NetLiq + 20% M2 ± CB breadth) + Credit (60% CLI + 40% CLI momentum) - Brakes (real rates + repo stress + reserve scarcity)",
+        "Score = 50 + 15 Ã— Total_Z | Liquidity (35% GLI + 35% NetLiq + 20% M2 Â± CB breadth) + Credit (60% CLI + 40% CLI momentum) - Brakes (real rates + repo stress + reserve scarcity)",
       regime_score_bullish:
-        "Score > 50: Bullish bias (green) → Liquidity expanding, credit easing",
+        "Score > 50: Bullish bias (green) â†’ Liquidity expanding, credit easing",
       regime_score_bearish:
-        "Score < 50: Bearish bias (red) → Liquidity contracting, credit tightening",
+        "Score < 50: Bearish bias (red) â†’ Liquidity contracting, credit tightening",
     },
     es: {
-      gli: "Suma de balances de bancos centrales en USD. ↑ Expansión = Inyección de liquidez (alcista) | ↓ Contracción = QT (bajista)",
+      gli: "Suma de balances de bancos centrales en USD. â†‘ ExpansiÃ³n = InyecciÃ³n de liquidez (alcista) | â†“ ContracciÃ³n = QT (bajista)",
       gli_cb:
-        "Activos individuales de bancos centrales en USD. Mayor = más peso en liquidez global.",
+        "Activos individuales de bancos centrales en USD. Mayor = mÃ¡s peso en liquidez global.",
       btc_fair:
         "Valor justo de BTC derivado de factores macro. Precio arriba = sobrevalorado, abajo = infravalorado.",
       btc_bands:
-        "Bandas ±1σ/2σ muestran rango de desviación histórica. Revierte a la media.",
+        "Bandas Â±1Ïƒ/2Ïƒ muestran rango de desviaciÃ³n histÃ³rica. Revierte a la media.",
       net_liq:
-        "Balance de la Fed menos TGA y RRP. Motor clave de liquidez del dólar.",
-      rrp: "Repo Inverso drena liquidez del sistema. ↓ RRP = Liberación de liquidez (alcista)",
-      tga: "Cuenta General del Tesoro. ↓ TGA = Gasto del Tesoro = Inyección de liquidez",
+        "Balance de la Fed menos TGA y RRP. Motor clave de liquidez del dÃ³lar.",
+      rrp: "Repo Inverso drena liquidez del sistema. â†“ RRP = LiberaciÃ³n de liquidez (alcista)",
+      tga: "Cuenta General del Tesoro. â†“ TGA = Gasto del Tesoro = InyecciÃ³n de liquidez",
       m2_global:
-        "Oferta monetaria global en USD. Indicador adelantado de precios (45-90 días de retardo).",
-      m2_country: "M2 del país en moneda local convertida a USD.",
-      cli: "Agrega condiciones crediticias, volatilidad y préstamos. ↑ CLI = Crédito fácil (alcista) | ↓ CLI = Más estricto",
+        "Oferta monetaria global en USD. Indicador adelantado de precios (45-90 dÃ­as de retardo).",
+      m2_country: "M2 del paÃ­s en moneda local convertida a USD.",
+      cli: "Agrega condiciones crediticias, volatilidad y prÃ©stamos. â†‘ CLI = CrÃ©dito fÃ¡cil (alcista) | â†“ CLI = MÃ¡s estricto",
       hy_spread:
-        "Spreads de bonos High Yield vs Treasuries. ↓ Spread = Risk-on (alcista) | ↑ = Risk-off",
+        "Spreads de bonos High Yield vs Treasuries. â†“ Spread = Risk-on (alcista) | â†‘ = Risk-off",
       ig_spread:
-        "Spreads de grado de inversión. ↓ Spread = Crédito relajado | ↑ = Estrés crediticio",
+        "Spreads de grado de inversiÃ³n. â†“ Spread = CrÃ©dito relajado | â†‘ = EstrÃ©s crediticio",
       nfci_credit:
-        "Subíndice de crédito NFCI de la Fed. ↓ Bajo 0 = Condiciones laxas | ↑ Sobre 0 = Estrictas",
+        "SubÃ­ndice de crÃ©dito NFCI de la Fed. â†“ Bajo 0 = Condiciones laxas | â†‘ Sobre 0 = Estrictas",
       nfci_risk:
-        "Subíndice de riesgo NFCI. ↓ Bajo 0 = Bajo miedo | ↑ Sobre 0 = Miedo elevado",
+        "SubÃ­ndice de riesgo NFCI. â†“ Bajo 0 = Bajo miedo | â†‘ Sobre 0 = Miedo elevado",
       lending:
-        "Encuesta de préstamos bancarios. ↑ Endurecimiento = Restringen crédito | ↓ = Prestan libremente",
-      vix: "Volatilidad implícita (indicador de miedo). Z>2 = Pánico | Z<-1 = Complacencia.",
-      tips: "Breakeven (ámbar): Expectativas de inflación. Tasa Real (azul): Coste real del dinero. 5Y5Y (verde): Anclaje a largo plazo.",
+        "Encuesta de prÃ©stamos bancarios. â†‘ Endurecimiento = Restringen crÃ©dito | â†“ = Prestan libremente",
+      vix: "Volatilidad implÃ­cita (indicador de miedo). Z>2 = PÃ¡nico | Z<-1 = Complacencia.",
+      tips: "Breakeven (Ã¡mbar): Expectativas de inflaciÃ³n. Tasa Real (azul): Coste real del dinero. 5Y5Y (verde): Anclaje a largo plazo.",
       bank_reserves:
-        "Reservas totales mantenidas por instituciones depositarias en los Bancos de la Reserva Federal. Cuando las reservas caen, el estrés de liquidez aumenta.",
+        "Reservas totales mantenidas por instituciones depositarias en los Bancos de la Reserva Federal. Cuando las reservas caen, el estrÃ©s de liquidez aumenta.",
       repo_stress:
-        "Comparativa entre el SOFR (tipo de mercado) y el IORB (suelo de la Fed). Si el SOFR se mantiene por encima del IORB, indica escasez sistémica de liquidez.",
+        "Comparativa entre el SOFR (tipo de mercado) y el IORB (suelo de la Fed). Si el SOFR se mantiene por encima del IORB, indica escasez sistÃ©mica de liquidez.",
       // Navigation
       nav_dashboard: "Panel de Control",
       nav_gli: "Flujos Globales CB",
       nav_m2: "M2 Global",
       nav_us_system: "Sistema EE.UU.",
       nav_risk_model: "Modelo de Riesgo",
-      nav_btc_analysis: "Análisis BTC",
+      nav_btc_analysis: "AnÃ¡lisis BTC",
       nav_btc_quant: "BTC Quant v2",
       // Header & Global
       header_desc:
-        "Monitoreo en tiempo real de liquidez macro y crédito en 5 bancos centrales",
+        "Monitoreo en tiempo real de liquidez macro y crÃ©dito en 5 bancos centrales",
       system_live: "Sistema en Vivo",
       refresh_data: "Actualizar Datos",
       light_mode: "Modo Claro",
       dark_mode: "Modo Oscuro",
       switch_lang: "Cambiar Idioma",
-      conn_error: "Error de Conexión:",
+      conn_error: "Error de ConexiÃ³n:",
       // Stats Cards
       stat_gli: "Liquidez Global (GLI)",
       stat_us_net: "Liquidez Neta EE.UU.",
-      stat_cli: "Índice de Crédito (CLI)",
-      stat_vix: "Índice de Volatilidad",
+      stat_cli: "Ãndice de CrÃ©dito (CLI)",
+      stat_vix: "Ãndice de Volatilidad",
       // Common Table Labels
       bank: "Banco",
       weight: "Peso",
-      economy: "Economía",
+      economy: "EconomÃ­a",
       account: "Cuenta",
       impact_1m: "Impacto Global 1M",
       impact_3m: "Impacto Global 3M",
       impact_1y: "Impacto Global 1Y",
       impact_us: "Impacto en Liq Neta",
       impact_note_gli:
-        "* Impacto = % contribución del movimiento 1M del banco a la Liquidez Global total.",
+        "* Impacto = % contribuciÃ³n del movimiento 1M del banco a la Liquidez Global total.",
       impact_note_us:
-        "* Imp = Contribución al cambio de Liquidez Neta de EE.UU. RRP/TGA tienen un efecto inverso.",
-      last_data: "Últimos Datos:",
-      last: "Último:",
+        "* Imp = ContribuciÃ³n al cambio de Liquidez Neta de EE.UU. RRP/TGA tienen un efecto inverso.",
+      last_data: "Ãšltimos Datos:",
+      last: "Ãšltimo:",
       // Chart Headers
-      chart_gli_aggregate: "Índice de Liquidez Global (Agregado)",
+      chart_gli_aggregate: "Ãndice de Liquidez Global (Agregado)",
       chart_us_net_liq: "Tendencias de Liquidez Neta EE.UU.",
       chart_fed_assets: "Activos de la Fed (Trillones USD)",
       chart_us_credit: "Condiciones Crediticias EE.UU.",
       chart_rrp: "Facilidad RRP de la Fed",
       chart_tga: "Cuenta General del Tesoro (TGA)",
       chart_m2_aggregate: "Oferta Monetaria M2 Global (Agregada)",
-      chart_inflation_exp: "Expectativas de Inflación (Mercado TIPS)",
-      chart_gli_comp: "Composición y Rendimiento de GLI",
-      chart_m2_comp: "Composición y Rendimiento de M2",
+      chart_inflation_exp: "Expectativas de InflaciÃ³n (Mercado TIPS)",
+      chart_gli_comp: "ComposiciÃ³n y Rendimiento de GLI",
+      chart_m2_comp: "ComposiciÃ³n y Rendimiento de M2",
       chart_us_comp: "Impacto de Componentes del Sistema EE.UU.",
       chart_bank_reserves: "Reservas Bancarias vs Liquidez Neta",
-      chart_repo_stress: "Estrés del Mercado Repo (SOFR vs IORB)",
+      chart_repo_stress: "EstrÃ©s del Mercado Repo (SOFR vs IORB)",
       // Reserves Metrics
       reserves_velocity: "Velocidad de Reservas",
       roc_3m: "ROC 3M",
       spread_zscore: "Z-Score Spread",
       momentum: "Momentum",
       lcr: "LCR",
-      reserves_high_stress: "Alto Estrés",
+      reserves_high_stress: "Alto EstrÃ©s",
       reserves_normal: "Normal",
-      reserves_low_stress: "Bajo Estrés",
+      reserves_low_stress: "Bajo EstrÃ©s",
       reserves_bullish: "Alcista",
       reserves_bearish: "Bajista",
       reserves_neutral: "Neutral",
       // US System Metrics
-      liquidity_score: "Índice de Liquidez",
+      liquidity_score: "Ãndice de Liquidez",
       rrp_drain: "Drenaje RRP",
-      weeks_to_empty: "Semanas hasta vacío",
-      tga_deviation: "Desviación TGA",
+      weeks_to_empty: "Semanas hasta vacÃ­o",
+      tga_deviation: "DesviaciÃ³n TGA",
       fed_momentum_label: "Momentum Fed",
       netliq_roc: "ROC Liq Neta",
-      liquid_env: "Líquido",
+      liquid_env: "LÃ­quido",
       dry_env: "Seco",
       regime_qe: "Modo QE",
       regime_qt: "Modo QT",
       // Flow/Impulse Metrics
       flow_impulse: "Impulso de Liquidez",
-      flow_accel: "Aceleración",
+      flow_accel: "AceleraciÃ³n",
       flow_zscore: "Z-Score del Impulso",
       flow_desc:
-        "El impulso rastrea la tasa de cambio en los flujos. La aceleración captura cambios de régimen.",
+        "El impulso rastrea la tasa de cambio en los flujos. La aceleraciÃ³n captura cambios de rÃ©gimen.",
       gli_impulse: "Impulso GLI (13S)",
       m2_impulse: "Impulso M2 (13S)",
-      cb_contribution: "Contribución CB a ΔGLI",
+      cb_contribution: "ContribuciÃ³n CB a Î”GLI",
       // Formatting
       spot_usd: "Spot USD",
       const_fx: "FX Const",
       // BTC Analysis tab
       btc_analysis_title: "Modelo de Valor Justo de BTC",
       btc_analysis_desc:
-        "Valor justo de Bitcoin derivado de liquidez global, M2 y condiciones de crédito. Precio arriba = sobrevalorado, abajo = infravalorado.",
-      current_valuation: "Valoración Actual",
+        "Valor justo de Bitcoin derivado de liquidez global, M2 y condiciones de crÃ©dito. Precio arriba = sobrevalorado, abajo = infravalorado.",
+      current_valuation: "ValoraciÃ³n Actual",
       btc_price: "Precio BTC",
       fair_value: "Valor Justo",
-      deviation: "Desviación",
+      deviation: "DesviaciÃ³n",
       zscore: "Z-Score",
-      lag_analysis: "Señales Predictivas: CLI → BTC Análisis de Retardo",
+      lag_analysis: "SeÃ±ales Predictivas: CLI â†’ BTC AnÃ¡lisis de Retardo",
       roc_window: "Ventana ROC",
-      optimal_lag: "Retardo Óptimo",
-      max_correlation: "Correlación Máxima",
-      interpretation: "Interpretación",
+      optimal_lag: "Retardo Ã“ptimo",
+      max_correlation: "CorrelaciÃ³n MÃ¡xima",
+      interpretation: "InterpretaciÃ³n",
       // BTC Quant v2 tab
       quant_v2_title: "Quant v2: Modelo Mejorado de Valor Justo de Bitcoin",
       quant_v2_desc:
-        "Este modelo aborda problemas econométricos del modelo anterior:",
+        "Este modelo aborda problemas economÃ©tricos del modelo anterior:",
       quant_v2_weekly:
-        "Frecuencia semanal (W-VIE) en lugar de diaria para evitar autocorrelación",
+        "Frecuencia semanal (W-VIE) en lugar de diaria para evitar autocorrelaciÃ³n",
       quant_v2_log:
-        "Retornos Δlog(BTC) en lugar de niveles log (evita regresión espuria)",
+        "Retornos Î”log(BTC) en lugar de niveles log (evita regresiÃ³n espuria)",
       quant_v2_elastic:
-        "ElasticNet con retardos de 1-8 semanas para selección automática",
+        "ElasticNet con retardos de 1-8 semanas para selecciÃ³n automÃ¡tica",
       quant_v2_pca:
         "Factor PCA GLI en lugar de suma cruda (maneja colinealidad)",
       quant_v2_vol: "Volatilidad rolling de 52 semanas para bandas adaptativas",
-      oos_metrics: "Métricas Fuera de Muestra",
-      model_params: "Parámetros del Modelo",
+      oos_metrics: "MÃ©tricas Fuera de Muestra",
+      model_params: "ParÃ¡metros del Modelo",
       quant_chart_desc:
         "La deriva acumulativa del modelo puede causar divergencia con el tiempo.",
-      interp_regression: "Regresión usando:",
+      interp_regression: "RegresiÃ³n usando:",
       interp_gli_lag: "GLI (retardo 45d)",
       interp_cli_lag: "CLI (retardo 14d)",
       interp_vix_coin: "VIX (coincidente)",
       interp_netliq_lag: "Liq Neta EE.UU. (retardo 30d)",
-      interp_zones: "Zonas de Desviación",
-      interp_extreme: "±2σ: Sobre/infravaloración extrema",
-      interp_moderate: "±1σ: Desviación moderada",
-      interp_fair_range: "Dentro de ±1σ: Rango de valor justo",
-      interp_signals: "Señales de Trading",
+      interp_zones: "Zonas de DesviaciÃ³n",
+      interp_extreme: "Â±2Ïƒ: Sobre/infravaloraciÃ³n extrema",
+      interp_moderate: "Â±1Ïƒ: DesviaciÃ³n moderada",
+      interp_fair_range: "Dentro de Â±1Ïƒ: Rango de valor justo",
+      interp_signals: "SeÃ±ales de Trading",
       interp_profittaking: "Z > +2: Considerar toma de beneficios",
-      interp_accumulation: "Z < -2: Acumulación potencial",
+      interp_accumulation: "Z < -2: AcumulaciÃ³n potencial",
       interp_divergence: "Divergencia ROC: Cambios de momentum",
       // Data Health & Pulse
       data_health: "Salud y Cobertura de Datos",
       series: "Serie",
-      freshness: "Antigüedad",
+      freshness: "AntigÃ¼edad",
       real_date: "Fecha Real",
       coverage: "Cobertura",
       active_cbs: "Bancos Activos",
-      impulse_analysis: "Análisis de Impulso de Liquidez",
+      impulse_analysis: "AnÃ¡lisis de Impulso de Liquidez",
       chart_impulse_desc:
-        "Comparación del momentum de GLI, Liquidez Neta y condiciones de Crédito (Z-Scores Normalizados). Las divergencias suelen liderar el precio de BTC.",
-      btc_roc_overlay: "Superposición ROC BTC",
+        "ComparaciÃ³n del momentum de GLI, Liquidez Neta y condiciones de CrÃ©dito (Z-Scores Normalizados). Las divergencias suelen liderar el precio de BTC.",
+      btc_roc_overlay: "SuperposiciÃ³n ROC BTC",
       period: "Periodo",
-      lag_days: "Retardo (Días)",
+      lag_days: "Retardo (DÃ­as)",
       // Macro Regimes
       regime_bullish: "Macro Alcista",
       regime_bearish: "Macro Bajista",
-      regime_global_inj: "Inyección Global",
-      regime_us_inj: "Inyección EE.UU.",
+      regime_global_inj: "InyecciÃ³n Global",
+      regime_us_inj: "InyecciÃ³n EE.UU.",
       regime_early_warning: "Aviso Temprano",
       regime_losing_steam: "Perdiendo Fuelle",
-      regime_neutral: "Neutral / Transición",
-      regime_signal: "Pulso Macro y Régimen",
+      regime_neutral: "Neutral / TransiciÃ³n",
+      regime_signal: "Pulso Macro y RÃ©gimen",
       regime_chart_desc:
-        "Precio BTC (Log) vs Régimen Macro. El fondo rastrea liquidez Global (GLI) y EE.UU. (NetLiq). Verde: Expansión Dual (Alcista). Rojo: Contracción Dual (Bajista). Gris: Neutral.",
-      regime_formula_title: "Fórmula del Régimen",
+        "Precio BTC (Log) vs RÃ©gimen Macro. El fondo rastrea liquidez Global (GLI) y EE.UU. (NetLiq). Verde: ExpansiÃ³n Dual (Alcista). Rojo: ContracciÃ³n Dual (Bajista). Gris: Neutral.",
+      regime_formula_title: "FÃ³rmula del RÃ©gimen",
       regime_formula_desc:
-        "Score = 50 + 15 × Total_Z | Liquidez (35% GLI + 35% NetLiq + 20% M2 ± amplitud CB) + Crédito (60% CLI + 40% momentum CLI) - Frenos (tasas reales + estrés repo + escasez reservas)",
+        "Score = 50 + 15 Ã— Total_Z | Liquidez (35% GLI + 35% NetLiq + 20% M2 Â± amplitud CB) + CrÃ©dito (60% CLI + 40% momentum CLI) - Frenos (tasas reales + estrÃ©s repo + escasez reservas)",
       regime_score_bullish:
-        "Score > 50: Sesgo alcista (verde) → Liquidez expandiéndose, crédito relajándose",
+        "Score > 50: Sesgo alcista (verde) â†’ Liquidez expandiÃ©ndose, crÃ©dito relajÃ¡ndose",
       regime_score_bearish:
-        "Score < 50: Sesgo bajista (rojo) → Liquidez contrayéndose, crédito endureciéndose",
+        "Score < 50: Sesgo bajista (rojo) â†’ Liquidez contrayÃ©ndose, crÃ©dito endureciÃ©ndose",
     },
   };
 
@@ -1398,7 +1409,7 @@
     yaxis: {
       title:
         normalizeImpulse || showComposite
-          ? "Z-Score (σ)"
+          ? "Z-Score (Ïƒ)"
           : "Impulse ($ Trillion)",
       gridcolor: darkMode ? "#334155" : "#e2e8f0",
     },
@@ -1468,10 +1479,10 @@
       case "bullish":
         return {
           name: currentTranslations.regime_bullish,
-          emoji: "🐂",
+          emoji: "ðŸ‚",
           color: "bullish",
           desc: isEs
-            ? "Expansión Sincronizada: Tanto la liquidez Global como la de EE.UU. están expandiéndose."
+            ? "ExpansiÃ³n Sincronizada: Tanto la liquidez Global como la de EE.UU. estÃ¡n expandiÃ©ndose."
             : "Synchronized Expansion: Both Global and US liquidity are expanding.",
           details: isEs
             ? "Entorno favorable para activos de riesgo."
@@ -1480,10 +1491,10 @@
       case "bearish":
         return {
           name: currentTranslations.regime_bearish,
-          emoji: "🐻",
+          emoji: "ðŸ»",
           color: "bearish",
           desc: isEs
-            ? "Contracción Sincronizada: Tanto la liquidez Global como la de EE.UU. se están contrayendo."
+            ? "ContracciÃ³n Sincronizada: Tanto la liquidez Global como la de EE.UU. se estÃ¡n contrayendo."
             : "Synchronized Contraction: Both Global and US liquidity are contracting.",
           details: isEs
             ? "Entorno defensivo/adverso para activos de riesgo."
@@ -1493,13 +1504,13 @@
       default:
         return {
           name: currentTranslations.regime_neutral,
-          emoji: "⚖️",
+          emoji: "âš–ï¸",
           color: "neutral",
           desc: isEs
-            ? "Régimen Mixto/Divergente: Señales contradictorias entre liquidez Global y doméstica."
+            ? "RÃ©gimen Mixto/Divergente: SeÃ±ales contradictorias entre liquidez Global y domÃ©stica."
             : "Mixed/Divergent Regime: Conflicting signals between Global and domestic liquidity.",
           details: isEs
-            ? "Comportamiento lateral o errático esperado."
+            ? "Comportamiento lateral o errÃ¡tico esperado."
             : "Choppy or sideways price action expected.",
         };
     }
@@ -2307,7 +2318,7 @@
       width: 2,
     },
     {
-      name: "+2σ",
+      name: "+2Ïƒ",
       type: "line",
       color: "#ef4444",
       data: formatTV($dashboardData.dates, activeBtcModel.upper_2sd),
@@ -2315,7 +2326,7 @@
       options: { lineStyle: 2 },
     },
     {
-      name: "+1σ",
+      name: "+1Ïƒ",
       type: "line",
       color: "#f59e0b",
       data: formatTV($dashboardData.dates, activeBtcModel.upper_1sd),
@@ -2323,7 +2334,7 @@
       options: { lineStyle: 2 },
     },
     {
-      name: "-1σ",
+      name: "-1Ïƒ",
       type: "line",
       color: "#f59e0b",
       data: formatTV($dashboardData.dates, activeBtcModel.lower_1sd),
@@ -2331,7 +2342,7 @@
       options: { lineStyle: 2 },
     },
     {
-      name: "-2σ",
+      name: "-2Ïƒ",
       type: "line",
       color: "#ef4444",
       data: formatTV($dashboardData.dates, activeBtcModel.lower_2sd),
@@ -2458,7 +2469,7 @@
         width: 2,
       },
       {
-        name: "+2σ",
+        name: "+2Ïƒ",
         type: "line",
         color: "#ef4444",
         data: v2.dates
@@ -2471,7 +2482,7 @@
         options: { lineStyle: 2 },
       },
       {
-        name: "+1σ",
+        name: "+1Ïƒ",
         type: "line",
         color: "#f59e0b",
         data: v2.dates
@@ -2484,7 +2495,7 @@
         options: { lineStyle: 2 },
       },
       {
-        name: "-1σ",
+        name: "-1Ïƒ",
         type: "line",
         color: "#f59e0b",
         data: v2.dates
@@ -2497,7 +2508,7 @@
         options: { lineStyle: 2 },
       },
       {
-        name: "-2σ",
+        name: "-2Ïƒ",
         type: "line",
         color: "#ef4444",
         data: v2.dates
@@ -2636,7 +2647,7 @@
         role="button"
         tabindex="0"
       >
-        <span class="nav-icon">📊</span>
+        <span class="nav-icon">ðŸ“Š</span>
         {currentTranslations.nav_dashboard}
       </div>
       <div
@@ -2647,7 +2658,7 @@
         role="button"
         tabindex="0"
       >
-        <span class="nav-icon">🏦</span>
+        <span class="nav-icon">ðŸ¦</span>
         {currentTranslations.nav_gli}
       </div>
       <div
@@ -2658,7 +2669,7 @@
         role="button"
         tabindex="0"
       >
-        <span class="nav-icon">💰</span>
+        <span class="nav-icon">ðŸ’°</span>
         {currentTranslations.nav_m2}
       </div>
       <div
@@ -2669,7 +2680,7 @@
         role="button"
         tabindex="0"
       >
-        <span class="nav-icon">🇺🇸</span>
+        <span class="nav-icon">ðŸ‡ºðŸ‡¸</span>
         {currentTranslations.nav_us_system}
       </div>
       <div
@@ -2680,7 +2691,7 @@
         role="button"
         tabindex="0"
       >
-        <span class="nav-icon">⚠️</span>
+        <span class="nav-icon">âš ï¸</span>
         {currentTranslations.nav_risk_model}
       </div>
       <div
@@ -2691,7 +2702,7 @@
         role="button"
         tabindex="0"
       >
-        <span class="nav-icon">₿</span>
+        <span class="nav-icon">â‚¿</span>
         {currentTranslations.nav_btc_analysis}
       </div>
       <div
@@ -2702,7 +2713,7 @@
         role="button"
         tabindex="0"
       >
-        <span class="nav-icon">🧪</span>
+        <span class="nav-icon">ðŸ§ª</span>
         {currentTranslations.nav_btc_quant}
       </div>
     </nav>
@@ -2733,7 +2744,7 @@
           on:click={toggleLanguage}
           title={currentTranslations.switch_lang}
         >
-          <span class="toggle-icon">🌐</span>
+          <span class="toggle-icon">ðŸŒ</span>
           <span class="toggle-label">{language === "en" ? "EN" : "ES"}</span>
         </button>
         <button
@@ -2743,7 +2754,7 @@
             ? currentTranslations.light_mode
             : currentTranslations.dark_mode}
         >
-          <span class="toggle-icon">{darkMode ? "☀️" : "🌙"}</span>
+          <span class="toggle-icon">{darkMode ? "â˜€ï¸" : "ðŸŒ™"}</span>
           <span class="toggle-label"
             >{darkMode
               ? currentTranslations.light_mode.split(" ")[0]
@@ -2769,2893 +2780,139 @@
 
     <div class="dashboard-grid">
       {#if currentTab === "Dashboard"}
-        {#if $latestStats}
-          <div class="stats-grid">
-            <StatsCard
-              title={currentTranslations.stat_gli}
-              value={$latestStats.gli.value}
-              change={$latestStats.gli.change}
-              suffix="T"
-              icon="🌍"
-            />
-            <StatsCard
-              title={currentTranslations.stat_us_net}
-              value={$latestStats.us_net_liq.value}
-              change={$latestStats.us_net_liq.change}
-              suffix="T"
-              icon="🇺🇸"
-            />
-            <StatsCard
-              title={currentTranslations.stat_cli}
-              value={$latestStats.cli.value}
-              change={$latestStats.cli.change}
-              suffix="Z"
-              icon="💳"
-              precision={3}
-            />
-            <StatsCard
-              title={currentTranslations.stat_vix}
-              value={$latestStats.vix.value}
-              change={$latestStats.vix.change}
-              icon="🌪️"
-            />
-          </div>
-        {/if}
-
-        <div class="main-charts">
-          <div class="chart-card wide">
-            <div class="gli-layout">
-              <div class="chart-main">
-                <div class="chart-header">
-                  <div class="label-group">
-                    <h3>
-                      {currentTranslations.stat_gli} ({$dashboardData.gli
-                        .cb_count || 15}
-                      {currentTranslations.nav_dashboard === "Dashboard"
-                        ? "Banks"
-                        : "Bancos"})
-                    </h3>
-                    <SignalBadge type={gliSignal} text={gliSignal} />
-                  </div>
-                  <div class="header-controls">
-                    <div class="fx-toggle">
-                      <button
-                        class="fx-btn"
-                        class:active={!gliShowConstantFx}
-                        on:click={() => (gliShowConstantFx = false)}
-                        >{currentTranslations.spot_usd}</button
-                      >
-                      <button
-                        class="fx-btn"
-                        class:active={gliShowConstantFx}
-                        on:click={() => (gliShowConstantFx = true)}
-                        >{currentTranslations.const_fx}</button
-                      >
-                    </div>
-                    <TimeRangeSelector
-                      selectedRange={gliRange}
-                      onRangeChange={(r) => (gliRange = r)}
-                    />
-                    <span class="last-date"
-                      >{currentTranslations.last}
-                      {getLastDate("GLI_TOTAL")}</span
-                    >
-                  </div>
-                </div>
-                <p class="chart-description">{currentTranslations.gli}</p>
-                <div class="chart-content">
-                  <Chart {darkMode} data={gliData} />
-                </div>
-              </div>
-
-              <div class="metrics-sidebar">
-                <!-- Data Health Panel -->
-                <div class="metrics-section data-health-section">
-                  <h4 style="display: flex; align-items: center; gap: 8px;">
-                    <span class="health-dot"></span>
-                    {currentTranslations.data_health}
-                  </h4>
-                  <table class="metrics-table health-table">
-                    <thead>
-                      <tr>
-                        <th>{currentTranslations.series}</th>
-                        <th>{currentTranslations.real_date}</th>
-                        <th>{currentTranslations.freshness}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {#each Object.entries($dashboardData.series_metadata || {}) as [id, meta]}
-                        <tr>
-                          <td><strong>{id}</strong></td>
-                          <td>{meta.last_date || "N/A"}</td>
-                          <td>
-                            <span
-                              class="freshness-tag"
-                              class:stale={meta.freshness > 7}
-                            >
-                              {meta.freshness === 0
-                                ? "Today"
-                                : (meta.freshness || "?") + "d"}
-                            </span>
-                          </td>
-                        </tr>
-                      {/each}
-                    </tbody>
-                  </table>
-                  {#if $dashboardData.series_metadata?.GLI?.cb_count}
-                    <div class="coverage-note">
-                      {currentTranslations.active_cbs}:
-                      <strong
-                        >{$dashboardData.series_metadata.GLI
-                          .cb_count}/15</strong
-                      >
-                    </div>
-                  {/if}
-                </div>
-
-                <div class="metrics-section">
-                  <h4>{currentTranslations.chart_gli_comp}</h4>
-                  <table class="metrics-table">
-                    <thead>
-                      <tr>
-                        <th>{currentTranslations.bank}</th>
-                        <th>{currentTranslations.weight}</th>
-                        <th>1M</th>
-                        <th title={currentTranslations.impact_1m}>Imp</th>
-                        <th>3M</th>
-                        <th title={currentTranslations.impact_3m}>Imp</th>
-                        <th>1Y</th>
-                        <th title={currentTranslations.impact_1y}>Imp</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {#each gliWeights.slice(0, 10) as bank}
-                        <tr>
-                          <td>{bank.name}</td>
-                          <td>{bank.weight.toFixed(0)}%</td>
-                          <td
-                            class="roc-val"
-                            class:positive={bank.m1 > 0}
-                            class:negative={bank.m1 < 0}
-                            >{bank.m1.toFixed(1)}%</td
-                          >
-                          <td
-                            class="roc-val impact-cell"
-                            class:positive={bank.imp1 > 0}
-                            class:negative={bank.imp1 < 0}
-                            >{bank.imp1.toFixed(2)}%</td
-                          >
-                          <td
-                            class="roc-val"
-                            class:positive={bank.m3 > 0}
-                            class:negative={bank.m3 < 0}
-                            >{bank.m3.toFixed(1)}%</td
-                          >
-                          <td
-                            class="roc-val impact-cell"
-                            class:positive={bank.imp3 > 0}
-                            class:negative={bank.imp3 < 0}
-                            >{bank.imp3.toFixed(2)}%</td
-                          >
-                          <td
-                            class="roc-val"
-                            class:positive={bank.y1 > 0}
-                            class:negative={bank.y1 < 0}
-                            >{bank.y1.toFixed(1)}%</td
-                          >
-                          <td
-                            class="roc-val impact-cell"
-                            class:positive={bank.imp1y > 0}
-                            class:negative={bank.imp1y < 0}
-                            >{bank.imp1y.toFixed(2)}%</td
-                          >
-                        </tr>
-                      {/each}
-                    </tbody>
-                  </table>
-                  <p style="font-size: 10px; color: #94a3b8; margin-top: 8px;">
-                    {currentTranslations.impact_note_gli}
-                  </p>
-                </div>
-
-                <div class="metrics-section" style="margin-top: 24px;">
-                  <h4>⚡ {currentTranslations.flow_impulse}</h4>
-                  <p
-                    class="section-note"
-                    style="font-size: 11px; margin-bottom: 12px; color: var(--text-muted);"
-                  >
-                    {currentTranslations.flow_desc}
-                  </p>
-                  <table class="metrics-table">
-                    <thead>
-                      <tr>
-                        <th>{currentTranslations.economy}</th>
-                        <th>Impulse (13W)</th>
-                        <th>Accel</th>
-                        <th>Z-Score</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {#each [{ name: "Global Liquidity", key: "gli" }, { name: "Global M2", key: "m2" }] as aggregate}
-                        <tr>
-                          <td><strong>{aggregate.name}</strong></td>
-                          <td
-                            class="roc-val"
-                            class:positive={getLatestValue(
-                              $dashboardData.flow_metrics?.[
-                                `${aggregate.key}_impulse_13w`
-                              ],
-                            ) > 0}
-                            class:negative={getLatestValue(
-                              $dashboardData.flow_metrics?.[
-                                `${aggregate.key}_impulse_13w`
-                              ],
-                            ) < 0}
-                          >
-                            {getLatestValue(
-                              $dashboardData.flow_metrics?.[
-                                `${aggregate.key}_impulse_13w`
-                              ],
-                            )?.toFixed(2)}T
-                          </td>
-                          <td
-                            class="roc-val"
-                            class:positive={getLatestValue(
-                              $dashboardData.flow_metrics?.[
-                                `${aggregate.key}_accel`
-                              ],
-                            ) > 0}
-                            class:negative={getLatestValue(
-                              $dashboardData.flow_metrics?.[
-                                `${aggregate.key}_accel`
-                              ],
-                            ) < 0}
-                          >
-                            {getLatestValue(
-                              $dashboardData.flow_metrics?.[
-                                `${aggregate.key}_accel`
-                              ],
-                            )?.toFixed(2)}T
-                          </td>
-                          <td
-                            class="signal-cell"
-                            class:plus={getLatestValue(
-                              $dashboardData.flow_metrics?.[
-                                `${aggregate.key}_impulse_zscore`
-                              ],
-                            ) > 1}
-                            class:minus={getLatestValue(
-                              $dashboardData.flow_metrics?.[
-                                `${aggregate.key}_impulse_zscore`
-                              ],
-                            ) < -1}
-                          >
-                            {getLatestValue(
-                              $dashboardData.flow_metrics?.[
-                                `${aggregate.key}_impulse_zscore`
-                              ],
-                            )?.toFixed(2)}σ
-                          </td>
-                        </tr>
-                      {/each}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div class="metrics-section" style="margin-top: 24px;">
-                  <h4>🏦 {currentTranslations.cb_contribution}</h4>
-                  <table class="metrics-table">
-                    <thead>
-                      <tr>
-                        <th>CB</th>
-                        <th>Contrib Δ13W</th>
-                        <th>Signal</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {#each [{ name: "Fed", key: "fed" }, { name: "ECB", key: "ecb" }, { name: "BoJ", key: "boj" }, { name: "PBoC", key: "pboc" }, { name: "BoE", key: "boe" }] as cb}
-                        {#if getLatestValue($dashboardData.flow_metrics?.[`${cb.key}_contrib_13w`]) !== undefined}
-                          <tr>
-                            <td>{cb.name}</td>
-                            <td
-                              class="roc-val"
-                              class:positive={getLatestValue(
-                                $dashboardData.flow_metrics?.[
-                                  `${cb.key}_contrib_13w`
-                                ],
-                              ) > 0}
-                              class:negative={getLatestValue(
-                                $dashboardData.flow_metrics?.[
-                                  `${cb.key}_contrib_13w`
-                                ],
-                              ) < 0}
-                            >
-                              {getLatestValue(
-                                $dashboardData.flow_metrics?.[
-                                  `${cb.key}_contrib_13w`
-                                ],
-                              )?.toFixed(1)}%
-                            </td>
-                            <td
-                              class="signal-cell"
-                              class:plus={getLatestValue(
-                                $dashboardData.flow_metrics?.[
-                                  `${cb.key}_contrib_13w`
-                                ],
-                              ) > 20}
-                              class:minus={getLatestValue(
-                                $dashboardData.flow_metrics?.[
-                                  `${cb.key}_contrib_13w`
-                                ],
-                              ) < -5}
-                            >
-                              {getLatestValue(
-                                $dashboardData.flow_metrics?.[
-                                  `${cb.key}_contrib_13w`
-                                ],
-                              ) > 20
-                                ? "Driver"
-                                : getLatestValue(
-                                      $dashboardData.flow_metrics?.[
-                                        `${cb.key}_contrib_13w`
-                                      ],
-                                    ) < -5
-                                  ? "QT"
-                                  : "—"}
-                            </td>
-                          </tr>
-                        {/if}
-                      {/each}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="chart-card wide">
-            <div class="gli-layout">
-              <div class="chart-main">
-                <div class="chart-header">
-                  <div class="label-group">
-                    <h3>{currentTranslations.chart_us_net_liq}</h3>
-                    <SignalBadge type={liqSignal} text={liqSignal} />
-                  </div>
-                  <div class="header-controls">
-                    <TimeRangeSelector
-                      selectedRange={netLiqRange}
-                      onRangeChange={(r) => (netLiqRange = r)}
-                    />
-                    <span class="last-date"
-                      >{currentTranslations.last_data}
-                      {getLastDate("FED")}</span
-                    >
-                  </div>
-                </div>
-                <p class="chart-description">{currentTranslations.net_liq}</p>
-                <div class="chart-content">
-                  <Chart {darkMode} data={netLiqData} />
-                </div>
-              </div>
-
-              <div class="metrics-sidebar">
-                <div class="metrics-section">
-                  <h4>{currentTranslations.chart_us_comp}</h4>
-                  <table class="metrics-table">
-                    <thead>
-                      <tr>
-                        <th>{currentTranslations.account}</th>
-                        <th>1M</th>
-                        <th title="Absolute change in Billions USD">$ Δ1M</th>
-                        <th title={currentTranslations.impact_us}>Imp</th>
-                        <th>3M</th>
-                        <th title={currentTranslations.impact_us}>Imp</th>
-                        <th>1Y</th>
-                        <th title={currentTranslations.impact_us}>Imp</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {#each usSystemMetrics as item}
-                        <tr>
-                          <td>{item.name}</td>
-                          <td
-                            class="roc-val"
-                            class:positive={(!item.isLiability &&
-                              item.m1 > 0) ||
-                              (item.isLiability && item.m1 < 0)}
-                            class:negative={(!item.isLiability &&
-                              item.m1 < 0) ||
-                              (item.isLiability && item.m1 > 0)}
-                            >{item.m1.toFixed(1)}%</td
-                          >
-                          <td
-                            class="roc-val"
-                            class:positive={(!item.isLiability &&
-                              item.delta1 > 0) ||
-                              (item.isLiability && item.delta1 < 0)}
-                            class:negative={(!item.isLiability &&
-                              item.delta1 < 0) ||
-                              (item.isLiability && item.delta1 > 0)}
-                          >
-                            {item.delta1 > 0 ? "+" : ""}{item.delta1.toFixed(
-                              0,
-                            )}B
-                          </td>
-                          <td
-                            class="roc-val impact-cell"
-                            class:positive={item.imp1 > 0}
-                            class:negative={item.imp1 < 0}
-                            >{item.imp1.toFixed(2)}%</td
-                          >
-                          <td
-                            class="roc-val"
-                            class:positive={(!item.isLiability &&
-                              item.m3 > 0) ||
-                              (item.isLiability && item.m3 < 0)}
-                            class:negative={(!item.isLiability &&
-                              item.m3 < 0) ||
-                              (item.isLiability && item.m3 > 0)}
-                            >{item.m3.toFixed(1)}%</td
-                          >
-                          <td
-                            class="roc-val impact-cell"
-                            class:positive={item.imp3 > 0}
-                            class:negative={item.imp3 < 0}
-                            >{item.imp3.toFixed(2)}%</td
-                          >
-                          <td
-                            class="roc-val"
-                            class:positive={(!item.isLiability &&
-                              item.y1 > 0) ||
-                              (item.isLiability && item.y1 < 0)}
-                            class:negative={(!item.isLiability &&
-                              item.y1 < 0) ||
-                              (item.isLiability && item.y1 > 0)}
-                            >{item.y1.toFixed(1)}%</td
-                          >
-                          <td
-                            class="roc-val impact-cell"
-                            class:positive={item.imp1y > 0}
-                            class:negative={item.imp1y < 0}
-                            >{item.imp1y.toFixed(2)}%</td
-                          >
-                        </tr>
-                      {/each}
-                      <tr class="total-row">
-                        <td><strong>TOTAL</strong></td>
-                        <td>-</td>
-                        <td
-                          class="roc-val"
-                          class:positive={usSystemTotal.delta1 > 0}
-                          class:negative={usSystemTotal.delta1 < 0}
-                        >
-                          {usSystemTotal.delta1 > 0
-                            ? "+"
-                            : ""}{usSystemTotal.delta1.toFixed(0)}B
-                        </td>
-                        <td
-                          class="roc-val impact-cell"
-                          class:positive={usSystemTotal.imp1 > 0}
-                          class:negative={usSystemTotal.imp1 < 0}
-                        >
-                          {usSystemTotal.imp1.toFixed(2)}%
-                        </td>
-                        <td>-</td>
-                        <td
-                          class="roc-val impact-cell"
-                          class:positive={usSystemTotal.imp3 > 0}
-                          class:negative={usSystemTotal.imp3 < 0}
-                        >
-                          {usSystemTotal.imp3.toFixed(2)}%
-                        </td>
-                        <td>-</td>
-                        <td
-                          class="roc-val impact-cell"
-                          class:positive={usSystemTotal.imp1y > 0}
-                          class:negative={usSystemTotal.imp1y < 0}
-                        >
-                          {usSystemTotal.imp1y.toFixed(2)}%
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="chart-card wide">
-            <div class="chart-header">
-              <div class="label-group">
-                <h3>Credit Liquidity Index (CLI)</h3>
-              </div>
-              <div class="header-controls">
-                <TimeRangeSelector
-                  selectedRange={cliRange}
-                  onRangeChange={(r) => (cliRange = r)}
-                />
-                <span class="last-date">Last Data: {getLastDate("NFCI")}</span>
-              </div>
-            </div>
-            <p class="chart-description">{currentTranslations.cli}</p>
-            <div class="chart-content">
-              <Chart {darkMode} data={cliData} />
-            </div>
-          </div>
-
-          <div class="chart-card wide">
-            <div class="chart-header">
-              <div class="label-group">
-                <h3>CLI Component Contributions</h3>
-              </div>
-              <div class="header-controls">
-                <TimeRangeSelector
-                  selectedRange={cliRange}
-                  onRangeChange={(r) => (cliRange = r)}
-                />
-              </div>
-            </div>
-            <div class="chart-content">
-              <Chart {darkMode} data={cliComponentData} />
-            </div>
-          </div>
-
-          <div class="regime-card wide">
-            <div class="regime-header">
-              <span class="regime-title"
-                >{currentTranslations.regime_signal}</span
-              >
-              <div class="regime-badge bg-{currentRegime.color}">
-                <span>{currentRegime.emoji}</span>
-                <span>{currentRegime.name}</span>
-              </div>
-
-              <div
-                class="control-group"
-                style="display: flex; align-items: center; gap: 8px; margin-left: auto; margin-right: 16px;"
-              >
-                <span
-                  style="font-size: 11px; color: var(--text-muted); opacity: 0.7;"
-                  >Offset (Days):</span
-                >
-                <input
-                  type="range"
-                  min="0"
-                  max="365"
-                  step="1"
-                  bind:value={regimeLag}
-                  style="width: 80px;"
-                  title="{regimeLag} days"
-                />
-                <span
-                  style="font-size: 11px; min-width: 25px; text-align: right; color: var(--text-primary); font-family: monospace;"
-                  >{regimeLag}</span
-                >
-              </div>
-
-              <div class="liquidity-score">
-                <span class="score-label">Score:</span>
-                <span
-                  class="score-val"
-                  class:high={liquidityScore >= 70}
-                  class:low={liquidityScore <= 30}
-                  >{liquidityScore.toFixed(0)}</span
-                >
-              </div>
-            </div>
-            <div class="regime-body">
-              <p class="regime-description">{currentRegime.desc}</p>
-              <p class="regime-details">{currentRegime.details}</p>
-
-              <div
-                class="regime-formula"
-                style="margin-top: 12px; padding: 10px; background: var(--card-bg-alt, rgba(0,0,0,0.15)); border-radius: 6px; font-size: 11px;"
-              >
-                <h4
-                  style="margin: 0 0 6px 0; font-size: 12px; color: var(--text-primary);"
-                >
-                  {currentTranslations.regime_formula_title}
-                </h4>
-                <p
-                  style="margin: 0 0 4px 0; color: var(--text-muted); font-family: monospace; line-height: 1.4;"
-                >
-                  {currentTranslations.regime_formula_desc}
-                </p>
-                <p style="margin: 0; color: #10b981;">
-                  • {currentTranslations.regime_score_bullish}
-                </p>
-                <p style="margin: 0 0 8px 0; color: #ef4444;">
-                  • {currentTranslations.regime_score_bearish}
-                </p>
-
-                <!-- Live Z-Score Values -->
-                <div
-                  style="margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-color, rgba(255,255,255,0.1));"
-                >
-                  <p
-                    style="margin: 0 0 4px 0; font-size: 10px; color: var(--text-muted);"
-                  >
-                    {language === "es"
-                      ? "Valores Actuales:"
-                      : "Current Values:"}
-                  </p>
-                  <div
-                    style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;"
-                  >
-                    <span
-                      style="color: {regimeDiagnostics.liquidity_z >= 0
-                        ? '#10b981'
-                        : '#ef4444'};"
-                    >
-                      Liquidity: {regimeDiagnostics.liquidity_z >= 0
-                        ? "+"
-                        : ""}{regimeDiagnostics.liquidity_z.toFixed(2)}
-                      → {regimeDiagnostics.liquidity_z >= 0
-                        ? language === "es"
-                          ? "Expansión"
-                          : "Expansion"
-                        : language === "es"
-                          ? "Contracción"
-                          : "Contraction"}
-                    </span>
-                    <span
-                      style="color: {regimeDiagnostics.credit_z >= 0
-                        ? '#10b981'
-                        : '#ef4444'};"
-                    >
-                      Credit: {regimeDiagnostics.credit_z >= 0
-                        ? "+"
-                        : ""}{regimeDiagnostics.credit_z.toFixed(2)}
-                      → {regimeDiagnostics.credit_z >= 0
-                        ? language === "es"
-                          ? "Relajándose"
-                          : "Easing"
-                        : language === "es"
-                          ? "Endureciéndose"
-                          : "Tightening"}
-                    </span>
-                    <span
-                      style="color: {regimeDiagnostics.brakes_z >= 0
-                        ? '#10b981'
-                        : '#ef4444'};"
-                    >
-                      Brakes: {regimeDiagnostics.brakes_z >= 0
-                        ? "+"
-                        : ""}{regimeDiagnostics.brakes_z.toFixed(2)}
-                      → {regimeDiagnostics.brakes_z >= 0
-                        ? language === "es"
-                          ? "Sin estrés"
-                          : "No stress"
-                        : language === "es"
-                          ? "Estrés"
-                          : "Stress"}
-                    </span>
-                    <span
-                      style="font-weight: 600; color: {regimeDiagnostics.total_z >=
-                      0
-                        ? '#10b981'
-                        : '#ef4444'};"
-                    >
-                      Total Z: {regimeDiagnostics.total_z >= 0
-                        ? "+"
-                        : ""}{regimeDiagnostics.total_z.toFixed(2)}
-                      → {regimeDiagnostics.total_z > 0.5
-                        ? "🐂"
-                        : regimeDiagnostics.total_z < -0.5
-                          ? "🐻"
-                          : "⚖️"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div
-              class="regime-chart-container"
-              style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top:10px; height: 450px; display: flex; flex-direction: column;"
-            >
-              <p
-                style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.4;"
-              >
-                {currentTranslations.regime_chart_desc}
-              </p>
-              <div style="flex: 1; min-height: 0;">
-                <LightweightChart
-                  {darkMode}
-                  data={regimeLCData}
-                  logScale={true}
-                />
-              </div>
-            </div>
-
-            <div class="regime-glow glow-{currentRegime.color}"></div>
-          </div>
-
-          <div class="chart-card wide">
-            <div class="chart-header">
-              <div class="label-group">
-                <h3>{currentTranslations.impulse_analysis}</h3>
-              </div>
-              <div class="header-controls">
-                <div
-                  class="control-group"
-                  style="display: flex; align-items: center; gap: 8px;"
-                >
-                  <span style="font-size: 11px; color: var(--text-muted);"
-                    >{currentTranslations.period}:</span
-                  >
-                  <select
-                    bind:value={btcRocPeriod}
-                    style="background: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); padding: 4px; border-radius: 4px; font-size: 11px;"
-                  >
-                    <option value={21}>1M</option>
-                    <option value={63}>3M</option>
-                    <option value={126}>6M</option>
-                    <option value={252}>1Y</option>
-                  </select>
-                </div>
-
-                <div
-                  class="control-group"
-                  style="display: flex; align-items: center; gap: 8px;"
-                >
-                  <span style="font-size: 11px; color: var(--text-muted);"
-                    >{currentTranslations.lag_days}:</span
-                  >
-                  <input
-                    type="range"
-                    min="-60"
-                    max="60"
-                    step="1"
-                    bind:value={btcLag}
-                    style="width: 80px;"
-                    title="{btcLag} days"
-                  />
-                  <span
-                    style="font-size: 11px; width: 25px; text-align: right; color: var(--text-primary);"
-                    >{btcLag}</span
-                  >
-                </div>
-
-                <div
-                  class="control-group"
-                  style="display: flex; align-items: center; gap: 4px;"
-                >
-                  <label
-                    style="font-size: 11px; color: var(--text-primary); display: flex; align-items: center; gap: 4px; cursor: pointer;"
-                  >
-                    <input type="checkbox" bind:checked={showComposite} />
-                    Composite
-                  </label>
-                </div>
-
-                {#if showComposite}
-                  <span
-                    style="font-size: 11px; color: #8b5cf6; font-weight: 500; border: 1px solid #8b5cf6; padding: 2px 6px; border-radius: 4px;"
-                  >
-                    {optimalLagLabel}
-                  </span>
-                {/if}
-
-                <TimeRangeSelector
-                  selectedRange={impulseRange}
-                  onRangeChange={(r) => (impulseRange = r)}
-                />
-              </div>
-            </div>
-            <p class="chart-description">
-              {currentTranslations.chart_impulse_desc}
-            </p>
-            <div class="chart-content">
-              <Chart {darkMode} data={impulseData} layout={impulseLayout} />
-            </div>
-          </div>
-        </div>
+        <DashboardTab
+          {darkMode}
+          {language}
+          translations={currentTranslations}
+          dashboardData={$dashboardData}
+          latestStats={$latestStats}
+          {gliData}
+          {netLiqData}
+          {cliData}
+          {cliComponentData}
+          {regimeLCData}
+          {impulseData}
+          {impulseLayout}
+          {gliWeights}
+          {usSystemMetrics}
+          {usSystemTotal}
+          {gliSignal}
+          {liqSignal}
+          {currentRegime}
+          {liquidityScore}
+          {regimeDiagnostics}
+          bind:regimeLag
+          bind:btcRocPeriod
+          bind:btcLag
+          bind:showComposite
+          {optimalLagLabel}
+          {getLastDate}
+          {getLatestValue}
+        />
       {:else if currentTab === "Global Flows CB"}
-        <div class="dashboard-grid no-margin">
-          {#each [{ name: "Federal Reserve (Fed)", data: fedData, range: fedRange, setRange: (r) => (fedRange = r), bank: "FED" }, { name: "European Central Bank (ECB)", data: ecbData, range: ecbRange, setRange: (r) => (ecbRange = r), bank: "ECB" }, { name: "Bank of Japan (BoJ)", data: bojData, range: bojRange, setRange: (r) => (bojRange = r), bank: "BOJ" }, { name: "Bank of England (BoE)", data: boeData, range: boeRange, setRange: (r) => (boeRange = r), bank: "BOE" }, { name: "People's Bank of China (PBoC)", data: pbocData, range: pbocRange, setRange: (r) => (pbocRange = r), bank: "PBOC" }, { name: "Bank of Canada (BoC)", data: bocData, range: bocRange, setRange: (r) => (bocRange = r), bank: "BOC" }, { name: "Reserve Bank of Australia (RBA)", data: rbaData, range: rbaRange, setRange: (r) => (rbaRange = r), bank: "RBA" }, { name: "Swiss National Bank (SNB)", data: snbData, range: snbRange, setRange: (r) => (snbRange = r), bank: "SNB" }, { name: "Bank of Korea (BoK)", data: bokData, range: bokRange, setRange: (r) => (bokRange = r), bank: "BOK" }, { name: "Reserve Bank of India (RBI)", data: rbiData, range: rbiRange, setRange: (r) => (rbiRange = r), bank: "RBI" }, { name: "Central Bank of Russia (CBR)", data: cbrData, range: cbrRange, setRange: (r) => (cbrRange = r), bank: "CBR" }, { name: "Central Bank of Brazil (BCB)", data: bcbData, range: bcbRange, setRange: (r) => (bcbRange = r), bank: "BCB" }, { name: "Reserve Bank of New Zealand (RBNZ)", data: rbnzData, range: rbnzRange, setRange: (r) => (rbnzRange = r), bank: "RBNZ" }, { name: "Sveriges Riksbank (SR)", data: srData, range: srRange, setRange: (r) => (srRange = r), bank: "SR" }, { name: "Bank Negara Malaysia (BNM)", data: bnmData, range: bnmRange, setRange: (r) => (bnmRange = r), bank: "BNM" }] as item}
-            <div class="chart-card">
-              <div class="chart-header">
-                <h3>{item.name}</h3>
-                <div class="header-controls">
-                  <TimeRangeSelector
-                    selectedRange={item.range}
-                    onRangeChange={item.setRange}
-                  />
-                  <span class="last-date"
-                    >{currentTranslations.last_data}
-                    {getLastDate(item.bank)}</span
-                  >
-                </div>
-              </div>
-              <p class="chart-description">{currentTranslations.gli_cb}</p>
-              <div class="chart-content">
-                <Chart {darkMode} data={item.data} />
-              </div>
-            </div>
-
-            {#if item.bank === "FED"}
-              <!-- Collective CB Metrics inserted after Fed -->
-              <div class="chart-card">
-                <div class="chart-header">
-                  <h3>Central Bank Breadth (% Expanding)</h3>
-                  <div class="header-controls">
-                    <TimeRangeSelector
-                      selectedRange={cbRange}
-                      onRangeChange={(r) => (cbRange = r)}
-                    />
-                  </div>
-                </div>
-                <p class="chart-description">
-                  {language === "es"
-                    ? "Porcentaje de bancos centrales con balance en expansión (13 semanas). ↑ Alcista."
-                    : "Percentage of central banks with expanding balance sheets (13-week basis). ↑ Bullish."}
-                </p>
-                <div class="chart-content">
-                  <LightweightChart {darkMode} data={cbBreadthData} />
-                </div>
-              </div>
-
-              <div class="chart-card">
-                <div class="chart-header">
-                  <h3>Central Bank Concentration (HHI)</h3>
-                  <div class="header-controls">
-                    <TimeRangeSelector
-                      selectedRange={cbRange}
-                      onRangeChange={(r) => (cbRange = r)}
-                    />
-                  </div>
-                </div>
-                <p class="chart-description">
-                  {language === "es"
-                    ? "Concentración de flujos (Indice HHI). Valores altos indican que pocos bancos mueven la liquidez global."
-                    : "Concentration of flows (HHI Index). High values indicate few banks are driving global liquidity."}
-                </p>
-                <div class="chart-content">
-                  <LightweightChart {darkMode} data={cbConcentrationData} />
-                </div>
-              </div>
-            {/if}
-          {/each}
-        </div>
+        <GlobalFlowsCbTab
+          {darkMode}
+          {language}
+          translations={currentTranslations}
+          {fedData}
+          {ecbData}
+          {bojData}
+          {boeData}
+          {pbocData}
+          {bocData}
+          {rbaData}
+          {snbData}
+          {bokData}
+          {rbiData}
+          {cbrData}
+          {bcbData}
+          {rbnzData}
+          {srData}
+          {bnmData}
+          {cbBreadthData}
+          {cbConcentrationData}
+          {getLastDate}
+        />
       {:else if currentTab === "Global M2"}
-        <div class="main-charts">
-          <div class="chart-card wide">
-            <div class="gli-layout">
-              <div class="chart-main">
-                <div class="chart-header">
-                  <h3>{currentTranslations.chart_m2_aggregate}</h3>
-                  <div class="header-controls">
-                    <TimeRangeSelector
-                      selectedRange={m2Range}
-                      onRangeChange={(r) => (m2Range = r)}
-                    />
-                    <span class="last-date"
-                      >{currentTranslations.last}: {getLastDate(
-                        "M2_TOTAL",
-                      )}</span
-                    >
-                  </div>
-                </div>
-                <p class="chart-description">{currentTranslations.m2_global}</p>
-                <div class="chart-content">
-                  <Chart {darkMode} data={m2TotalData} />
-                </div>
-              </div>
-
-              <div class="metrics-sidebar">
-                <div class="metrics-section">
-                  <h4>{currentTranslations.chart_m2_comp}</h4>
-                  <table class="metrics-table">
-                    <thead>
-                      <tr>
-                        <th>{currentTranslations.economy}</th>
-                        <th>{currentTranslations.weight}</th>
-                        <th>1M</th>
-                        <th title={currentTranslations.impact_1m}>Imp</th>
-                        <th>3M</th>
-                        <th title={currentTranslations.impact_3m}>Imp</th>
-                        <th>1Y</th>
-                        <th title={currentTranslations.impact_1y}>Imp</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {#each m2Weights.slice(0, 10) as item}
-                        <tr>
-                          <td>{item.name}</td>
-                          <td>{item.weight.toFixed(0)}%</td>
-                          <td
-                            class="roc-val"
-                            class:positive={(!item.isLiability &&
-                              item.m1 > 0) ||
-                              (item.isLiability && item.m1 < 0)}
-                            class:negative={(!item.isLiability &&
-                              item.m1 < 0) ||
-                              (item.isLiability && item.m1 > 0)}
-                            >{item.m1.toFixed(1)}%</td
-                          >
-                          <td
-                            class="roc-val impact-cell"
-                            class:positive={item.imp1 > 0}
-                            class:negative={item.imp1 < 0}
-                            >{item.imp1.toFixed(2)}%</td
-                          >
-                          <td
-                            class="roc-val"
-                            class:positive={(!item.isLiability &&
-                              item.m3 > 0) ||
-                              (item.isLiability && item.m3 < 0)}
-                            class:negative={(!item.isLiability &&
-                              item.m3 < 0) ||
-                              (item.isLiability && item.m3 > 0)}
-                            >{item.m3.toFixed(1)}%</td
-                          >
-                          <td
-                            class="roc-val impact-cell"
-                            class:positive={item.imp3 > 0}
-                            class:negative={item.imp3 < 0}
-                            >{item.imp3.toFixed(2)}%</td
-                          >
-                          <td
-                            class="roc-val"
-                            class:positive={(!item.isLiability &&
-                              item.y1 > 0) ||
-                              (item.isLiability && item.y1 < 0)}
-                            class:negative={(!item.isLiability &&
-                              item.y1 < 0) ||
-                              (item.isLiability && item.y1 > 0)}
-                            >{item.y1.toFixed(1)}%</td
-                          >
-                          <td
-                            class="roc-val impact-cell"
-                            class:positive={item.imp1y > 0}
-                            class:negative={item.imp1y < 0}
-                            >{item.imp1y.toFixed(2)}%</td
-                          >
-                        </tr>
-                      {/each}
-                    </tbody>
-                  </table>
-                  <p style="font-size: 10px; color: #94a3b8; margin-top: 8px;">
-                    * Impact = % contribution of local M2 1M move to total
-                    Global M2.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {#each [{ id: "us", name: "US M2", data: usM2Data, range: usM2Range, setRange: (r) => (usM2Range = r), bank: "FED" }, { id: "eu", name: "EU M2", data: euM2Data, range: euM2Range, setRange: (r) => (euM2Range = r), bank: "ECB" }, { id: "cn", name: "China M2", data: cnM2Data, range: cnM2Range, setRange: (r) => (cnM2Range = r), bank: "PBOC" }, { id: "jp", name: "Japan M2", data: jpM2Data, range: jpM2Range, setRange: (r) => (jpM2Range = r), bank: "BOJ" }, { id: "uk", name: "UK M2", data: ukM2Data, range: ukM2Range, setRange: (r) => (ukM2Range = r), bank: "BOE" }, { id: "ca", name: "Canada M2", data: caM2Data, range: caM2Range, setRange: (r) => (caM2Range = r), bank: "BOC" }, { id: "au", name: "Australia M2", data: auM2Data, range: auM2Range, setRange: (r) => (auM2Range = r), bank: "RBA" }, { id: "in", name: "India M2", data: inM2Data, range: inM2Range, setRange: (r) => (inM2Range = r), bank: "RBI" }, { id: "ch", name: "Switzerland M2", data: chM2Data, range: chM2Range, setRange: (r) => (chM2Range = r), bank: "SNB" }, { id: "ru", name: "Russia M2", data: ruM2Data, range: ruM2Range, setRange: (r) => (ruM2Range = r), bank: "CBR" }, { id: "br", name: "Brazil M2", data: brM2Data, range: brM2Range, setRange: (r) => (brM2Range = r), bank: "BCB" }, { id: "kr", name: "South Korea M2", data: krM2Data, range: krM2Range, setRange: (r) => (krM2Range = r), bank: "BOK" }, { id: "mx", name: "Mexico M2", data: mxM2Data, range: mxM2Range, setRange: (r) => (mxM2Range = r), bank: "MX" }, { id: "my", name: "Malaysia M2", data: myM2Data, range: myM2Range, setRange: (r) => (myM2Range = r), bank: "BNM" }] as item}
-            <div class="chart-card">
-              <div class="chart-header">
-                <h3>{item.name}</h3>
-                <div class="header-controls">
-                  <TimeRangeSelector
-                    selectedRange={item.range}
-                    onRangeChange={item.setRange}
-                  />
-                  <span class="last-date">Last: {getLastDate(item.bank)}</span>
-                </div>
-              </div>
-              <p class="chart-description">{currentTranslations.m2_country}</p>
-              <div class="chart-content">
-                <Chart {darkMode} data={item.data} />
-              </div>
-            </div>
-          {/each}
-        </div>
+        <GlobalM2Tab
+          {darkMode}
+          translations={currentTranslations}
+          {m2TotalData}
+          {m2Weights}
+          {usM2Data}
+          {euM2Data}
+          {cnM2Data}
+          {jpM2Data}
+          {ukM2Data}
+          {caM2Data}
+          {auM2Data}
+          {krM2Data}
+          {inM2Data}
+          {brM2Data}
+          {mxM2Data}
+          {ruM2Data}
+          {chM2Data}
+          {myM2Data}
+          {getLastDate}
+        />
       {:else if currentTab === "US System"}
-        <div class="main-charts">
-          <div class="chart-card wide">
-            <div class="gli-layout">
-              <div class="chart-main">
-                <div class="chart-header">
-                  <h3>{currentTranslations.chart_us_net_liq}</h3>
-                  <div class="header-controls">
-                    <TimeRangeSelector
-                      selectedRange={netLiqRange}
-                      onRangeChange={(r) => (netLiqRange = r)}
-                    />
-                    <span class="last-date"
-                      >{currentTranslations.last_data}
-                      {getLastDate("FED")}</span
-                    >
-                  </div>
-                </div>
-                <p class="chart-description">{currentTranslations.net_liq}</p>
-                <div class="chart-content">
-                  <Chart {darkMode} data={netLiqData} />
-                </div>
-              </div>
-
-              <div class="metrics-sidebar">
-                <div class="metrics-section">
-                  <h4>{currentTranslations.chart_us_comp}</h4>
-                  <table class="metrics-table">
-                    <thead>
-                      <tr>
-                        <th>{currentTranslations.account}</th>
-                        <th>1M</th>
-                        <th title="Absolute change in Billions USD">$ Δ1M</th>
-                        <th title={currentTranslations.impact_us}>Imp</th>
-                        <th>3M</th>
-                        <th title={currentTranslations.impact_us}>Imp</th>
-                        <th>1Y</th>
-                        <th title={currentTranslations.impact_us}>Imp</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {#each usSystemMetrics as item}
-                        <tr>
-                          <td>{item.name}</td>
-                          <td
-                            class="roc-val"
-                            class:positive={(!item.isLiability &&
-                              item.m1 > 0) ||
-                              (item.isLiability && item.m1 < 0)}
-                            class:negative={(!item.isLiability &&
-                              item.m1 < 0) ||
-                              (item.isLiability && item.m1 > 0)}
-                            >{item.m1.toFixed(1)}%</td
-                          >
-                          <td
-                            class="roc-val"
-                            class:positive={(!item.isLiability &&
-                              item.delta1 > 0) ||
-                              (item.isLiability && item.delta1 < 0)}
-                            class:negative={(!item.isLiability &&
-                              item.delta1 < 0) ||
-                              (item.isLiability && item.delta1 > 0)}
-                          >
-                            {item.delta1 > 0 ? "+" : ""}{item.delta1.toFixed(
-                              0,
-                            )}B
-                          </td>
-                          <td
-                            class="roc-val impact-cell"
-                            class:positive={item.imp1 > 0}
-                            class:negative={item.imp1 < 0}
-                            >{item.imp1.toFixed(2)}%</td
-                          >
-                          <td
-                            class="roc-val"
-                            class:positive={(!item.isLiability &&
-                              item.m3 > 0) ||
-                              (item.isLiability && item.m3 < 0)}
-                            class:negative={(!item.isLiability &&
-                              item.m3 < 0) ||
-                              (item.isLiability && item.m3 > 0)}
-                            >{item.m3.toFixed(1)}%</td
-                          >
-                          <td
-                            class="roc-val impact-cell"
-                            class:positive={item.imp3 > 0}
-                            class:negative={item.imp3 < 0}
-                            >{item.imp3.toFixed(2)}%</td
-                          >
-                          <td
-                            class="roc-val"
-                            class:positive={(!item.isLiability &&
-                              item.y1 > 0) ||
-                              (item.isLiability && item.y1 < 0)}
-                            class:negative={(!item.isLiability &&
-                              item.y1 < 0) ||
-                              (item.isLiability && item.y1 > 0)}
-                            >{item.y1.toFixed(1)}%</td
-                          >
-                          <td
-                            class="roc-val impact-cell"
-                            class:positive={item.imp1y > 0}
-                            class:negative={item.imp1y < 0}
-                            >{item.imp1y.toFixed(2)}%</td
-                          >
-                        </tr>
-                      {/each}
-                      <tr class="total-row">
-                        <td><strong>TOTAL</strong></td>
-                        <td>-</td>
-                        <td
-                          class="roc-val"
-                          class:positive={usSystemTotal.delta1 > 0}
-                          class:negative={usSystemTotal.delta1 < 0}
-                        >
-                          {usSystemTotal.delta1 > 0
-                            ? "+"
-                            : ""}{usSystemTotal.delta1.toFixed(0)}B
-                        </td>
-                        <td
-                          class="roc-val impact-cell"
-                          class:positive={usSystemTotal.imp1 > 0}
-                          class:negative={usSystemTotal.imp1 < 0}
-                        >
-                          {usSystemTotal.imp1.toFixed(2)}%
-                        </td>
-                        <td>-</td>
-                        <td
-                          class="roc-val impact-cell"
-                          class:positive={usSystemTotal.imp3 > 0}
-                          class:negative={usSystemTotal.imp3 < 0}
-                        >
-                          {usSystemTotal.imp3.toFixed(2)}%
-                        </td>
-                        <td>-</td>
-                        <td
-                          class="roc-val impact-cell"
-                          class:positive={usSystemTotal.imp1y > 0}
-                          class:negative={usSystemTotal.imp1y < 0}
-                        >
-                          {usSystemTotal.imp1y.toFixed(2)}%
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                  <p style="font-size: 10px; color: #94a3b8; margin-top: 8px;">
-                    {currentTranslations.impact_note_us}
-                  </p>
-                </div>
-
-                <!-- Composite Liquidity Metrics -->
-                <div
-                  class="metrics-section"
-                  style="margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(148, 163, 184, 0.2);"
-                >
-                  <h4>{currentTranslations.liquidity_score}</h4>
-                  <table class="metrics-table compact">
-                    <thead>
-                      <tr>
-                        <th>Metric</th>
-                        <th>Value</th>
-                        <th>Signal</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td>{currentTranslations.liquidity_score}</td>
-                        <td
-                          class="roc-val"
-                          class:positive={getLatestValue(
-                            $dashboardData.us_system_metrics?.liquidity_score,
-                          ) > 0}
-                          class:negative={getLatestValue(
-                            $dashboardData.us_system_metrics?.liquidity_score,
-                          ) < 0}
-                          >{(
-                            getLatestValue(
-                              $dashboardData.us_system_metrics?.liquidity_score,
-                            ) ?? 0
-                          ).toFixed(2)}</td
-                        >
-                        <td
-                          class="signal-cell"
-                          class:plus={getLatestValue(
-                            $dashboardData.us_system_metrics?.liquidity_score,
-                          ) > 1}
-                          class:minus={getLatestValue(
-                            $dashboardData.us_system_metrics?.liquidity_score,
-                          ) < -1}
-                          >{getLatestValue(
-                            $dashboardData.us_system_metrics?.liquidity_score,
-                          ) > 1
-                            ? currentTranslations.liquid_env
-                            : getLatestValue(
-                                  $dashboardData.us_system_metrics
-                                    ?.liquidity_score,
-                                ) < -1
-                              ? currentTranslations.dry_env
-                              : "—"}</td
-                        >
-                      </tr>
-                      <tr>
-                        <td>{currentTranslations.netliq_roc}</td>
-                        <td
-                          class="roc-val"
-                          class:positive={getLatestValue(
-                            $dashboardData.us_system_metrics?.netliq_roc_20d,
-                          ) > 0}
-                          class:negative={getLatestValue(
-                            $dashboardData.us_system_metrics?.netliq_roc_20d,
-                          ) < 0}
-                          >{(
-                            getLatestValue(
-                              $dashboardData.us_system_metrics?.netliq_roc_20d,
-                            ) ?? 0
-                          ).toFixed(2)}%</td
-                        >
-                        <td
-                          class="signal-cell"
-                          class:plus={getLatestValue(
-                            $dashboardData.us_system_metrics?.netliq_roc_20d,
-                          ) > 2}
-                          class:minus={getLatestValue(
-                            $dashboardData.us_system_metrics?.netliq_roc_20d,
-                          ) < -2}
-                          >{getLatestValue(
-                            $dashboardData.us_system_metrics?.netliq_roc_20d,
-                          ) > 2
-                            ? "Risk-ON"
-                            : getLatestValue(
-                                  $dashboardData.us_system_metrics
-                                    ?.netliq_roc_20d,
-                                ) < -2
-                              ? "Risk-OFF"
-                              : "—"}</td
-                        >
-                      </tr>
-                      <tr>
-                        <td>Δ4W NetLiq</td>
-                        <td
-                          class="roc-val"
-                          class:positive={getLatestValue(
-                            $dashboardData.us_system_metrics?.netliq_delta_4w,
-                          ) > 0}
-                          class:negative={getLatestValue(
-                            $dashboardData.us_system_metrics?.netliq_delta_4w,
-                          ) < 0}
-                          >{(
-                            (getLatestValue(
-                              $dashboardData.us_system_metrics?.netliq_delta_4w,
-                            ) ?? 0) * 1000
-                          ).toFixed(0)}B</td
-                        >
-                        <td
-                          class="signal-cell"
-                          class:plus={getLatestValue(
-                            $dashboardData.us_system_metrics?.netliq_delta_4w,
-                          ) > 0.1}
-                          class:minus={getLatestValue(
-                            $dashboardData.us_system_metrics?.netliq_delta_4w,
-                          ) < -0.1}
-                          >{getLatestValue(
-                            $dashboardData.us_system_metrics?.netliq_delta_4w,
-                          ) > 0.1
-                            ? "Bullish"
-                            : getLatestValue(
-                                  $dashboardData.us_system_metrics
-                                    ?.netliq_delta_4w,
-                                ) < -0.1
-                              ? "Bearish"
-                              : "—"}</td
-                        >
-                      </tr>
-                      <tr>
-                        <td>Δ13W NetLiq</td>
-                        <td
-                          class="roc-val"
-                          class:positive={getLatestValue(
-                            $dashboardData.us_system_metrics?.netliq_delta_13w,
-                          ) > 0}
-                          class:negative={getLatestValue(
-                            $dashboardData.us_system_metrics?.netliq_delta_13w,
-                          ) < 0}
-                          >{(
-                            (getLatestValue(
-                              $dashboardData.us_system_metrics
-                                ?.netliq_delta_13w,
-                            ) ?? 0) * 1000
-                          ).toFixed(0)}B</td
-                        >
-                        <td
-                          class="signal-cell"
-                          class:plus={getLatestValue(
-                            $dashboardData.us_system_metrics?.netliq_delta_13w,
-                          ) > 0.2}
-                          class:minus={getLatestValue(
-                            $dashboardData.us_system_metrics?.netliq_delta_13w,
-                          ) < -0.2}
-                          >{getLatestValue(
-                            $dashboardData.us_system_metrics?.netliq_delta_13w,
-                          ) > 0.2
-                            ? "Bullish Q"
-                            : getLatestValue(
-                                  $dashboardData.us_system_metrics
-                                    ?.netliq_delta_13w,
-                                ) < -0.2
-                              ? "Bearish Q"
-                              : "—"}</td
-                        >
-                      </tr>
-                      <tr>
-                        <td>{currentTranslations.fed_momentum_label}</td>
-                        <td
-                          class="roc-val"
-                          class:positive={getLatestValue(
-                            $dashboardData.us_system_metrics?.fed_momentum,
-                          ) > 0}
-                          class:negative={getLatestValue(
-                            $dashboardData.us_system_metrics?.fed_momentum,
-                          ) < 0}
-                          >{(
-                            getLatestValue(
-                              $dashboardData.us_system_metrics?.fed_momentum,
-                            ) ?? 0
-                          ).toFixed(3)}T</td
-                        >
-                        <td
-                          class="signal-cell"
-                          class:plus={getLatestValue(
-                            $dashboardData.us_system_metrics?.fed_momentum,
-                          ) > 0}
-                          class:minus={getLatestValue(
-                            $dashboardData.us_system_metrics?.fed_momentum,
-                          ) < 0}
-                          >{getLatestValue(
-                            $dashboardData.us_system_metrics?.fed_momentum,
-                          ) > 0
-                            ? currentTranslations.regime_qe
-                            : currentTranslations.regime_qt}</td
-                        >
-                      </tr>
-                      <tr>
-                        <td>{currentTranslations.tga_deviation}</td>
-                        <td
-                          class="roc-val"
-                          class:positive={getLatestValue(
-                            $dashboardData.us_system_metrics?.tga_zscore,
-                          ) < 0}
-                          class:negative={getLatestValue(
-                            $dashboardData.us_system_metrics?.tga_zscore,
-                          ) > 1}
-                          >{(
-                            getLatestValue(
-                              $dashboardData.us_system_metrics?.tga_zscore,
-                            ) ?? 0
-                          ).toFixed(2)}</td
-                        >
-                        <td
-                          class="signal-cell"
-                          class:plus={getLatestValue(
-                            $dashboardData.us_system_metrics?.tga_zscore,
-                          ) < -1}
-                          class:minus={getLatestValue(
-                            $dashboardData.us_system_metrics?.tga_zscore,
-                          ) > 1}
-                          >{getLatestValue(
-                            $dashboardData.us_system_metrics?.tga_zscore,
-                          ) > 1
-                            ? "Drain"
-                            : getLatestValue(
-                                  $dashboardData.us_system_metrics?.tga_zscore,
-                                ) < -1
-                              ? "Inject"
-                              : "—"}</td
-                        >
-                      </tr>
-                    </tbody>
-                  </table>
-                  <p style="font-size: 10px; color: #94a3b8; margin-top: 6px;">
-                    * Score &gt;+1: {language === "en"
-                      ? "Liquid env (bullish)"
-                      : "Entorno líquido (alcista)"}<br />
-                    * Score &lt;-1: {language === "en"
-                      ? "Dry env (bearish)"
-                      : "Entorno seco (bajista)"}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="chart-card wide">
-            <div class="gli-layout">
-              <div class="chart-main">
-                <div class="chart-header">
-                  <h3>{currentTranslations.chart_bank_reserves}</h3>
-                  <div class="header-controls">
-                    <TimeRangeSelector
-                      selectedRange={reservesRange}
-                      onRangeChange={(r) => (reservesRange = r)}
-                    />
-                    <span class="last-date"
-                      >{currentTranslations.last_data}
-                      {getLastDate("RESBALNS")}</span
-                    >
-                  </div>
-                </div>
-                <p class="chart-description">
-                  {currentTranslations.bank_reserves}
-                </p>
-                <div class="chart-content">
-                  <Chart
-                    {darkMode}
-                    data={bankReservesData}
-                    layout={bankReservesLayout}
-                  />
-                </div>
-              </div>
-
-              <div class="metrics-sidebar">
-                <div class="metrics-section">
-                  <h4>{currentTranslations.reserves_velocity}</h4>
-                  <table class="metrics-table compact">
-                    <thead>
-                      <tr>
-                        <th>Metric</th>
-                        <th>Value</th>
-                        <th>Signal</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td>{currentTranslations.roc_3m} (Res)</td>
-                        <td
-                          class="roc-val"
-                          class:positive={getLatestValue(
-                            $dashboardData.reserves_metrics?.reserves_roc_3m,
-                          ) > 0}
-                          class:negative={getLatestValue(
-                            $dashboardData.reserves_metrics?.reserves_roc_3m,
-                          ) < 0}
-                          >{(
-                            getLatestValue(
-                              $dashboardData.reserves_metrics?.reserves_roc_3m,
-                            ) ?? 0
-                          ).toFixed(2)}%</td
-                        >
-                        <td
-                          class="signal-cell"
-                          class:plus={getLatestValue(
-                            $dashboardData.reserves_metrics?.reserves_roc_3m,
-                          ) > 0}
-                          class:minus={getLatestValue(
-                            $dashboardData.reserves_metrics?.reserves_roc_3m,
-                          ) < 0}
-                          >{getLatestValue(
-                            $dashboardData.reserves_metrics?.reserves_roc_3m,
-                          ) > 0
-                            ? "QE"
-                            : "QT"}</td
-                        >
-                      </tr>
-                      <tr>
-                        <td>{currentTranslations.roc_3m} (NL)</td>
-                        <td
-                          class="roc-val"
-                          class:positive={getLatestValue(
-                            $dashboardData.reserves_metrics?.netliq_roc_3m,
-                          ) > 0}
-                          class:negative={getLatestValue(
-                            $dashboardData.reserves_metrics?.netliq_roc_3m,
-                          ) < 0}
-                          >{(
-                            getLatestValue(
-                              $dashboardData.reserves_metrics?.netliq_roc_3m,
-                            ) ?? 0
-                          ).toFixed(2)}%</td
-                        >
-                        <td
-                          class="signal-cell"
-                          class:plus={getLatestValue(
-                            $dashboardData.reserves_metrics?.netliq_roc_3m,
-                          ) > 0}
-                          class:minus={getLatestValue(
-                            $dashboardData.reserves_metrics?.netliq_roc_3m,
-                          ) < 0}
-                          >{getLatestValue(
-                            $dashboardData.reserves_metrics?.netliq_roc_3m,
-                          ) > 0
-                            ? "↑"
-                            : "↓"}</td
-                        >
-                      </tr>
-                      <tr>
-                        <td>{currentTranslations.spread_zscore}</td>
-                        <td
-                          class="roc-val"
-                          class:positive={getLatestValue(
-                            $dashboardData.reserves_metrics?.spread_zscore,
-                          ) < -1}
-                          class:negative={getLatestValue(
-                            $dashboardData.reserves_metrics?.spread_zscore,
-                          ) > 2}
-                          >{(
-                            getLatestValue(
-                              $dashboardData.reserves_metrics?.spread_zscore,
-                            ) ?? 0
-                          ).toFixed(2)}</td
-                        >
-                        <td
-                          class="signal-cell"
-                          class:minus={getLatestValue(
-                            $dashboardData.reserves_metrics?.spread_zscore,
-                          ) > 2}
-                          class:plus={getLatestValue(
-                            $dashboardData.reserves_metrics?.spread_zscore,
-                          ) < -1}
-                          >{getLatestValue(
-                            $dashboardData.reserves_metrics?.spread_zscore,
-                          ) > 2
-                            ? currentTranslations.reserves_high_stress
-                            : getLatestValue(
-                                  $dashboardData.reserves_metrics
-                                    ?.spread_zscore,
-                                ) < -1
-                              ? currentTranslations.reserves_low_stress
-                              : currentTranslations.reserves_normal}</td
-                        >
-                      </tr>
-                      <tr>
-                        <td>{currentTranslations.momentum}</td>
-                        <td
-                          class="roc-val"
-                          class:positive={getLatestValue(
-                            $dashboardData.reserves_metrics?.momentum,
-                          ) > 0}
-                          class:negative={getLatestValue(
-                            $dashboardData.reserves_metrics?.momentum,
-                          ) < 0}
-                          >{(
-                            getLatestValue(
-                              $dashboardData.reserves_metrics?.momentum,
-                            ) ?? 0
-                          ).toFixed(4)}T</td
-                        >
-                        <td
-                          class="signal-cell"
-                          class:plus={getLatestValue(
-                            $dashboardData.reserves_metrics?.momentum,
-                          ) > 0}
-                          class:minus={getLatestValue(
-                            $dashboardData.reserves_metrics?.momentum,
-                          ) < 0}
-                          >{getLatestValue(
-                            $dashboardData.reserves_metrics?.momentum,
-                          ) > 0
-                            ? currentTranslations.reserves_bullish
-                            : getLatestValue(
-                                  $dashboardData.reserves_metrics?.momentum,
-                                ) < 0
-                              ? currentTranslations.reserves_bearish
-                              : currentTranslations.reserves_neutral}</td
-                        >
-                      </tr>
-                      <tr>
-                        <td>{currentTranslations.lcr}</td>
-                        <td class="roc-val"
-                          >{(
-                            getLatestValue(
-                              $dashboardData.reserves_metrics?.lcr,
-                            ) ?? 0
-                          ).toFixed(2)}%</td
-                        >
-                        <td class="signal-cell"
-                          >{getLatestValue(
-                            $dashboardData.reserves_metrics?.lcr,
-                          ) < 30
-                            ? "⚠️"
-                            : "✓"}</td
-                        >
-                      </tr>
-                    </tbody>
-                  </table>
-                  <p style="font-size: 10px; color: #94a3b8; margin-top: 8px;">
-                    * Z&gt;2 = Liquidity blocked | Z&lt;-1 = Excess liquidity
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="chart-card">
-            <div class="chart-header">
-              <h3>{currentTranslations.chart_fed_assets}</h3>
-              <div class="header-controls">
-                <TimeRangeSelector
-                  selectedRange={fedRange}
-                  onRangeChange={(r) => (fedRange = r)}
-                />
-                <span class="last-date"
-                  >{currentTranslations.last_data} {getLastDate("FED")}</span
-                >
-              </div>
-            </div>
-            <p class="chart-description">{currentTranslations.gli_cb}</p>
-            <div class="chart-content">
-              <Chart {darkMode} data={fedData} />
-            </div>
-            <!-- ROC Metrics -->
-            <div
-              class="roc-inline"
-              style="display: flex; gap: 12px; margin-top: 8px; font-size: 11px;"
-            >
-              <span>ROC:</span>
-              <span
-                class:positive={getLatestValue(
-                  $dashboardData.us_system_rocs?.fed?.["1M"],
-                ) > 0}
-                class:negative={getLatestValue(
-                  $dashboardData.us_system_rocs?.fed?.["1M"],
-                ) < 0}
-                >1M: {(
-                  getLatestValue($dashboardData.us_system_rocs?.fed?.["1M"]) ??
-                  0
-                ).toFixed(1)}%</span
-              >
-              <span
-                class:positive={getLatestValue(
-                  $dashboardData.us_system_rocs?.fed?.["3M"],
-                ) > 0}
-                class:negative={getLatestValue(
-                  $dashboardData.us_system_rocs?.fed?.["3M"],
-                ) < 0}
-                >3M: {(
-                  getLatestValue($dashboardData.us_system_rocs?.fed?.["3M"]) ??
-                  0
-                ).toFixed(1)}%</span
-              >
-              <span
-                class:positive={getLatestValue(
-                  $dashboardData.us_system_rocs?.fed?.["1Y"],
-                ) > 0}
-                class:negative={getLatestValue(
-                  $dashboardData.us_system_rocs?.fed?.["1Y"],
-                ) < 0}
-                >1Y: {(
-                  getLatestValue($dashboardData.us_system_rocs?.fed?.["1Y"]) ??
-                  0
-                ).toFixed(1)}%</span
-              >
-              <span style="margin-left: auto; color: #94a3b8;">
-                {getLatestValue($dashboardData.us_system_rocs?.fed?.["1M"]) > 0
-                  ? language === "en"
-                    ? "↑ Expansion"
-                    : "↑ Expansión"
-                  : language === "en"
-                    ? "↓ Contraction"
-                    : "↓ Contracción"}
-              </span>
-            </div>
-          </div>
-
-          <div class="chart-card">
-            <div class="chart-header">
-              <h3>{currentTranslations.chart_rrp}</h3>
-              <div class="header-controls">
-                <TimeRangeSelector
-                  selectedRange={rrpRange}
-                  onRangeChange={(r) => (rrpRange = r)}
-                />
-                <span class="last-date"
-                  >{currentTranslations.last_data} {getLastDate("RRP")}</span
-                >
-              </div>
-            </div>
-            <p class="chart-description">{currentTranslations.rrp}</p>
-            <div class="chart-content">
-              <Chart {darkMode} data={rrpData} />
-            </div>
-            <!-- ROC Metrics (inverted: RRP down = bullish) -->
-            <div
-              class="roc-inline"
-              style="display: flex; gap: 12px; margin-top: 8px; font-size: 11px;"
-            >
-              <span>ROC:</span>
-              <span
-                class:positive={getLatestValue(
-                  $dashboardData.us_system_rocs?.rrp?.["1M"],
-                ) < 0}
-                class:negative={getLatestValue(
-                  $dashboardData.us_system_rocs?.rrp?.["1M"],
-                ) > 0}
-                >1M: {(
-                  getLatestValue($dashboardData.us_system_rocs?.rrp?.["1M"]) ??
-                  0
-                ).toFixed(1)}%</span
-              >
-              <span
-                class:positive={getLatestValue(
-                  $dashboardData.us_system_rocs?.rrp?.["3M"],
-                ) < 0}
-                class:negative={getLatestValue(
-                  $dashboardData.us_system_rocs?.rrp?.["3M"],
-                ) > 0}
-                >3M: {(
-                  getLatestValue($dashboardData.us_system_rocs?.rrp?.["3M"]) ??
-                  0
-                ).toFixed(1)}%</span
-              >
-              <span
-                class:positive={getLatestValue(
-                  $dashboardData.us_system_rocs?.rrp?.["1Y"],
-                ) < 0}
-                class:negative={getLatestValue(
-                  $dashboardData.us_system_rocs?.rrp?.["1Y"],
-                ) > 0}
-                >1Y: {(
-                  getLatestValue($dashboardData.us_system_rocs?.rrp?.["1Y"]) ??
-                  0
-                ).toFixed(1)}%</span
-              >
-              <span style="margin-left: auto; color: #94a3b8;">
-                {getLatestValue($dashboardData.us_system_rocs?.rrp?.["1M"]) < 0
-                  ? language === "en"
-                    ? "↓ Draining (bullish)"
-                    : "↓ Drenando (alcista)"
-                  : language === "en"
-                    ? "↑ Filling (bearish)"
-                    : "↑ Llenando (bajista)"}
-              </span>
-            </div>
-          </div>
-
-          <div class="chart-card">
-            <div class="chart-header">
-              <h3>{currentTranslations.chart_tga}</h3>
-              <div class="header-controls">
-                <TimeRangeSelector
-                  selectedRange={tgaRange}
-                  onRangeChange={(r) => (tgaRange = r)}
-                />
-                <span class="last-date"
-                  >{currentTranslations.last_data} {getLastDate("TGA")}</span
-                >
-              </div>
-            </div>
-            <p class="chart-description">{currentTranslations.tga}</p>
-            <div class="chart-content">
-              <Chart {darkMode} data={tgaData} />
-            </div>
-            <!-- ROC Metrics (inverted: TGA down = bullish) -->
-            <div
-              class="roc-inline"
-              style="display: flex; gap: 12px; margin-top: 8px; font-size: 11px;"
-            >
-              <span>ROC:</span>
-              <span
-                class:positive={getLatestValue(
-                  $dashboardData.us_system_rocs?.tga?.["1M"],
-                ) < 0}
-                class:negative={getLatestValue(
-                  $dashboardData.us_system_rocs?.tga?.["1M"],
-                ) > 0}
-                >1M: {(
-                  getLatestValue($dashboardData.us_system_rocs?.tga?.["1M"]) ??
-                  0
-                ).toFixed(1)}%</span
-              >
-              <span
-                class:positive={getLatestValue(
-                  $dashboardData.us_system_rocs?.tga?.["3M"],
-                ) < 0}
-                class:negative={getLatestValue(
-                  $dashboardData.us_system_rocs?.tga?.["3M"],
-                ) > 0}
-                >3M: {(
-                  getLatestValue($dashboardData.us_system_rocs?.tga?.["3M"]) ??
-                  0
-                ).toFixed(1)}%</span
-              >
-              <span
-                class:positive={getLatestValue(
-                  $dashboardData.us_system_rocs?.tga?.["1Y"],
-                ) < 0}
-                class:negative={getLatestValue(
-                  $dashboardData.us_system_rocs?.tga?.["1Y"],
-                ) > 0}
-                >1Y: {(
-                  getLatestValue($dashboardData.us_system_rocs?.tga?.["1Y"]) ??
-                  0
-                ).toFixed(1)}%</span
-              >
-              <span style="margin-left: auto; color: #94a3b8;">
-                {getLatestValue($dashboardData.us_system_rocs?.tga?.["1M"]) < 0
-                  ? language === "en"
-                    ? "↓ Spending (bullish)"
-                    : "↓ Gastando (alcista)"
-                  : language === "en"
-                    ? "↑ Accumulating (bearish)"
-                    : "↑ Acumulando (bajista)"}
-              </span>
-            </div>
-          </div>
-        </div>
+        <UsSystemTab
+          {darkMode}
+          {language}
+          translations={currentTranslations}
+          dashboardData={$dashboardData}
+          {netLiqData}
+          {bankReservesData}
+          {bankReservesLayout}
+          {fedData}
+          {rrpData}
+          {tgaData}
+          {usSystemMetrics}
+          {usSystemTotal}
+          {getLastDate}
+          {getLatestValue}
+        />
       {:else if currentTab === "Risk Model"}
-        <div class="main-charts">
-          <div class="chart-card wide">
-            <div class="chart-header">
-              <h3>Credit Liquidity Index (CLI Aggregate)</h3>
-              <div class="header-controls">
-                <TimeRangeSelector
-                  selectedRange={cliRange}
-                  onRangeChange={(r) => (cliRange = r)}
-                />
-                <span class="last-date">Last Data: {getLastDate("NFCI")}</span>
-              </div>
-            </div>
-            <p class="chart-description">{currentTranslations.cli}</p>
-            <div class="chart-content">
-              <Chart {darkMode} data={cliData} />
-            </div>
-          </div>
-
-          {#each [{ id: "hy", name: "HY Spread Contrast", data: hyZData, range: hyRange, setRange: (r) => (hyRange = r), bank: "HY_SPREAD", descKey: "hy_spread" }, { id: "ig", name: "IG Spread Contrast", data: igZData, range: igRange, setRange: (r) => (igRange = r), bank: "IG_SPREAD", descKey: "ig_spread" }, { id: "nfci_credit", name: "NFCI Credit Contrast", data: nfciCreditZData, range: nfciRange, setRange: (r) => (nfciRange = r), bank: "NFCI", descKey: "nfci_credit" }, { id: "nfci_risk", name: "NFCI Risk Contrast", data: nfciRiskZData, range: nfciRange, setRange: (r) => (nfciRange = r), bank: "NFCI", descKey: "nfci_risk" }, { id: "lending", name: "Lending Standards Contrast", data: lendingZData, range: lendingRange, setRange: (r) => (lendingRange = r), bank: "LENDING_STD", descKey: "lending" }, { id: "vix_z", name: "VIX Contrast (Z-Score)", data: vixZData, range: vixRange, setRange: (r) => (vixRange = r), bank: "VIX", descKey: "vix" }] as item}
-            <div class="chart-card">
-              <div class="chart-header">
-                <h3>{item.name}</h3>
-                <div class="header-controls">
-                  <TimeRangeSelector
-                    selectedRange={item.range}
-                    onRangeChange={item.setRange}
-                  />
-                  <span class="last-date">Last: {getLastDate(item.bank)}</span>
-                </div>
-              </div>
-              <p class="chart-description">
-                {currentTranslations[item.descKey]}
-              </p>
-              <div class="chart-content">
-                <Chart {darkMode} data={item.data} />
-              </div>
-            </div>
-          {/each}
-
-          <!-- TIPS / Inflation Expectations Chart -->
-          <div class="chart-card wide">
-            <div class="chart-header">
-              <h3>{currentTranslations.chart_inflation_exp}</h3>
-              <div class="header-controls">
-                <TimeRangeSelector
-                  selectedRange={tipsRange}
-                  onRangeChange={(r) => (tipsRange = r)}
-                />
-                <span class="last-date"
-                  >{currentTranslations.last_data}
-                  {getLastDate("TIPS_BREAKEVEN")}</span
-                >
-              </div>
-            </div>
-            <p class="chart-description">{currentTranslations.tips}</p>
-            <div class="chart-content">
-              <Chart {darkMode} data={tipsData} layout={tipsLayout} />
-            </div>
-          </div>
-
-          <div class="chart-card wide">
-            <div class="gli-layout">
-              <div class="chart-main">
-                <div class="chart-header">
-                  <h3>{currentTranslations.chart_repo_stress}</h3>
-                  <div class="header-controls">
-                    <TimeRangeSelector
-                      selectedRange={repoStressRange}
-                      onRangeChange={(r) => (repoStressRange = r)}
-                    />
-                    <span class="last-date"
-                      >{currentTranslations.last_data}
-                      {getLastDate("SOFR")}</span
-                    >
-                  </div>
-                </div>
-                <p class="chart-description">
-                  {currentTranslations.repo_stress}
-                </p>
-                <div class="chart-content">
-                  <Chart {darkMode} data={repoStressData} />
-                </div>
-              </div>
-
-              <div class="metrics-sidebar">
-                <div class="metrics-section">
-                  <h4>SOFR vs IORB</h4>
-                  <table class="metrics-table compact">
-                    <thead>
-                      <tr>
-                        <th>Rate</th>
-                        <th>Value</th>
-                        <th>Role</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td style="color: #f59e0b; font-weight: 600;">SOFR</td>
-                        <td
-                          >{(
-                            getLatestValue($dashboardData.repo_stress?.sofr) ??
-                            0
-                          ).toFixed(2)}%</td
-                        >
-                        <td style="font-size: 10px;"
-                          >{language === "en"
-                            ? "Market Rate"
-                            : "Tasa Mercado"}</td
-                        >
-                      </tr>
-                      <tr>
-                        <td style="color: #8b5cf6; font-weight: 600;">IORB</td>
-                        <td
-                          >{(
-                            getLatestValue($dashboardData.repo_stress?.iorb) ??
-                            0
-                          ).toFixed(2)}%</td
-                        >
-                        <td style="font-size: 10px;"
-                          >{language === "en" ? "Fed Floor" : "Piso Fed"}</td
-                        >
-                      </tr>
-                      <tr>
-                        <td>Spread</td>
-                        <td
-                          class:positive={getLatestValue(
-                            $dashboardData.repo_stress?.sofr,
-                          ) -
-                            getLatestValue($dashboardData.repo_stress?.iorb) >
-                            0}
-                          class:negative={getLatestValue(
-                            $dashboardData.repo_stress?.sofr,
-                          ) -
-                            getLatestValue($dashboardData.repo_stress?.iorb) <
-                            -0.05}
-                          >{(
-                            (getLatestValue($dashboardData.repo_stress?.sofr) ??
-                              0) -
-                            (getLatestValue($dashboardData.repo_stress?.iorb) ??
-                              0)
-                          ).toFixed(2)} bps</td
-                        >
-                        <td
-                          class="signal-cell"
-                          class:plus={getLatestValue(
-                            $dashboardData.repo_stress?.sofr,
-                          ) -
-                            getLatestValue($dashboardData.repo_stress?.iorb) >
-                            0}
-                          class:minus={getLatestValue(
-                            $dashboardData.repo_stress?.sofr,
-                          ) -
-                            getLatestValue($dashboardData.repo_stress?.iorb) <
-                            -0.05}
-                          >{getLatestValue($dashboardData.repo_stress?.sofr) >
-                          getLatestValue($dashboardData.repo_stress?.iorb)
-                            ? "OK"
-                            : "⚠️"}</td
-                        >
-                      </tr>
-                    </tbody>
-                  </table>
-                  <div
-                    style="margin-top: 10px; font-size: 10px; color: #94a3b8;"
-                  >
-                    <p>
-                      <strong>SOFR</strong>: {language === "en"
-                        ? "Secured Overnight Financing Rate - market repo rate"
-                        : "Tasa de Financiamiento Garantizado - tasa repo de mercado"}
-                    </p>
-                    <p>
-                      <strong>IORB</strong>: {language === "en"
-                        ? "Interest on Reserve Balances - Fed floor rate"
-                        : "Interés sobre Reservas - tasa piso de Fed"}
-                    </p>
-                    <p style="margin-top: 6px; color: #ef4444;">
-                      {language === "en"
-                        ? "⚠️ SOFR < IORB = Funding stress (like Sep 2019)"
-                        : "⚠️ SOFR < IORB = Estrés de financiamiento (como Sep 2019)"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- NEW ROC Section -->
-        <div class="roc-section">
-          <div class="roc-card">
-            <h4>Pulsar Momentum (ROC)</h4>
-            <div class="roc-grid">
-              <div class="roc-row header">
-                <div class="roc-col">Factor</div>
-                <div class="roc-col">1M</div>
-                <div class="roc-col">3M</div>
-                <div class="roc-col">6M</div>
-                <div class="roc-col">1Y</div>
-              </div>
-              <div class="roc-row">
-                <div class="roc-col label">Global GLI</div>
-                <div
-                  class="roc-col"
-                  class:plus={getLatestROC($dashboardData.gli.rocs, "1M") > 0}
-                  class:minus={getLatestROC($dashboardData.gli.rocs, "1M") < 0}
-                >
-                  {getLatestROC($dashboardData.gli.rocs, "1M").toFixed(2)}%
-                </div>
-                <div
-                  class="roc-col"
-                  class:plus={getLatestROC($dashboardData.gli.rocs, "3M") > 0}
-                  class:minus={getLatestROC($dashboardData.gli.rocs, "3M") < 0}
-                >
-                  {getLatestROC($dashboardData.gli.rocs, "3M").toFixed(2)}%
-                </div>
-                <div
-                  class="roc-col"
-                  class:plus={getLatestROC($dashboardData.gli.rocs, "6M") > 0}
-                  class:minus={getLatestROC($dashboardData.gli.rocs, "6M") < 0}
-                >
-                  {getLatestROC($dashboardData.gli.rocs, "6M").toFixed(2)}%
-                </div>
-                <div
-                  class="roc-col"
-                  class:plus={getLatestROC($dashboardData.gli.rocs, "1Y") > 0}
-                  class:minus={getLatestROC($dashboardData.gli.rocs, "1Y") < 0}
-                >
-                  {getLatestROC($dashboardData.gli.rocs, "1Y").toFixed(2)}%
-                </div>
-              </div>
-              <div class="roc-row">
-                <div class="roc-col label">US Net Liq</div>
-                <div
-                  class="roc-col"
-                  class:plus={getLatestROC(
-                    $dashboardData.us_net_liq_rocs,
-                    "1M",
-                  ) > 0}
-                  class:minus={getLatestROC(
-                    $dashboardData.us_net_liq_rocs,
-                    "1M",
-                  ) < 0}
-                >
-                  {getLatestROC($dashboardData.us_net_liq_rocs, "1M").toFixed(
-                    2,
-                  )}%
-                </div>
-                <div
-                  class="roc-col"
-                  class:plus={getLatestROC(
-                    $dashboardData.us_net_liq_rocs,
-                    "3M",
-                  ) > 0}
-                  class:minus={getLatestROC(
-                    $dashboardData.us_net_liq_rocs,
-                    "3M",
-                  ) < 0}
-                >
-                  {getLatestROC($dashboardData.us_net_liq_rocs, "3M").toFixed(
-                    2,
-                  )}%
-                </div>
-                <div
-                  class="roc-col"
-                  class:plus={getLatestROC(
-                    $dashboardData.us_net_liq_rocs,
-                    "6M",
-                  ) > 0}
-                  class:minus={getLatestROC(
-                    $dashboardData.us_net_liq_rocs,
-                    "6M",
-                  ) < 0}
-                >
-                  {getLatestROC($dashboardData.us_net_liq_rocs, "6M").toFixed(
-                    2,
-                  )}%
-                </div>
-                <div
-                  class="roc-col"
-                  class:plus={getLatestROC(
-                    $dashboardData.us_net_liq_rocs,
-                    "1Y",
-                  ) > 0}
-                  class:minus={getLatestROC(
-                    $dashboardData.us_net_liq_rocs,
-                    "1Y",
-                  ) < 0}
-                >
-                  {getLatestROC($dashboardData.us_net_liq_rocs, "1Y").toFixed(
-                    2,
-                  )}%
-                </div>
-              </div>
-              <div class="roc-row">
-                <div class="roc-col label">Fed Assets</div>
-                <div
-                  class="roc-col"
-                  class:plus={getLatestROC($dashboardData.bank_rocs.fed, "1M") >
-                    0}
-                  class:minus={getLatestROC(
-                    $dashboardData.bank_rocs.fed,
-                    "1M",
-                  ) < 0}
-                >
-                  {getLatestROC($dashboardData.bank_rocs.fed, "1M").toFixed(2)}%
-                </div>
-                <div
-                  class="roc-col"
-                  class:plus={getLatestROC($dashboardData.bank_rocs.fed, "3M") >
-                    0}
-                  class:minus={getLatestROC(
-                    $dashboardData.bank_rocs.fed,
-                    "3M",
-                  ) < 0}
-                >
-                  {getLatestROC($dashboardData.bank_rocs.fed, "3M").toFixed(2)}%
-                </div>
-                <div
-                  class="roc-col"
-                  class:plus={getLatestROC($dashboardData.bank_rocs.fed, "6M") >
-                    0}
-                  class:minus={getLatestROC(
-                    $dashboardData.bank_rocs.fed,
-                    "6M",
-                  ) < 0}
-                >
-                  {getLatestROC($dashboardData.bank_rocs.fed, "6M").toFixed(2)}%
-                </div>
-                <div
-                  class="roc-col"
-                  class:plus={getLatestROC($dashboardData.bank_rocs.fed, "1Y") >
-                    0}
-                  class:minus={getLatestROC(
-                    $dashboardData.bank_rocs.fed,
-                    "1Y",
-                  ) < 0}
-                >
-                  {getLatestROC($dashboardData.bank_rocs.fed, "1Y").toFixed(2)}%
-                </div>
-              </div>
-              <div class="roc-row">
-                <div class="roc-col label">PBoC Assets</div>
-                <div
-                  class="roc-col"
-                  class:plus={getLatestROC(
-                    $dashboardData.bank_rocs.pboc,
-                    "1M",
-                  ) > 0}
-                  class:minus={getLatestROC(
-                    $dashboardData.bank_rocs.pboc,
-                    "1M",
-                  ) < 0}
-                >
-                  {getLatestROC($dashboardData.bank_rocs.pboc, "1M").toFixed(
-                    2,
-                  )}%
-                </div>
-                <div
-                  class="roc-col"
-                  class:plus={getLatestROC(
-                    $dashboardData.bank_rocs.pboc,
-                    "3M",
-                  ) > 0}
-                  class:minus={getLatestROC(
-                    $dashboardData.bank_rocs.pboc,
-                    "3M",
-                  ) < 0}
-                >
-                  {getLatestROC($dashboardData.bank_rocs.pboc, "3M").toFixed(
-                    2,
-                  )}%
-                </div>
-                <div
-                  class="roc-col"
-                  class:plus={getLatestROC(
-                    $dashboardData.bank_rocs.pboc,
-                    "6M",
-                  ) > 0}
-                  class:minus={getLatestROC(
-                    $dashboardData.bank_rocs.pboc,
-                    "6M",
-                  ) < 0}
-                >
-                  {getLatestROC($dashboardData.bank_rocs.pboc, "6M").toFixed(
-                    2,
-                  )}%
-                </div>
-                <div
-                  class="roc-col"
-                  class:plus={getLatestROC(
-                    $dashboardData.bank_rocs.pboc,
-                    "1Y",
-                  ) > 0}
-                  class:minus={getLatestROC(
-                    $dashboardData.bank_rocs.pboc,
-                    "1Y",
-                  ) < 0}
-                >
-                  {getLatestROC($dashboardData.bank_rocs.pboc, "1Y").toFixed(
-                    2,
-                  )}%
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      {:else if currentTab === "Global M2"}
-        <div class="main-charts">
-          <!-- Global M2 Overview -->
-          <div class="chart-card wide">
-            <div class="chart-header">
-              <h3>💰 Global M2 Money Supply (5 Major Economies)</h3>
-              <span class="last-date">USA + EU + China + Japan + UK</span>
-            </div>
-            <div class="chart-content">
-              <Chart
-                data={[
-                  {
-                    x: $dashboardData.dates,
-                    y: $dashboardData.m2?.total,
-                    type: "scatter",
-                    mode: "lines",
-                    fill: "tozeroy",
-                    name: "Global M2",
-                    line: { color: "#10b981", width: 2 },
-                  },
-                ]}
-              />
-            </div>
-          </div>
-
-          <!-- M2 Breakdown by Economy -->
-          <div class="chart-card wide">
-            <div class="chart-header">
-              <h3>📊 M2 by Economy (Trillions USD)</h3>
-            </div>
-            <div class="chart-content">
-              <Chart
-                data={[
-                  {
-                    x: $dashboardData.dates,
-                    y: $dashboardData.m2?.us,
-                    type: "scatter",
-                    mode: "lines",
-                    name: "USA",
-                    line: { color: "#3b82f6", width: 2 },
-                  },
-                  {
-                    x: $dashboardData.dates,
-                    y: $dashboardData.m2?.cn,
-                    type: "scatter",
-                    mode: "lines",
-                    name: "China",
-                    line: { color: "#ef4444", width: 2 },
-                  },
-                  {
-                    x: $dashboardData.dates,
-                    y: $dashboardData.m2?.eu,
-                    type: "scatter",
-                    mode: "lines",
-                    name: "EU",
-                    line: { color: "#f59e0b", width: 2 },
-                  },
-                  {
-                    x: $dashboardData.dates,
-                    y: $dashboardData.m2?.jp,
-                    type: "scatter",
-                    mode: "lines",
-                    name: "Japan",
-                    line: { color: "#8b5cf6", width: 2 },
-                  },
-                  {
-                    x: $dashboardData.dates,
-                    y: $dashboardData.m2?.uk,
-                    type: "scatter",
-                    mode: "lines",
-                    name: "UK",
-                    line: { color: "#06b6d4", width: 2 },
-                  },
-                ]}
-              />
-            </div>
-          </div>
-
-          <!-- M2 ROCs -->
-          <div class="roc-section">
-            <div class="roc-card">
-              <h4>M2 Momentum (ROC)</h4>
-              <div class="roc-grid">
-                <div class="roc-row header">
-                  <div class="roc-col">Factor</div>
-                  <div class="roc-col">1M</div>
-                  <div class="roc-col">3M</div>
-                  <div class="roc-col">6M</div>
-                  <div class="roc-col">1Y</div>
-                </div>
-                <div class="roc-row">
-                  <div class="roc-col label">Global M2</div>
-                  <div
-                    class="roc-col"
-                    class:plus={getLatestROC($dashboardData.m2?.rocs, "1M") > 0}
-                    class:minus={getLatestROC($dashboardData.m2?.rocs, "1M") <
-                      0}
-                  >
-                    {getLatestROC($dashboardData.m2?.rocs, "1M").toFixed(2)}%
-                  </div>
-                  <div
-                    class="roc-col"
-                    class:plus={getLatestROC($dashboardData.m2?.rocs, "3M") > 0}
-                    class:minus={getLatestROC($dashboardData.m2?.rocs, "3M") <
-                      0}
-                  >
-                    {getLatestROC($dashboardData.m2?.rocs, "3M").toFixed(2)}%
-                  </div>
-                  <div
-                    class="roc-col"
-                    class:plus={getLatestROC($dashboardData.m2?.rocs, "6M") > 0}
-                    class:minus={getLatestROC($dashboardData.m2?.rocs, "6M") <
-                      0}
-                  >
-                    {getLatestROC($dashboardData.m2?.rocs, "6M").toFixed(2)}%
-                  </div>
-                  <div
-                    class="roc-col"
-                    class:plus={getLatestROC($dashboardData.m2?.rocs, "1Y") > 0}
-                    class:minus={getLatestROC($dashboardData.m2?.rocs, "1Y") <
-                      0}
-                  >
-                    {getLatestROC($dashboardData.m2?.rocs, "1Y").toFixed(2)}%
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <RiskModelTab
+          {darkMode}
+          {language}
+          translations={currentTranslations}
+          dashboardData={$dashboardData}
+          {cliData}
+          {hyZData}
+          {igZData}
+          {nfciCreditZData}
+          {nfciRiskZData}
+          {lendingZData}
+          {vixZData}
+          {tipsData}
+          {tipsLayout}
+          {repoStressData}
+          {getLastDate}
+          {getLatestValue}
+          {getLatestROC}
+        />
       {:else if currentTab === "BTC Analysis"}
-        <div class="main-charts btc-analysis-view">
-          <!-- BTC Price vs Fair Value -->
-          <div class="analysis-header">
-            <h2>{currentTranslations.btc_analysis_title}</h2>
-            <p class="description">
-              {currentTranslations.btc_analysis_desc}
-            </p>
-          </div>
-
-          <div class="btc-stats">
-            <div class="btc-stat-item">
-              <span class="btc-label"
-                >{currentTranslations.current_valuation}</span
-              >
-              <div
-                class="btc-value"
-                class:overvalued={$latestStats?.btc?.deviation_pct > 0}
-              >
-                {(($latestStats?.btc?.deviation_pct || 0) > 0 ? "+" : "") +
-                  ($latestStats?.btc?.deviation_pct || 0).toFixed(1)}%
-              </div>
-            </div>
-            <div class="btc-stat-item">
-              <span class="btc-label">{currentTranslations.btc_price}</span>
-              <span class="btc-value"
-                >${Math.round(
-                  $latestStats?.btc?.price || 0,
-                ).toLocaleString()}</span
-              >
-            </div>
-            <div class="btc-stat-item">
-              <span class="btc-label">{currentTranslations.fair_value}</span>
-              <span class="btc-value"
-                >${Math.round(
-                  $latestStats?.btc?.fair_value || 0,
-                ).toLocaleString()}</span
-              >
-            </div>
-            <div class="btc-stat-item">
-              <span class="btc-label">{currentTranslations.zscore}</span>
-              <span class="btc-value"
-                >{($latestStats?.btc?.deviation_zscore || 0).toFixed(2)}σ</span
-              >
-            </div>
-          </div>
-
-          <div class="chart-card wide">
-            <div class="chart-header">
-              <h3>{currentTranslations.btc_analysis_title}</h3>
-              <div class="header-controls">
-                <div class="model-toggle">
-                  <button
-                    class="toggle-btn"
-                    class:active={selectedBtcModel === "macro"}
-                    on:click={() => (selectedBtcModel = "macro")}
-                    >Macro Liquidity</button
-                  >
-                  <button
-                    class="toggle-btn"
-                    class:active={selectedBtcModel === "adoption"}
-                    on:click={() => (selectedBtcModel = "adoption")}
-                    >Macro + Adoption</button
-                  >
-                </div>
-                <TimeRangeSelector
-                  selectedRange={btcRange}
-                  onRangeChange={(r) => (btcRange = r)}
-                />
-              </div>
-            </div>
-            <p class="chart-description">{currentTranslations.btc_fair}</p>
-            <div class="chart-content tv-chart-wrap">
-              <LightweightChart
-                {darkMode}
-                data={btcFairValueData}
-                logScale={true}
-              />
-              <div class="debug-chart-info">
-                Points: {btcFairValueData[0]?.data?.length || 0}
-              </div>
-            </div>
-          </div>
-
-          <!-- Deviation Stats -->
-
-          <!-- Predictive Signals (CLI vs BTC Lag Correlation) -->
-          <div class="chart-card wide">
-            <div class="chart-header">
-              <h3>{currentTranslations.lag_analysis}</h3>
-              <div class="header-controls">
-                <div class="model-toggle">
-                  <button
-                    class="toggle-btn"
-                    class:active={selectedLagWindow === "7d"}
-                    on:click={() => (selectedLagWindow = "7d")}>7-Day</button
-                  >
-                  <button
-                    class="toggle-btn"
-                    class:active={selectedLagWindow === "14d"}
-                    on:click={() => (selectedLagWindow = "14d")}>14-Day</button
-                  >
-                  <button
-                    class="toggle-btn"
-                    class:active={selectedLagWindow === "30d"}
-                    on:click={() => (selectedLagWindow = "30d")}>30-Day</button
-                  >
-                </div>
-              </div>
-            </div>
-            <div class="gli-layout">
-              <div class="chart-main">
-                <div class="chart-content" style="height: 350px;">
-                  <Chart {darkMode} data={lagCorrelationChartData} />
-                </div>
-              </div>
-              <div class="metrics-sidebar">
-                <div class="interp-card">
-                  <h4>{currentTranslations.interpretation}</h4>
-                  <div class="metric-row">
-                    <span>{currentTranslations.optimal_lag}</span>
-                    <span class="val"
-                      >{$dashboardData.predictive?.lag_correlations?.[
-                        selectedLagWindow
-                      ]?.optimal_lag || 0}W</span
-                    >
-                  </div>
-                  <div class="metric-row">
-                    <span>{currentTranslations.max_correlation}</span>
-                    <span class="val"
-                      >{(
-                        ($dashboardData.predictive?.lag_correlations?.[
-                          selectedLagWindow
-                        ]?.max_correlation || 0) * 100
-                      ).toFixed(1)}%</span
-                    >
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Cross-Correlation Chart -->
-          <div class="chart-card wide">
-            <div class="chart-header">
-              <h3>Cross-Correlation Analysis (90-Day Window)</h3>
-              <span class="last-date"
-                >Negative lag = indicator leads BTC | Positive lag = BTC leads
-                indicator</span
-              >
-            </div>
-            <div class="chart-content">
-              <Chart {darkMode} data={correlationData} />
-            </div>
-          </div>
-
-          <!-- ROC Comparison -->
-          <div class="chart-card wide">
-            <h4>Momentum Comparison (ROC %)</h4>
-            <div class="roc-grid">
-              <div class="roc-row header">
-                <div class="roc-col">Asset</div>
-                <div class="roc-col">1M</div>
-                <div class="roc-col">3M</div>
-                <div class="roc-col">6M</div>
-                <div class="roc-col">1Y</div>
-              </div>
-              <div class="roc-row">
-                <div class="roc-col label">{currentTranslations.btc_price}</div>
-                <div
-                  class="roc-col"
-                  class:plus={getLatestROC($dashboardData.btc?.rocs, "1M") > 0}
-                  class:minus={getLatestROC($dashboardData.btc?.rocs, "1M") < 0}
-                >
-                  {getLatestROC($dashboardData.btc?.rocs, "1M").toFixed(2)}%
-                </div>
-                <div
-                  class="roc-col"
-                  class:plus={getLatestROC($dashboardData.btc?.rocs, "3M") > 0}
-                  class:minus={getLatestROC($dashboardData.btc?.rocs, "3M") < 0}
-                >
-                  {getLatestROC($dashboardData.btc?.rocs, "3M").toFixed(2)}%
-                </div>
-                <div
-                  class="roc-col"
-                  class:plus={getLatestROC($dashboardData.btc?.rocs, "6M") > 0}
-                  class:minus={getLatestROC($dashboardData.btc?.rocs, "6M") < 0}
-                >
-                  {getLatestROC($dashboardData.btc?.rocs, "6M").toFixed(2)}%
-                </div>
-                <div
-                  class:plus={getLatestROC($dashboardData.btc?.rocs, "1Y") > 0}
-                  class:minus={getLatestROC($dashboardData.btc?.rocs, "1Y") < 0}
-                >
-                  {getLatestROC($dashboardData.btc?.rocs, "1Y").toFixed(2)}%
-                </div>
-              </div>
-              <div class="roc-row">
-                <div class="roc-col label">Global GLI</div>
-                <div
-                  class="roc-col"
-                  class:plus={getLatestROC($dashboardData.gli.rocs, "1M") > 0}
-                  class:minus={getLatestROC($dashboardData.gli.rocs, "1M") < 0}
-                >
-                  {getLatestROC($dashboardData.gli.rocs, "1M").toFixed(2)}%
-                </div>
-                <div
-                  class="roc-col"
-                  class:plus={getLatestROC($dashboardData.gli.rocs, "3M") > 0}
-                  class:minus={getLatestROC($dashboardData.gli.rocs, "3M") < 0}
-                >
-                  {getLatestROC($dashboardData.gli.rocs, "3M").toFixed(2)}%
-                </div>
-                <div
-                  class:plus={getLatestROC($dashboardData.gli.rocs, "6M") > 0}
-                  class:minus={getLatestROC($dashboardData.gli.rocs, "6M") < 0}
-                >
-                  {getLatestROC($dashboardData.gli.rocs, "6M").toFixed(2)}%
-                </div>
-                <div
-                  class:plus={getLatestROC($dashboardData.gli.rocs, "1Y") > 0}
-                  class:minus={getLatestROC($dashboardData.gli.rocs, "1Y") < 0}
-                >
-                  {getLatestROC($dashboardData.gli.rocs, "1Y").toFixed(2)}%
-                </div>
-              </div>
-              <div class="roc-row">
-                <div class="roc-col label">
-                  US {currentTranslations.stat_us_net}
-                </div>
-                <div
-                  class="roc-col"
-                  class:plus={getLatestROC(
-                    $dashboardData.us_net_liq_rocs,
-                    "1M",
-                  ) > 0}
-                  class:minus={getLatestROC(
-                    $dashboardData.us_net_liq_rocs,
-                    "1M",
-                  ) < 0}
-                >
-                  {getLatestROC($dashboardData.us_net_liq_rocs, "1M").toFixed(
-                    2,
-                  )}%
-                </div>
-                <div
-                  class="roc-col"
-                  class:plus={getLatestROC(
-                    $dashboardData.us_net_liq_rocs,
-                    "3M",
-                  ) > 0}
-                  class:minus={getLatestROC(
-                    $dashboardData.us_net_liq_rocs,
-                    "3M",
-                  ) < 0}
-                >
-                  {getLatestROC($dashboardData.us_net_liq_rocs, "3M").toFixed(
-                    2,
-                  )}%
-                </div>
-                <div
-                  class="roc-col"
-                  class:plus={getLatestROC(
-                    $dashboardData.us_net_liq_rocs,
-                    "6M",
-                  ) > 0}
-                  class:minus={getLatestROC(
-                    $dashboardData.us_net_liq_rocs,
-                    "6M",
-                  ) < 0}
-                >
-                  {getLatestROC($dashboardData.us_net_liq_rocs, "6M").toFixed(
-                    2,
-                  )}%
-                </div>
-                <div
-                  class:plus={getLatestROC(
-                    $dashboardData.us_net_liq_rocs,
-                    "1Y",
-                  ) > 0}
-                  class:minus={getLatestROC(
-                    $dashboardData.us_net_liq_rocs,
-                    "1Y",
-                  ) < 0}
-                >
-                  {getLatestROC($dashboardData.us_net_liq_rocs, "1Y").toFixed(
-                    2,
-                  )}%
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Interpretation Panel -->
-          <div class="chart-card wide interpretation-panel">
-            <h4>📊 {currentTranslations.interpretation}</h4>
-            <div class="interpretation-grid">
-              <div class="interp-card">
-                <h5>{currentTranslations.fair_value} Model</h5>
-                <p>
-                  {currentTranslations.interp_regression}<br />
-                  • {currentTranslations.interp_gli_lag}<br />
-                  • {currentTranslations.interp_cli_lag}<br />
-                  • {currentTranslations.interp_vix_coin}<br />
-                  • {currentTranslations.interp_netliq_lag}
-                </p>
-              </div>
-              <div class="interp-card">
-                <h5>{currentTranslations.interp_zones}</h5>
-                <p>
-                  • <span class="extreme-zone"
-                    >{currentTranslations.interp_extreme}</span
-                  ><br />
-                  •
-                  <span class="moderate-zone"
-                    >{currentTranslations.interp_moderate}</span
-                  ><br />
-                  • {currentTranslations.interp_fair_range}
-                </p>
-              </div>
-              <div class="interp-card">
-                <h5>{currentTranslations.interp_signals}</h5>
-                <p>
-                  • <strong>{currentTranslations.interp_profittaking}</strong
-                  ><br />
-                  •
-                  <strong>{currentTranslations.interp_accumulation}</strong><br
-                  />
-                  • <strong>{currentTranslations.interp_divergence}</strong>
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
+        <BtcAnalysisTab
+          {darkMode}
+          translations={currentTranslations}
+          latestStats={$latestStats}
+          dashboardData={$dashboardData}
+          {btcFairValueData}
+          {lagCorrelationChartData}
+          {correlationData}
+          {getLatestROC}
+        />
       {:else if currentTab === "BTC Quant v2"}
-        <div class="main-charts">
-          <!-- Quant v2 Model Description -->
-          <div class="chart-card wide">
-            <div class="chart-header">
-              <h3>🧪 {currentTranslations.quant_v2_title}</h3>
-              <span class="last-date"
-                >Weekly Δlog returns + ElasticNet + PCA GLI Factor</span
-              >
-            </div>
-            <div class="quant-description">
-              <p>
-                {currentTranslations.quant_v2_desc}
-              </p>
-              <ul>
-                <li>
-                  {currentTranslations.quant_v2_weekly}
-                </li>
-                <li>
-                  {currentTranslations.quant_v2_log}
-                </li>
-                <li>
-                  {currentTranslations.quant_v2_elastic}
-                </li>
-                <li>
-                  {currentTranslations.quant_v2_pca}
-                </li>
-                <li>
-                  {currentTranslations.quant_v2_vol}
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          <!-- OOS Metrics Panel -->
-          <div class="chart-card">
-            <div class="chart-header">
-              <h3>📈 {currentTranslations.oos_metrics}</h3>
-            </div>
-            <div class="quant-metrics">
-              <div class="metric-item">
-                <span class="metric-label">OOS RMSE</span>
-                <span class="metric-value"
-                  >{(
-                    $dashboardData.btc?.models?.quant_v2?.metrics?.oos_rmse || 0
-                  ).toFixed(4)}</span
-                >
-              </div>
-              <div class="metric-item">
-                <span class="metric-label">OOS MAE</span>
-                <span class="metric-value"
-                  >{(
-                    $dashboardData.btc?.models?.quant_v2?.metrics?.oos_mae || 0
-                  ).toFixed(4)}</span
-                >
-              </div>
-              <div class="metric-item">
-                <span class="metric-label">Hit Rate</span>
-                <span class="metric-value highlight"
-                  >{(
-                    ($dashboardData.btc?.models?.quant_v2?.metrics?.hit_rate ||
-                      0) * 100
-                  ).toFixed(2)}%</span
-                >
-              </div>
-              <div class="metric-item">
-                <span class="metric-label">R² In-Sample</span>
-                <span class="metric-value"
-                  >{(
-                    ($dashboardData.btc?.models?.quant_v2?.metrics
-                      ?.r2_insample || 0) * 100
-                  ).toFixed(2)}%</span
-                >
-              </div>
-              <div class="metric-item">
-                <span class="metric-label">Active Features</span>
-                <span class="metric-value"
-                  >{$dashboardData.btc?.models?.quant_v2?.metrics
-                    ?.n_active_features || 0}</span
-                >
-              </div>
-              <div class="metric-item">
-                <span class="metric-label">Frequency</span>
-                <span class="metric-value"
-                  >{$dashboardData.btc?.models?.quant_v2?.frequency ||
-                    "weekly"}</span
-                >
-              </div>
-            </div>
-          </div>
-
-          <!-- {currentTranslations.model_params} -->
-          <div class="chart-card">
-            <div class="chart-header">
-              <h3>⚙️ {currentTranslations.model_params}</h3>
-            </div>
-            <div class="quant-metrics">
-              <div class="metric-item">
-                <span class="metric-label">Alpha (λ)</span>
-                <span class="metric-value"
-                  >{(
-                    $dashboardData.btc?.models?.quant_v2?.metrics?.alpha || 0
-                  ).toFixed(6)}</span
-                >
-              </div>
-              <div class="metric-item">
-                <span class="metric-label">L1 Ratio</span>
-                <span class="metric-value"
-                  >{$dashboardData.btc?.models?.quant_v2?.metrics?.l1_ratio ||
-                    0}</span
-                >
-              </div>
-            </div>
-          </div>
-
-          <!-- Fair Value Chart (Cumulative) -->
-          <div class="chart-card wide">
-            <div class="chart-header">
-              <h3>₿ Bitcoin: Quant v2 Fair Value (Weekly - Cumulative)</h3>
-              <span class="last-date"
-                >⚠️ Cumulative drift may cause divergence over time</span
-              >
-            </div>
-            <div class="chart-content tv-chart-wrap">
-              <LightweightChart
-                {darkMode}
-                data={quantV2ChartData}
-                logScale={true}
-              />
-            </div>
-          </div>
-
-          <!-- Rebalanced Fair Value Chart -->
-          <div class="chart-card wide">
-            <div class="chart-header">
-              <h3>₿ Bitcoin: Rebalanced Fair Value (Quarterly Reset)</h3>
-              <span class="last-date"
-                >✅ Resets to actual price every 13 weeks to avoid drift</span
-              >
-            </div>
-            <div class="chart-content tv-chart-wrap">
-              <LightweightChart
-                {darkMode}
-                data={quantV2RebalancedData}
-                logScale={true}
-              />
-            </div>
-          </div>
-
-          <!-- Returns Comparison Chart -->
-          <div class="chart-card wide">
-            <div class="chart-header">
-              <h3>📊 Weekly Returns: Predicted vs Actual (%)</h3>
-              <span class="last-date"
-                >Orange bars = Actual | Green line = Predicted</span
-              >
-            </div>
-            <div class="chart-content">
-              <Chart {darkMode} data={quantV2ReturnsData} />
-            </div>
-          </div>
-
-          <!-- Active Features List -->
-          <div class="chart-card wide">
-            <div class="chart-header">
-              <h3>🎯 Active Features (Selected by ElasticNet)</h3>
-            </div>
-            <div class="features-grid">
-              {#each Object.entries($dashboardData.btc?.models?.quant_v2?.active_features || {}) as [feature, coef]}
-                <div
-                  class="feature-item"
-                  class:positive={coef > 0}
-                  class:negative={coef < 0}
-                >
-                  <span class="feature-name">{feature}</span>
-                  <span class="feature-coef">{coef.toFixed(4)}</span>
-                </div>
-              {/each}
-            </div>
-          </div>
-
-          <!-- Current Valuation -->
-          <div class="chart-card">
-            <div class="chart-header">
-              <h3>📊 Current Valuation (Quant v2)</h3>
-            </div>
-            <div class="btc-stats">
-              <div class="btc-stat-item">
-                <span class="btc-label">{currentTranslations.btc_price}</span>
-                <span class="btc-value price">
-                  ${getLatestValue(
-                    $dashboardData.btc?.models?.quant_v2?.btc_price,
-                  )?.toLocaleString() || "N/A"}
-                </span>
-              </div>
-              <div class="btc-stat-item">
-                <span class="btc-label">{currentTranslations.fair_value}</span>
-                <span class="btc-value fair">
-                  ${Math.round(
-                    getLatestValue(
-                      $dashboardData.btc?.models?.quant_v2?.fair_value,
-                    ) || 0,
-                  ).toLocaleString()}
-                </span>
-              </div>
-              <div class="btc-stat-item">
-                <span class="btc-label">{currentTranslations.deviation}</span>
-                <span
-                  class="btc-value deviation"
-                  class:overvalued={getLatestValue(
-                    $dashboardData.btc?.models?.quant_v2?.deviation_pct,
-                  ) > 0}
-                  class:undervalued={getLatestValue(
-                    $dashboardData.btc?.models?.quant_v2?.deviation_pct,
-                  ) < 0}
-                >
-                  {getLatestValue(
-                    $dashboardData.btc?.models?.quant_v2?.deviation_pct,
-                  )?.toFixed(1) || "0"}%
-                </span>
-              </div>
-              <div class="btc-stat-item">
-                <span class="btc-label">{currentTranslations.zscore}</span>
-                <span
-                  class="btc-value zscore"
-                  class:extreme={Math.abs(
-                    getLatestValue(
-                      $dashboardData.btc?.models?.quant_v2?.deviation_zscore,
-                    ) || 0,
-                  ) > 2}
-                >
-                  {getLatestValue(
-                    $dashboardData.btc?.models?.quant_v2?.deviation_zscore,
-                  )?.toFixed(2) || "0"}σ
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+        <BtcQuantV2Tab
+          {darkMode}
+          translations={currentTranslations}
+          dashboardData={$dashboardData}
+          {quantV2ChartData}
+          {quantV2RebalancedData}
+          {quantV2ReturnsData}
+          {getLatestValue}
+        />
       {/if}
     </div>
   </main>
