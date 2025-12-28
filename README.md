@@ -11,6 +11,9 @@ A premium, real-time macro liquidity monitoring dashboard that tracks the Global
 -   **Quant V2 Strategy**: Enhanced Bitcoin fair value model using ElasticNet (automatic feature selection), PCA-based liquidity factors, and rolling volatility bands.
 -   **Bilingual Support (EN/ES)**: Integrated English and Spanish translations with persistent language selection.
 -   **Premium Dark Mode**: High-contrast, accessibility-aware dark theme for all charts and UI components.
+-   **No-Scroll Density**: Extreme table compaction (10px font, micro-padding) to ensure 8+ columns fit on standard desktops without horizontal scrolling.
+-   **Signal-Integrated Styling**: Dynamic top-borders and text coloring (bullish/bearish) for valuation cards and metrics.
+-   **Adaptive Layouts**: Refactored Risk Model and BTC Quant v2 tabs for superior information density using grid-based statistical panels.
 -   **15 Central Banks**: FED, ECB, BoJ, BoE, PBoC, BoC, RBA, RBI, SNB, CBR, BCB, BoK, RBNZ, SR, BNM.
 -   **14 M2 Economies**: US, EU, China, Japan, UK, Canada, Australia, India, Switzerland, Russia, Brazil, Korea, Mexico, Malaysia (and others).
 

@@ -24,416 +24,20 @@
     BtcQuantV2Tab,
   } from "./lib/tabs";
 
-  // Dark mode state
-  let darkMode = false;
-
-  // Language state (default: English)
-  let language = "en";
-
-  // Translations for chart descriptions
-  const translations = {
-    en: {
-      gli: "Sum of global central bank balance sheets in USD. â†‘ Expansion = Liquidity injection (bullish) | â†“ Contraction = QT (bearish)",
-      gli_cb:
-        "Individual central bank assets in USD. Larger = more weight in global liquidity.",
-      btc_fair:
-        "BTC fair value derived from macro liquidity factors. Price above = overvalued, below = undervalued.",
-      btc_bands:
-        "Â±1Ïƒ/2Ïƒ bands show historical deviation range. Mean-reverts over time.",
-      net_liq:
-        "Fed Balance Sheet minus TGA and RRP. Key driver of US dollar liquidity.",
-      rrp: "Reverse Repo drains liquidity from the system. â†“ RRP = Liquidity release (bullish)",
-      tga: "Treasury General Account. â†“ TGA = Treasury spending = Liquidity injection",
-      m2_global:
-        "Global money supply in USD. Leading indicator for asset prices (45-90 day lag).",
-      m2_country: "Country M2 money supply in local currency converted to USD.",
-      cli: "Aggregates credit conditions, volatility, and lending. â†‘ CLI = Easier credit (bullish) | â†“ Contraction = Tighter (bearish)",
-      hy_spread:
-        "High Yield bond spreads vs Treasuries. â†“ Spread = Risk-on (bullish) | â†‘ Spread = Risk-off",
-      ig_spread:
-        "Investment Grade spreads. â†“ Spread = Credit easing | â†‘ Spread = Credit stress",
-      nfci_credit:
-        "Fed's NFCI Credit subindex. â†“ Below 0 = Loose conditions | â†‘ Above 0 = Tight",
-      nfci_risk:
-        "Fed's NFCI Risk subindex. â†“ Below 0 = Low fear | â†‘ Above 0 = Elevated fear",
-      lending:
-        "Senior Loan Officer Survey. â†‘ Tightening = Banks restrict credit | â†“ Easing = Free lending",
-      vix: "Implied volatility (fear gauge). Z>2 = Panic | Z<-1 = Complacency. Mean-reverts.",
-      tips: "Breakeven (amber): Inflation expectations. Real Rate (blue): True cost of money. 5Y5Y (green): Long-term anchor.",
-      bank_reserves:
-        "Total reserves maintained by depository institutions at Federal Reserve Banks. When reserves fall, liquidity stress increases.",
-      repo_stress:
-        "Comparison between SOFR (market rate) and IORB (Fed floor). If SOFR stays above IORB, it indicates systemic liquidity shortage.",
-      // Navigation
-      nav_dashboard: "Dashboard",
-      nav_gli: "Global Flows CB",
-      nav_m2: "Global M2",
-      nav_us_system: "US System",
-      nav_risk_model: "Risk Model",
-      nav_btc_analysis: "BTC Analysis",
-      nav_btc_quant: "BTC Quant v2",
-      // Header & Global
-      header_desc:
-        "Real-time macro liquidity and credit monitoring across 5 major central banks",
-      system_live: "System Live",
-      refresh_data: "Refresh Data",
-      light_mode: "Light Mode",
-      dark_mode: "Dark Mode",
-      switch_lang: "Switch Language",
-      conn_error: "Connection Error:",
-      // Stats Cards
-      stat_gli: "Global Liquidity (GLI)",
-      stat_us_net: "US Net Liquidity",
-      stat_cli: "Credit Index (CLI)",
-      stat_vix: "Volatility Index",
-      // Common Table Labels
-      bank: "Bank",
-      weight: "Wgt",
-      economy: "Economy",
-      account: "Account",
-      impact_1m: "1M Global Impact",
-      impact_3m: "3M Global Impact",
-      impact_1y: "1Y Global Impact",
-      impact_us: "Impact on Net Liq",
-      impact_note_gli:
-        "* Impact = % contribution of bank's 1M move to total Global Liquidity.",
-      impact_note_us:
-        "* Imp = Contribution to US Net Liquidity change. RRP/TGA have an inverse effect.",
-      last_data: "Last Data:",
-      last: "Last:",
-      // Chart Headers
-      chart_gli_aggregate: "Global Liquidity Index (Aggregate)",
-      chart_us_net_liq: "US Net Liquidity Trends",
-      chart_fed_assets: "Fed Assets (USD Trillion)",
-      chart_us_credit: "US Credit Conditions",
-      chart_rrp: "Fed RRP Facility",
-      chart_tga: "Treasury General Account (TGA)",
-      chart_m2_aggregate: "Global M2 Money Supply (Aggregate)",
-      chart_inflation_exp: "Inflation Expectations (TIPS Market)",
-      chart_gli_comp: "GLI Composition & Performance",
-      chart_m2_comp: "M2 Composition & Performance",
-      chart_us_comp: "US System Components Impact",
-      chart_bank_reserves: "Bank Reserves vs Net Liquidity",
-      chart_repo_stress: "Repo Market Stress (SOFR vs IORB)",
-      // Reserves Metrics
-      reserves_velocity: "Reserves Velocity",
-      roc_3m: "3M ROC",
-      spread_zscore: "Spread Z-Score",
-      momentum: "Momentum",
-      lcr: "LCR",
-      reserves_high_stress: "High Stress",
-      reserves_normal: "Normal",
-      reserves_low_stress: "Low Stress",
-      reserves_bullish: "Bullish",
-      reserves_bearish: "Bearish",
-      reserves_neutral: "Neutral",
-      // US System Metrics
-      liquidity_score: "Liquidity Score",
-      rrp_drain: "RRP Drain",
-      weeks_to_empty: "Weeks to Empty",
-      tga_deviation: "TGA Deviation",
-      fed_momentum_label: "Fed Momentum",
-      netliq_roc: "Net Liq ROC",
-      liquid_env: "Liquid",
-      dry_env: "Dry",
-      regime_qe: "QE Mode",
-      regime_qt: "QT Mode",
-      // Flow/Impulse Metrics
-      flow_impulse: "Liquidity Impulse",
-      flow_accel: "Acceleration",
-      flow_zscore: "Impulse Z-Score",
-      flow_desc:
-        "Impulse tracks the rate of change in liquidity flows. Acceleration captures regime shifts.",
-      gli_impulse: "GLI Impulse (13W)",
-      m2_impulse: "M2 Impulse (13W)",
-      cb_contribution: "CB Contribution to Î”GLI",
-      // Formatting
-      spot_usd: "Spot USD",
-      const_fx: "Const FX",
-      // BTC Analysis tab
-      btc_analysis_title: "BTC Fair Value Model",
-      btc_analysis_desc:
-        "Bitcoin fair value derived from global liquidity, M2, and credit conditions. Price above line = overvalued, below = undervalued.",
-      current_valuation: "Current Valuation",
-      btc_price: "BTC Price",
-      fair_value: "Fair Value",
-      deviation: "Deviation",
-      zscore: "Z-Score",
-      lag_analysis: "Predictive Signals: CLI â†’ BTC Lag Analysis",
-      roc_window: "ROC Window",
-      optimal_lag: "Optimal Lag",
-      max_correlation: "Max Correlation",
-      interpretation: "Interpretation",
-      // BTC Quant v2 tab
-      quant_v2_title: "Quant v2: Enhanced Bitcoin Fair Value Model",
-      quant_v2_desc:
-        "This model addresses econometric issues in the legacy model:",
-      quant_v2_weekly:
-        "Weekly frequency (W-FRI) instead of daily to avoid FRI autocorrelation",
-      quant_v2_log:
-        "Î”log(BTC) returns instead of log levels (avoids spurious regression)",
-      quant_v2_elastic:
-        "ElasticNet with 1-8 week lags for automatic feature selection",
-      quant_v2_pca: "PCA GLI factor instead of raw sum (handles colinearity)",
-      quant_v2_vol: "Rolling 52-week volatility for adaptive bands",
-      oos_metrics: "Out-of-Sample Metrics",
-      model_params: "Model Parameters",
-      quant_chart_desc:
-        "Cumulative model drift may cause divergence over time.",
-      interp_regression: "Regression using:",
-      interp_gli_lag: "GLI (45-day lag)",
-      interp_cli_lag: "CLI (14-day lag)",
-      interp_vix_coin: "VIX (coincident)",
-      interp_netliq_lag: "US Net Liq (30-day lag)",
-      interp_zones: "Deviation Zones",
-      interp_extreme: "Â±2Ïƒ: Extreme over/undervaluation",
-      interp_moderate: "Â±1Ïƒ: Moderate deviation",
-      interp_fair_range: "Within Â±1Ïƒ: Fair value range",
-      interp_signals: "Trading Signals",
-      interp_profittaking: "Z > +2: Consider profit-taking",
-      interp_accumulation: "Z < -2: Potential accumulation",
-      interp_divergence: "ROC divergence: Momentum shifts",
-      // Data Health & Pulse
-      data_health: "Data Health & Coverage",
-      series: "Series",
-      freshness: "Freshness",
-      real_date: "Real Date",
-      coverage: "Coverage",
-      active_cbs: "Active CBs",
-      impulse_analysis: "Liquidity Impulse Analysis",
-      chart_impulse_desc:
-        "Comparing the momentum of GLI, Net Liquidity, and Credit conditions (Normalized Z-Scores). Divergences often lead BTC price action.",
-      btc_roc_overlay: "BTC ROC Overlay",
-      period: "Period",
-      lag_days: "Lag (Days)",
-      // Macro Regimes
-      regime_bullish: "Bullish Macro",
-      regime_bearish: "Bearish Macro",
-      regime_global_inj: "Global Injection",
-      regime_us_inj: "US Injection",
-      regime_early_warning: "Early Warning",
-      regime_losing_steam: "Losing Steam",
-      regime_neutral: "Neutral / Transition",
-      regime_signal: "Macro Pulse & Regime",
-      regime_chart_desc:
-        "Log-scale BTC Price overlaid on Macro Regime. Background tracks combined Global (GLI) and US (NetLiq) liquidity momentum. Green: Dual Expansion (Bullish). Red: Dual Contraction (Bearish). Grey: Mixed/Neutral.",
-      regime_formula_title: "Regime Formula",
-      regime_formula_desc:
-        "Score = 50 + 15 Ã— Total_Z | Liquidity (35% GLI + 35% NetLiq + 20% M2 Â± CB breadth) + Credit (60% CLI + 40% CLI momentum) - Brakes (real rates + repo stress + reserve scarcity)",
-      regime_score_bullish:
-        "Score > 50: Bullish bias (green) â†’ Liquidity expanding, credit easing",
-      regime_score_bearish:
-        "Score < 50: Bearish bias (red) â†’ Liquidity contracting, credit tightening",
-    },
-    es: {
-      gli: "Suma de balances de bancos centrales en USD. â†‘ ExpansiÃ³n = InyecciÃ³n de liquidez (alcista) | â†“ ContracciÃ³n = QT (bajista)",
-      gli_cb:
-        "Activos individuales de bancos centrales en USD. Mayor = mÃ¡s peso en liquidez global.",
-      btc_fair:
-        "Valor justo de BTC derivado de factores macro. Precio arriba = sobrevalorado, abajo = infravalorado.",
-      btc_bands:
-        "Bandas Â±1Ïƒ/2Ïƒ muestran rango de desviaciÃ³n histÃ³rica. Revierte a la media.",
-      net_liq:
-        "Balance de la Fed menos TGA y RRP. Motor clave de liquidez del dÃ³lar.",
-      rrp: "Repo Inverso drena liquidez del sistema. â†“ RRP = LiberaciÃ³n de liquidez (alcista)",
-      tga: "Cuenta General del Tesoro. â†“ TGA = Gasto del Tesoro = InyecciÃ³n de liquidez",
-      m2_global:
-        "Oferta monetaria global en USD. Indicador adelantado de precios (45-90 dÃ­as de retardo).",
-      m2_country: "M2 del paÃ­s en moneda local convertida a USD.",
-      cli: "Agrega condiciones crediticias, volatilidad y prÃ©stamos. â†‘ CLI = CrÃ©dito fÃ¡cil (alcista) | â†“ CLI = MÃ¡s estricto",
-      hy_spread:
-        "Spreads de bonos High Yield vs Treasuries. â†“ Spread = Risk-on (alcista) | â†‘ = Risk-off",
-      ig_spread:
-        "Spreads de grado de inversiÃ³n. â†“ Spread = CrÃ©dito relajado | â†‘ = EstrÃ©s crediticio",
-      nfci_credit:
-        "SubÃ­ndice de crÃ©dito NFCI de la Fed. â†“ Bajo 0 = Condiciones laxas | â†‘ Sobre 0 = Estrictas",
-      nfci_risk:
-        "SubÃ­ndice de riesgo NFCI. â†“ Bajo 0 = Bajo miedo | â†‘ Sobre 0 = Miedo elevado",
-      lending:
-        "Encuesta de prÃ©stamos bancarios. â†‘ Endurecimiento = Restringen crÃ©dito | â†“ = Prestan libremente",
-      vix: "Volatilidad implÃ­cita (indicador de miedo). Z>2 = PÃ¡nico | Z<-1 = Complacencia.",
-      tips: "Breakeven (Ã¡mbar): Expectativas de inflaciÃ³n. Tasa Real (azul): Coste real del dinero. 5Y5Y (verde): Anclaje a largo plazo.",
-      bank_reserves:
-        "Reservas totales mantenidas por instituciones depositarias en los Bancos de la Reserva Federal. Cuando las reservas caen, el estrÃ©s de liquidez aumenta.",
-      repo_stress:
-        "Comparativa entre el SOFR (tipo de mercado) y el IORB (suelo de la Fed). Si el SOFR se mantiene por encima del IORB, indica escasez sistÃ©mica de liquidez.",
-      // Navigation
-      nav_dashboard: "Panel de Control",
-      nav_gli: "Flujos Globales CB",
-      nav_m2: "M2 Global",
-      nav_us_system: "Sistema EE.UU.",
-      nav_risk_model: "Modelo de Riesgo",
-      nav_btc_analysis: "AnÃ¡lisis BTC",
-      nav_btc_quant: "BTC Quant v2",
-      // Header & Global
-      header_desc:
-        "Monitoreo en tiempo real de liquidez macro y crÃ©dito en 5 bancos centrales",
-      system_live: "Sistema en Vivo",
-      refresh_data: "Actualizar Datos",
-      light_mode: "Modo Claro",
-      dark_mode: "Modo Oscuro",
-      switch_lang: "Cambiar Idioma",
-      conn_error: "Error de ConexiÃ³n:",
-      // Stats Cards
-      stat_gli: "Liquidez Global (GLI)",
-      stat_us_net: "Liquidez Neta EE.UU.",
-      stat_cli: "Ãndice de CrÃ©dito (CLI)",
-      stat_vix: "Ãndice de Volatilidad",
-      // Common Table Labels
-      bank: "Banco",
-      weight: "Peso",
-      economy: "EconomÃ­a",
-      account: "Cuenta",
-      impact_1m: "Impacto Global 1M",
-      impact_3m: "Impacto Global 3M",
-      impact_1y: "Impacto Global 1Y",
-      impact_us: "Impacto en Liq Neta",
-      impact_note_gli:
-        "* Impacto = % contribuciÃ³n del movimiento 1M del banco a la Liquidez Global total.",
-      impact_note_us:
-        "* Imp = ContribuciÃ³n al cambio de Liquidez Neta de EE.UU. RRP/TGA tienen un efecto inverso.",
-      last_data: "Ãšltimos Datos:",
-      last: "Ãšltimo:",
-      // Chart Headers
-      chart_gli_aggregate: "Ãndice de Liquidez Global (Agregado)",
-      chart_us_net_liq: "Tendencias de Liquidez Neta EE.UU.",
-      chart_fed_assets: "Activos de la Fed (Trillones USD)",
-      chart_us_credit: "Condiciones Crediticias EE.UU.",
-      chart_rrp: "Facilidad RRP de la Fed",
-      chart_tga: "Cuenta General del Tesoro (TGA)",
-      chart_m2_aggregate: "Oferta Monetaria M2 Global (Agregada)",
-      chart_inflation_exp: "Expectativas de InflaciÃ³n (Mercado TIPS)",
-      chart_gli_comp: "ComposiciÃ³n y Rendimiento de GLI",
-      chart_m2_comp: "ComposiciÃ³n y Rendimiento de M2",
-      chart_us_comp: "Impacto de Componentes del Sistema EE.UU.",
-      chart_bank_reserves: "Reservas Bancarias vs Liquidez Neta",
-      chart_repo_stress: "EstrÃ©s del Mercado Repo (SOFR vs IORB)",
-      // Reserves Metrics
-      reserves_velocity: "Velocidad de Reservas",
-      roc_3m: "ROC 3M",
-      spread_zscore: "Z-Score Spread",
-      momentum: "Momentum",
-      lcr: "LCR",
-      reserves_high_stress: "Alto EstrÃ©s",
-      reserves_normal: "Normal",
-      reserves_low_stress: "Bajo EstrÃ©s",
-      reserves_bullish: "Alcista",
-      reserves_bearish: "Bajista",
-      reserves_neutral: "Neutral",
-      // US System Metrics
-      liquidity_score: "Ãndice de Liquidez",
-      rrp_drain: "Drenaje RRP",
-      weeks_to_empty: "Semanas hasta vacÃ­o",
-      tga_deviation: "DesviaciÃ³n TGA",
-      fed_momentum_label: "Momentum Fed",
-      netliq_roc: "ROC Liq Neta",
-      liquid_env: "LÃ­quido",
-      dry_env: "Seco",
-      regime_qe: "Modo QE",
-      regime_qt: "Modo QT",
-      // Flow/Impulse Metrics
-      flow_impulse: "Impulso de Liquidez",
-      flow_accel: "AceleraciÃ³n",
-      flow_zscore: "Z-Score del Impulso",
-      flow_desc:
-        "El impulso rastrea la tasa de cambio en los flujos. La aceleraciÃ³n captura cambios de rÃ©gimen.",
-      gli_impulse: "Impulso GLI (13S)",
-      m2_impulse: "Impulso M2 (13S)",
-      cb_contribution: "ContribuciÃ³n CB a Î”GLI",
-      // Formatting
-      spot_usd: "Spot USD",
-      const_fx: "FX Const",
-      // BTC Analysis tab
-      btc_analysis_title: "Modelo de Valor Justo de BTC",
-      btc_analysis_desc:
-        "Valor justo de Bitcoin derivado de liquidez global, M2 y condiciones de crÃ©dito. Precio arriba = sobrevalorado, abajo = infravalorado.",
-      current_valuation: "ValoraciÃ³n Actual",
-      btc_price: "Precio BTC",
-      fair_value: "Valor Justo",
-      deviation: "DesviaciÃ³n",
-      zscore: "Z-Score",
-      lag_analysis: "SeÃ±ales Predictivas: CLI â†’ BTC AnÃ¡lisis de Retardo",
-      roc_window: "Ventana ROC",
-      optimal_lag: "Retardo Ã“ptimo",
-      max_correlation: "CorrelaciÃ³n MÃ¡xima",
-      interpretation: "InterpretaciÃ³n",
-      // BTC Quant v2 tab
-      quant_v2_title: "Quant v2: Modelo Mejorado de Valor Justo de Bitcoin",
-      quant_v2_desc:
-        "Este modelo aborda problemas economÃ©tricos del modelo anterior:",
-      quant_v2_weekly:
-        "Frecuencia semanal (W-VIE) en lugar de diaria para evitar autocorrelaciÃ³n",
-      quant_v2_log:
-        "Retornos Î”log(BTC) en lugar de niveles log (evita regresiÃ³n espuria)",
-      quant_v2_elastic:
-        "ElasticNet con retardos de 1-8 semanas para selecciÃ³n automÃ¡tica",
-      quant_v2_pca:
-        "Factor PCA GLI en lugar de suma cruda (maneja colinealidad)",
-      quant_v2_vol: "Volatilidad rolling de 52 semanas para bandas adaptativas",
-      oos_metrics: "MÃ©tricas Fuera de Muestra",
-      model_params: "ParÃ¡metros del Modelo",
-      quant_chart_desc:
-        "La deriva acumulativa del modelo puede causar divergencia con el tiempo.",
-      interp_regression: "RegresiÃ³n usando:",
-      interp_gli_lag: "GLI (retardo 45d)",
-      interp_cli_lag: "CLI (retardo 14d)",
-      interp_vix_coin: "VIX (coincidente)",
-      interp_netliq_lag: "Liq Neta EE.UU. (retardo 30d)",
-      interp_zones: "Zonas de DesviaciÃ³n",
-      interp_extreme: "Â±2Ïƒ: Sobre/infravaloraciÃ³n extrema",
-      interp_moderate: "Â±1Ïƒ: DesviaciÃ³n moderada",
-      interp_fair_range: "Dentro de Â±1Ïƒ: Rango de valor justo",
-      interp_signals: "SeÃ±ales de Trading",
-      interp_profittaking: "Z > +2: Considerar toma de beneficios",
-      interp_accumulation: "Z < -2: AcumulaciÃ³n potencial",
-      interp_divergence: "Divergencia ROC: Cambios de momentum",
-      // Data Health & Pulse
-      data_health: "Salud y Cobertura de Datos",
-      series: "Serie",
-      freshness: "AntigÃ¼edad",
-      real_date: "Fecha Real",
-      coverage: "Cobertura",
-      active_cbs: "Bancos Activos",
-      impulse_analysis: "AnÃ¡lisis de Impulso de Liquidez",
-      chart_impulse_desc:
-        "ComparaciÃ³n del momentum de GLI, Liquidez Neta y condiciones de CrÃ©dito (Z-Scores Normalizados). Las divergencias suelen liderar el precio de BTC.",
-      btc_roc_overlay: "SuperposiciÃ³n ROC BTC",
-      period: "Periodo",
-      lag_days: "Retardo (DÃ­as)",
-      // Macro Regimes
-      regime_bullish: "Macro Alcista",
-      regime_bearish: "Macro Bajista",
-      regime_global_inj: "InyecciÃ³n Global",
-      regime_us_inj: "InyecciÃ³n EE.UU.",
-      regime_early_warning: "Aviso Temprano",
-      regime_losing_steam: "Perdiendo Fuelle",
-      regime_neutral: "Neutral / TransiciÃ³n",
-      regime_signal: "Pulso Macro y RÃ©gimen",
-      regime_chart_desc:
-        "Precio BTC (Log) vs RÃ©gimen Macro. El fondo rastrea liquidez Global (GLI) y EE.UU. (NetLiq). Verde: ExpansiÃ³n Dual (Alcista). Rojo: ContracciÃ³n Dual (Bajista). Gris: Neutral.",
-      regime_formula_title: "FÃ³rmula del RÃ©gimen",
-      regime_formula_desc:
-        "Score = 50 + 15 Ã— Total_Z | Liquidez (35% GLI + 35% NetLiq + 20% M2 Â± amplitud CB) + CrÃ©dito (60% CLI + 40% momentum CLI) - Frenos (tasas reales + estrÃ©s repo + escasez reservas)",
-      regime_score_bullish:
-        "Score > 50: Sesgo alcista (verde) â†’ Liquidez expandiÃ©ndose, crÃ©dito relajÃ¡ndose",
-      regime_score_bearish:
-        "Score < 50: Sesgo bajista (rojo) â†’ Liquidez contrayÃ©ndose, crÃ©dito endureciÃ©ndose",
-    },
-  };
-
-  // Reactive translations - updates when language changes
-  $: currentTranslations = translations[language] || translations.en;
-
-  // Helper to get translation (uses reactive currentTranslations)
-  const t = (key) => currentTranslations[key] || translations.en[key] || key;
+  // Global Settings Store
+  import {
+    darkMode,
+    language,
+    currentTranslations,
+    toggleDarkMode,
+    toggleLanguage,
+    initSettings,
+    t as translate,
+  } from "./stores/settingsStore";
 
   // Initialize from localStorage on mount
   onMount(() => {
-    const savedTheme = localStorage.getItem("theme");
-    const savedLang = localStorage.getItem("language");
-    darkMode = savedTheme === "dark";
-    language = savedLang || "en";
-    applyTheme();
+    initSettings();
     loadOptimizedParams();
   });
 
@@ -452,17 +56,6 @@
     } catch (e) {
       console.warn("Could not load optimized regime params, using default.", e);
     }
-  }
-
-  function toggleDarkMode() {
-    darkMode = !darkMode;
-    localStorage.setItem("theme", darkMode ? "dark" : "light");
-    applyTheme();
-  }
-
-  function toggleLanguage() {
-    language = language === "en" ? "es" : "en";
-    localStorage.setItem("language", language);
   }
 
   function applyTheme() {
@@ -1409,7 +1002,7 @@
     yaxis: {
       title:
         normalizeImpulse || showComposite
-          ? "Z-Score (Ïƒ)"
+          ? "Z-Score (σ)"
           : "Impulse ($ Trillion)",
       gridcolor: darkMode ? "#334155" : "#e2e8f0",
     },
@@ -1474,15 +1067,15 @@
   })();
 
   $: currentRegime = (() => {
-    const isEs = language === "es";
+    const isEs = $language === "es";
     switch (currentRegimeId) {
       case "bullish":
         return {
-          name: currentTranslations.regime_bullish,
-          emoji: "ðŸ‚",
+          name: $currentTranslations.regime_bullish,
+          emoji: "🐂",
           color: "bullish",
           desc: isEs
-            ? "ExpansiÃ³n Sincronizada: Tanto la liquidez Global como la de EE.UU. estÃ¡n expandiÃ©ndose."
+            ? "Expansión Sincronizada: Tanto la liquidez Global como la de EE.UU. están expandiéndose."
             : "Synchronized Expansion: Both Global and US liquidity are expanding.",
           details: isEs
             ? "Entorno favorable para activos de riesgo."
@@ -1490,11 +1083,11 @@
         };
       case "bearish":
         return {
-          name: currentTranslations.regime_bearish,
-          emoji: "ðŸ»",
+          name: $currentTranslations.regime_bearish,
+          emoji: "🐻",
           color: "bearish",
           desc: isEs
-            ? "ContracciÃ³n Sincronizada: Tanto la liquidez Global como la de EE.UU. se estÃ¡n contrayendo."
+            ? "Contracción Sincronizada: Tanto la liquidez Global como la de EE.UU. se están contrayendo."
             : "Synchronized Contraction: Both Global and US liquidity are contracting.",
           details: isEs
             ? "Entorno defensivo/adverso para activos de riesgo."
@@ -1503,14 +1096,14 @@
       case "neutral":
       default:
         return {
-          name: currentTranslations.regime_neutral,
-          emoji: "âš–ï¸",
+          name: $currentTranslations.regime_neutral,
+          emoji: "⚖️",
           color: "neutral",
           desc: isEs
-            ? "RÃ©gimen Mixto/Divergente: SeÃ±ales contradictorias entre liquidez Global y domÃ©stica."
+            ? "Régimen Mixto/Divergente: Señales contradictorias entre liquidez Global y doméstica."
             : "Mixed/Divergent Regime: Conflicting signals between Global and domestic liquidity.",
           details: isEs
-            ? "Comportamiento lateral o errÃ¡tico esperado."
+            ? "Comportamiento lateral o errático esperado."
             : "Choppy or sideways price action expected.",
         };
     }
@@ -2318,7 +1911,7 @@
       width: 2,
     },
     {
-      name: "+2Ïƒ",
+      name: "+2σ",
       type: "line",
       color: "#ef4444",
       data: formatTV($dashboardData.dates, activeBtcModel.upper_2sd),
@@ -2326,7 +1919,7 @@
       options: { lineStyle: 2 },
     },
     {
-      name: "+1Ïƒ",
+      name: "+1σ",
       type: "line",
       color: "#f59e0b",
       data: formatTV($dashboardData.dates, activeBtcModel.upper_1sd),
@@ -2334,7 +1927,7 @@
       options: { lineStyle: 2 },
     },
     {
-      name: "-1Ïƒ",
+      name: "-1σ",
       type: "line",
       color: "#f59e0b",
       data: formatTV($dashboardData.dates, activeBtcModel.lower_1sd),
@@ -2342,7 +1935,7 @@
       options: { lineStyle: 2 },
     },
     {
-      name: "-2Ïƒ",
+      name: "-2σ",
       type: "line",
       color: "#ef4444",
       data: formatTV($dashboardData.dates, activeBtcModel.lower_2sd),
@@ -2469,7 +2062,7 @@
         width: 2,
       },
       {
-        name: "+2Ïƒ",
+        name: "+2σ",
         type: "line",
         color: "#ef4444",
         data: v2.dates
@@ -2482,7 +2075,7 @@
         options: { lineStyle: 2 },
       },
       {
-        name: "+1Ïƒ",
+        name: "+1σ",
         type: "line",
         color: "#f59e0b",
         data: v2.dates
@@ -2495,7 +2088,7 @@
         options: { lineStyle: 2 },
       },
       {
-        name: "-1Ïƒ",
+        name: "-1σ",
         type: "line",
         color: "#f59e0b",
         data: v2.dates
@@ -2508,7 +2101,7 @@
         options: { lineStyle: 2 },
       },
       {
-        name: "-2Ïƒ",
+        name: "-2σ",
         type: "line",
         color: "#ef4444",
         data: v2.dates
@@ -2610,6 +2203,15 @@
   };
 </script>
 
+<svelte:head>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@400;600;800&display=swap"
+    rel="stylesheet"
+  />
+</svelte:head>
+
 <div class="app-container">
   <aside class="sidebar">
     <svg style="position: absolute; width: 0; height: 0;" aria-hidden="true">
@@ -2647,8 +2249,8 @@
         role="button"
         tabindex="0"
       >
-        <span class="nav-icon">ðŸ“Š</span>
-        {currentTranslations.nav_dashboard}
+        <span class="nav-icon">📊</span>
+        {$currentTranslations.nav_dashboard}
       </div>
       <div
         class="nav-item"
@@ -2658,8 +2260,8 @@
         role="button"
         tabindex="0"
       >
-        <span class="nav-icon">ðŸ¦</span>
-        {currentTranslations.nav_gli}
+        <span class="nav-icon">🌍</span>
+        {$currentTranslations.nav_gli}
       </div>
       <div
         class="nav-item"
@@ -2669,8 +2271,8 @@
         role="button"
         tabindex="0"
       >
-        <span class="nav-icon">ðŸ’°</span>
-        {currentTranslations.nav_m2}
+        <span class="nav-icon">💰</span>
+        {$currentTranslations.nav_m2}
       </div>
       <div
         class="nav-item"
@@ -2680,8 +2282,8 @@
         role="button"
         tabindex="0"
       >
-        <span class="nav-icon">ðŸ‡ºðŸ‡¸</span>
-        {currentTranslations.nav_us_system}
+        <span class="nav-icon">🇺🇸</span>
+        {$currentTranslations.nav_us_system}
       </div>
       <div
         class="nav-item"
@@ -2691,8 +2293,8 @@
         role="button"
         tabindex="0"
       >
-        <span class="nav-icon">âš ï¸</span>
-        {currentTranslations.nav_risk_model}
+        <span class="nav-icon">⚠️</span>
+        {$currentTranslations.nav_risk_model}
       </div>
       <div
         class="nav-item"
@@ -2702,8 +2304,8 @@
         role="button"
         tabindex="0"
       >
-        <span class="nav-icon">â‚¿</span>
-        {currentTranslations.nav_btc_analysis}
+        <span class="nav-icon">₿</span>
+        {$currentTranslations.nav_btc_analysis}
       </div>
       <div
         class="nav-item"
@@ -2713,8 +2315,8 @@
         role="button"
         tabindex="0"
       >
-        <span class="nav-icon">ðŸ§ª</span>
-        {currentTranslations.nav_btc_quant}
+        <span class="nav-icon">🧪</span>
+        {$currentTranslations.nav_btc_quant}
       </div>
     </nav>
 
@@ -2726,46 +2328,46 @@
       <div class="content-header">
         <h1>
           {currentTab}
-          {currentTranslations.nav_dashboard === "Dashboard"
+          {$currentTranslations.nav_dashboard === "Dashboard"
             ? "Overview"
             : "Resumen"}
         </h1>
         <p>
-          {currentTranslations.header_desc}
+          {$currentTranslations.header_desc}
         </p>
       </div>
       <div class="header-actions">
         <div class="status-indicator">
           <div class="pulse"></div>
-          {currentTranslations.system_live}
+          {$currentTranslations.system_live}
         </div>
         <button
           class="header-toggle"
           on:click={toggleLanguage}
-          title={currentTranslations.switch_lang}
+          title={$currentTranslations.switch_lang}
         >
-          <span class="toggle-icon">ðŸŒ</span>
-          <span class="toggle-label">{language === "en" ? "EN" : "ES"}</span>
+          <span class="toggle-icon">🌐</span>
+          <span class="toggle-label">{$language === "en" ? "EN" : "ES"}</span>
         </button>
         <button
           class="header-toggle"
           on:click={toggleDarkMode}
-          title={darkMode
-            ? currentTranslations.light_mode
-            : currentTranslations.dark_mode}
+          title={$darkMode
+            ? $currentTranslations.light_mode
+            : $currentTranslations.dark_mode}
         >
-          <span class="toggle-icon">{darkMode ? "â˜€ï¸" : "ðŸŒ™"}</span>
+          <span class="toggle-icon">{darkMode ? "☀️" : "🌙"}</span>
           <span class="toggle-label"
-            >{darkMode
-              ? currentTranslations.light_mode.split(" ")[0]
-              : currentTranslations.dark_mode.split(" ")[0]}</span
+            >{$darkMode
+              ? ($currentTranslations.light_mode || "").split(" ")[0]
+              : ($currentTranslations.dark_mode || "").split(" ")[0]}</span
           >
         </button>
         {#if $isLoading}
           <div class="loader"></div>
         {:else}
           <button class="refresh-btn" on:click={fetchData}
-            >{currentTranslations.refresh_data}</button
+            >{$currentTranslations.refresh_data}</button
           >
         {/if}
       </div>
@@ -2781,9 +2383,9 @@
     <div class="dashboard-grid">
       {#if currentTab === "Dashboard"}
         <DashboardTab
-          {darkMode}
-          {language}
-          translations={currentTranslations}
+          darkMode={$darkMode}
+          language={$language}
+          translations={$currentTranslations}
           dashboardData={$dashboardData}
           latestStats={$latestStats}
           {gliData}
@@ -2808,12 +2410,17 @@
           {optimalLagLabel}
           {getLastDate}
           {getLatestValue}
+          bind:gliRange
+          bind:gliShowConstantFx
+          bind:netLiqRange
+          bind:cliRange
+          bind:impulseRange
         />
       {:else if currentTab === "Global Flows CB"}
         <GlobalFlowsCbTab
-          {darkMode}
-          {language}
-          translations={currentTranslations}
+          darkMode={$darkMode}
+          language={$language}
+          translations={$currentTranslations}
           {fedData}
           {ecbData}
           {bojData}
@@ -2832,11 +2439,27 @@
           {cbBreadthData}
           {cbConcentrationData}
           {getLastDate}
+          bind:fedRange
+          bind:ecbRange
+          bind:bojRange
+          bind:boeRange
+          bind:pbocRange
+          bind:bocRange
+          bind:rbaRange
+          bind:snbRange
+          bind:bokRange
+          bind:rbiRange
+          bind:cbrRange
+          bind:bcbRange
+          bind:rbnzRange
+          bind:srRange
+          bind:bnmRange
+          bind:cbRange
         />
       {:else if currentTab === "Global M2"}
         <GlobalM2Tab
-          {darkMode}
-          translations={currentTranslations}
+          darkMode={$darkMode}
+          translations={$currentTranslations}
           {m2TotalData}
           {m2Weights}
           {usM2Data}
@@ -2854,12 +2477,27 @@
           {chM2Data}
           {myM2Data}
           {getLastDate}
+          bind:m2Range
+          bind:usM2DataRange={usM2Range}
+          bind:euM2DataRange={euM2Range}
+          bind:cnM2DataRange={cnM2Range}
+          bind:jpM2DataRange={jpM2Range}
+          bind:ukM2DataRange={ukM2Range}
+          bind:caM2DataRange={caM2Range}
+          bind:auM2DataRange={auM2Range}
+          bind:inM2DataRange={inM2Range}
+          bind:chM2DataRange={chM2Range}
+          bind:ruM2DataRange={ruM2Range}
+          bind:brM2DataRange={brM2Range}
+          bind:krM2DataRange={krM2Range}
+          bind:mxM2DataRange={mxM2Range}
+          bind:myM2DataRange={myM2Range}
         />
       {:else if currentTab === "US System"}
         <UsSystemTab
-          {darkMode}
-          {language}
-          translations={currentTranslations}
+          darkMode={$darkMode}
+          language={$language}
+          translations={$currentTranslations}
           dashboardData={$dashboardData}
           {netLiqData}
           {bankReservesData}
@@ -2871,12 +2509,17 @@
           {usSystemTotal}
           {getLastDate}
           {getLatestValue}
+          bind:netLiqRange
+          bind:reservesRange
+          bind:fedRange
+          bind:rrpRange
+          bind:tgaRange
         />
       {:else if currentTab === "Risk Model"}
         <RiskModelTab
-          {darkMode}
-          {language}
-          translations={currentTranslations}
+          darkMode={$darkMode}
+          language={$language}
+          translations={$currentTranslations}
           dashboardData={$dashboardData}
           {cliData}
           {hyZData}
@@ -2891,22 +2534,33 @@
           {getLastDate}
           {getLatestValue}
           {getLatestROC}
+          bind:cliRange
+          bind:hyRange
+          bind:igRange
+          bind:nfciRange
+          bind:lendingRange
+          bind:vixRange
+          bind:tipsRange
+          bind:repoStressRange
         />
       {:else if currentTab === "BTC Analysis"}
         <BtcAnalysisTab
-          {darkMode}
-          translations={currentTranslations}
+          darkMode={$darkMode}
+          translations={$currentTranslations}
           latestStats={$latestStats}
           dashboardData={$dashboardData}
           {btcFairValueData}
-          {lagCorrelationChartData}
+          lagCorrelationChartData={$dashboardData.predictive?.lag_correlations}
           {correlationData}
           {getLatestROC}
+          bind:selectedBtcModel
+          bind:selectedLagWindow
+          bind:btcRange
         />
       {:else if currentTab === "BTC Quant v2"}
         <BtcQuantV2Tab
-          {darkMode}
-          translations={currentTranslations}
+          darkMode={$darkMode}
+          translations={$currentTranslations}
           dashboardData={$dashboardData}
           {quantV2ChartData}
           {quantV2RebalancedData}
@@ -3185,45 +2839,6 @@
     letter-spacing: 0.025em;
   }
 
-  .toggle-btn {
-    border: none;
-    background: transparent;
-    padding: 6px 16px;
-    border-radius: 8px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    cursor: pointer;
-    color: var(--text-muted);
-    transition: all 0.2s;
-  }
-
-  .toggle-btn.active {
-    background: var(--bg-secondary);
-    color: var(--accent-primary);
-    box-shadow: var(--card-shadow);
-  }
-
-  .btc-analysis-view {
-    margin-top: 24px;
-  }
-
-  .btc-analysis-view h2 {
-    margin-bottom: 8px;
-    font-size: 1.75rem;
-    color: var(--text-primary);
-  }
-
-  @keyframes slideDown {
-    from {
-      opacity: 0;
-      transform: translateY(-10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
   .error-banner {
     background: #fef2f2;
     border: 1px solid #fee2e2;
@@ -3235,25 +2850,25 @@
     font-weight: 500;
   }
 
-  .dashboard-grid {
+  :global(.dashboard-grid) {
     max-width: 1600px;
     margin-right: auto;
   }
 
-  .stats-grid {
+  :global(.stats-grid) {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 32px;
     margin-bottom: 40px;
   }
 
-  .main-charts {
+  :global(.main-charts) {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 32px;
   }
 
-  .chart-card {
+  :global(.chart-card) {
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: 24px;
@@ -3266,31 +2881,31 @@
       border-color 0.3s ease;
   }
 
-  .wide {
+  :global(.wide) {
     grid-column: span 2;
   }
 
-  .chart-header {
+  :global(.chart-header) {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 32px;
   }
 
-  .header-controls {
+  :global(.header-controls) {
     display: flex;
     align-items: center;
     gap: 16px;
   }
 
-  .chart-header h3 {
+  :global(.chart-header h3) {
     margin: 0;
     font-size: 1.125rem;
     font-weight: 700;
     color: var(--text-primary);
   }
 
-  .last-date {
+  :global(.last-date) {
     font-size: 0.75rem;
     color: var(--text-muted);
     font-weight: 600;
@@ -3299,147 +2914,7 @@
     border-radius: 6px;
   }
 
-  .model-toggle {
-    display: flex;
-    gap: 8px;
-    background: var(--bg-tertiary);
-    padding: 4px;
-    border-radius: 8px;
-    width: fit-content;
-  }
-
-  .model-toggle .toggle-btn {
-    padding: 6px 16px;
-    font-size: 0.75rem;
-    border: none;
-    background: transparent;
-    color: var(--text-muted);
-    box-shadow: none;
-  }
-
-  .model-toggle .toggle-btn.active {
-    background: var(--bg-secondary);
-    color: var(--accent-primary);
-    font-weight: 700;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  }
-
-  :global([data-theme="dark"]) .model-toggle .toggle-btn.active {
-    background: #6366f1;
-    color: white !important;
-  }
-
-  .roc-section {
-    margin-top: 40px;
-    max-width: 1600px;
-  }
-
-  .roc-card {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: 24px;
-    padding: 32px;
-    box-shadow: var(--card-shadow);
-  }
-
-  .roc-card h4 {
-    margin: 0 0 24px 0;
-    font-size: 1.25rem;
-    font-weight: 800;
-    color: var(--text-primary);
-  }
-
-  .roc-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .roc-row {
-    display: grid;
-    grid-template-columns: 2fr repeat(4, 1fr);
-    padding: 12px 16px;
-    border-radius: 12px;
-    align-items: center;
-  }
-
-  .roc-row.header {
-    background: var(--bg-tertiary);
-    color: var(--text-muted);
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .roc-col.label {
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-
-  .roc-col {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-  }
-
-  .roc-row.header .roc-col {
-    justify-content: flex-end;
-  }
-
-  .roc-row.header .roc-col:first-child {
-    justify-content: flex-start;
-  }
-
-  .roc-col:first-child {
-    justify-content: flex-start;
-  }
-
-  .roc-col.plus {
-    color: var(--positive-color);
-    font-weight: 700;
-  }
-
-  .roc-col.minus {
-    color: var(--negative-color);
-    font-weight: 700;
-  }
-
-  /* ROC Inline Display */
-  .roc-inline {
-    display: flex;
-    gap: 16px;
-    margin-top: 12px;
-    padding: 10px 16px;
-    font-size: 12px;
-    background: var(--bg-tertiary);
-    border-radius: 8px;
-    justify-content: center;
-    align-items: center;
-    flex-wrap: wrap;
-  }
-
-  .roc-inline span {
-    font-weight: 600;
-  }
-
-  .roc-inline span.positive {
-    color: var(--positive-color);
-    font-weight: 700;
-  }
-
-  .roc-inline span.negative {
-    color: var(--negative-color);
-    font-weight: 700;
-  }
-
-  .label-group {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .chart-content {
+  :global(.chart-content) {
     min-height: 500px;
     height: 500px;
     flex: none; /* Force fixed height to rule out flex issues */
@@ -3448,7 +2923,7 @@
     overflow: hidden;
   }
 
-  .chart-description {
+  :global(.chart-description) {
     margin: 8px 0 16px 0;
     padding: 12px 16px;
     background: var(--chart-description-bg);
@@ -3459,483 +2934,8 @@
     border-left: 3px solid var(--accent-secondary);
   }
 
-  .debug-chart-info {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background: rgba(0, 0, 0, 0.4);
-    color: white;
-    font-size: 10px;
-    padding: 2px 6px;
-    border-radius: 4px;
-    pointer-events: none;
-    z-index: 100;
-  }
-
-  .loader {
-    width: 28px;
-    height: 28px;
-    border: 3px solid var(--bg-tertiary);
-    border-top-color: var(--accent-primary);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-  }
-
-  /* FX Toggle Styles */
-  .fx-toggle {
-    display: flex;
-    background: var(--bg-tertiary);
-    padding: 2px;
-    border-radius: 8px;
-    gap: 2px;
-    margin-right: 8px;
-    border: 1px solid var(--border-color);
-  }
-
-  .fx-btn {
-    padding: 4px 10px;
-    border: none;
-    background: transparent;
-    color: #64748b;
-    font-size: 11px;
-    font-weight: 600;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    white-space: nowrap;
-  }
-
-  .fx-btn:hover {
-    color: #1e293b;
-    background: rgba(255, 255, 255, 0.5);
-  }
-
-  .fx-btn.active {
-    background: white;
-    color: #6366f1;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  }
-
-  /* Color override for Constant FX active state */
-  .fx-btn.active:last-child {
-    color: #10b981;
-  }
-
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
-  }
-
-  /* Quant v2 Tab Styles */
-  .quant-description {
-    padding: 16px;
-    background: var(--bg-tertiary);
-    border-radius: 8px;
-    border-left: 4px solid var(--positive-color);
-  }
-
-  .quant-description p {
-    margin: 0 0 12px 0;
-    color: var(--positive-color);
-    font-weight: 500;
-  }
-
-  .quant-description ul {
-    margin: 0;
-    padding-left: 20px;
-    color: var(--text-secondary);
-  }
-
-  .quant-description li {
-    margin-bottom: 6px;
-    line-height: 1.5;
-  }
-
-  .quant-metrics {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
-    padding: 16px;
-  }
-
-  .metric-item {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: 12px;
-    background: var(--bg-tertiary);
-    border-radius: 8px;
-    border: 1px solid var(--border-color);
-  }
-
-  .metric-label {
-    font-size: 11px;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-muted);
-  }
-
-  .metric-value {
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--text-primary);
-  }
-
-  .metric-value.highlight {
-    color: var(--positive-color);
-  }
-
-  .features-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 12px;
-    padding: 16px;
-  }
-
-  .feature-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 14px;
-    background: var(--bg-tertiary);
-    border-radius: 6px;
-    border-left: 3px solid var(--text-muted);
-  }
-
-  .feature-item.positive {
-    border-left-color: var(--positive-color);
-    background: rgba(16, 185, 129, 0.1);
-  }
-
-  .feature-item.negative {
-    border-left-color: var(--negative-color);
-    background: rgba(239, 68, 68, 0.1);
-  }
-
-  .feature-name {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text-primary);
-  }
-
-  .feature-coef {
-    font-size: 13px;
-    font-weight: 600;
-    font-family: "Monaco", "Consolas", monospace;
-    color: var(--text-secondary);
-  }
-
-  .feature-item.positive .feature-coef {
-    color: var(--positive-color);
-  }
-
-  .feature-item.negative .feature-coef {
-    color: var(--negative-color);
-  }
-
-  @media (max-width: 1200px) {
-    .main-charts {
-      grid-template-columns: 1fr;
-    }
-    .wide {
-      grid-column: span 1;
-    }
-  }
-
-  /* BTC Analysis Styles */
-  .btc-stats {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
-    padding: 24px;
-  }
-
-  .btc-stat-item {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 16px;
-    background: var(--bg-tertiary);
-    border-radius: 12px;
-    border: 1px solid var(--border-color);
-  }
-
-  .btc-label {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  .btc-value {
-    font-size: 24px;
-    font-weight: 700;
-    color: var(--text-primary);
-  }
-
-  .btc-value.price {
-    color: #f7931a;
-  }
-
-  .btc-value.fair {
-    color: var(--positive-color);
-  }
-
-  .btc-value.deviation.overvalued {
-    color: var(--negative-color);
-  }
-
-  .btc-value.deviation.undervalued {
-    color: var(--positive-color);
-  }
-
-  .btc-value.zscore.extreme {
-    color: var(--negative-color);
-    animation: pulse 2s ease-in-out infinite;
-  }
-
-  .interpretation-panel {
-    background: var(--bg-tertiary);
-    border: 2px solid #fbbf24;
-  }
-
-  .interpretation-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
-    padding: 16px;
-  }
-
-  .interp-card {
-    background: var(--bg-secondary);
-    padding: 16px;
-    border-radius: 8px;
-    border: 1px solid #f59e0b;
-  }
-
-  .interp-card h5 {
-    margin: 0 0 12px 0;
-    font-size: 14px;
-    font-weight: 600;
-    color: #92400e;
-  }
-
-  .interp-card p {
-    margin: 0;
-    font-size: 13px;
-    line-height: 1.6;
-    color: #78350f;
-  }
-
-  .extreme-zone {
-    color: #dc2626;
-    font-weight: 600;
-  }
-
-  .moderate-zone {
-    color: #f59e0b;
-    font-weight: 600;
-  }
-
-  @media (max-width: 1200px) {
-    .interpretation-grid {
-      grid-template-columns: 1fr;
-    }
-    .btc-stats {
-      grid-template-columns: 1fr;
-    }
-  }
-
-  @media (max-width: 768px) {
-    .app-container {
-      flex-direction: column;
-    }
-    .sidebar {
-      width: 100%;
-      height: auto;
-      padding: 24px;
-      border-right: none;
-      border-bottom: 1px solid #e2e8f0;
-    }
-    .content {
-      padding: 24px;
-    }
-  }
-
-  /* GLI Metrics Panel */
-  .gli-layout {
-    display: grid;
-    grid-template-columns: 1fr 420px;
-    gap: 20px;
-  }
-
-  .metrics-sidebar {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    background: var(--bg-secondary);
-    padding: 16px;
-    border-radius: 12px;
-    border: 1px solid var(--border-color);
-    max-height: 800px;
-    overflow-y: auto;
-  }
-
-  .metrics-section h4 {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 12px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--border-color);
-  }
-
-  .metrics-table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-
-  .metrics-table th {
-    text-align: left;
-    font-size: 11px;
-    color: var(--text-muted);
-    padding-bottom: 8px;
-  }
-
-  .metrics-table th,
-  .metrics-table td {
-    padding: 8px 4px;
-    text-align: left;
-    border-bottom: 1px solid var(--border-color);
-    font-size: 10px;
-    color: var(--text-primary);
-  }
-  .impact-cell {
-    background: var(--bg-tertiary);
-    font-size: 9px;
-    opacity: 0.9;
-  }
-  .metrics-table tr:last-child td {
-    border-bottom: none;
-  }
-
-  .roc-val {
-    font-weight: 600;
-    font-family: "Monaco", "Consolas", monospace;
-  }
-
-  .roc-val.positive {
-    color: #10b981;
-  }
-  .roc-val.negative {
-    color: #ef4444;
-  }
-
-  /* Data Health Panel Styles */
-  .data-health-section {
-    border-left: 3px solid #10b981;
-    background: rgba(16, 185, 129, 0.03);
-    padding: 16px;
-    margin-bottom: 8px;
-  }
-
-  .health-dot {
-    width: 8px;
-    height: 8px;
-    background: #10b981;
-    border-radius: 50%;
-    box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
-    animation: pulse-green 2s infinite;
-  }
-
-  @keyframes pulse-green {
-    0% {
-      box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
-    }
-    70% {
-      box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
-    }
-    100% {
-      box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
-    }
-  }
-
-  .health-table td {
-    border-bottom: 1px solid rgba(148, 163, 184, 0.1) !important;
-  }
-
-  .freshness-tag {
-    padding: 2px 6px;
-    border-radius: 4px;
-    background: rgba(16, 185, 129, 0.1);
-    color: #10b981;
-    font-size: 9px;
-    font-weight: 700;
-  }
-
-  /* Liquidity Score */
-  .liquidity-score {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-left: 12px;
-    padding-left: 12px;
-    border-left: 1px solid rgba(148, 163, 184, 0.2);
-  }
-  .score-label {
-    font-size: 11px;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    font-weight: 600;
-  }
-  .score-val {
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--text-primary);
-  }
-  .score-val.high {
-    color: #10b981;
-    text-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
-  }
-  .score-val.low {
-    color: #ef4444;
-    text-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
-  }
-
-  .freshness-tag.stale {
-    background: rgba(245, 158, 11, 0.1);
-    color: #f59e0b;
-  }
-
-  .coverage-note {
-    margin-top: 12px;
-    font-size: 11px;
-    color: var(--text-muted);
-    text-align: right;
-  }
-
-  @media (max-width: 1200px) {
-    .gli-layout {
-      grid-template-columns: 1fr;
-    }
-  }
-  .total-row {
-    background-color: rgba(148, 163, 184, 0.1);
-    border-top: 2px solid var(--border-color);
-  }
-  .total-row td {
-    padding-top: 10px !important;
-    padding-bottom: 10px !important;
-  }
-
-  /* Macro Regime Panel */
-  .regime-card {
+  /* Macro Regime Panel (Global for DashboardTab) */
+  :global(.regime-card) {
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: 20px;
@@ -3949,7 +2949,7 @@
     margin-bottom: 24px;
   }
 
-  .regime-header {
+  :global(.regime-header) {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -3957,7 +2957,7 @@
     padding-bottom: 16px;
   }
 
-  .regime-title {
+  :global(.regime-title) {
     font-size: 14px;
     font-weight: 700;
     color: var(--text-muted);
@@ -3965,7 +2965,7 @@
     letter-spacing: 0.5px;
   }
 
-  .regime-badge {
+  :global(.regime-badge) {
     padding: 6px 14px;
     border-radius: 99px;
     font-size: 13px;
@@ -3978,55 +2978,55 @@
     color: white;
   }
 
-  .bg-bullish {
+  :global(.bg-bullish) {
     background: #10b981;
     box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
   }
-  .bg-bearish {
+  :global(.bg-bearish) {
     background: #ef4444;
     box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
   }
-  .bg-global_inj {
+  :global(.bg-global_inj) {
     background: #3b82f6;
     box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
   }
-  .bg-us_inj {
+  :global(.bg-us_inj) {
     background: #8b5cf6;
     box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
   }
-  .bg-early_warning {
+  :global(.bg-early_warning) {
     background: #f59e0b;
     box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
   }
-  .bg-losing_steam {
+  :global(.bg-losing_steam) {
     background: #6366f1;
     box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
   }
-  .bg-neutral {
+  :global(.bg-neutral) {
     background: #94a3b8;
     box-shadow: 0 4px 12px rgba(148, 163, 184, 0.2);
   }
 
-  .regime-body {
+  :global(.regime-body) {
     display: grid;
     grid-template-columns: 1fr;
     gap: 12px;
   }
 
-  .regime-description {
+  :global(.regime-description) {
     font-size: 14px;
     line-height: 1.5;
     color: var(--text-primary);
     font-weight: 500;
   }
 
-  .regime-details {
+  :global(.regime-details) {
     font-size: 12px;
     color: var(--text-muted);
     font-style: italic;
   }
 
-  .regime-glow {
+  :global(.regime-glow) {
     position: absolute;
     top: -30px;
     right: -30px;
@@ -4038,25 +3038,638 @@
     transition: all 0.5s ease;
   }
 
-  .glow-bullish {
+  :global(.glow-bullish) {
     background: #10b981;
   }
-  .glow-bearish {
+  :global(.glow-bearish) {
     background: #ef4444;
   }
-  .glow-global_inj {
+  :global(.glow-global_inj) {
     background: #3b82f6;
   }
-  .glow-us_inj {
+  :global(.glow-us_inj) {
     background: #8b5cf6;
   }
-  .glow-early_warning {
+  :global(.glow-early_warning) {
     background: #f59e0b;
   }
-  .glow-losing_steam {
+  :global(.glow-losing_steam) {
     background: #6366f1;
   }
-  .glow-neutral {
+  :global(.glow-neutral) {
     background: #94a3b8;
+  }
+
+  /* ====== METRICS TABLE & SIDEBAR STYLES ====== */
+  /* These are used by tab components for data tables */
+
+  :global(.gli-layout) {
+    display: grid;
+    grid-template-columns: 1fr 400px;
+    gap: 24px;
+  }
+
+  :global(.chart-main) {
+    display: flex;
+    flex-direction: column;
+  }
+
+  :global(.metrics-sidebar) {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px;
+    background: var(--bg-tertiary);
+    border-radius: 16px;
+    max-height: 600px;
+    overflow-y: auto;
+  }
+
+  :global(.metrics-section) {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  :global(.metrics-section h4) {
+    margin: 0 0 8px 0;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  :global(.metrics-table) {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.75rem;
+  }
+
+  :global(.metrics-table th),
+  :global(.metrics-table td) {
+    padding: 8px 6px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  :global(.metrics-table th) {
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    background: rgba(148, 163, 184, 0.05);
+  }
+
+  :global(.metrics-table td) {
+    color: var(--text-primary);
+  }
+
+  :global(.metrics-table tbody tr:hover) {
+    background: rgba(99, 102, 241, 0.05);
+  }
+
+  :global(.metrics-table.compact) {
+    font-size: 0.6875rem;
+  }
+
+  :global(.metrics-table.compact th),
+  :global(.metrics-table.compact td) {
+    padding: 6px 4px;
+  }
+
+  :global(.total-row) {
+    background: rgba(99, 102, 241, 0.08);
+    font-weight: 600;
+  }
+
+  :global(.total-row td) {
+    border-top: 2px solid var(--border-color);
+    border-bottom: none;
+  }
+
+  /* ROC Value Styling */
+  :global(.roc-val) {
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+  }
+
+  :global(.roc-val.positive) {
+    color: var(--positive-color);
+  }
+
+  :global(.roc-val.negative) {
+    color: var(--negative-color);
+  }
+
+  :global(.impact-cell) {
+    font-weight: 600;
+  }
+
+  /* Signal Cell Styling */
+  :global(.signal-cell) {
+    font-weight: 600;
+    text-align: center;
+  }
+
+  :global(.signal-cell.plus) {
+    color: var(--positive-color);
+  }
+
+  :global(.signal-cell.minus) {
+    color: var(--negative-color);
+  }
+
+  /* Health Table Styling */
+  :global(.health-table td:first-child) {
+    font-weight: 500;
+  }
+
+  :global(.data-health-section) {
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    border-radius: 12px;
+    padding: 12px;
+    background: rgba(99, 102, 241, 0.03);
+  }
+
+  /* ROC Inline Display */
+  :global(.roc-inline) {
+    display: flex;
+    gap: 12px;
+    font-size: 0.6875rem;
+    color: var(--text-muted);
+  }
+
+  :global(.roc-inline .positive) {
+    color: var(--positive-color);
+  }
+
+  :global(.roc-inline .negative) {
+    color: var(--negative-color);
+  }
+
+  /* Responsive: Stack sidebar on smaller screens */
+  @media (max-width: 1200px) {
+    :global(.gli-layout) {
+      grid-template-columns: 1fr;
+    }
+
+    :global(.metrics-sidebar) {
+      max-height: none;
+    }
+  }
+
+  /* ====== ADDITIONAL DASHBOARD & RISK MODEL STYLES ====== */
+
+  :global(.stats-grid) {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 24px;
+    margin-bottom: 32px;
+  }
+
+  /* ROC Section Styles */
+  :global(.roc-section) {
+    margin-top: 32px;
+  }
+
+  :global(.roc-card) {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    padding: 24px;
+    box-shadow: var(--card-shadow);
+  }
+
+  :global(.roc-card h4) {
+    margin: 0 0 20px 0;
+    color: var(--text-primary);
+    font-size: 1.125rem;
+    font-weight: 700;
+  }
+
+  :global(.roc-grid) {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  :global(.roc-row) {
+    display: grid;
+    grid-template-columns: 2fr repeat(4, 1fr);
+    gap: 16px;
+    padding: 14px 20px;
+    background: var(--bg-tertiary);
+    border-radius: 12px;
+    align-items: center;
+    transition:
+      transform 0.2s ease,
+      background-color 0.2s ease;
+  }
+
+  :global(.roc-row:not(.header):hover) {
+    transform: translateX(4px);
+    background: rgba(99, 102, 241, 0.08);
+  }
+
+  :global(.roc-row.header) {
+    background: transparent;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--border-color);
+    border-radius: 0;
+    margin-bottom: 4px;
+  }
+
+  :global(.roc-col) {
+    font-size: 0.9375rem;
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+
+  :global(.roc-row.header .roc-col) {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 700;
+  }
+
+  :global(.roc-col.label) {
+    font-weight: 700;
+    color: var(--text-secondary);
+  }
+
+  :global(.roc-col.plus) {
+    color: var(--positive-color);
+  }
+
+  :global(.roc-col.minus) {
+    color: var(--negative-color);
+  }
+
+  /* Regime Card Refinement */
+  :global(.regime-card) {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  :global(.regime-header) {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  :global(.regime-title) {
+    font-size: 0.8125rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    font-weight: 700;
+  }
+
+  :global(.regime-badge) {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 18px;
+    border-radius: 99px;
+    font-weight: 700;
+    font-size: 0.9375rem;
+    color: white;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  :global(.regime-badge.bg-bullish) {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  }
+  :global(.regime-badge.bg-bearish) {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  }
+  :global(.regime-badge.bg-grey) {
+    background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+  }
+
+  :global(.liquidity-score) {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 14px;
+    background: var(--bg-tertiary);
+    border-radius: 12px;
+  }
+
+  :global(.score-label) {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+
+  :global(.score-val) {
+    font-size: 1.375rem;
+    font-weight: 800;
+    font-family: "Outfit", sans-serif;
+  }
+
+  :global(.score-val.high) {
+    color: #10b981;
+  }
+  :global(.score-val.low) {
+    color: #ef4444;
+  }
+
+  :global(.regime-body) {
+    background: var(--bg-tertiary);
+    padding: 24px;
+    border-radius: 20px;
+    border: 1px solid var(--border-color);
+    margin-bottom: 24px;
+  }
+
+  :global(.regime-description) {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 12px 0;
+  }
+
+  :global(.regime-details) {
+    font-size: 0.9375rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  /* FX Toggle Styles */
+  :global(.fx-toggle) {
+    display: flex;
+    gap: 4px;
+    background: var(--bg-tertiary);
+    padding: 4px;
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+  }
+
+  :global(.fx-btn) {
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  :global(.fx-btn.active) {
+    background: var(--bg-secondary);
+    color: var(--accent-primary);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  }
+
+  :global(.fx-btn:hover:not(.active)) {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  /* Premium Buttons & Toggles */
+  :global(.toggle-btn.active) {
+    background: var(--accent-primary) !important;
+    color: white !important;
+    box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
+    transform: translateY(-1px);
+  }
+
+  /* Interpretation Section */
+  :global(.interp-section) {
+    background: rgba(30, 41, 59, 0.5);
+    border-radius: 12px;
+    padding: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  :global(.interp-section h4) {
+    color: var(--accent-primary);
+    margin: 0 0 12px 0;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  :global(.interp-grid) {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-top: 16px;
+  }
+
+  :global(.interp-item) {
+    background: rgba(255, 255, 255, 0.02);
+    padding: 12px;
+    border-radius: 8px;
+  }
+
+  :global(.interp-label) {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: var(--text-primary);
+  }
+
+  :global(.interp-val) {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+
+  /* Statistics Grid (4 columns for charts/metrics) */
+  :global(.stats-grid) {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px;
+    margin-bottom: 24px;
+    width: 100%;
+  }
+
+  /* Premium Cards (Quant v2) */
+  :global(.metric-card.premium) {
+    background: linear-gradient(
+      135deg,
+      rgba(30, 41, 59, 1) 0%,
+      rgba(15, 23, 42, 1) 100%
+    );
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  :global(.metric-card.premium:hover) {
+    transform: translateY(-4px);
+    border-color: rgba(99, 102, 241, 0.5);
+    box-shadow:
+      0 10px 25px -5px rgba(0, 0, 0, 0.3),
+      0 8px 10px -6px rgba(0, 0, 0, 0.3);
+  }
+
+  :global(.metric-card.premium::before) {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      var(--accent-primary),
+      transparent
+    );
+    z-index: 2;
+  }
+
+  /* Shimmer Effect */
+  :global(.metric-card.premium::after) {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 200%;
+    height: 100%;
+    background: linear-gradient(
+      120deg,
+      transparent,
+      rgba(255, 255, 255, 0.03),
+      transparent
+    );
+    transition: none;
+    pointer-events: none;
+  }
+
+  :global(.metric-card.premium:hover::after) {
+    animation: shimmer 1.5s infinite;
+  }
+
+  @keyframes shimmer {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  :global(.metric-card.purple) {
+    border-color: rgba(167, 139, 250, 0.3);
+  }
+  :global(.metric-card.purple::before) {
+    background: linear-gradient(90deg, transparent, #a78bfa, transparent);
+  }
+  :global(.metric-card.purple:hover) {
+    border-color: rgba(167, 139, 250, 0.6);
+    box-shadow: 0 10px 25px -5px rgba(167, 139, 250, 0.2);
+  }
+
+  :global(.metric-card.blue) {
+    border-color: rgba(59, 130, 246, 0.3);
+  }
+  :global(.metric-card.blue::before) {
+    background: linear-gradient(90deg, transparent, #3b82f6, transparent);
+  }
+  :global(.metric-card.blue:hover) {
+    border-color: rgba(59, 130, 246, 0.6);
+    box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.2);
+  }
+
+  :global(.metric-card.orange) {
+    border-color: rgba(245, 158, 11, 0.3);
+  }
+  :global(.metric-card.orange::before) {
+    background: linear-gradient(90deg, transparent, #f59e0b, transparent);
+  }
+  :global(.metric-card.orange:hover) {
+    border-color: rgba(245, 158, 11, 0.6);
+    box-shadow: 0 10px 25px -5px rgba(245, 158, 11, 0.2);
+  }
+
+  /* Table Scroll Fix */
+  :global(.metrics-table-container) {
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none; /* Hide scrollbars for cleaner look */
+    -ms-overflow-style: none;
+  }
+
+  :global(.metrics-table-container::-webkit-scrollbar) {
+    display: none;
+  }
+
+  :global(.metrics-table) {
+    width: 100%;
+    min-width: 100%;
+    table-layout: auto; /* Allow columns to fit content */
+    font-size: 0.6875rem; /* ~11px - reduced to fit bigger tables */
+  }
+
+  :global(.metrics-sidebar .metrics-table) {
+    font-size: 0.625rem !important; /* ~10px - extreme compaction for 8+ columns */
+    table-layout: fixed; /* Force fitting within sidebar */
+  }
+
+  :global(
+      .metrics-sidebar .metrics-table th,
+      :global(.metrics-sidebar .metrics-table td)
+    ) {
+    padding: 3px 2px !important; /* Ultra-tight padding for sidebars */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  :global(.metrics-table th, :global(.metrics-table td)) {
+    padding: 4px 3px !important; /* Tighter padding for main tables */
+    line-height: 1.1;
+  }
+
+  :global(.metrics-table th) {
+    text-transform: uppercase;
+    letter-spacing: 0em; /* Reduced spacing to save width */
+    font-weight: 700;
+  }
+
+  /* Signal-based Colors (Text & Global) */
+  :global(.text-positive),
+  :global(.text-bullish) {
+    color: var(--positive-color) !important;
+  }
+
+  :global(.text-negative),
+  :global(.text-bearish) {
+    color: var(--negative-color) !important;
+  }
+
+  /* Signal-based Card Highlighting */
+  :global(.chart-card.signal-bullish) {
+    border-top: 4px solid #10b981 !important;
+    background: linear-gradient(
+      180deg,
+      rgba(16, 185, 129, 0.05) 0%,
+      var(--bg-secondary) 100%
+    ) !important;
+  }
+
+  :global(.chart-card.signal-bearish) {
+    border-top: 4px solid #ef4444 !important;
+    background: linear-gradient(
+      180deg,
+      rgba(239, 68, 68, 0.05) 0%,
+      var(--bg-secondary) 100%
+    ) !important;
+  }
+
+  :global(.chart-card.signal-neutral) {
+    border-top: 4px solid var(--border-color);
   }
 </style>

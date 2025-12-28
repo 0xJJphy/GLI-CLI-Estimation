@@ -31,14 +31,14 @@
         rocs?.[period]?.[rocs?.[period]?.length - 1] ?? 0;
 
     // Time range states - managed locally
-    let cliRange = "ALL";
-    let hyRange = "ALL";
-    let igRange = "ALL";
-    let nfciRange = "ALL";
-    let lendingRange = "ALL";
-    let vixRange = "ALL";
-    let tipsRange = "ALL";
-    let repoStressRange = "ALL";
+    export let cliRange = "ALL";
+    export let hyRange = "ALL";
+    export let igRange = "ALL";
+    export let nfciRange = "ALL";
+    export let lendingRange = "ALL";
+    export let vixRange = "ALL";
+    export let tipsRange = "ALL";
+    export let repoStressRange = "ALL";
 
     // Credit indicators configuration
     $: creditIndicators = [
@@ -100,77 +100,52 @@
 </script>
 
 <div class="main-charts">
-    <!-- CLI Aggregate Chart -->
-    <div class="chart-card wide">
-        <div class="chart-header">
-            <h3>Credit Liquidity Index (CLI Aggregate)</h3>
-            <div class="header-controls">
-                <TimeRangeSelector
-                    selectedRange={cliRange}
-                    onRangeChange={(r) => (cliRange = r)}
-                />
-                <span class="last-date">Last Data: {getLastDate("NFCI")}</span>
-            </div>
-        </div>
-        <p class="chart-description">
-            {translations.cli ||
-                "Aggregates credit conditions, volatility, and lending."}
-        </p>
-        <div class="chart-content">
-            <Chart {darkMode} data={cliData} />
-        </div>
-    </div>
-
-    <!-- Credit Indicators -->
-    {#each creditIndicators as item}
+    <!-- Top Row: TIPS Market and CLI Aggregate -->
+    <div class="stats-grid">
+        <!-- TIPS / Inflation Expectations Chart -->
         <div class="chart-card">
             <div class="chart-header">
-                <h3>{item.name}</h3>
+                <h3>
+                    {translations.chart_inflation_exp ||
+                        "Inflation Expectations (TIPS Market)"}
+                </h3>
                 <div class="header-controls">
                     <TimeRangeSelector
-                        selectedRange={item.range}
-                        onRangeChange={item.setRange}
+                        selectedRange={tipsRange}
+                        onRangeChange={(r) => (tipsRange = r)}
                     />
-                    <span class="last-date">Last: {getLastDate(item.bank)}</span
-                    >
                 </div>
             </div>
             <p class="chart-description">
-                {translations[item.descKey] || ""}
+                {translations.tips || "Breakeven, Real Rate, and 5Y5Y Forward."}
             </p>
             <div class="chart-content">
-                <Chart {darkMode} data={item.data} />
+                <Chart {darkMode} data={tipsData} layout={tipsLayout} />
             </div>
         </div>
-    {/each}
 
-    <!-- TIPS / Inflation Expectations Chart -->
-    <div class="chart-card wide">
-        <div class="chart-header">
-            <h3>
-                {translations.chart_inflation_exp ||
-                    "Inflation Expectations (TIPS Market)"}
-            </h3>
-            <div class="header-controls">
-                <TimeRangeSelector
-                    selectedRange={tipsRange}
-                    onRangeChange={(r) => (tipsRange = r)}
-                />
-                <span class="last-date"
-                    >{translations.last_data || "Last Data:"}
-                    {getLastDate("TIPS_BREAKEVEN")}</span
-                >
+        <!-- CLI Aggregate Chart -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3>Credit Liquidity Index (CLI Aggregate)</h3>
+                <div class="header-controls">
+                    <TimeRangeSelector
+                        selectedRange={cliRange}
+                        onRangeChange={(r) => (cliRange = r)}
+                    />
+                </div>
             </div>
-        </div>
-        <p class="chart-description">
-            {translations.tips || "Breakeven, Real Rate, and 5Y5Y Forward."}
-        </p>
-        <div class="chart-content">
-            <Chart {darkMode} data={tipsData} layout={tipsLayout} />
+            <p class="chart-description">
+                {translations.cli ||
+                    "Aggregates credit conditions, volatility, and lending."}
+            </p>
+            <div class="chart-content">
+                <Chart {darkMode} data={cliData} />
+            </div>
         </div>
     </div>
 
-    <!-- Repo Stress Chart -->
+    <!-- Second Row: Repo Stress Chart (Wide) -->
     <div class="chart-card wide">
         <div class="gli-layout">
             <div class="chart-main">
@@ -202,401 +177,417 @@
             <div class="metrics-sidebar">
                 <div class="metrics-section">
                     <h4>SOFR vs IORB</h4>
-                    <table class="metrics-table compact">
-                        <thead>
-                            <tr>
-                                <th>Rate</th>
-                                <th>Value</th>
-                                <th>Role</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td style="color: #f59e0b; font-weight: 600;"
-                                    >SOFR</td
-                                >
-                                <td
-                                    >{(
-                                        getLatestValue(
+                    <div class="metrics-table-container">
+                        <table class="metrics-table compact">
+                            <thead>
+                                <tr>
+                                    <th>Rate</th>
+                                    <th>Value</th>
+                                    <th>Role</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td
+                                        style="color: #f59e0b; font-weight: 600;"
+                                        >SOFR</td
+                                    >
+                                    <td
+                                        >{(
+                                            getLatestValue(
+                                                dashboardData.repo_stress?.sofr,
+                                            ) ?? 0
+                                        ).toFixed(2)}%</td
+                                    >
+                                    <td style="font-size: 10px;"
+                                        >{language === "en"
+                                            ? "Market Rate"
+                                            : "Tasa Mercado"}</td
+                                    >
+                                </tr>
+                                <tr>
+                                    <td
+                                        style="color: #8b5cf6; font-weight: 600;"
+                                        >IORB</td
+                                    >
+                                    <td
+                                        >{(
+                                            getLatestValue(
+                                                dashboardData.repo_stress?.iorb,
+                                            ) ?? 0
+                                        ).toFixed(2)}%</td
+                                    >
+                                    <td style="font-size: 10px;"
+                                        >{language === "en"
+                                            ? "Fed Floor"
+                                            : "Piso Fed"}</td
+                                    >
+                                </tr>
+                                <tr>
+                                    <td>Spread</td>
+                                    <td
+                                        class:positive={getLatestValue(
                                             dashboardData.repo_stress?.sofr,
-                                        ) ?? 0
-                                    ).toFixed(2)}%</td
-                                >
-                                <td style="font-size: 10px;"
-                                    >{language === "en"
-                                        ? "Market Rate"
-                                        : "Tasa Mercado"}</td
-                                >
-                            </tr>
-                            <tr>
-                                <td style="color: #8b5cf6; font-weight: 600;"
-                                    >IORB</td
-                                >
-                                <td
-                                    >{(
-                                        getLatestValue(
-                                            dashboardData.repo_stress?.iorb,
-                                        ) ?? 0
-                                    ).toFixed(2)}%</td
-                                >
-                                <td style="font-size: 10px;"
-                                    >{language === "en"
-                                        ? "Fed Floor"
-                                        : "Piso Fed"}</td
-                                >
-                            </tr>
-                            <tr>
-                                <td>Spread</td>
-                                <td
-                                    class:positive={getLatestValue(
-                                        dashboardData.repo_stress?.sofr,
-                                    ) -
-                                        getLatestValue(
-                                            dashboardData.repo_stress?.iorb,
-                                        ) >
-                                        0}
-                                    class:negative={getLatestValue(
-                                        dashboardData.repo_stress?.sofr,
-                                    ) -
-                                        getLatestValue(
-                                            dashboardData.repo_stress?.iorb,
-                                        ) <
-                                        -0.05}
-                                    >{(
-                                        (getLatestValue(
+                                        ) -
+                                            getLatestValue(
+                                                dashboardData.repo_stress?.iorb,
+                                            ) >
+                                            0}
+                                        class:negative={getLatestValue(
                                             dashboardData.repo_stress?.sofr,
-                                        ) ?? 0) -
-                                        (getLatestValue(
-                                            dashboardData.repo_stress?.iorb,
-                                        ) ?? 0)
-                                    ).toFixed(2)} bps</td
-                                >
-                                <td
-                                    class="signal-cell"
-                                    class:plus={getLatestValue(
-                                        dashboardData.repo_stress?.sofr,
-                                    ) -
-                                        getLatestValue(
-                                            dashboardData.repo_stress?.iorb,
+                                        ) -
+                                            getLatestValue(
+                                                dashboardData.repo_stress?.iorb,
+                                            ) <
+                                            -0.05}
+                                    >
+                                        {(
+                                            (getLatestValue(
+                                                dashboardData.repo_stress?.sofr,
+                                            ) ?? 0) -
+                                            (getLatestValue(
+                                                dashboardData.repo_stress?.iorb,
+                                            ) ?? 0)
+                                        ).toFixed(2)} bps
+                                    </td>
+                                    <td
+                                        class="signal-cell"
+                                        class:plus={getLatestValue(
+                                            dashboardData.repo_stress?.sofr,
+                                        ) -
+                                            getLatestValue(
+                                                dashboardData.repo_stress?.iorb,
+                                            ) >
+                                            0}
+                                        class:minus={getLatestValue(
+                                            dashboardData.repo_stress?.sofr,
+                                        ) -
+                                            getLatestValue(
+                                                dashboardData.repo_stress?.iorb,
+                                            ) <
+                                            -0.05}
+                                    >
+                                        {getLatestValue(
+                                            dashboardData.repo_stress?.sofr,
                                         ) >
-                                        0}
-                                    class:minus={getLatestValue(
-                                        dashboardData.repo_stress?.sofr,
-                                    ) -
                                         getLatestValue(
                                             dashboardData.repo_stress?.iorb,
-                                        ) <
-                                        -0.05}
-                                    >{getLatestValue(
-                                        dashboardData.repo_stress?.sofr,
-                                    ) >
-                                    getLatestValue(
-                                        dashboardData.repo_stress?.iorb,
-                                    )
-                                        ? "OK"
-                                        : "⚠️"}</td
-                                >
-                            </tr>
-                        </tbody>
-                    </table>
-                    <div
-                        style="margin-top: 10px; font-size: 10px; color: #94a3b8;"
-                    >
-                        <p>
-                            <strong>SOFR</strong>: {language === "en"
-                                ? "Secured Overnight Financing Rate - market repo rate"
-                                : "Tasa de Financiamiento Garantizado"}
-                        </p>
-                        <p>
-                            <strong>IORB</strong>: {language === "en"
-                                ? "Interest on Reserve Balances - Fed floor rate"
-                                : "Interés sobre Reservas"}
-                        </p>
-                        <p style="margin-top: 6px; color: #ef4444;">
-                            {language === "en"
-                                ? "⚠️ SOFR < IORB = Funding stress (like Sep 2019)"
-                                : "⚠️ SOFR < IORB = Estrés de financiamiento"}
-                        </p>
+                                        )
+                                            ? "OK"
+                                            : "⚠️"}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Following Rows: Individual Credit Indicators (2 per row) -->
+    <div class="main-charts">
+        {#each creditIndicators as item}
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3>{item.name}</h3>
+                    <div class="header-controls">
+                        <TimeRangeSelector
+                            selectedRange={item.range}
+                            onRangeChange={item.setRange}
+                        />
+                    </div>
+                </div>
+                <p class="chart-description">
+                    {translations[item.descKey] || ""}
+                </p>
+                <div class="chart-content">
+                    <Chart {darkMode} data={item.data} />
+                </div>
+            </div>
+        {/each}
+    </div>
+
     <!-- ROC Section -->
     <div class="roc-section">
         <div class="roc-card">
             <h4>Pulsar Momentum (ROC)</h4>
-            <div class="roc-grid">
-                <div class="roc-row header">
-                    <div class="roc-col">Factor</div>
-                    <div class="roc-col">1M</div>
-                    <div class="roc-col">3M</div>
-                    <div class="roc-col">6M</div>
-                    <div class="roc-col">1Y</div>
-                </div>
-                <div class="roc-row">
-                    <div class="roc-col label">Global GLI</div>
-                    <div
-                        class="roc-col"
-                        class:plus={getLatestROC(
-                            dashboardData.gli?.rocs,
-                            "1M",
-                        ) > 0}
-                        class:minus={getLatestROC(
-                            dashboardData.gli?.rocs,
-                            "1M",
-                        ) < 0}
-                    >
-                        {getLatestROC(dashboardData.gli?.rocs, "1M").toFixed(
-                            2,
-                        )}%
+            <div class="metrics-table-container">
+                <div class="roc-grid">
+                    <div class="roc-row header">
+                        <div class="roc-col">Factor</div>
+                        <div class="roc-col">1M</div>
+                        <div class="roc-col">3M</div>
+                        <div class="roc-col">6M</div>
+                        <div class="roc-col">1Y</div>
                     </div>
-                    <div
-                        class="roc-col"
-                        class:plus={getLatestROC(
-                            dashboardData.gli?.rocs,
-                            "3M",
-                        ) > 0}
-                        class:minus={getLatestROC(
-                            dashboardData.gli?.rocs,
-                            "3M",
-                        ) < 0}
-                    >
-                        {getLatestROC(dashboardData.gli?.rocs, "3M").toFixed(
-                            2,
-                        )}%
+                    <div class="roc-row">
+                        <div class="roc-col label">Global GLI</div>
+                        <div
+                            class="roc-col"
+                            class:plus={getLatestROC(
+                                dashboardData.gli?.rocs,
+                                "1M",
+                            ) > 0}
+                            class:minus={getLatestROC(
+                                dashboardData.gli?.rocs,
+                                "1M",
+                            ) < 0}
+                        >
+                            {getLatestROC(
+                                dashboardData.gli?.rocs,
+                                "1M",
+                            ).toFixed(2)}%
+                        </div>
+                        <div
+                            class="roc-col"
+                            class:plus={getLatestROC(
+                                dashboardData.gli?.rocs,
+                                "3M",
+                            ) > 0}
+                            class:minus={getLatestROC(
+                                dashboardData.gli?.rocs,
+                                "3M",
+                            ) < 0}
+                        >
+                            {getLatestROC(
+                                dashboardData.gli?.rocs,
+                                "3M",
+                            ).toFixed(2)}%
+                        </div>
+                        <div
+                            class="roc-col"
+                            class:plus={getLatestROC(
+                                dashboardData.gli?.rocs,
+                                "6M",
+                            ) > 0}
+                            class:minus={getLatestROC(
+                                dashboardData.gli?.rocs,
+                                "6M",
+                            ) < 0}
+                        >
+                            {getLatestROC(
+                                dashboardData.gli?.rocs,
+                                "6M",
+                            ).toFixed(2)}%
+                        </div>
+                        <div
+                            class="roc-col"
+                            class:plus={getLatestROC(
+                                dashboardData.gli?.rocs,
+                                "1Y",
+                            ) > 0}
+                            class:minus={getLatestROC(
+                                dashboardData.gli?.rocs,
+                                "1Y",
+                            ) < 0}
+                        >
+                            {getLatestROC(
+                                dashboardData.gli?.rocs,
+                                "1Y",
+                            ).toFixed(2)}%
+                        </div>
                     </div>
-                    <div
-                        class="roc-col"
-                        class:plus={getLatestROC(
-                            dashboardData.gli?.rocs,
-                            "6M",
-                        ) > 0}
-                        class:minus={getLatestROC(
-                            dashboardData.gli?.rocs,
-                            "6M",
-                        ) < 0}
-                    >
-                        {getLatestROC(dashboardData.gli?.rocs, "6M").toFixed(
-                            2,
-                        )}%
+                    <div class="roc-row">
+                        <div class="roc-col label">US Net Liq</div>
+                        <div
+                            class="roc-col"
+                            class:plus={getLatestROC(
+                                dashboardData.us_net_liq_rocs,
+                                "1M",
+                            ) > 0}
+                            class:minus={getLatestROC(
+                                dashboardData.us_net_liq_rocs,
+                                "1M",
+                            ) < 0}
+                        >
+                            {getLatestROC(
+                                dashboardData.us_net_liq_rocs,
+                                "1M",
+                            ).toFixed(2)}%
+                        </div>
+                        <div
+                            class="roc-col"
+                            class:plus={getLatestROC(
+                                dashboardData.us_net_liq_rocs,
+                                "3M",
+                            ) > 0}
+                            class:minus={getLatestROC(
+                                dashboardData.us_net_liq_rocs,
+                                "3M",
+                            ) < 0}
+                        >
+                            {getLatestROC(
+                                dashboardData.us_net_liq_rocs,
+                                "3M",
+                            ).toFixed(2)}%
+                        </div>
+                        <div
+                            class="roc-col"
+                            class:plus={getLatestROC(
+                                dashboardData.us_net_liq_rocs,
+                                "6M",
+                            ) > 0}
+                            class:minus={getLatestROC(
+                                dashboardData.us_net_liq_rocs,
+                                "6M",
+                            ) < 0}
+                        >
+                            {getLatestROC(
+                                dashboardData.us_net_liq_rocs,
+                                "6M",
+                            ).toFixed(2)}%
+                        </div>
+                        <div
+                            class="roc-col"
+                            class:plus={getLatestROC(
+                                dashboardData.us_net_liq_rocs,
+                                "1Y",
+                            ) > 0}
+                            class:minus={getLatestROC(
+                                dashboardData.us_net_liq_rocs,
+                                "1Y",
+                            ) < 0}
+                        >
+                            {getLatestROC(
+                                dashboardData.us_net_liq_rocs,
+                                "1Y",
+                            ).toFixed(2)}%
+                        </div>
                     </div>
-                    <div
-                        class="roc-col"
-                        class:plus={getLatestROC(
-                            dashboardData.gli?.rocs,
-                            "1Y",
-                        ) > 0}
-                        class:minus={getLatestROC(
-                            dashboardData.gli?.rocs,
-                            "1Y",
-                        ) < 0}
-                    >
-                        {getLatestROC(dashboardData.gli?.rocs, "1Y").toFixed(
-                            2,
-                        )}%
+                    <div class="roc-row">
+                        <div class="roc-col label">Fed Assets</div>
+                        <div
+                            class="roc-col"
+                            class:plus={getLatestROC(
+                                dashboardData.bank_rocs?.fed,
+                                "1M",
+                            ) > 0}
+                            class:minus={getLatestROC(
+                                dashboardData.bank_rocs?.fed,
+                                "1M",
+                            ) < 0}
+                        >
+                            {getLatestROC(
+                                dashboardData.bank_rocs?.fed,
+                                "1M",
+                            ).toFixed(2)}%
+                        </div>
+                        <div
+                            class="roc-col"
+                            class:plus={getLatestROC(
+                                dashboardData.bank_rocs?.fed,
+                                "3M",
+                            ) > 0}
+                            class:minus={getLatestROC(
+                                dashboardData.bank_rocs?.fed,
+                                "3M",
+                            ) < 0}
+                        >
+                            {getLatestROC(
+                                dashboardData.bank_rocs?.fed,
+                                "3M",
+                            ).toFixed(2)}%
+                        </div>
+                        <div
+                            class="roc-col"
+                            class:plus={getLatestROC(
+                                dashboardData.bank_rocs?.fed,
+                                "6M",
+                            ) > 0}
+                            class:minus={getLatestROC(
+                                dashboardData.bank_rocs?.fed,
+                                "6M",
+                            ) < 0}
+                        >
+                            {getLatestROC(
+                                dashboardData.bank_rocs?.fed,
+                                "6M",
+                            ).toFixed(2)}%
+                        </div>
+                        <div
+                            class="roc-col"
+                            class:plus={getLatestROC(
+                                dashboardData.bank_rocs?.fed,
+                                "1Y",
+                            ) > 0}
+                            class:minus={getLatestROC(
+                                dashboardData.bank_rocs?.fed,
+                                "1Y",
+                            ) < 0}
+                        >
+                            {getLatestROC(
+                                dashboardData.bank_rocs?.fed,
+                                "1Y",
+                            ).toFixed(2)}%
+                        </div>
                     </div>
-                </div>
-                <div class="roc-row">
-                    <div class="roc-col label">US Net Liq</div>
-                    <div
-                        class="roc-col"
-                        class:plus={getLatestROC(
-                            dashboardData.us_net_liq_rocs,
-                            "1M",
-                        ) > 0}
-                        class:minus={getLatestROC(
-                            dashboardData.us_net_liq_rocs,
-                            "1M",
-                        ) < 0}
-                    >
-                        {getLatestROC(
-                            dashboardData.us_net_liq_rocs,
-                            "1M",
-                        ).toFixed(2)}%
-                    </div>
-                    <div
-                        class="roc-col"
-                        class:plus={getLatestROC(
-                            dashboardData.us_net_liq_rocs,
-                            "3M",
-                        ) > 0}
-                        class:minus={getLatestROC(
-                            dashboardData.us_net_liq_rocs,
-                            "3M",
-                        ) < 0}
-                    >
-                        {getLatestROC(
-                            dashboardData.us_net_liq_rocs,
-                            "3M",
-                        ).toFixed(2)}%
-                    </div>
-                    <div
-                        class="roc-col"
-                        class:plus={getLatestROC(
-                            dashboardData.us_net_liq_rocs,
-                            "6M",
-                        ) > 0}
-                        class:minus={getLatestROC(
-                            dashboardData.us_net_liq_rocs,
-                            "6M",
-                        ) < 0}
-                    >
-                        {getLatestROC(
-                            dashboardData.us_net_liq_rocs,
-                            "6M",
-                        ).toFixed(2)}%
-                    </div>
-                    <div
-                        class="roc-col"
-                        class:plus={getLatestROC(
-                            dashboardData.us_net_liq_rocs,
-                            "1Y",
-                        ) > 0}
-                        class:minus={getLatestROC(
-                            dashboardData.us_net_liq_rocs,
-                            "1Y",
-                        ) < 0}
-                    >
-                        {getLatestROC(
-                            dashboardData.us_net_liq_rocs,
-                            "1Y",
-                        ).toFixed(2)}%
-                    </div>
-                </div>
-                <div class="roc-row">
-                    <div class="roc-col label">Fed Assets</div>
-                    <div
-                        class="roc-col"
-                        class:plus={getLatestROC(
-                            dashboardData.bank_rocs?.fed,
-                            "1M",
-                        ) > 0}
-                        class:minus={getLatestROC(
-                            dashboardData.bank_rocs?.fed,
-                            "1M",
-                        ) < 0}
-                    >
-                        {getLatestROC(
-                            dashboardData.bank_rocs?.fed,
-                            "1M",
-                        ).toFixed(2)}%
-                    </div>
-                    <div
-                        class="roc-col"
-                        class:plus={getLatestROC(
-                            dashboardData.bank_rocs?.fed,
-                            "3M",
-                        ) > 0}
-                        class:minus={getLatestROC(
-                            dashboardData.bank_rocs?.fed,
-                            "3M",
-                        ) < 0}
-                    >
-                        {getLatestROC(
-                            dashboardData.bank_rocs?.fed,
-                            "3M",
-                        ).toFixed(2)}%
-                    </div>
-                    <div
-                        class="roc-col"
-                        class:plus={getLatestROC(
-                            dashboardData.bank_rocs?.fed,
-                            "6M",
-                        ) > 0}
-                        class:minus={getLatestROC(
-                            dashboardData.bank_rocs?.fed,
-                            "6M",
-                        ) < 0}
-                    >
-                        {getLatestROC(
-                            dashboardData.bank_rocs?.fed,
-                            "6M",
-                        ).toFixed(2)}%
-                    </div>
-                    <div
-                        class="roc-col"
-                        class:plus={getLatestROC(
-                            dashboardData.bank_rocs?.fed,
-                            "1Y",
-                        ) > 0}
-                        class:minus={getLatestROC(
-                            dashboardData.bank_rocs?.fed,
-                            "1Y",
-                        ) < 0}
-                    >
-                        {getLatestROC(
-                            dashboardData.bank_rocs?.fed,
-                            "1Y",
-                        ).toFixed(2)}%
-                    </div>
-                </div>
-                <div class="roc-row">
-                    <div class="roc-col label">PBoC Assets</div>
-                    <div
-                        class="roc-col"
-                        class:plus={getLatestROC(
-                            dashboardData.bank_rocs?.pboc,
-                            "1M",
-                        ) > 0}
-                        class:minus={getLatestROC(
-                            dashboardData.bank_rocs?.pboc,
-                            "1M",
-                        ) < 0}
-                    >
-                        {getLatestROC(
-                            dashboardData.bank_rocs?.pboc,
-                            "1M",
-                        ).toFixed(2)}%
-                    </div>
-                    <div
-                        class="roc-col"
-                        class:plus={getLatestROC(
-                            dashboardData.bank_rocs?.pboc,
-                            "3M",
-                        ) > 0}
-                        class:minus={getLatestROC(
-                            dashboardData.bank_rocs?.pboc,
-                            "3M",
-                        ) < 0}
-                    >
-                        {getLatestROC(
-                            dashboardData.bank_rocs?.pboc,
-                            "3M",
-                        ).toFixed(2)}%
-                    </div>
-                    <div
-                        class="roc-col"
-                        class:plus={getLatestROC(
-                            dashboardData.bank_rocs?.pboc,
-                            "6M",
-                        ) > 0}
-                        class:minus={getLatestROC(
-                            dashboardData.bank_rocs?.pboc,
-                            "6M",
-                        ) < 0}
-                    >
-                        {getLatestROC(
-                            dashboardData.bank_rocs?.pboc,
-                            "6M",
-                        ).toFixed(2)}%
-                    </div>
-                    <div
-                        class="roc-col"
-                        class:plus={getLatestROC(
-                            dashboardData.bank_rocs?.pboc,
-                            "1Y",
-                        ) > 0}
-                        class:minus={getLatestROC(
-                            dashboardData.bank_rocs?.pboc,
-                            "1Y",
-                        ) < 0}
-                    >
-                        {getLatestROC(
-                            dashboardData.bank_rocs?.pboc,
-                            "1Y",
-                        ).toFixed(2)}%
+                    <div class="roc-row">
+                        <div class="roc-col label">PBoC Assets</div>
+                        <div
+                            class="roc-col"
+                            class:plus={getLatestROC(
+                                dashboardData.bank_rocs?.pboc,
+                                "1M",
+                            ) > 0}
+                            class:minus={getLatestROC(
+                                dashboardData.bank_rocs?.pboc,
+                                "1M",
+                            ) < 0}
+                        >
+                            {getLatestROC(
+                                dashboardData.bank_rocs?.pboc,
+                                "1M",
+                            ).toFixed(2)}%
+                        </div>
+                        <div
+                            class="roc-col"
+                            class:plus={getLatestROC(
+                                dashboardData.bank_rocs?.pboc,
+                                "3M",
+                            ) > 0}
+                            class:minus={getLatestROC(
+                                dashboardData.bank_rocs?.pboc,
+                                "3M",
+                            ) < 0}
+                        >
+                            {getLatestROC(
+                                dashboardData.bank_rocs?.pboc,
+                                "3M",
+                            ).toFixed(2)}%
+                        </div>
+                        <div
+                            class="roc-col"
+                            class:plus={getLatestROC(
+                                dashboardData.bank_rocs?.pboc,
+                                "6M",
+                            ) > 0}
+                            class:minus={getLatestROC(
+                                dashboardData.bank_rocs?.pboc,
+                                "6M",
+                            ) < 0}
+                        >
+                            {getLatestROC(
+                                dashboardData.bank_rocs?.pboc,
+                                "6M",
+                            ).toFixed(2)}%
+                        </div>
+                        <div
+                            class="roc-col"
+                            class:plus={getLatestROC(
+                                dashboardData.bank_rocs?.pboc,
+                                "1Y",
+                            ) > 0}
+                            class:minus={getLatestROC(
+                                dashboardData.bank_rocs?.pboc,
+                                "1Y",
+                            ) < 0}
+                        >
+                            {getLatestROC(
+                                dashboardData.bank_rocs?.pboc,
+                                "1Y",
+                            ).toFixed(2)}%
+                        </div>
                     </div>
                 </div>
             </div>

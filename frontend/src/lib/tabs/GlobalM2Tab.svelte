@@ -34,21 +34,21 @@
     export let getLastDate = (bank) => "N/A";
 
     // Time range states - managed locally
-    let m2Range = "ALL";
-    let usM2Range = "ALL";
-    let euM2Range = "ALL";
-    let cnM2Range = "ALL";
-    let jpM2Range = "ALL";
-    let ukM2Range = "ALL";
-    let caM2Range = "ALL";
-    let auM2Range = "ALL";
-    let inM2Range = "ALL";
-    let chM2Range = "ALL";
-    let ruM2Range = "ALL";
-    let brM2Range = "ALL";
-    let krM2Range = "ALL";
-    let mxM2Range = "ALL";
-    let myM2Range = "ALL";
+    export let m2Range = "ALL";
+    export let usM2DataRange = "ALL";
+    export let euM2DataRange = "ALL";
+    export let cnM2DataRange = "ALL";
+    export let jpM2DataRange = "ALL";
+    export let ukM2DataRange = "ALL";
+    export let caM2DataRange = "ALL";
+    export let auM2DataRange = "ALL";
+    export let inM2DataRange = "ALL";
+    export let chM2DataRange = "ALL";
+    export let ruM2DataRange = "ALL";
+    export let brM2DataRange = "ALL";
+    export let krM2DataRange = "ALL";
+    export let mxM2DataRange = "ALL";
+    export let myM2DataRange = "ALL";
 
     // Country M2 configuration
     $: countries = [
@@ -56,112 +56,112 @@
             id: "us",
             name: "US M2",
             data: usM2Data,
-            range: usM2Range,
-            setRange: (r) => (usM2Range = r),
+            range: usM2DataRange,
+            setRange: (r) => (usM2DataRange = r),
             bank: "FED",
         },
         {
             id: "eu",
             name: "EU M2",
             data: euM2Data,
-            range: euM2Range,
-            setRange: (r) => (euM2Range = r),
+            range: euM2DataRange,
+            setRange: (r) => (euM2DataRange = r),
             bank: "ECB",
         },
         {
             id: "cn",
             name: "China M2",
             data: cnM2Data,
-            range: cnM2Range,
-            setRange: (r) => (cnM2Range = r),
+            range: cnM2DataRange,
+            setRange: (r) => (cnM2DataRange = r),
             bank: "PBOC",
         },
         {
             id: "jp",
             name: "Japan M2",
             data: jpM2Data,
-            range: jpM2Range,
-            setRange: (r) => (jpM2Range = r),
+            range: jpM2DataRange,
+            setRange: (r) => (jpM2DataRange = r),
             bank: "BOJ",
         },
         {
             id: "uk",
             name: "UK M2",
             data: ukM2Data,
-            range: ukM2Range,
-            setRange: (r) => (ukM2Range = r),
+            range: ukM2DataRange,
+            setRange: (r) => (ukM2DataRange = r),
             bank: "BOE",
         },
         {
             id: "ca",
             name: "Canada M2",
             data: caM2Data,
-            range: caM2Range,
-            setRange: (r) => (caM2Range = r),
+            range: caM2DataRange,
+            setRange: (r) => (caM2DataRange = r),
             bank: "BOC",
         },
         {
             id: "au",
             name: "Australia M2",
             data: auM2Data,
-            range: auM2Range,
-            setRange: (r) => (auM2Range = r),
+            range: auM2DataRange,
+            setRange: (r) => (auM2DataRange = r),
             bank: "RBA",
         },
         {
             id: "in",
             name: "India M2",
             data: inM2Data,
-            range: inM2Range,
-            setRange: (r) => (inM2Range = r),
+            range: inM2DataRange,
+            setRange: (r) => (inM2DataRange = r),
             bank: "RBI",
         },
         {
             id: "ch",
             name: "Switzerland M2",
             data: chM2Data,
-            range: chM2Range,
-            setRange: (r) => (chM2Range = r),
+            range: chM2DataRange,
+            setRange: (r) => (chM2DataRange = r),
             bank: "SNB",
         },
         {
             id: "ru",
             name: "Russia M2",
             data: ruM2Data,
-            range: ruM2Range,
-            setRange: (r) => (ruM2Range = r),
+            range: ruM2DataRange,
+            setRange: (r) => (ruM2DataRange = r),
             bank: "CBR",
         },
         {
             id: "br",
             name: "Brazil M2",
             data: brM2Data,
-            range: brM2Range,
-            setRange: (r) => (brM2Range = r),
+            range: brM2DataRange,
+            setRange: (r) => (brM2DataRange = r),
             bank: "BCB",
         },
         {
             id: "kr",
             name: "South Korea M2",
             data: krM2Data,
-            range: krM2Range,
-            setRange: (r) => (krM2Range = r),
+            range: krM2DataRange,
+            setRange: (r) => (krM2DataRange = r),
             bank: "BOK",
         },
         {
             id: "mx",
             name: "Mexico M2",
             data: mxM2Data,
-            range: mxM2Range,
-            setRange: (r) => (mxM2Range = r),
+            range: mxM2DataRange,
+            setRange: (r) => (mxM2DataRange = r),
             bank: "MX",
         },
         {
             id: "my",
             name: "Malaysia M2",
             data: myM2Data,
-            range: myM2Range,
-            setRange: (r) => (myM2Range = r),
+            range: myM2DataRange,
+            setRange: (r) => (myM2DataRange = r),
             bank: "BNM",
         },
     ];
@@ -202,85 +202,93 @@
                         {translations.chart_m2_comp ||
                             "M2 Composition & Performance"}
                     </h4>
-                    <table class="metrics-table">
-                        <thead>
-                            <tr>
-                                <th>{translations.economy || "Economy"}</th>
-                                <th>{translations.weight || "Wgt"}</th>
-                                <th>1M</th>
-                                <th
-                                    title={translations.impact_1m ||
-                                        "1M Global Impact"}>Imp</th
-                                >
-                                <th>3M</th>
-                                <th
-                                    title={translations.impact_3m ||
-                                        "3M Global Impact"}>Imp</th
-                                >
-                                <th>1Y</th>
-                                <th
-                                    title={translations.impact_1y ||
-                                        "1Y Global Impact"}>Imp</th
-                                >
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {#each m2Weights.slice(0, 10) as item}
+                    <div class="metrics-table-container">
+                        <table class="metrics-table">
+                            <thead>
                                 <tr>
-                                    <td>{item.name}</td>
-                                    <td>{item.weight.toFixed(0)}%</td>
-                                    <td
-                                        class="roc-val"
-                                        class:positive={(!item.isLiability &&
-                                            item.m1 > 0) ||
-                                            (item.isLiability && item.m1 < 0)}
-                                        class:negative={(!item.isLiability &&
-                                            item.m1 < 0) ||
-                                            (item.isLiability && item.m1 > 0)}
-                                        >{item.m1.toFixed(1)}%</td
+                                    <th>Economy</th>
+                                    <th>Wgt</th>
+                                    <th>1M</th>
+                                    <th
+                                        title={translations.impact_1m ||
+                                            "1M Global Impact"}>Imp</th
                                     >
-                                    <td
-                                        class="roc-val impact-cell"
-                                        class:positive={item.imp1 > 0}
-                                        class:negative={item.imp1 < 0}
-                                        >{item.imp1.toFixed(2)}%</td
+                                    <th>3M</th>
+                                    <th
+                                        title={translations.impact_3m ||
+                                            "3M Global Impact"}>Imp</th
                                     >
-                                    <td
-                                        class="roc-val"
-                                        class:positive={(!item.isLiability &&
-                                            item.m3 > 0) ||
-                                            (item.isLiability && item.m3 < 0)}
-                                        class:negative={(!item.isLiability &&
-                                            item.m3 < 0) ||
-                                            (item.isLiability && item.m3 > 0)}
-                                        >{item.m3.toFixed(1)}%</td
-                                    >
-                                    <td
-                                        class="roc-val impact-cell"
-                                        class:positive={item.imp3 > 0}
-                                        class:negative={item.imp3 < 0}
-                                        >{item.imp3.toFixed(2)}%</td
-                                    >
-                                    <td
-                                        class="roc-val"
-                                        class:positive={(!item.isLiability &&
-                                            item.y1 > 0) ||
-                                            (item.isLiability && item.y1 < 0)}
-                                        class:negative={(!item.isLiability &&
-                                            item.y1 < 0) ||
-                                            (item.isLiability && item.y1 > 0)}
-                                        >{item.y1.toFixed(1)}%</td
-                                    >
-                                    <td
-                                        class="roc-val impact-cell"
-                                        class:positive={item.imp1y > 0}
-                                        class:negative={item.imp1y < 0}
-                                        >{item.imp1y.toFixed(2)}%</td
+                                    <th>1Y</th>
+                                    <th
+                                        title={translations.impact_1y ||
+                                            "1Y Global Impact"}>Imp</th
                                     >
                                 </tr>
-                            {/each}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {#each m2Weights.slice(0, 10) as item}
+                                    <tr>
+                                        <td>{item.name}</td>
+                                        <td>{item.weight.toFixed(0)}%</td>
+                                        <td
+                                            class="roc-val"
+                                            class:positive={(!item.isLiability &&
+                                                item.m1 > 0) ||
+                                                (item.isLiability &&
+                                                    item.m1 < 0)}
+                                            class:negative={(!item.isLiability &&
+                                                item.m1 < 0) ||
+                                                (item.isLiability &&
+                                                    item.m1 > 0)}
+                                            >{item.m1.toFixed(1)}%</td
+                                        >
+                                        <td
+                                            class="roc-val impact-cell"
+                                            class:positive={item.imp1 > 0}
+                                            class:negative={item.imp1 < 0}
+                                            >{item.imp1.toFixed(2)}%</td
+                                        >
+                                        <td
+                                            class="roc-val"
+                                            class:positive={(!item.isLiability &&
+                                                item.m3 > 0) ||
+                                                (item.isLiability &&
+                                                    item.m3 < 0)}
+                                            class:negative={(!item.isLiability &&
+                                                item.m3 < 0) ||
+                                                (item.isLiability &&
+                                                    item.m3 > 0)}
+                                            >{item.m3.toFixed(1)}%</td
+                                        >
+                                        <td
+                                            class="roc-val impact-cell"
+                                            class:positive={item.imp3 > 0}
+                                            class:negative={item.imp3 < 0}
+                                            >{item.imp3.toFixed(2)}%</td
+                                        >
+                                        <td
+                                            class="roc-val"
+                                            class:positive={(!item.isLiability &&
+                                                item.y1 > 0) ||
+                                                (item.isLiability &&
+                                                    item.y1 < 0)}
+                                            class:negative={(!item.isLiability &&
+                                                item.y1 < 0) ||
+                                                (item.isLiability &&
+                                                    item.y1 > 0)}
+                                            >{item.y1.toFixed(1)}%</td
+                                        >
+                                        <td
+                                            class="roc-val impact-cell"
+                                            class:positive={item.imp1y > 0}
+                                            class:negative={item.imp1y < 0}
+                                            >{item.imp1y.toFixed(2)}%</td
+                                        >
+                                    </tr>
+                                {/each}
+                            </tbody>
+                        </table>
+                    </div>
                     <p
                         style="font-size: 10px; color: #94a3b8; margin-top: 8px;"
                     >

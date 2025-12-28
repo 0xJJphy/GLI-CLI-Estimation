@@ -15,17 +15,44 @@
 
     // Chart data
     export let btcFairValueData = [];
-    export let lagCorrelationChartData = [];
-    export let correlationData = [];
+    export let lagCorrelationChartData = {};
+    export let correlationData = {};
 
     // Helper function
     export let getLatestROC = (rocs, period) =>
         rocs?.[period]?.[rocs?.[period]?.length - 1] ?? 0;
 
-    // Local state
-    let btcRange = "ALL";
-    let selectedBtcModel = "macro";
-    let selectedLagWindow = "7d";
+    // Local state (exported for binding)
+    export let btcRange = "ALL";
+    export let selectedBtcModel = "macro";
+    export let selectedLagWindow = "7d";
+
+    $: formattedLagData = lagCorrelationChartData?.[selectedLagWindow]
+        ? [
+              {
+                  x: lagCorrelationChartData[selectedLagWindow].lags,
+                  y: lagCorrelationChartData[
+                      selectedLagWindow
+                  ].correlations.map((c) => (c !== null ? c * 100 : null)),
+                  name: `${selectedLagWindow.toUpperCase()} ROC Lag Correlation`,
+                  type: "bar",
+                  marker: {
+                      color: lagCorrelationChartData?.[
+                          selectedLagWindow
+                      ]?.lags?.map((l) =>
+                          l ===
+                          lagCorrelationChartData?.[selectedLagWindow]
+                              ?.optimal_lag
+                              ? "#10b981"
+                              : "#6366f1",
+                      ),
+                  },
+              },
+          ]
+        : [];
+    $: formattedCorrData = Array.isArray(correlationData)
+        ? correlationData
+        : Object.values(correlationData || {});
 </script>
 
 <div class="main-charts btc-analysis-view">
@@ -40,13 +67,18 @@
 
     <!-- BTC Stats -->
     <div class="btc-stats">
-        <div class="btc-stat-item">
+        <div
+            class="btc-stat-item"
+            class:signal-bullish={latestStats?.btc?.deviation_pct < -5}
+            class:signal-bearish={latestStats?.btc?.deviation_pct > 5}
+        >
             <span class="btc-label"
                 >{translations.current_valuation || "Current Valuation"}</span
             >
             <div
                 class="btc-value"
-                class:overvalued={latestStats?.btc?.deviation_pct > 0}
+                class:text-bearish={latestStats?.btc?.deviation_pct > 5}
+                class:text-bullish={latestStats?.btc?.deviation_pct < -5}
             >
                 {((latestStats?.btc?.deviation_pct || 0) > 0 ? "+" : "") +
                     (latestStats?.btc?.deviation_pct || 0).toFixed(1)}%
@@ -72,16 +104,27 @@
                 ).toLocaleString()}</span
             >
         </div>
-        <div class="btc-stat-item">
+        <div
+            class="btc-stat-item"
+            class:signal-bullish={latestStats?.btc?.deviation_zscore < -1}
+            class:signal-bearish={latestStats?.btc?.deviation_zscore > 1}
+        >
             <span class="btc-label">{translations.zscore || "Z-Score"}</span>
-            <span class="btc-value"
+            <span
+                class="btc-value"
+                class:text-bearish={latestStats?.btc?.deviation_zscore > 1}
+                class:text-bullish={latestStats?.btc?.deviation_zscore < -1}
                 >{(latestStats?.btc?.deviation_zscore || 0).toFixed(2)}σ</span
             >
         </div>
     </div>
 
     <!-- Fair Value Chart -->
-    <div class="chart-card wide">
+    <div
+        class="chart-card wide"
+        class:signal-bullish={latestStats?.btc?.deviation_pct < -5}
+        class:signal-bearish={latestStats?.btc?.deviation_pct > 5}
+    >
         <div class="chart-header">
             <h3>{translations.btc_analysis_title || "BTC Fair Value Model"}</h3>
             <div class="header-controls">
@@ -154,7 +197,7 @@
         <div class="gli-layout">
             <div class="chart-main">
                 <div class="chart-content" style="height: 350px;">
-                    <Chart {darkMode} data={lagCorrelationChartData} />
+                    <Chart {darkMode} data={formattedLagData} />
                 </div>
             </div>
             <div class="metrics-sidebar">
@@ -196,164 +239,229 @@
             >
         </div>
         <div class="chart-content">
-            <Chart {darkMode} data={correlationData} />
+            <Chart {darkMode} data={formattedCorrData} />
         </div>
     </div>
 
     <!-- ROC Comparison -->
     <div class="chart-card wide">
-        <h4>Momentum Comparison (ROC %)</h4>
-        <div class="roc-grid">
-            <div class="roc-row header">
-                <div class="roc-col">Asset</div>
-                <div class="roc-col">1M</div>
-                <div class="roc-col">3M</div>
-                <div class="roc-col">6M</div>
-                <div class="roc-col">1Y</div>
-            </div>
-            <div class="roc-row">
-                <div class="roc-col label">
-                    {translations.btc_price || "BTC Price"}
+        <h4 style="margin-top: 0;">Momentum Comparison (ROC %)</h4>
+        <div class="metrics-table-container">
+            <div class="roc-grid">
+                <div class="roc-row header">
+                    <div class="roc-col">Asset</div>
+                    <div class="roc-col">1M</div>
+                    <div class="roc-col">3M</div>
+                    <div class="roc-col">6M</div>
+                    <div class="roc-col">1Y</div>
                 </div>
-                <div
-                    class="roc-col"
-                    class:plus={getLatestROC(dashboardData.btc?.rocs, "1M") > 0}
-                    class:minus={getLatestROC(dashboardData.btc?.rocs, "1M") <
-                        0}
-                >
-                    {getLatestROC(dashboardData.btc?.rocs, "1M").toFixed(2)}%
+                <div class="roc-row">
+                    <div class="roc-col label">
+                        {translations.btc_price || "BTC Price"}
+                    </div>
+                    <div
+                        class="roc-col"
+                        class:plus={getLatestROC(
+                            dashboardData.btc?.rocs,
+                            "1M",
+                        ) > 0}
+                        class:minus={getLatestROC(
+                            dashboardData.btc?.rocs,
+                            "1M",
+                        ) < 0}
+                    >
+                        {getLatestROC(dashboardData.btc?.rocs, "1M").toFixed(
+                            2,
+                        )}%
+                    </div>
+                    <div
+                        class="roc-col"
+                        class:plus={getLatestROC(
+                            dashboardData.btc?.rocs,
+                            "3M",
+                        ) > 0}
+                        class:minus={getLatestROC(
+                            dashboardData.btc?.rocs,
+                            "3M",
+                        ) < 0}
+                    >
+                        {getLatestROC(dashboardData.btc?.rocs, "3M").toFixed(
+                            2,
+                        )}%
+                    </div>
+                    <div
+                        class="roc-col"
+                        class:plus={getLatestROC(
+                            dashboardData.btc?.rocs,
+                            "6M",
+                        ) > 0}
+                        class:minus={getLatestROC(
+                            dashboardData.btc?.rocs,
+                            "6M",
+                        ) < 0}
+                    >
+                        {getLatestROC(dashboardData.btc?.rocs, "6M").toFixed(
+                            2,
+                        )}%
+                    </div>
+                    <div
+                        class:plus={getLatestROC(
+                            dashboardData.btc?.rocs,
+                            "1Y",
+                        ) > 0}
+                        class:minus={getLatestROC(
+                            dashboardData.btc?.rocs,
+                            "1Y",
+                        ) < 0}
+                    >
+                        {getLatestROC(dashboardData.btc?.rocs, "1Y").toFixed(
+                            2,
+                        )}%
+                    </div>
                 </div>
-                <div
-                    class="roc-col"
-                    class:plus={getLatestROC(dashboardData.btc?.rocs, "3M") > 0}
-                    class:minus={getLatestROC(dashboardData.btc?.rocs, "3M") <
-                        0}
-                >
-                    {getLatestROC(dashboardData.btc?.rocs, "3M").toFixed(2)}%
+                <!-- ... other rows ... -->
+                <div class="roc-row">
+                    <div class="roc-col label">Global GLI</div>
+                    <div
+                        class="roc-col"
+                        class:plus={getLatestROC(
+                            dashboardData.gli?.rocs,
+                            "1M",
+                        ) > 0}
+                        class:minus={getLatestROC(
+                            dashboardData.gli?.rocs,
+                            "1M",
+                        ) < 0}
+                    >
+                        {getLatestROC(dashboardData.gli?.rocs, "1M").toFixed(
+                            2,
+                        )}%
+                    </div>
+                    <div
+                        class="roc-col"
+                        class:plus={getLatestROC(
+                            dashboardData.gli?.rocs,
+                            "3M",
+                        ) > 0}
+                        class:minus={getLatestROC(
+                            dashboardData.gli?.rocs,
+                            "3M",
+                        ) < 0}
+                    >
+                        {getLatestROC(dashboardData.gli?.rocs, "3M").toFixed(
+                            2,
+                        )}%
+                    </div>
+                    <div
+                        class:plus={getLatestROC(
+                            dashboardData.gli?.rocs,
+                            "6M",
+                        ) > 0}
+                        class:minus={getLatestROC(
+                            dashboardData.gli?.rocs,
+                            "6M",
+                        ) < 0}
+                    >
+                        {getLatestROC(dashboardData.gli?.rocs, "6M").toFixed(
+                            2,
+                        )}%
+                    </div>
+                    <div
+                        class:plus={getLatestROC(
+                            dashboardData.gli?.rocs,
+                            "1Y",
+                        ) > 0}
+                        class:minus={getLatestROC(
+                            dashboardData.gli?.rocs,
+                            "1Y",
+                        ) < 0}
+                    >
+                        {getLatestROC(dashboardData.gli?.rocs, "1Y").toFixed(
+                            2,
+                        )}%
+                    </div>
                 </div>
-                <div
-                    class="roc-col"
-                    class:plus={getLatestROC(dashboardData.btc?.rocs, "6M") > 0}
-                    class:minus={getLatestROC(dashboardData.btc?.rocs, "6M") <
-                        0}
-                >
-                    {getLatestROC(dashboardData.btc?.rocs, "6M").toFixed(2)}%
-                </div>
-                <div
-                    class:plus={getLatestROC(dashboardData.btc?.rocs, "1Y") > 0}
-                    class:minus={getLatestROC(dashboardData.btc?.rocs, "1Y") <
-                        0}
-                >
-                    {getLatestROC(dashboardData.btc?.rocs, "1Y").toFixed(2)}%
-                </div>
-            </div>
-            <div class="roc-row">
-                <div class="roc-col label">Global GLI</div>
-                <div
-                    class="roc-col"
-                    class:plus={getLatestROC(dashboardData.gli?.rocs, "1M") > 0}
-                    class:minus={getLatestROC(dashboardData.gli?.rocs, "1M") <
-                        0}
-                >
-                    {getLatestROC(dashboardData.gli?.rocs, "1M").toFixed(2)}%
-                </div>
-                <div
-                    class="roc-col"
-                    class:plus={getLatestROC(dashboardData.gli?.rocs, "3M") > 0}
-                    class:minus={getLatestROC(dashboardData.gli?.rocs, "3M") <
-                        0}
-                >
-                    {getLatestROC(dashboardData.gli?.rocs, "3M").toFixed(2)}%
-                </div>
-                <div
-                    class:plus={getLatestROC(dashboardData.gli?.rocs, "6M") > 0}
-                    class:minus={getLatestROC(dashboardData.gli?.rocs, "6M") <
-                        0}
-                >
-                    {getLatestROC(dashboardData.gli?.rocs, "6M").toFixed(2)}%
-                </div>
-                <div
-                    class:plus={getLatestROC(dashboardData.gli?.rocs, "1Y") > 0}
-                    class:minus={getLatestROC(dashboardData.gli?.rocs, "1Y") <
-                        0}
-                >
-                    {getLatestROC(dashboardData.gli?.rocs, "1Y").toFixed(2)}%
-                </div>
-            </div>
-            <div class="roc-row">
-                <div class="roc-col label">
-                    US {translations.stat_us_net || "Net Liquidity"}
-                </div>
-                <div
-                    class="roc-col"
-                    class:plus={getLatestROC(
-                        dashboardData.us_net_liq_rocs,
-                        "1M",
-                    ) > 0}
-                    class:minus={getLatestROC(
-                        dashboardData.us_net_liq_rocs,
-                        "1M",
-                    ) < 0}
-                >
-                    {getLatestROC(dashboardData.us_net_liq_rocs, "1M").toFixed(
-                        2,
-                    )}%
-                </div>
-                <div
-                    class="roc-col"
-                    class:plus={getLatestROC(
-                        dashboardData.us_net_liq_rocs,
-                        "3M",
-                    ) > 0}
-                    class:minus={getLatestROC(
-                        dashboardData.us_net_liq_rocs,
-                        "3M",
-                    ) < 0}
-                >
-                    {getLatestROC(dashboardData.us_net_liq_rocs, "3M").toFixed(
-                        2,
-                    )}%
-                </div>
-                <div
-                    class="roc-col"
-                    class:plus={getLatestROC(
-                        dashboardData.us_net_liq_rocs,
-                        "6M",
-                    ) > 0}
-                    class:minus={getLatestROC(
-                        dashboardData.us_net_liq_rocs,
-                        "6M",
-                    ) < 0}
-                >
-                    {getLatestROC(dashboardData.us_net_liq_rocs, "6M").toFixed(
-                        2,
-                    )}%
-                </div>
-                <div
-                    class:plus={getLatestROC(
-                        dashboardData.us_net_liq_rocs,
-                        "1Y",
-                    ) > 0}
-                    class:minus={getLatestROC(
-                        dashboardData.us_net_liq_rocs,
-                        "1Y",
-                    ) < 0}
-                >
-                    {getLatestROC(dashboardData.us_net_liq_rocs, "1Y").toFixed(
-                        2,
-                    )}%
+                <div class="roc-row">
+                    <div class="roc-col label">
+                        US {translations.stat_us_net || "Net Liquidity"}
+                    </div>
+                    <div
+                        class="roc-col"
+                        class:plus={getLatestROC(
+                            dashboardData.us_net_liq_rocs,
+                            "1M",
+                        ) > 0}
+                        class:minus={getLatestROC(
+                            dashboardData.us_net_liq_rocs,
+                            "1M",
+                        ) < 0}
+                    >
+                        {getLatestROC(
+                            dashboardData.us_net_liq_rocs,
+                            "1M",
+                        ).toFixed(2)}%
+                    </div>
+                    <div
+                        class="roc-col"
+                        class:plus={getLatestROC(
+                            dashboardData.us_net_liq_rocs,
+                            "3M",
+                        ) > 0}
+                        class:minus={getLatestROC(
+                            dashboardData.us_net_liq_rocs,
+                            "3M",
+                        ) < 0}
+                    >
+                        {getLatestROC(
+                            dashboardData.us_net_liq_rocs,
+                            "3M",
+                        ).toFixed(2)}%
+                    </div>
+                    <div
+                        class="roc-col"
+                        class:plus={getLatestROC(
+                            dashboardData.us_net_liq_rocs,
+                            "6M",
+                        ) > 0}
+                        class:minus={getLatestROC(
+                            dashboardData.us_net_liq_rocs,
+                            "6M",
+                        ) < 0}
+                    >
+                        {getLatestROC(
+                            dashboardData.us_net_liq_rocs,
+                            "6M",
+                        ).toFixed(2)}%
+                    </div>
+                    <div
+                        class:plus={getLatestROC(
+                            dashboardData.us_net_liq_rocs,
+                            "1Y",
+                        ) > 0}
+                        class:minus={getLatestROC(
+                            dashboardData.us_net_liq_rocs,
+                            "1Y",
+                        ) < 0}
+                    >
+                        {getLatestROC(
+                            dashboardData.us_net_liq_rocs,
+                            "1Y",
+                        ).toFixed(2)}%
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Interpretation Panel -->
-    <div class="chart-card wide interpretation-panel">
+    <div class="interp-section wide">
         <h4>📊 {translations.interpretation || "Interpretation"}</h4>
-        <div class="interpretation-grid">
-            <div class="interp-card">
-                <h5>{translations.fair_value || "Fair Value"} Model</h5>
-                <p>
+        <div class="interp-grid">
+            <div class="interp-item">
+                <span class="interp-label"
+                    >{translations.fair_value || "Fair Value"} Model</span
+                >
+                <span class="interp-val">
                     {translations.interp_regression || "Regression using:"}<br
                     />
                     • {translations.interp_gli_lag || "GLI (45-day lag)"}<br />
@@ -361,42 +469,50 @@
                     • {translations.interp_vix_coin || "VIX (coincident)"}<br />
                     • {translations.interp_netliq_lag ||
                         "US Net Liq (30-day lag)"}
-                </p>
+                </span>
             </div>
-            <div class="interp-card">
-                <h5>{translations.interp_zones || "Deviation Zones"}</h5>
-                <p>
-                    • <span class="extreme-zone"
+            <div class="interp-item">
+                <span class="interp-label"
+                    >{translations.interp_zones || "Deviation Zones"}</span
+                >
+                <span class="interp-val">
+                    • <span
+                        class="extreme-zone"
+                        style="color: #ef4444; font-weight: 600;"
                         >{translations.interp_extreme ||
                             "±2σ: Extreme over/undervaluation"}</span
                     ><br />
                     •
-                    <span class="moderate-zone"
+                    <span
+                        class="moderate-zone"
+                        style="color: #f59e0b; font-weight: 600;"
                         >{translations.interp_moderate ||
                             "±1σ: Moderate deviation"}</span
                     ><br />
                     • {translations.interp_fair_range ||
                         "Within ±1σ: Fair value range"}
-                </p>
+                </span>
             </div>
-            <div class="interp-card">
-                <h5>{translations.interp_signals || "Trading Signals"}</h5>
-                <p>
-                    • <strong
+            <div class="interp-item">
+                <span class="interp-label"
+                    >{translations.interp_signals || "Trading Signals"}</span
+                >
+                <span class="interp-val">
+                    • <strong style="color: #10b981;"
                         >{translations.interp_profittaking ||
                             "Z > +2: Consider profit-taking"}</strong
                     ><br />
                     •
-                    <strong
+                    <strong style="color: #10b981;"
                         >{translations.interp_accumulation ||
                             "Z < -2: Potential accumulation"}</strong
                     ><br />
                     •
-                    <strong
+                    <strong style="color: #6366f1;"
                         >{translations.interp_divergence ||
                             "ROC divergence: Momentum shifts"}</strong
                     >
-                </p>
+                </span>
             </div>
         </div>
     </div>

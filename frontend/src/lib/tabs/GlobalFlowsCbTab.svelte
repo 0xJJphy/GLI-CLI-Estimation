@@ -37,22 +37,22 @@
     export let getLastDate = (bank) => "N/A";
 
     // Time range states - managed locally for this tab
-    let fedRange = "ALL";
-    let ecbRange = "ALL";
-    let bojRange = "ALL";
-    let boeRange = "ALL";
-    let pbocRange = "ALL";
-    let bocRange = "ALL";
-    let rbaRange = "ALL";
-    let snbRange = "ALL";
-    let bokRange = "ALL";
-    let rbiRange = "ALL";
-    let cbrRange = "ALL";
-    let bcbRange = "ALL";
-    let rbnzRange = "ALL";
-    let srRange = "ALL";
-    let bnmRange = "ALL";
-    let cbRange = "ALL";
+    export let fedRange = "ALL";
+    export let ecbRange = "ALL";
+    export let bojRange = "ALL";
+    export let boeRange = "ALL";
+    export let pbocRange = "ALL";
+    export let bocRange = "ALL";
+    export let rbaRange = "ALL";
+    export let snbRange = "ALL";
+    export let bokRange = "ALL";
+    export let rbiRange = "ALL";
+    export let cbrRange = "ALL";
+    export let bcbRange = "ALL";
+    export let rbnzRange = "ALL";
+    export let srRange = "ALL";
+    export let bnmRange = "ALL";
+    export let cbRange = "ALL";
 
     // Bank configuration
     $: banks = [

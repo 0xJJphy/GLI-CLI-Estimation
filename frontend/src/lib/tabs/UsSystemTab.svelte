@@ -29,11 +29,11 @@
     export let getLatestValue = (arr) => arr?.[arr?.length - 1] ?? 0;
 
     // Time range states - managed locally
-    let netLiqRange = "ALL";
-    let reservesRange = "ALL";
-    let fedRange = "ALL";
-    let rrpRange = "ALL";
-    let tgaRange = "ALL";
+    export let netLiqRange = "ALL";
+    export let reservesRange = "ALL";
+    export let fedRange = "ALL";
+    export let rrpRange = "ALL";
+    export let tgaRange = "ALL";
 </script>
 
 <div class="main-charts">
@@ -72,134 +72,146 @@
                         {translations.chart_us_comp ||
                             "US System Components Impact"}
                     </h4>
-                    <table class="metrics-table">
-                        <thead>
-                            <tr>
-                                <th>{translations.account || "Account"}</th>
-                                <th>1M</th>
-                                <th title="Absolute change in Billions USD"
-                                    >$ Δ1M</th
-                                >
-                                <th
-                                    title={translations.impact_us ||
-                                        "Impact on Net Liq"}>Imp</th
-                                >
-                                <th>3M</th>
-                                <th
-                                    title={translations.impact_us ||
-                                        "Impact on Net Liq"}>Imp</th
-                                >
-                                <th>1Y</th>
-                                <th
-                                    title={translations.impact_us ||
-                                        "Impact on Net Liq"}>Imp</th
-                                >
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {#each usSystemMetrics as item}
+                    <div class="metrics-table-container">
+                        <table class="metrics-table">
+                            <thead>
                                 <tr>
-                                    <td>{item.name}</td>
-                                    <td
-                                        class="roc-val"
-                                        class:positive={(!item.isLiability &&
-                                            item.m1 > 0) ||
-                                            (item.isLiability && item.m1 < 0)}
-                                        class:negative={(!item.isLiability &&
-                                            item.m1 < 0) ||
-                                            (item.isLiability && item.m1 > 0)}
-                                        >{item.m1.toFixed(1)}%</td
+                                    <th>Acc</th>
+                                    <th>1M</th>
+                                    <th title="Absolute change in Billions USD"
+                                        >Δ$1M</th
                                     >
-                                    <td
-                                        class="roc-val"
-                                        class:positive={(!item.isLiability &&
-                                            item.delta1 > 0) ||
-                                            (item.isLiability &&
-                                                item.delta1 < 0)}
-                                        class:negative={(!item.isLiability &&
-                                            item.delta1 < 0) ||
-                                            (item.isLiability &&
-                                                item.delta1 > 0)}
-                                        >{item.delta1 > 0
-                                            ? "+"
-                                            : ""}{item.delta1.toFixed(0)}B</td
+                                    <th
+                                        title={translations.impact_us ||
+                                            "Impact on Net Liq"}>Imp</th
                                     >
-                                    <td
-                                        class="roc-val impact-cell"
-                                        class:positive={item.imp1 > 0}
-                                        class:negative={item.imp1 < 0}
-                                        >{item.imp1.toFixed(2)}%</td
+                                    <th>3M</th>
+                                    <th
+                                        title={translations.impact_us ||
+                                            "Impact on Net Liq"}>Imp</th
                                     >
-                                    <td
-                                        class="roc-val"
-                                        class:positive={(!item.isLiability &&
-                                            item.m3 > 0) ||
-                                            (item.isLiability && item.m3 < 0)}
-                                        class:negative={(!item.isLiability &&
-                                            item.m3 < 0) ||
-                                            (item.isLiability && item.m3 > 0)}
-                                        >{item.m3.toFixed(1)}%</td
-                                    >
-                                    <td
-                                        class="roc-val impact-cell"
-                                        class:positive={item.imp3 > 0}
-                                        class:negative={item.imp3 < 0}
-                                        >{item.imp3.toFixed(2)}%</td
-                                    >
-                                    <td
-                                        class="roc-val"
-                                        class:positive={(!item.isLiability &&
-                                            item.y1 > 0) ||
-                                            (item.isLiability && item.y1 < 0)}
-                                        class:negative={(!item.isLiability &&
-                                            item.y1 < 0) ||
-                                            (item.isLiability && item.y1 > 0)}
-                                        >{item.y1.toFixed(1)}%</td
-                                    >
-                                    <td
-                                        class="roc-val impact-cell"
-                                        class:positive={item.imp1y > 0}
-                                        class:negative={item.imp1y < 0}
-                                        >{item.imp1y.toFixed(2)}%</td
+                                    <th>1Y</th>
+                                    <th
+                                        title={translations.impact_us ||
+                                            "Impact on Net Liq"}>Imp</th
                                     >
                                 </tr>
-                            {/each}
-                            <tr class="total-row">
-                                <td><strong>TOTAL</strong></td>
-                                <td>-</td>
-                                <td
-                                    class="roc-val"
-                                    class:positive={usSystemTotal.delta1 > 0}
-                                    class:negative={usSystemTotal.delta1 < 0}
-                                    >{usSystemTotal.delta1 > 0
-                                        ? "+"
-                                        : ""}{usSystemTotal.delta1.toFixed(
-                                        0,
-                                    )}B</td
-                                >
-                                <td
-                                    class="roc-val impact-cell"
-                                    class:positive={usSystemTotal.imp1 > 0}
-                                    class:negative={usSystemTotal.imp1 < 0}
-                                    >{usSystemTotal.imp1.toFixed(2)}%</td
-                                >
-                                <td>-</td>
-                                <td
-                                    class="roc-val impact-cell"
-                                    class:positive={usSystemTotal.imp3 > 0}
-                                    class:negative={usSystemTotal.imp3 < 0}
-                                    >{usSystemTotal.imp3.toFixed(2)}%</td
-                                >
-                                <td>-</td>
-                                <td
-                                    class="roc-val impact-cell"
-                                    class:positive={usSystemTotal.imp1y > 0}
-                                    class:negative={usSystemTotal.imp1y < 0}
-                                    >{usSystemTotal.imp1y.toFixed(2)}%</td
-                                >
-                            </tr>
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {#each usSystemMetrics as item}
+                                    <tr>
+                                        <td>{item.name}</td>
+                                        <td
+                                            class="roc-val"
+                                            class:positive={(!item.isLiability &&
+                                                item.m1 > 0) ||
+                                                (item.isLiability &&
+                                                    item.m1 < 0)}
+                                            class:negative={(!item.isLiability &&
+                                                item.m1 < 0) ||
+                                                (item.isLiability &&
+                                                    item.m1 > 0)}
+                                            >{item.m1.toFixed(1)}%</td
+                                        >
+                                        <td
+                                            class="roc-val"
+                                            class:positive={(!item.isLiability &&
+                                                item.delta1 > 0) ||
+                                                (item.isLiability &&
+                                                    item.delta1 < 0)}
+                                            class:negative={(!item.isLiability &&
+                                                item.delta1 < 0) ||
+                                                (item.isLiability &&
+                                                    item.delta1 > 0)}
+                                            >{item.delta1 > 0
+                                                ? "+"
+                                                : ""}{item.delta1.toFixed(
+                                                0,
+                                            )}B</td
+                                        >
+                                        <td
+                                            class="roc-val impact-cell"
+                                            class:positive={item.imp1 > 0}
+                                            class:negative={item.imp1 < 0}
+                                            >{item.imp1.toFixed(2)}%</td
+                                        >
+                                        <td
+                                            class="roc-val"
+                                            class:positive={(!item.isLiability &&
+                                                item.m3 > 0) ||
+                                                (item.isLiability &&
+                                                    item.m3 < 0)}
+                                            class:negative={(!item.isLiability &&
+                                                item.m3 < 0) ||
+                                                (item.isLiability &&
+                                                    item.m3 > 0)}
+                                            >{item.m3.toFixed(1)}%</td
+                                        >
+                                        <td
+                                            class="roc-val impact-cell"
+                                            class:positive={item.imp3 > 0}
+                                            class:negative={item.imp3 < 0}
+                                            >{item.imp3.toFixed(2)}%</td
+                                        >
+                                        <td
+                                            class="roc-val"
+                                            class:positive={(!item.isLiability &&
+                                                item.y1 > 0) ||
+                                                (item.isLiability &&
+                                                    item.y1 < 0)}
+                                            class:negative={(!item.isLiability &&
+                                                item.y1 < 0) ||
+                                                (item.isLiability &&
+                                                    item.y1 > 0)}
+                                            >{item.y1.toFixed(1)}%</td
+                                        >
+                                        <td
+                                            class="roc-val impact-cell"
+                                            class:positive={item.imp1y > 0}
+                                            class:negative={item.imp1y < 0}
+                                            >{item.imp1y.toFixed(2)}%</td
+                                        >
+                                    </tr>
+                                {/each}
+                                <tr class="total-row">
+                                    <td><strong>TOTAL</strong></td>
+                                    <td>-</td>
+                                    <td
+                                        class="roc-val"
+                                        class:positive={usSystemTotal.delta1 >
+                                            0}
+                                        class:negative={usSystemTotal.delta1 <
+                                            0}
+                                        >{usSystemTotal.delta1 > 0
+                                            ? "+"
+                                            : ""}{usSystemTotal.delta1.toFixed(
+                                            0,
+                                        )}B</td
+                                    >
+                                    <td
+                                        class="roc-val impact-cell"
+                                        class:positive={usSystemTotal.imp1 > 0}
+                                        class:negative={usSystemTotal.imp1 < 0}
+                                        >{usSystemTotal.imp1.toFixed(2)}%</td
+                                    >
+                                    <td>-</td>
+                                    <td
+                                        class="roc-val impact-cell"
+                                        class:positive={usSystemTotal.imp3 > 0}
+                                        class:negative={usSystemTotal.imp3 < 0}
+                                        >{usSystemTotal.imp3.toFixed(2)}%</td
+                                    >
+                                    <td>-</td>
+                                    <td
+                                        class="roc-val impact-cell"
+                                        class:positive={usSystemTotal.imp1y > 0}
+                                        class:negative={usSystemTotal.imp1y < 0}
+                                        >{usSystemTotal.imp1y.toFixed(2)}%</td
+                                    >
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                     <p
                         style="font-size: 10px; color: #94a3b8; margin-top: 8px;"
                     >
@@ -214,190 +226,197 @@
                     style="margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(148, 163, 184, 0.2);"
                 >
                     <h4>{translations.liquidity_score || "Liquidity Score"}</h4>
-                    <table class="metrics-table compact">
-                        <thead>
-                            <tr>
-                                <th>Metric</th>
-                                <th>Value</th>
-                                <th>Signal</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td
-                                    >{translations.liquidity_score ||
-                                        "Liquidity Score"}</td
-                                >
-                                <td
-                                    class="roc-val"
-                                    class:positive={getLatestValue(
-                                        dashboardData.us_system_metrics
-                                            ?.liquidity_score,
-                                    ) > 0}
-                                    class:negative={getLatestValue(
-                                        dashboardData.us_system_metrics
-                                            ?.liquidity_score,
-                                    ) < 0}
-                                    >{(
-                                        getLatestValue(
+                    <div class="metrics-table-container">
+                        <table class="metrics-table compact">
+                            <thead>
+                                <tr>
+                                    <th>Metric</th>
+                                    <th>Value</th>
+                                    <th>Signal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td
+                                        >{translations.liquidity_score ||
+                                            "Liquidity Score"}</td
+                                    >
+                                    <td
+                                        class="roc-val"
+                                        class:positive={getLatestValue(
                                             dashboardData.us_system_metrics
                                                 ?.liquidity_score,
-                                        ) ?? 0
-                                    ).toFixed(2)}</td
-                                >
-                                <td
-                                    class="signal-cell"
-                                    class:plus={getLatestValue(
-                                        dashboardData.us_system_metrics
-                                            ?.liquidity_score,
-                                    ) > 1}
-                                    class:minus={getLatestValue(
-                                        dashboardData.us_system_metrics
-                                            ?.liquidity_score,
-                                    ) < -1}
-                                    >{getLatestValue(
-                                        dashboardData.us_system_metrics
-                                            ?.liquidity_score,
-                                    ) > 1
-                                        ? translations.liquid_env || "Liquid"
-                                        : getLatestValue(
+                                        ) > 0}
+                                        class:negative={getLatestValue(
+                                            dashboardData.us_system_metrics
+                                                ?.liquidity_score,
+                                        ) < 0}
+                                        >{(
+                                            getLatestValue(
                                                 dashboardData.us_system_metrics
                                                     ?.liquidity_score,
-                                            ) < -1
-                                          ? translations.dry_env || "Dry"
-                                          : "—"}</td
-                                >
-                            </tr>
-                            <tr>
-                                <td
-                                    >{translations.netliq_roc ||
-                                        "Net Liq ROC"}</td
-                                >
-                                <td
-                                    class="roc-val"
-                                    class:positive={getLatestValue(
-                                        dashboardData.us_system_metrics
-                                            ?.netliq_roc_20d,
-                                    ) > 0}
-                                    class:negative={getLatestValue(
-                                        dashboardData.us_system_metrics
-                                            ?.netliq_roc_20d,
-                                    ) < 0}
-                                    >{(
-                                        getLatestValue(
+                                            ) ?? 0
+                                        ).toFixed(2)}</td
+                                    >
+                                    <td
+                                        class="signal-cell"
+                                        class:plus={getLatestValue(
+                                            dashboardData.us_system_metrics
+                                                ?.liquidity_score,
+                                        ) > 1}
+                                        class:minus={getLatestValue(
+                                            dashboardData.us_system_metrics
+                                                ?.liquidity_score,
+                                        ) < -1}
+                                        >{getLatestValue(
+                                            dashboardData.us_system_metrics
+                                                ?.liquidity_score,
+                                        ) > 1
+                                            ? translations.liquid_env ||
+                                              "Liquid"
+                                            : getLatestValue(
+                                                    dashboardData
+                                                        .us_system_metrics
+                                                        ?.liquidity_score,
+                                                ) < -1
+                                              ? translations.dry_env || "Dry"
+                                              : "—"}</td
+                                    >
+                                </tr>
+                                <tr>
+                                    <td
+                                        >{translations.netliq_roc ||
+                                            "Net Liq ROC"}</td
+                                    >
+                                    <td
+                                        class="roc-val"
+                                        class:positive={getLatestValue(
                                             dashboardData.us_system_metrics
                                                 ?.netliq_roc_20d,
-                                        ) ?? 0
-                                    ).toFixed(2)}%</td
-                                >
-                                <td
-                                    class="signal-cell"
-                                    class:plus={getLatestValue(
-                                        dashboardData.us_system_metrics
-                                            ?.netliq_roc_20d,
-                                    ) > 2}
-                                    class:minus={getLatestValue(
-                                        dashboardData.us_system_metrics
-                                            ?.netliq_roc_20d,
-                                    ) < -2}
-                                    >{getLatestValue(
-                                        dashboardData.us_system_metrics
-                                            ?.netliq_roc_20d,
-                                    ) > 2
-                                        ? "Risk-ON"
-                                        : getLatestValue(
+                                        ) > 0}
+                                        class:negative={getLatestValue(
+                                            dashboardData.us_system_metrics
+                                                ?.netliq_roc_20d,
+                                        ) < 0}
+                                        >{(
+                                            getLatestValue(
                                                 dashboardData.us_system_metrics
                                                     ?.netliq_roc_20d,
-                                            ) < -2
-                                          ? "Risk-OFF"
-                                          : "—"}</td
-                                >
-                            </tr>
-                            <tr>
-                                <td>Δ4W NetLiq</td>
-                                <td
-                                    class="roc-val"
-                                    class:positive={getLatestValue(
-                                        dashboardData.us_system_metrics
-                                            ?.netliq_delta_4w,
-                                    ) > 0}
-                                    class:negative={getLatestValue(
-                                        dashboardData.us_system_metrics
-                                            ?.netliq_delta_4w,
-                                    ) < 0}
-                                    >{(
-                                        (getLatestValue(
+                                            ) ?? 0
+                                        ).toFixed(2)}%</td
+                                    >
+                                    <td
+                                        class="signal-cell"
+                                        class:plus={getLatestValue(
+                                            dashboardData.us_system_metrics
+                                                ?.netliq_roc_20d,
+                                        ) > 2}
+                                        class:minus={getLatestValue(
+                                            dashboardData.us_system_metrics
+                                                ?.netliq_roc_20d,
+                                        ) < -2}
+                                        >{getLatestValue(
+                                            dashboardData.us_system_metrics
+                                                ?.netliq_roc_20d,
+                                        ) > 2
+                                            ? "Risk-ON"
+                                            : getLatestValue(
+                                                    dashboardData
+                                                        .us_system_metrics
+                                                        ?.netliq_roc_20d,
+                                                ) < -2
+                                              ? "Risk-OFF"
+                                              : "—"}</td
+                                    >
+                                </tr>
+                                <tr>
+                                    <td>Δ4W NetLiq</td>
+                                    <td
+                                        class="roc-val"
+                                        class:positive={getLatestValue(
                                             dashboardData.us_system_metrics
                                                 ?.netliq_delta_4w,
-                                        ) ?? 0) * 1000
-                                    ).toFixed(0)}B</td
-                                >
-                                <td
-                                    class="signal-cell"
-                                    class:plus={getLatestValue(
-                                        dashboardData.us_system_metrics
-                                            ?.netliq_delta_4w,
-                                    ) > 0.1}
-                                    class:minus={getLatestValue(
-                                        dashboardData.us_system_metrics
-                                            ?.netliq_delta_4w,
-                                    ) < -0.1}
-                                    >{getLatestValue(
-                                        dashboardData.us_system_metrics
-                                            ?.netliq_delta_4w,
-                                    ) > 0.1
-                                        ? "Bullish"
-                                        : getLatestValue(
+                                        ) > 0}
+                                        class:negative={getLatestValue(
+                                            dashboardData.us_system_metrics
+                                                ?.netliq_delta_4w,
+                                        ) < 0}
+                                        >{(
+                                            (getLatestValue(
                                                 dashboardData.us_system_metrics
                                                     ?.netliq_delta_4w,
-                                            ) < -0.1
-                                          ? "Bearish"
-                                          : "—"}</td
-                                >
-                            </tr>
-                            <tr>
-                                <td
-                                    >{translations.fed_momentum_label ||
-                                        "Fed Momentum"}</td
-                                >
-                                <td
-                                    class="roc-val"
-                                    class:positive={getLatestValue(
-                                        dashboardData.us_system_metrics
-                                            ?.fed_momentum,
-                                    ) > 0}
-                                    class:negative={getLatestValue(
-                                        dashboardData.us_system_metrics
-                                            ?.fed_momentum,
-                                    ) < 0}
-                                    >{(
-                                        getLatestValue(
+                                            ) ?? 0) * 1000
+                                        ).toFixed(0)}B</td
+                                    >
+                                    <td
+                                        class="signal-cell"
+                                        class:plus={getLatestValue(
+                                            dashboardData.us_system_metrics
+                                                ?.netliq_delta_4w,
+                                        ) > 0.1}
+                                        class:minus={getLatestValue(
+                                            dashboardData.us_system_metrics
+                                                ?.netliq_delta_4w,
+                                        ) < -0.1}
+                                        >{getLatestValue(
+                                            dashboardData.us_system_metrics
+                                                ?.netliq_delta_4w,
+                                        ) > 0.1
+                                            ? "Bullish"
+                                            : getLatestValue(
+                                                    dashboardData
+                                                        .us_system_metrics
+                                                        ?.netliq_delta_4w,
+                                                ) < -0.1
+                                              ? "Bearish"
+                                              : "—"}</td
+                                    >
+                                </tr>
+                                <tr>
+                                    <td
+                                        >{translations.fed_momentum_label ||
+                                            "Fed Momentum"}</td
+                                    >
+                                    <td
+                                        class="roc-val"
+                                        class:positive={getLatestValue(
                                             dashboardData.us_system_metrics
                                                 ?.fed_momentum,
-                                        ) ?? 0
-                                    ).toFixed(3)}T</td
-                                >
-                                <td
-                                    class="signal-cell"
-                                    class:plus={getLatestValue(
-                                        dashboardData.us_system_metrics
-                                            ?.fed_momentum,
-                                    ) > 0}
-                                    class:minus={getLatestValue(
-                                        dashboardData.us_system_metrics
-                                            ?.fed_momentum,
-                                    ) < 0}
-                                    >{getLatestValue(
-                                        dashboardData.us_system_metrics
-                                            ?.fed_momentum,
-                                    ) > 0
-                                        ? translations.regime_qe || "QE Mode"
-                                        : translations.regime_qt ||
-                                          "QT Mode"}</td
-                                >
-                            </tr>
-                        </tbody>
-                    </table>
+                                        ) > 0}
+                                        class:negative={getLatestValue(
+                                            dashboardData.us_system_metrics
+                                                ?.fed_momentum,
+                                        ) < 0}
+                                        >{(
+                                            getLatestValue(
+                                                dashboardData.us_system_metrics
+                                                    ?.fed_momentum,
+                                            ) ?? 0
+                                        ).toFixed(3)}T</td
+                                    >
+                                    <td
+                                        class="signal-cell"
+                                        class:plus={getLatestValue(
+                                            dashboardData.us_system_metrics
+                                                ?.fed_momentum,
+                                        ) > 0}
+                                        class:minus={getLatestValue(
+                                            dashboardData.us_system_metrics
+                                                ?.fed_momentum,
+                                        ) < 0}
+                                        >{getLatestValue(
+                                            dashboardData.us_system_metrics
+                                                ?.fed_momentum,
+                                        ) > 0
+                                            ? translations.regime_qe ||
+                                              "QE Mode"
+                                            : translations.regime_qt ||
+                                              "QT Mode"}</td
+                                    >
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -441,158 +460,167 @@
                     <h4>
                         {translations.reserves_velocity || "Reserves Velocity"}
                     </h4>
-                    <table class="metrics-table compact">
-                        <thead>
-                            <tr>
-                                <th>Metric</th>
-                                <th>Value</th>
-                                <th>Signal</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>{translations.roc_3m || "3M ROC"} (Res)</td>
-                                <td
-                                    class="roc-val"
-                                    class:positive={getLatestValue(
-                                        dashboardData.reserves_metrics
-                                            ?.reserves_roc_3m,
-                                    ) > 0}
-                                    class:negative={getLatestValue(
-                                        dashboardData.reserves_metrics
-                                            ?.reserves_roc_3m,
-                                    ) < 0}
-                                    >{(
-                                        getLatestValue(
+                    <div class="metrics-table-container">
+                        <table class="metrics-table compact">
+                            <thead>
+                                <tr>
+                                    <th>Metric</th>
+                                    <th>Value</th>
+                                    <th>Signal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td
+                                        >{translations.roc_3m || "3M ROC"} (Res)</td
+                                    >
+                                    <td
+                                        class="roc-val"
+                                        class:positive={getLatestValue(
                                             dashboardData.reserves_metrics
                                                 ?.reserves_roc_3m,
-                                        ) ?? 0
-                                    ).toFixed(2)}%</td
-                                >
-                                <td
-                                    class="signal-cell"
-                                    class:plus={getLatestValue(
-                                        dashboardData.reserves_metrics
-                                            ?.reserves_roc_3m,
-                                    ) > 0}
-                                    class:minus={getLatestValue(
-                                        dashboardData.reserves_metrics
-                                            ?.reserves_roc_3m,
-                                    ) < 0}
-                                    >{getLatestValue(
-                                        dashboardData.reserves_metrics
-                                            ?.reserves_roc_3m,
-                                    ) > 0
-                                        ? "QE"
-                                        : "QT"}</td
-                                >
-                            </tr>
-                            <tr>
-                                <td
-                                    >{translations.spread_zscore ||
-                                        "Spread Z-Score"}</td
-                                >
-                                <td
-                                    class="roc-val"
-                                    class:positive={getLatestValue(
-                                        dashboardData.reserves_metrics
-                                            ?.spread_zscore,
-                                    ) < -1}
-                                    class:negative={getLatestValue(
-                                        dashboardData.reserves_metrics
-                                            ?.spread_zscore,
-                                    ) > 2}
-                                    >{(
-                                        getLatestValue(
+                                        ) > 0}
+                                        class:negative={getLatestValue(
+                                            dashboardData.reserves_metrics
+                                                ?.reserves_roc_3m,
+                                        ) < 0}
+                                        >{(
+                                            getLatestValue(
+                                                dashboardData.reserves_metrics
+                                                    ?.reserves_roc_3m,
+                                            ) ?? 0
+                                        ).toFixed(2)}%</td
+                                    >
+                                    <td
+                                        class="signal-cell"
+                                        class:plus={getLatestValue(
+                                            dashboardData.reserves_metrics
+                                                ?.reserves_roc_3m,
+                                        ) > 0}
+                                        class:minus={getLatestValue(
+                                            dashboardData.reserves_metrics
+                                                ?.reserves_roc_3m,
+                                        ) < 0}
+                                        >{getLatestValue(
+                                            dashboardData.reserves_metrics
+                                                ?.reserves_roc_3m,
+                                        ) > 0
+                                            ? "QE"
+                                            : "QT"}</td
+                                    >
+                                </tr>
+                                <tr>
+                                    <td
+                                        >{translations.spread_zscore ||
+                                            "Spread Z-Score"}</td
+                                    >
+                                    <td
+                                        class="roc-val"
+                                        class:positive={getLatestValue(
                                             dashboardData.reserves_metrics
                                                 ?.spread_zscore,
-                                        ) ?? 0
-                                    ).toFixed(2)}</td
-                                >
-                                <td
-                                    class="signal-cell"
-                                    class:minus={getLatestValue(
-                                        dashboardData.reserves_metrics
-                                            ?.spread_zscore,
-                                    ) > 2}
-                                    class:plus={getLatestValue(
-                                        dashboardData.reserves_metrics
-                                            ?.spread_zscore,
-                                    ) < -1}
-                                    >{getLatestValue(
-                                        dashboardData.reserves_metrics
-                                            ?.spread_zscore,
-                                    ) > 2
-                                        ? translations.reserves_high_stress ||
-                                          "High Stress"
-                                        : getLatestValue(
+                                        ) < -1}
+                                        class:negative={getLatestValue(
+                                            dashboardData.reserves_metrics
+                                                ?.spread_zscore,
+                                        ) > 2}
+                                        >{(
+                                            getLatestValue(
                                                 dashboardData.reserves_metrics
                                                     ?.spread_zscore,
-                                            ) < -1
-                                          ? translations.reserves_low_stress ||
-                                            "Low Stress"
-                                          : translations.reserves_normal ||
-                                            "Normal"}</td
-                                >
-                            </tr>
-                            <tr>
-                                <td>{translations.momentum || "Momentum"}</td>
-                                <td
-                                    class="roc-val"
-                                    class:positive={getLatestValue(
-                                        dashboardData.reserves_metrics
-                                            ?.momentum,
-                                    ) > 0}
-                                    class:negative={getLatestValue(
-                                        dashboardData.reserves_metrics
-                                            ?.momentum,
-                                    ) < 0}
-                                    >{(
-                                        getLatestValue(
+                                            ) ?? 0
+                                        ).toFixed(2)}</td
+                                    >
+                                    <td
+                                        class="signal-cell"
+                                        class:minus={getLatestValue(
+                                            dashboardData.reserves_metrics
+                                                ?.spread_zscore,
+                                        ) > 2}
+                                        class:plus={getLatestValue(
+                                            dashboardData.reserves_metrics
+                                                ?.spread_zscore,
+                                        ) < -1}
+                                        >{getLatestValue(
+                                            dashboardData.reserves_metrics
+                                                ?.spread_zscore,
+                                        ) > 2
+                                            ? translations.reserves_high_stress ||
+                                              "High Stress"
+                                            : getLatestValue(
+                                                    dashboardData
+                                                        .reserves_metrics
+                                                        ?.spread_zscore,
+                                                ) < -1
+                                              ? translations.reserves_low_stress ||
+                                                "Low Stress"
+                                              : translations.reserves_normal ||
+                                                "Normal"}</td
+                                    >
+                                </tr>
+                                <tr>
+                                    <td
+                                        >{translations.momentum ||
+                                            "Momentum"}</td
+                                    >
+                                    <td
+                                        class="roc-val"
+                                        class:positive={getLatestValue(
                                             dashboardData.reserves_metrics
                                                 ?.momentum,
-                                        ) ?? 0
-                                    ).toFixed(4)}T</td
-                                >
-                                <td
-                                    class="signal-cell"
-                                    class:plus={getLatestValue(
-                                        dashboardData.reserves_metrics
-                                            ?.momentum,
-                                    ) > 0}
-                                    class:minus={getLatestValue(
-                                        dashboardData.reserves_metrics
-                                            ?.momentum,
-                                    ) < 0}
-                                    >{getLatestValue(
-                                        dashboardData.reserves_metrics
-                                            ?.momentum,
-                                    ) > 0
-                                        ? translations.reserves_bullish ||
-                                          "Bullish"
-                                        : translations.reserves_bearish ||
-                                          "Bearish"}</td
-                                >
-                            </tr>
-                            <tr>
-                                <td>{translations.lcr || "LCR"}</td>
-                                <td class="roc-val"
-                                    >{(
-                                        getLatestValue(
+                                        ) > 0}
+                                        class:negative={getLatestValue(
+                                            dashboardData.reserves_metrics
+                                                ?.momentum,
+                                        ) < 0}
+                                        >{(
+                                            getLatestValue(
+                                                dashboardData.reserves_metrics
+                                                    ?.momentum,
+                                            ) ?? 0
+                                        ).toFixed(4)}T</td
+                                    >
+                                    <td
+                                        class="signal-cell"
+                                        class:plus={getLatestValue(
+                                            dashboardData.reserves_metrics
+                                                ?.momentum,
+                                        ) > 0}
+                                        class:minus={getLatestValue(
+                                            dashboardData.reserves_metrics
+                                                ?.momentum,
+                                        ) < 0}
+                                        >{getLatestValue(
+                                            dashboardData.reserves_metrics
+                                                ?.momentum,
+                                        ) > 0
+                                            ? translations.reserves_bullish ||
+                                              "Bullish"
+                                            : translations.reserves_bearish ||
+                                              "Bearish"}</td
+                                    >
+                                </tr>
+                                <tr>
+                                    <td>{translations.lcr || "LCR"}</td>
+                                    <td class="roc-val"
+                                        >{(
+                                            getLatestValue(
+                                                dashboardData.reserves_metrics
+                                                    ?.lcr,
+                                            ) ?? 0
+                                        ).toFixed(2)}%</td
+                                    >
+                                    <td class="signal-cell"
+                                        >{getLatestValue(
                                             dashboardData.reserves_metrics?.lcr,
-                                        ) ?? 0
-                                    ).toFixed(2)}%</td
-                                >
-                                <td class="signal-cell"
-                                    >{getLatestValue(
-                                        dashboardData.reserves_metrics?.lcr,
-                                    ) < 30
-                                        ? "⚠️"
-                                        : "✓"}</td
-                                >
-                            </tr>
-                        </tbody>
-                    </table>
+                                        ) < 30
+                                            ? "⚠️"
+                                            : "✓"}</td
+                                    >
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>

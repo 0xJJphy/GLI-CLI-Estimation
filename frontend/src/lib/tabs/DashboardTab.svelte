@@ -59,11 +59,11 @@
     export let getLatestValue = (arr) => arr?.[arr?.length - 1] ?? 0;
 
     // Local time range states
-    let gliRange = "ALL";
-    let gliShowConstantFx = false;
-    let netLiqRange = "ALL";
-    let cliRange = "ALL";
-    let impulseRange = "ALL";
+    export let gliRange = "ALL";
+    export let gliShowConstantFx = false;
+    export let netLiqRange = "ALL";
+    export let cliRange = "ALL";
+    export let impulseRange = "ALL";
 </script>
 
 <!-- Stats Cards -->
@@ -157,33 +157,39 @@
                         <span class="health-dot"></span>
                         {translations.data_health || "Data Health"}
                     </h4>
-                    <table class="metrics-table health-table">
-                        <thead>
-                            <tr>
-                                <th>{translations.series || "Series"}</th>
-                                <th>{translations.real_date || "Last Date"}</th>
-                                <th>{translations.freshness || "Age"}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {#each Object.entries(dashboardData.series_metadata || {}) as [id, meta]}
+                    <div class="metrics-table-container">
+                        <table class="metrics-table health-table">
+                            <thead>
                                 <tr>
-                                    <td><strong>{id}</strong></td>
-                                    <td>{meta.last_date || "N/A"}</td>
-                                    <td>
-                                        <span
-                                            class="freshness-tag"
-                                            class:stale={meta.freshness > 7}
-                                        >
-                                            {meta.freshness === 0
-                                                ? "Today"
-                                                : (meta.freshness || "?") + "d"}
-                                        </span>
-                                    </td>
+                                    <th>{translations.series || "Series"}</th>
+                                    <th
+                                        >{translations.real_date ||
+                                            "Last Date"}</th
+                                    >
+                                    <th>{translations.freshness || "Age"}</th>
                                 </tr>
-                            {/each}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {#each Object.entries(dashboardData.series_metadata || {}) as [id, meta]}
+                                    <tr>
+                                        <td><strong>{id}</strong></td>
+                                        <td>{meta.last_date || "N/A"}</td>
+                                        <td>
+                                            <span
+                                                class="freshness-tag"
+                                                class:stale={meta.freshness > 7}
+                                            >
+                                                {meta.freshness === 0
+                                                    ? "Today"
+                                                    : (meta.freshness || "?") +
+                                                      "d"}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                {/each}
+                            </tbody>
+                        </table>
+                    </div>
                     {#if dashboardData.series_metadata?.GLI?.cb_count}
                         <div class="coverage-note">
                             {translations.active_cbs || "Active CBs"}:
@@ -198,73 +204,75 @@
                 <!-- GLI Composition -->
                 <div class="metrics-section">
                     <h4>{translations.chart_gli_comp || "GLI Composition"}</h4>
-                    <table class="metrics-table">
-                        <thead>
-                            <tr>
-                                <th>{translations.bank || "Bank"}</th>
-                                <th>{translations.weight || "Wgt"}</th>
-                                <th>1M</th>
-                                <th
-                                    title={translations.impact_1m ||
-                                        "Impact 1M"}>Imp</th
-                                >
-                                <th>3M</th>
-                                <th
-                                    title={translations.impact_3m ||
-                                        "Impact 3M"}>Imp</th
-                                >
-                                <th>1Y</th>
-                                <th
-                                    title={translations.impact_1y ||
-                                        "Impact 1Y"}>Imp</th
-                                >
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {#each gliWeights.slice(0, 10) as bank}
+                    <div class="metrics-table-container">
+                        <table class="metrics-table">
+                            <thead>
                                 <tr>
-                                    <td>{bank.name}</td>
-                                    <td>{bank.weight.toFixed(0)}%</td>
-                                    <td
-                                        class="roc-val"
-                                        class:positive={bank.m1 > 0}
-                                        class:negative={bank.m1 < 0}
-                                        >{bank.m1.toFixed(1)}%</td
+                                    <th>Bank</th>
+                                    <th>Wgt</th>
+                                    <th>1M</th>
+                                    <th
+                                        title={translations.impact_1m ||
+                                            "Impact 1M"}>Imp</th
                                     >
-                                    <td
-                                        class="roc-val impact-cell"
-                                        class:positive={bank.imp1 > 0}
-                                        class:negative={bank.imp1 < 0}
-                                        >{bank.imp1.toFixed(2)}%</td
+                                    <th>3M</th>
+                                    <th
+                                        title={translations.impact_3m ||
+                                            "Impact 3M"}>Imp</th
                                     >
-                                    <td
-                                        class="roc-val"
-                                        class:positive={bank.m3 > 0}
-                                        class:negative={bank.m3 < 0}
-                                        >{bank.m3.toFixed(1)}%</td
-                                    >
-                                    <td
-                                        class="roc-val impact-cell"
-                                        class:positive={bank.imp3 > 0}
-                                        class:negative={bank.imp3 < 0}
-                                        >{bank.imp3.toFixed(2)}%</td
-                                    >
-                                    <td
-                                        class="roc-val"
-                                        class:positive={bank.y1 > 0}
-                                        class:negative={bank.y1 < 0}
-                                        >{bank.y1.toFixed(1)}%</td
-                                    >
-                                    <td
-                                        class="roc-val impact-cell"
-                                        class:positive={bank.imp1y > 0}
-                                        class:negative={bank.imp1y < 0}
-                                        >{bank.imp1y.toFixed(2)}%</td
+                                    <th>1Y</th>
+                                    <th
+                                        title={translations.impact_1y ||
+                                            "Impact 1Y"}>Imp</th
                                     >
                                 </tr>
-                            {/each}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {#each gliWeights.slice(0, 10) as bank}
+                                    <tr>
+                                        <td>{bank.name}</td>
+                                        <td>{bank.weight.toFixed(0)}%</td>
+                                        <td
+                                            class="roc-val"
+                                            class:positive={bank.m1 > 0}
+                                            class:negative={bank.m1 < 0}
+                                            >{bank.m1.toFixed(1)}%</td
+                                        >
+                                        <td
+                                            class="roc-val impact-cell"
+                                            class:positive={bank.imp1 > 0}
+                                            class:negative={bank.imp1 < 0}
+                                            >{bank.imp1.toFixed(2)}%</td
+                                        >
+                                        <td
+                                            class="roc-val"
+                                            class:positive={bank.m3 > 0}
+                                            class:negative={bank.m3 < 0}
+                                            >{bank.m3.toFixed(1)}%</td
+                                        >
+                                        <td
+                                            class="roc-val impact-cell"
+                                            class:positive={bank.imp3 > 0}
+                                            class:negative={bank.imp3 < 0}
+                                            >{bank.imp3.toFixed(2)}%</td
+                                        >
+                                        <td
+                                            class="roc-val"
+                                            class:positive={bank.y1 > 0}
+                                            class:negative={bank.y1 < 0}
+                                            >{bank.y1.toFixed(1)}%</td
+                                        >
+                                        <td
+                                            class="roc-val impact-cell"
+                                            class:positive={bank.imp1y > 0}
+                                            class:negative={bank.imp1y < 0}
+                                            >{bank.imp1y.toFixed(2)}%</td
+                                        >
+                                    </tr>
+                                {/each}
+                            </tbody>
+                        </table>
+                    </div>
                     <p
                         style="font-size: 10px; color: #94a3b8; margin-top: 8px;"
                     >
@@ -283,80 +291,85 @@
                         {translations.flow_desc ||
                             "13-week rolling change in liquidity."}
                     </p>
-                    <table class="metrics-table">
-                        <thead>
-                            <tr>
-                                <th>{translations.economy || "Economy"}</th>
-                                <th>Impulse (13W)</th>
-                                <th>Accel</th>
-                                <th>Z-Score</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {#each [{ name: "Global Liquidity", key: "gli" }, { name: "Global M2", key: "m2" }] as aggregate}
+                    <div class="metrics-table-container">
+                        <table class="metrics-table">
+                            <thead>
                                 <tr>
-                                    <td><strong>{aggregate.name}</strong></td>
-                                    <td
-                                        class="roc-val"
-                                        class:positive={getLatestValue(
-                                            dashboardData.flow_metrics?.[
-                                                `${aggregate.key}_impulse_13w`
-                                            ],
-                                        ) > 0}
-                                        class:negative={getLatestValue(
-                                            dashboardData.flow_metrics?.[
-                                                `${aggregate.key}_impulse_13w`
-                                            ],
-                                        ) < 0}
-                                    >
-                                        {getLatestValue(
-                                            dashboardData.flow_metrics?.[
-                                                `${aggregate.key}_impulse_13w`
-                                            ],
-                                        )?.toFixed(2)}T
-                                    </td>
-                                    <td
-                                        class="roc-val"
-                                        class:positive={getLatestValue(
-                                            dashboardData.flow_metrics?.[
-                                                `${aggregate.key}_accel`
-                                            ],
-                                        ) > 0}
-                                        class:negative={getLatestValue(
-                                            dashboardData.flow_metrics?.[
-                                                `${aggregate.key}_accel`
-                                            ],
-                                        ) < 0}
-                                    >
-                                        {getLatestValue(
-                                            dashboardData.flow_metrics?.[
-                                                `${aggregate.key}_accel`
-                                            ],
-                                        )?.toFixed(2)}T
-                                    </td>
-                                    <td
-                                        class="signal-cell"
-                                        class:plus={getLatestValue(
-                                            dashboardData.flow_metrics?.[
-                                                `${aggregate.key}_impulse_zscore`
-                                            ],
-                                        ) > 1}
-                                        class:minus={getLatestValue(
-                                            dashboardData.flow_metrics?.[
-                                                `${aggregate.key}_impulse_zscore`
-                                            ],
-                                        ) < -1}
-                                    >
-                                        {getLatestValue(
-                                            dashboardData.flow_metrics?.[
-                                                `${aggregate.key}_impulse_zscore`
-                                            ],
-                                        )?.toFixed(2)}σ
-                                    </td>
+                                    <th>{translations.economy || "Economy"}</th>
+                                    <th>Impulse (13W)</th>
+                                    <th>Accel</th>
+                                    <th>Z-Score</th>
                                 </tr>
-                            {/each}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {#each [{ name: "Global Liquidity", key: "gli" }, { name: "Global M2", key: "m2" }] as aggregate}
+                                    <tr>
+                                        <td
+                                            ><strong>{aggregate.name}</strong
+                                            ></td
+                                        >
+                                        <td
+                                            class="roc-val"
+                                            class:positive={getLatestValue(
+                                                dashboardData.flow_metrics?.[
+                                                    `${aggregate.key}_impulse_13w`
+                                                ],
+                                            ) > 0}
+                                            class:negative={getLatestValue(
+                                                dashboardData.flow_metrics?.[
+                                                    `${aggregate.key}_impulse_13w`
+                                                ],
+                                            ) < 0}
+                                        >
+                                            {getLatestValue(
+                                                dashboardData.flow_metrics?.[
+                                                    `${aggregate.key}_impulse_13w`
+                                                ],
+                                            )?.toFixed(2)}T
+                                        </td>
+                                        <td
+                                            class="roc-val"
+                                            class:positive={getLatestValue(
+                                                dashboardData.flow_metrics?.[
+                                                    `${aggregate.key}_accel`
+                                                ],
+                                            ) > 0}
+                                            class:negative={getLatestValue(
+                                                dashboardData.flow_metrics?.[
+                                                    `${aggregate.key}_accel`
+                                                ],
+                                            ) < 0}
+                                        >
+                                            {getLatestValue(
+                                                dashboardData.flow_metrics?.[
+                                                    `${aggregate.key}_accel`
+                                                ],
+                                            )?.toFixed(2)}T
+                                        </td>
+                                        <td
+                                            class="signal-cell"
+                                            class:plus={getLatestValue(
+                                                dashboardData.flow_metrics?.[
+                                                    `${aggregate.key}_impulse_zscore`
+                                                ],
+                                            ) > 1}
+                                            class:minus={getLatestValue(
+                                                dashboardData.flow_metrics?.[
+                                                    `${aggregate.key}_impulse_zscore`
+                                                ],
+                                            ) < -1}
+                                        >
+                                            {getLatestValue(
+                                                dashboardData.flow_metrics?.[
+                                                    `${aggregate.key}_impulse_zscore`
+                                                ],
+                                            )?.toFixed(2)}σ
+                                        </td>
+                                    </tr>
+                                {/each}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
                 <!-- CB Contribution -->
@@ -364,71 +377,79 @@
                     <h4>
                         🏦 {translations.cb_contribution || "CB Contribution"}
                     </h4>
-                    <table class="metrics-table">
-                        <thead>
-                            <tr>
-                                <th>CB</th>
-                                <th>Contrib Δ13W</th>
-                                <th>Signal</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {#each [{ name: "Fed", key: "fed" }, { name: "ECB", key: "ecb" }, { name: "BoJ", key: "boj" }, { name: "PBoC", key: "pboc" }, { name: "BoE", key: "boe" }] as cb}
-                                {#if getLatestValue(dashboardData.flow_metrics?.[`${cb.key}_contrib_13w`]) !== undefined}
-                                    <tr>
-                                        <td>{cb.name}</td>
-                                        <td
-                                            class="roc-val"
-                                            class:positive={getLatestValue(
-                                                dashboardData.flow_metrics?.[
-                                                    `${cb.key}_contrib_13w`
-                                                ],
-                                            ) > 0}
-                                            class:negative={getLatestValue(
-                                                dashboardData.flow_metrics?.[
-                                                    `${cb.key}_contrib_13w`
-                                                ],
-                                            ) < 0}
-                                        >
-                                            {getLatestValue(
-                                                dashboardData.flow_metrics?.[
-                                                    `${cb.key}_contrib_13w`
-                                                ],
-                                            )?.toFixed(1)}%
-                                        </td>
-                                        <td
-                                            class="signal-cell"
-                                            class:plus={getLatestValue(
-                                                dashboardData.flow_metrics?.[
-                                                    `${cb.key}_contrib_13w`
-                                                ],
-                                            ) > 20}
-                                            class:minus={getLatestValue(
-                                                dashboardData.flow_metrics?.[
-                                                    `${cb.key}_contrib_13w`
-                                                ],
-                                            ) < -5}
-                                        >
-                                            {getLatestValue(
-                                                dashboardData.flow_metrics?.[
-                                                    `${cb.key}_contrib_13w`
-                                                ],
-                                            ) > 20
-                                                ? "Driver"
-                                                : getLatestValue(
-                                                        dashboardData
-                                                            .flow_metrics?.[
-                                                            `${cb.key}_contrib_13w`
-                                                        ],
-                                                    ) < -5
-                                                  ? "QT"
-                                                  : "—"}
-                                        </td>
-                                    </tr>
-                                {/if}
-                            {/each}
-                        </tbody>
-                    </table>
+                    <div class="metrics-table-container">
+                        <table class="metrics-table">
+                            <thead>
+                                <tr>
+                                    <th>CB</th>
+                                    <th>Contrib Δ13W</th>
+                                    <th>Signal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {#each [{ name: "Fed", key: "fed" }, { name: "ECB", key: "ecb" }, { name: "BoJ", key: "boj" }, { name: "PBoC", key: "pboc" }, { name: "BoE", key: "boe" }] as cb}
+                                    {#if getLatestValue(dashboardData.flow_metrics?.[`${cb.key}_contrib_13w`]) !== undefined}
+                                        <tr>
+                                            <td>{cb.name}</td>
+                                            <td
+                                                class="roc-val"
+                                                class:positive={getLatestValue(
+                                                    dashboardData
+                                                        .flow_metrics?.[
+                                                        `${cb.key}_contrib_13w`
+                                                    ],
+                                                ) > 0}
+                                                class:negative={getLatestValue(
+                                                    dashboardData
+                                                        .flow_metrics?.[
+                                                        `${cb.key}_contrib_13w`
+                                                    ],
+                                                ) < 0}
+                                            >
+                                                {getLatestValue(
+                                                    dashboardData
+                                                        .flow_metrics?.[
+                                                        `${cb.key}_contrib_13w`
+                                                    ],
+                                                )?.toFixed(1)}%
+                                            </td>
+                                            <td
+                                                class="signal-cell"
+                                                class:plus={getLatestValue(
+                                                    dashboardData
+                                                        .flow_metrics?.[
+                                                        `${cb.key}_contrib_13w`
+                                                    ],
+                                                ) > 20}
+                                                class:minus={getLatestValue(
+                                                    dashboardData
+                                                        .flow_metrics?.[
+                                                        `${cb.key}_contrib_13w`
+                                                    ],
+                                                ) < -5}
+                                            >
+                                                {getLatestValue(
+                                                    dashboardData
+                                                        .flow_metrics?.[
+                                                        `${cb.key}_contrib_13w`
+                                                    ],
+                                                ) > 20
+                                                    ? "Driver"
+                                                    : getLatestValue(
+                                                            dashboardData
+                                                                .flow_metrics?.[
+                                                                `${cb.key}_contrib_13w`
+                                                            ],
+                                                        ) < -5
+                                                      ? "QT"
+                                                      : "—"}
+                                            </td>
+                                        </tr>
+                                    {/if}
+                                {/each}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -470,131 +491,146 @@
                     <h4>
                         {translations.chart_us_comp || "US System Components"}
                     </h4>
-                    <table class="metrics-table">
-                        <thead>
-                            <tr>
-                                <th>{translations.account || "Account"}</th>
-                                <th>1M</th>
-                                <th title="Absolute change in Billions USD"
-                                    >$ Δ1M</th
-                                >
-                                <th title={translations.impact_us || "Impact"}
-                                    >Imp</th
-                                >
-                                <th>3M</th>
-                                <th title={translations.impact_us || "Impact"}
-                                    >Imp</th
-                                >
-                                <th>1Y</th>
-                                <th title={translations.impact_us || "Impact"}
-                                    >Imp</th
-                                >
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {#each usSystemMetrics as item}
+                    <div class="metrics-table-container">
+                        <table class="metrics-table">
+                            <thead>
                                 <tr>
-                                    <td>{item.name}</td>
-                                    <td
-                                        class="roc-val"
-                                        class:positive={(!item.isLiability &&
-                                            item.m1 > 0) ||
-                                            (item.isLiability && item.m1 < 0)}
-                                        class:negative={(!item.isLiability &&
-                                            item.m1 < 0) ||
-                                            (item.isLiability && item.m1 > 0)}
-                                        >{item.m1.toFixed(1)}%</td
+                                    <th>Acc</th>
+                                    <th>1M</th>
+                                    <th title="Absolute change in Billions USD"
+                                        >Δ$1M</th
                                     >
-                                    <td
-                                        class="roc-val"
-                                        class:positive={(!item.isLiability &&
-                                            item.delta1 > 0) ||
-                                            (item.isLiability &&
-                                                item.delta1 < 0)}
-                                        class:negative={(!item.isLiability &&
-                                            item.delta1 < 0) ||
-                                            (item.isLiability &&
-                                                item.delta1 > 0)}
-                                        >{item.delta1 > 0
-                                            ? "+"
-                                            : ""}{item.delta1.toFixed(0)}B</td
+                                    <th
+                                        title={translations.impact_us ||
+                                            "Impact"}>Imp</th
                                     >
-                                    <td
-                                        class="roc-val impact-cell"
-                                        class:positive={item.imp1 > 0}
-                                        class:negative={item.imp1 < 0}
-                                        >{item.imp1.toFixed(2)}%</td
+                                    <th>3M</th>
+                                    <th
+                                        title={translations.impact_us ||
+                                            "Impact"}>Imp</th
                                     >
-                                    <td
-                                        class="roc-val"
-                                        class:positive={(!item.isLiability &&
-                                            item.m3 > 0) ||
-                                            (item.isLiability && item.m3 < 0)}
-                                        class:negative={(!item.isLiability &&
-                                            item.m3 < 0) ||
-                                            (item.isLiability && item.m3 > 0)}
-                                        >{item.m3.toFixed(1)}%</td
-                                    >
-                                    <td
-                                        class="roc-val impact-cell"
-                                        class:positive={item.imp3 > 0}
-                                        class:negative={item.imp3 < 0}
-                                        >{item.imp3.toFixed(2)}%</td
-                                    >
-                                    <td
-                                        class="roc-val"
-                                        class:positive={(!item.isLiability &&
-                                            item.y1 > 0) ||
-                                            (item.isLiability && item.y1 < 0)}
-                                        class:negative={(!item.isLiability &&
-                                            item.y1 < 0) ||
-                                            (item.isLiability && item.y1 > 0)}
-                                        >{item.y1.toFixed(1)}%</td
-                                    >
-                                    <td
-                                        class="roc-val impact-cell"
-                                        class:positive={item.imp1y > 0}
-                                        class:negative={item.imp1y < 0}
-                                        >{item.imp1y.toFixed(2)}%</td
+                                    <th>1Y</th>
+                                    <th
+                                        title={translations.impact_us ||
+                                            "Impact"}>Imp</th
                                     >
                                 </tr>
-                            {/each}
-                            <tr class="total-row">
-                                <td><strong>TOTAL</strong></td>
-                                <td>-</td>
-                                <td
-                                    class="roc-val"
-                                    class:positive={usSystemTotal.delta1 > 0}
-                                    class:negative={usSystemTotal.delta1 < 0}
-                                    >{usSystemTotal.delta1 > 0
-                                        ? "+"
-                                        : ""}{usSystemTotal.delta1.toFixed(
-                                        0,
-                                    )}B</td
-                                >
-                                <td
-                                    class="roc-val impact-cell"
-                                    class:positive={usSystemTotal.imp1 > 0}
-                                    class:negative={usSystemTotal.imp1 < 0}
-                                    >{usSystemTotal.imp1.toFixed(2)}%</td
-                                >
-                                <td>-</td>
-                                <td
-                                    class="roc-val impact-cell"
-                                    class:positive={usSystemTotal.imp3 > 0}
-                                    class:negative={usSystemTotal.imp3 < 0}
-                                    >{usSystemTotal.imp3.toFixed(2)}%</td
-                                >
-                                <td>-</td>
-                                <td
-                                    class="roc-val impact-cell"
-                                    class:positive={usSystemTotal.imp1y > 0}
-                                    class:negative={usSystemTotal.imp1y < 0}
-                                    >{usSystemTotal.imp1y.toFixed(2)}%</td
-                                >
-                            </tr>
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {#each usSystemMetrics as item}
+                                    <tr>
+                                        <td>{item.name}</td>
+                                        <td
+                                            class="roc-val"
+                                            class:positive={(!item.isLiability &&
+                                                item.m1 > 0) ||
+                                                (item.isLiability &&
+                                                    item.m1 < 0)}
+                                            class:negative={(!item.isLiability &&
+                                                item.m1 < 0) ||
+                                                (item.isLiability &&
+                                                    item.m1 > 0)}
+                                            >{item.m1.toFixed(1)}%</td
+                                        >
+                                        <td
+                                            class="roc-val"
+                                            class:positive={(!item.isLiability &&
+                                                item.delta1 > 0) ||
+                                                (item.isLiability &&
+                                                    item.delta1 < 0)}
+                                            class:negative={(!item.isLiability &&
+                                                item.delta1 < 0) ||
+                                                (item.isLiability &&
+                                                    item.delta1 > 0)}
+                                            >{item.delta1 > 0
+                                                ? "+"
+                                                : ""}{item.delta1.toFixed(
+                                                0,
+                                            )}B</td
+                                        >
+                                        <td
+                                            class="roc-val impact-cell"
+                                            class:positive={item.imp1 > 0}
+                                            class:negative={item.imp1 < 0}
+                                            >{item.imp1.toFixed(2)}%</td
+                                        >
+                                        <td
+                                            class="roc-val"
+                                            class:positive={(!item.isLiability &&
+                                                item.m3 > 0) ||
+                                                (item.isLiability &&
+                                                    item.m3 < 0)}
+                                            class:negative={(!item.isLiability &&
+                                                item.m3 < 0) ||
+                                                (item.isLiability &&
+                                                    item.m3 > 0)}
+                                            >{item.m3.toFixed(1)}%</td
+                                        >
+                                        <td
+                                            class="roc-val impact-cell"
+                                            class:positive={item.imp3 > 0}
+                                            class:negative={item.imp3 < 0}
+                                            >{item.imp3.toFixed(2)}%</td
+                                        >
+                                        <td
+                                            class="roc-val"
+                                            class:positive={(!item.isLiability &&
+                                                item.y1 > 0) ||
+                                                (item.isLiability &&
+                                                    item.y1 < 0)}
+                                            class:negative={(!item.isLiability &&
+                                                item.y1 < 0) ||
+                                                (item.isLiability &&
+                                                    item.y1 > 0)}
+                                            >{item.y1.toFixed(1)}%</td
+                                        >
+                                        <td
+                                            class="roc-val impact-cell"
+                                            class:positive={item.imp1y > 0}
+                                            class:negative={item.imp1y < 0}
+                                            >{item.imp1y.toFixed(2)}%</td
+                                        >
+                                    </tr>
+                                {/each}
+                                <tr class="total-row">
+                                    <td><strong>TOTAL</strong></td>
+                                    <td>-</td>
+                                    <td
+                                        class="roc-val"
+                                        class:positive={usSystemTotal.delta1 >
+                                            0}
+                                        class:negative={usSystemTotal.delta1 <
+                                            0}
+                                        >{usSystemTotal.delta1 > 0
+                                            ? "+"
+                                            : ""}{usSystemTotal.delta1.toFixed(
+                                            0,
+                                        )}B</td
+                                    >
+                                    <td
+                                        class="roc-val impact-cell"
+                                        class:positive={usSystemTotal.imp1 > 0}
+                                        class:negative={usSystemTotal.imp1 < 0}
+                                        >{usSystemTotal.imp1.toFixed(2)}%</td
+                                    >
+                                    <td>-</td>
+                                    <td
+                                        class="roc-val impact-cell"
+                                        class:positive={usSystemTotal.imp3 > 0}
+                                        class:negative={usSystemTotal.imp3 < 0}
+                                        >{usSystemTotal.imp3.toFixed(2)}%</td
+                                    >
+                                    <td>-</td>
+                                    <td
+                                        class="roc-val impact-cell"
+                                        class:positive={usSystemTotal.imp1y > 0}
+                                        class:negative={usSystemTotal.imp1y < 0}
+                                        >{usSystemTotal.imp1y.toFixed(2)}%</td
+                                    >
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
