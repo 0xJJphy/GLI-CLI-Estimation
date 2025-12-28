@@ -14,6 +14,7 @@
     export let language = "en";
     export let translations = {};
     export let dashboardData = {};
+    /** @type {{ gli?: { value: number, change: number }, us_net_liq?: { value: number, change: number }, cli?: { value: number, change: number }, vix?: { value: number, change: number } } | null} */
     export let latestStats = null;
 
     // Chart data
