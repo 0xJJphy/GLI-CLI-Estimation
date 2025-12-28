@@ -423,7 +423,25 @@
     darkMode = savedTheme === "dark";
     language = savedLang || "en";
     applyTheme();
+    loadOptimizedParams();
   });
+
+  async function loadOptimizedParams() {
+    try {
+      const response = await fetch("/regime_params.json");
+      if (response.ok) {
+        const params = await response.json();
+        if (params.recommended_offset_days !== undefined) {
+          regimeLag = params.recommended_offset_days;
+          console.log(
+            `[Optimized] Loaded regimeLag = ${regimeLag} from regime_params.json`,
+          );
+        }
+      }
+    } catch (e) {
+      console.warn("Could not load optimized regime params, using default.", e);
+    }
+  }
 
   function toggleDarkMode() {
     darkMode = !darkMode;
@@ -752,7 +770,7 @@
 
   let btcRocPeriod = 21; // Default 1 Month (21 trading days)
   let btcLag = 0; // Default 0 lag
-  let regimeLag = 72; // Default 72 days lag for Regime Chart
+  let regimeLag = 42; // Optimized offset from train_regime_offset.py (was 72)
   let normalizeImpulse = true; // Always Normalized (Z-Score)
   let showComposite = false; // Toggle for Composite Aggregate Signal
   let optimalLagLabel = "N/A"; // Display string for UI
