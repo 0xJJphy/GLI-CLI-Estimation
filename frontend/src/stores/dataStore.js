@@ -131,7 +131,8 @@ export const dashboardData = writable({
         repo_stress: [],
         real_rate_shock_4w: [],
         reserves_spread_z: []
-    }
+    },
+    signals: {}
 });
 
 export const isLoading = writable(true);

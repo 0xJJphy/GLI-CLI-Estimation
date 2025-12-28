@@ -12,6 +12,9 @@
     export let translations = {};
     export let dashboardData = {};
 
+    // Satisfy lint for unused language prop
+    $: _lang = language;
+
     // Chart data
     export let cliData = [];
     export let hyZData = [];
@@ -98,7 +101,59 @@
             descKey: "vix",
         },
     ];
+
+    // --- Backend Signals Integration ---
+    $: signals = dashboardData?.signals || {};
+
+    const signalConfig = [
+        { id: "cli", label: "CLI Stance" },
+        { id: "hy", label: "HY Momentum" },
+        { id: "ig", label: "IG Momentum" },
+        { id: "nfci_credit", label: "Credit (NFCI)" },
+        { id: "nfci_risk", label: "Risk (NFCI)" },
+        { id: "lending", label: "Lending (SLOOS)" },
+        { id: "vix", label: "Volatility (VIX)" },
+        { id: "tips", label: "Macro (TIPS)" },
+        { id: "repo", label: "Liquidity (SOFR)" },
+    ];
+
+    const getStatusLabel = (state) => {
+        if (state === "bullish") return "BULLISH";
+        if (state === "bearish") return "BEARISH";
+        if (state === "warning") return "WARNING";
+        return "NEUTRAL";
+    };
+
+    $: bullCount = Object.values(signals).filter(
+        (s) => s.state === "bullish",
+    ).length;
+    $: bearCount = Object.values(signals).filter(
+        (s) => s.state === "bearish",
+    ).length;
+    $: aggregateState =
+        bullCount > bearCount + 1
+            ? "bullish"
+            : bearCount > bullCount + 1
+              ? "bearish"
+              : "neutral";
 </script>
+
+<!-- Header with Aggregate Stance -->
+<div class="risk-header-summary">
+    <div class="regime-badge bg-{aggregateState}">
+        <span style="font-size: 1.2rem;"
+            >{aggregateState === "bullish"
+                ? "🚀"
+                : aggregateState === "bearish"
+                  ? "⚠️"
+                  : "⚖️"}</span
+        >
+        {aggregateState.toUpperCase()} STANCE
+    </div>
+    <div class="stance-details">
+        {bullCount} Bullish | {bearCount} Bearish | {signalConfig.length} Factors
+    </div>
+</div>
 
 <div class="main-charts">
     <div class="grid-2">
@@ -126,6 +181,59 @@
             <div class="chart-content">
                 <Chart {darkMode} data={tipsData} layout={tipsLayout} />
             </div>
+
+            {#if signals.tips}
+                <div
+                    class="metrics-section"
+                    style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;"
+                >
+                    <div
+                        class="signal-item"
+                        style="background: rgba(0,0,0,0.15); border: none;"
+                    >
+                        <div class="signal-label">Macro Signal (TIPS)</div>
+                        <div class="signal-status text-{signals.tips.state}">
+                            <span class="signal-dot"></span>
+                            {getStatusLabel(signals.tips.state)}
+                        </div>
+                        <div
+                            class="signal-value"
+                            style="font-size: 0.8rem; display: flex; gap: 12px;"
+                        >
+                            <span
+                                >RR Δ: <b
+                                    class={signals.tips.rr_delta > 0.4
+                                        ? "text-bearish"
+                                        : "text-neutral"}
+                                    >{signals.tips.rr_delta > 0
+                                        ? "+"
+                                        : ""}{signals.tips.rr_delta}</b
+                                ></span
+                            >
+                            <span
+                                >BE Δ: <b
+                                    class={signals.tips.be_delta > 0.15
+                                        ? "text-bullish"
+                                        : "text-neutral"}
+                                    >{signals.tips.be_delta > 0
+                                        ? "+"
+                                        : ""}{signals.tips.be_delta}</b
+                                ></span
+                            >
+                            <span
+                                >5Y5Y Δ: <b
+                                    class={signals.tips.fwd_delta < -0.15
+                                        ? "text-warning"
+                                        : "text-neutral"}
+                                    >{signals.tips.fwd_delta > 0
+                                        ? "+"
+                                        : ""}{signals.tips.fwd_delta}</b
+                                ></span
+                            >
+                        </div>
+                    </div>
+                </div>
+            {/if}
         </div>
 
         <!-- CLI Aggregate Chart -->
@@ -149,6 +257,33 @@
             <div class="chart-content">
                 <Chart {darkMode} data={cliData} />
             </div>
+
+            {#if signals.cli}
+                <div
+                    class="metrics-section"
+                    style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;"
+                >
+                    <div
+                        class="signal-item"
+                        style="background: rgba(0,0,0,0.15); border: none;"
+                    >
+                        <div class="signal-label">CLI Stance</div>
+                        <div class="signal-status text-{signals.cli.state}">
+                            <span class="signal-dot"></span>
+                            {getStatusLabel(signals.cli.state)}
+                        </div>
+                        <div class="signal-value">
+                            Score: {signals.cli.value > 0 ? "+" : ""}{signals
+                                .cli.value}
+                            <span style="margin-left: 8px; opacity: 0.7;"
+                                >(Momentum: {signals.cli.momentum > 0
+                                    ? "+"
+                                    : ""}{signals.cli.momentum})</span
+                            >
+                        </div>
+                    </div>
+                </div>
+            {/if}
         </div>
 
         <!-- Repo Stress Chart -->
@@ -208,42 +343,22 @@
                                     style="vertical-align: middle; text-align: center; background: rgba(0,0,0,0.1); border-radius: 8px;"
                                 >
                                     <div
-                                        class:text-bullish={getLatestValue(
-                                            dashboardData.repo_stress?.sofr,
-                                        ) -
-                                            getLatestValue(
-                                                dashboardData.repo_stress?.iorb,
-                                            ) >
-                                            0}
-                                        class:text-bearish={getLatestValue(
-                                            dashboardData.repo_stress?.sofr,
-                                        ) -
-                                            getLatestValue(
-                                                dashboardData.repo_stress?.iorb,
-                                            ) <
-                                            -0.05}
+                                        class:text-bullish={signals.repo
+                                            ?.state === "bullish"}
+                                        class:text-bearish={signals.repo
+                                            ?.state === "bearish"}
                                         style="font-weight: 800; font-size: 1.1rem;"
                                     >
-                                        {(
-                                            (getLatestValue(
-                                                dashboardData.repo_stress?.sofr,
-                                            ) ?? 0) -
-                                            (getLatestValue(
-                                                dashboardData.repo_stress?.iorb,
-                                            ) ?? 0)
-                                        ).toFixed(2)} bps
+                                        {(signals.repo?.value ?? 0).toFixed(3)} bps
                                     </div>
                                     <div
                                         style="font-size: 14px; margin-top: 4px;"
                                     >
-                                        {getLatestValue(
-                                            dashboardData.repo_stress?.sofr,
-                                        ) >
-                                        getLatestValue(
-                                            dashboardData.repo_stress?.iorb,
-                                        )
-                                            ? "✅ OK"
-                                            : "⚠️ STRESS"}
+                                        {#if signals.repo?.state === "bullish" || signals.repo?.state === "neutral"}
+                                            ✅ OK
+                                        {:else}
+                                            ⚠️ STRESS
+                                        {/if}
                                     </div>
                                 </td>
                             </tr>
@@ -286,6 +401,28 @@
                 <div class="chart-content">
                     <Chart {darkMode} data={item.data} />
                 </div>
+
+                {#if signals[item.id === "vix_z" ? "vix" : item.id]}
+                    {@const s = signals[item.id === "vix_z" ? "vix" : item.id]}
+                    <div
+                        class="metrics-section"
+                        style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;"
+                    >
+                        <div
+                            class="signal-item"
+                            style="background: rgba(0,0,0,0.15); border: none;"
+                        >
+                            <div class="signal-label">{item.name} Signal</div>
+                            <div class="signal-status text-{s.state}">
+                                <span class="signal-dot"></span>
+                                {getStatusLabel(s.state)}
+                            </div>
+                            <div class="signal-value">
+                                Z-Score: {s.value > 0 ? "+" : ""}{s.value}
+                            </div>
+                        </div>
+                    </div>
+                {/if}
             </div>
         {/each}
     </div>

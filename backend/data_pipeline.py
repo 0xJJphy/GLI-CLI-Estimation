@@ -841,6 +841,120 @@ def calculate_flow_metrics(df):
     return result
 
 
+def calculate_signals(df, cli_df):
+    """
+    Calculates operational signals with hysteresis and trend confirmation.
+    SIGN CONVENTION: Higher values = better/easier conditions (matching CLI).
+    """
+    signals = {}
+    
+    def get_latest(series):
+        if series is None or series.empty: return None
+        valid = series.dropna()
+        if valid.empty: return None
+        val = valid.iloc[-1]
+        return float(val) if np.isfinite(val) else None
+
+    def get_momentum(series, window=20):
+        if series is None or len(series) < window + 1: return 0
+        valid = series.dropna()
+        if len(valid) < window + 1: return 0
+        # Momentum check: diff over window
+        return float(valid.iloc[-1] - valid.iloc[-window-1])
+
+    # 1. CLI Signal (with momentum confirmation)
+    cli_val = get_latest(cli_df['CLI'])
+    cli_mom = get_momentum(cli_df['CLI'], 20) # 4 weeks
+    
+    if cli_val is not None:
+        state = "neutral"
+        if cli_val > 0.5 and cli_mom > 0: state = "bullish"
+        elif cli_val < -0.5 and cli_mom < 0: state = "bearish"
+        signals['cli'] = {"state": state, "value": round(cli_val, 2), "momentum": round(cli_mom, 3)}
+
+    # 2. HY Spread (Inverted in cli_df)
+    hy_z = get_latest(cli_df.get('HY_SPREAD_Z'))
+    if hy_z is not None:
+        state = "neutral"
+        if hy_z > 1.2: state = "bullish" # With buffer
+        elif hy_z < -1.2: state = "bearish"
+        signals['hy'] = {"state": state, "value": round(hy_z, 2)}
+
+    # 3. IG Spread (Inverted in cli_df)
+    ig_z = get_latest(cli_df.get('IG_SPREAD_Z'))
+    if ig_z is not None:
+        state = "neutral"
+        if ig_z > 1.2: state = "bullish"
+        elif ig_z < -1.2: state = "bearish"
+        signals['ig'] = {"state": state, "value": round(ig_z, 2)}
+
+    # 4. NFCI Credit (Negated: higher = looser)
+    nfcic = get_latest(cli_df.get('NFCI_CREDIT_Z'))
+    if nfcic is not None:
+        state = "neutral"
+        if nfcic > 0.6: state = "bullish"
+        elif nfcic < -0.6: state = "bearish"
+        signals['nfci_credit'] = {"state": state, "value": round(nfcic, 2)}
+
+    # 5. NFCI Risk (Negated)
+    nfcir = get_latest(cli_df.get('NFCI_RISK_Z'))
+    if nfcir is not None:
+        state = "neutral"
+        if nfcir > 0.5: state = "bullish"
+        elif nfcir < -1.2: state = "bearish"
+        signals['nfci_risk'] = {"state": state, "value": round(nfcir, 2)}
+
+    # 6. Lending Standards (Negated)
+    lending = get_latest(cli_df.get('LENDING_STD_Z'))
+    if lending is not None:
+        state = "neutral"
+        if lending > 0.1: state = "bullish"
+        elif lending < -0.6: state = "bearish"
+        signals['lending'] = {"state": state, "value": round(lending, 2)}
+
+    # 7. VIX (Negated: higher = lower VIX)
+    vix_z = get_latest(cli_df.get('VIX_Z'))
+    if vix_z is not None:
+        state = "neutral"
+        if vix_z > 0.7: state = "bullish"
+        elif vix_z < -2.2: state = "bearish"
+        signals['vix'] = {"state": state, "value": round(vix_z, 2)}
+
+    # 8. TIPS Composite
+    rr = df.get('TIPS_REAL_RATE', pd.Series(dtype=float))
+    be = df.get('TIPS_BREAKEVEN', pd.Series(dtype=float))
+    fwd = df.get('TIPS_5Y5Y_FORWARD', pd.Series(dtype=float))
+    
+    rr_3m_delta = get_momentum(rr, 63)
+    be_3m_delta = get_momentum(be, 63)
+    fwd_3m_delta = get_momentum(fwd, 63)
+    
+    tips_state = "neutral"
+    if rr_3m_delta > 0.40: tips_state = "bearish" # Tightening
+    elif be_3m_delta > 0.15 and rr_3m_delta <= 0: tips_state = "bullish" # Reflation
+    elif fwd_3m_delta < -0.15: tips_state = "warning" # Disinflation scare
+    
+    signals['tips'] = {
+        "state": tips_state, 
+        "rr_delta": round(rr_3m_delta, 3), 
+        "be_delta": round(be_3m_delta, 3),
+        "fwd_delta": round(fwd_3m_delta, 3)
+    }
+
+    # 9. Repo Stress
+    sofr = df.get('SOFR')
+    iorb = df.get('IORB')
+    if sofr is not None and iorb is not None:
+        spread = get_latest(sofr - iorb)
+        if spread is not None:
+            state = "neutral"
+            if spread >= 0: state = "bullish"
+            elif spread < -0.05: state = "bearish"
+            signals['repo'] = {"state": state, "value": round(spread, 3)}
+
+    return signals
+
+
 def calculate_macro_regime(
     df: pd.DataFrame,
     impulse_days: int = 65,      # ~13 weeks (trading days)
@@ -1568,6 +1682,8 @@ def run_pipeline():
 
         gli = calculate_gli_from_trillions(df_t)
         us_net_liq = calculate_us_net_liq_from_trillions(df_t)
+        cli_df = calculate_cli(df_t)
+        signals = calculate_signals(df_t, cli_df)
 
         # Add GLI_TOTAL, NET_LIQUIDITY and M2_TOTAL to df_t
         m2_data = calculate_global_m2(df_t)
@@ -1839,7 +1955,7 @@ def run_pipeline():
                 for b in ['fed', 'ecb', 'boj', 'boe', 'pboc', 'boc', 'rba', 'snb', 'bok', 'rbi', 'cbr', 'bcb', 'rbnz', 'sr', 'bnm']
             })(gli.iloc[-1] if not gli.empty else {}),
             'cli': clean_for_json(df_t['CLI']),
-            'cli_components': (lambda cli_df: {
+            'cli_components': {
                 'hy_z': clean_for_json(cli_df.get('HY_SPREAD_Z', pd.Series(dtype=float))),
                 'ig_z': clean_for_json(cli_df.get('IG_SPREAD_Z', pd.Series(dtype=float))),
                 'nfci_credit_z': clean_for_json(cli_df.get('NFCI_CREDIT_Z', pd.Series(dtype=float))),
@@ -1847,7 +1963,8 @@ def run_pipeline():
                 'lending_z': clean_for_json(cli_df.get('LENDING_STD_Z', pd.Series(dtype=float))),
                 'vix_z': clean_for_json(cli_df.get('VIX_Z', pd.Series(dtype=float))),
                 'weights': {'HY': 0.25, 'IG': 0.15, 'NFCI_CREDIT': 0.20, 'NFCI_RISK': 0.20, 'LENDING': 0.10, 'VIX': 0.10}
-            })(calculate_cli(df_t)),
+            },
+            'signals': signals,
             'vix': clean_for_json(df_t['VIX']),
             'hy_spread': clean_for_json(df_t['HY_SPREAD']),
             'ig_spread': clean_for_json(df_t['IG_SPREAD']),

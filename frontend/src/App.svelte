@@ -3603,6 +3603,128 @@
     box-shadow: 0 10px 25px -5px rgba(245, 158, 11, 0.2);
   }
 
+  /* ====== RISK SIGNAL DASHBOARD STYLES ====== */
+  :global(.risk-dashboard) {
+    margin-bottom: 32px;
+    background: linear-gradient(
+      160deg,
+      rgba(30, 41, 59, 0.8) 0%,
+      rgba(15, 23, 42, 0.9) 100%
+    );
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 24px;
+    padding: 24px;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  }
+
+  :global(.risk-dashboard-header) {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  :global(.risk-dashboard-header h2) {
+    font-size: 1.125rem;
+    font-weight: 800;
+    margin: 0;
+    color: var(--text-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    background: linear-gradient(to right, #6366f1, #a78bfa);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  :global(.signal-grid) {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+  }
+
+  :global(.signal-item) {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: all 0.2s ease;
+  }
+
+  :global(.signal-item:hover) {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(99, 102, 241, 0.3);
+    transform: translateY(-2px);
+  }
+
+  :global(.signal-label) {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  :global(.signal-status) {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.875rem;
+    font-weight: 700;
+  }
+
+  :global(.signal-dot) {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    box-shadow: 0 0 8px currentColor;
+  }
+
+  :global(.signal-value) {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+
+  :global(.text-bullish) {
+    color: #10b981;
+  }
+  :global(.text-bearish) {
+    color: #ef4444;
+  }
+  :global(.text-neutral) {
+    color: #94a3b8;
+  }
+  :global(.text-warning) {
+    color: #f59e0b;
+  }
+
+  /* ====== RISK DASHBOARD REFINEMENTS ====== */
+  :global(.risk-header-summary) {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 24px;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 16px 24px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  :global(.stance-details) {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.02em;
+  }
+
   /* Table Scroll Fix */
   :global(.metrics-table-container) {
     width: 100%;
