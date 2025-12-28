@@ -477,7 +477,8 @@
     reservesRange = "ALL",
     repoStressRange = "ALL",
     tgaRange = "ALL",
-    rrpRange = "ALL";
+    rrpRange = "ALL",
+    cbRange = "ALL";
 
   // Individual M2 time ranges
   let usM2Range = "ALL",
@@ -1061,10 +1062,11 @@
 
     // Helper: Convert score (0-100) to gradient color
     const scoreToColor = (score) => {
-      if (score === null || score === undefined || isNaN(score))
-        return "rgba(148, 163, 184, 0.05)";
+      // Use Number() to catch empty strings, null, undefined, etc.
+      const s = Number(score);
+      if (isNaN(s)) return "rgba(148, 163, 184, 0.05)";
 
-      const deviation = (score - 50) / 50; // -1 to +1
+      const deviation = (s - 50) / 50; // -1 to +1
       const absDeviation = Math.abs(deviation);
       const alpha = 0.08 + absDeviation * 0.18; // 0.08 to 0.26 opacity
 
@@ -1144,13 +1146,15 @@
 
     const dates = $dashboardData.dates;
     const diffusion = $dashboardData.macro_regime.cb_diffusion_13w;
+    const indices = getFilteredIndices(dates, cbRange);
 
-    const data = [];
-    for (let i = 0; i < dates.length && i < diffusion.length; i++) {
-      if (diffusion[i] !== null && diffusion[i] !== undefined) {
-        data.push({ time: dates[i], value: diffusion[i] * 100 }); // Convert to percentage
-      }
-    }
+    const data = indices
+      .map((i) => {
+        const val = diffusion[i];
+        if (val === null || val === undefined) return null;
+        return { time: dates[i], value: val * 100 };
+      })
+      .filter((p) => p !== null);
 
     return [
       {
@@ -1172,13 +1176,15 @@
 
     const dates = $dashboardData.dates;
     const hhi = $dashboardData.macro_regime.cb_hhi_13w;
+    const indices = getFilteredIndices(dates, cbRange);
 
-    const data = [];
-    for (let i = 0; i < dates.length && i < hhi.length; i++) {
-      if (hhi[i] !== null && hhi[i] !== undefined) {
-        data.push({ time: dates[i], value: hhi[i] });
-      }
-    }
+    const data = indices
+      .map((i) => {
+        const val = hhi[i];
+        if (val === null || val === undefined) return null;
+        return { time: dates[i], value: val };
+      })
+      .filter((p) => p !== null);
 
     return [
       {
@@ -3549,6 +3555,49 @@
                 <Chart {darkMode} data={item.data} />
               </div>
             </div>
+
+            {#if item.bank === "FED"}
+              <!-- Collective CB Metrics inserted after Fed -->
+              <div class="chart-card">
+                <div class="chart-header">
+                  <h3>Central Bank Breadth (% Expanding)</h3>
+                  <div class="header-controls">
+                    <TimeRangeSelector
+                      selectedRange={cbRange}
+                      onRangeChange={(r) => (cbRange = r)}
+                    />
+                  </div>
+                </div>
+                <p class="chart-description">
+                  {language === "es"
+                    ? "Porcentaje de bancos centrales con balance en expansión (13 semanas). ↑ Alcista."
+                    : "Percentage of central banks with expanding balance sheets (13-week basis). ↑ Bullish."}
+                </p>
+                <div class="chart-content">
+                  <LightweightChart {darkMode} data={cbBreadthData} />
+                </div>
+              </div>
+
+              <div class="chart-card">
+                <div class="chart-header">
+                  <h3>Central Bank Concentration (HHI)</h3>
+                  <div class="header-controls">
+                    <TimeRangeSelector
+                      selectedRange={cbRange}
+                      onRangeChange={(r) => (cbRange = r)}
+                    />
+                  </div>
+                </div>
+                <p class="chart-description">
+                  {language === "es"
+                    ? "Concentración de flujos (Indice HHI). Valores altos indican que pocos bancos mueven la liquidez global."
+                    : "Concentration of flows (HHI Index). High values indicate few banks are driving global liquidity."}
+                </p>
+                <div class="chart-content">
+                  <LightweightChart {darkMode} data={cbConcentrationData} />
+                </div>
+              </div>
+            {/if}
           {/each}
         </div>
       {:else if currentTab === "Global M2"}
