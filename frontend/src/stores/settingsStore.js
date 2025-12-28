@@ -177,6 +177,45 @@ const translations = {
         regime_formula_desc: "Score = 50 + 15 × Total_Z | Liquidity (35% GLI + 35% NetLiq + 20% M2 ± CB breadth) + Credit (60% CLI + 40% CLI momentum) - Brakes (real rates + repo stress + reserve scarcity)",
         regime_score_bullish: "Score > 50: Bullish bias (green) → Liquidity expanding, credit easing",
         regime_score_bearish: "Score < 50: Bearish bias (red) → Liquidity contracting, credit tightening",
+        // Signal Reasons - HY Spread
+        signal_hy_bullish: "HY spread contracted: risk appetite, easy credit.",
+        signal_hy_bearish: "HY spread widened: risk aversion, credit stress.",
+        signal_hy_neutral: "HY spread in normal range, no extreme signal.",
+        // Signal Reasons - IG Spread
+        signal_ig_bullish: "IG spread low: solid credit conditions.",
+        signal_ig_bearish: "IG spread elevated: credit market tension.",
+        signal_ig_neutral: "IG spread stable, normal conditions.",
+        // Signal Reasons - NFCI Credit
+        signal_nfci_credit_bullish: "NFCI Credit negative: loose credit conditions.",
+        signal_nfci_credit_bearish: "NFCI Credit positive: restrictive credit conditions.",
+        signal_nfci_credit_neutral: "NFCI Credit neutral, no extreme pressure.",
+        // Signal Reasons - NFCI Risk
+        signal_nfci_risk_bullish: "NFCI Risk low: systemic risk contained.",
+        signal_nfci_risk_bearish: "NFCI Risk elevated: higher perceived systemic risk.",
+        signal_nfci_risk_neutral: "NFCI Risk at normal levels.",
+        // Signal Reasons - Lending
+        signal_lending_bullish: "Credit standards relaxed: credit expansion.",
+        signal_lending_bearish: "Restrictive standards: credit contraction.",
+        signal_lending_neutral: "Lending standards unchanged.",
+        // Signal Reasons - VIX
+        signal_vix_bullish: "VIX low: market complacency/confidence.",
+        signal_vix_bearish: "VIX elevated: fear and market volatility.",
+        signal_vix_neutral: "VIX in normal range, moderate volatility.",
+        // Signal Reasons - CLI
+        signal_cli_bullish: "CLI indicates credit expansion and risk appetite.",
+        signal_cli_bearish: "CLI indicates credit contraction and risk aversion.",
+        signal_cli_neutral: "CLI neutral, balanced liquidity conditions.",
+        // Signal Reasons - Repo
+        signal_repo_bullish: "SOFR ≈ IORB: adequate interbank liquidity.",
+        signal_repo_bearish: "SOFR >> IORB: repo liquidity stress.",
+        signal_repo_neutral: "Repo spread in normal range.",
+        signal_repo_warning: "SOFR << IORB: excess liquidity (unusual).",
+        // Signal Reasons - TIPS
+        signal_tips_bullish: "Reflation: High BE + Low RR. Fed dovish, economic expansion.",
+        signal_tips_bearish: "Tightening: High RR + Low BE. Fed hawkish, monetary restriction.",
+        signal_tips_neutral: "Goldilocks: BE & RR in normal range, macro equilibrium.",
+        signal_tips_warning: "Stagflation: High inflation + Fed hawkish. Adverse conditions.",
+        signal_tips_disinflation: "Disinflation: Low BE & RR. Possible slowdown or deflation.",
     },
     es: {
         gli: "Suma de balances de bancos centrales en USD. ↑ Expansión = Inyección de liquidez (alcista) | ↓ Contracción = QT (bajista)",
@@ -343,6 +382,45 @@ const translations = {
         regime_formula_desc: "Score = 50 + 15 × Total_Z | Liquidez (35% GLI + 35% NetLiq + 20% M2 ± amplitud CB) + Crédito (60% CLI + 40% momentum CLI) - Frenos (tasas reales + estrés repo + escasez reservas)",
         regime_score_bullish: "Score > 50: Sesgo alcista (verde) → Liquidez expandiéndose, crédito relajándose",
         regime_score_bearish: "Score < 50: Sesgo bajista (rojo) → Liquidez contrayéndose, crédito endureciéndose",
+        // Signal Reasons - HY Spread
+        signal_hy_bullish: "HY spread contraído: apetito por riesgo, crédito fácil.",
+        signal_hy_bearish: "HY spread ampliado: aversión al riesgo, estrés crediticio.",
+        signal_hy_neutral: "HY spread en rango normal, sin señal extrema.",
+        // Signal Reasons - IG Spread
+        signal_ig_bullish: "IG spread bajo: condiciones crediticias sólidas.",
+        signal_ig_bearish: "IG spread elevado: tensión en mercado de crédito.",
+        signal_ig_neutral: "IG spread estable, condiciones normales.",
+        // Signal Reasons - NFCI Credit
+        signal_nfci_credit_bullish: "NFCI Credit negativo: condiciones crediticias laxas.",
+        signal_nfci_credit_bearish: "NFCI Credit positivo: condiciones crediticias restrictivas.",
+        signal_nfci_credit_neutral: "NFCI Credit neutral, sin presión extrema.",
+        // Signal Reasons - NFCI Risk
+        signal_nfci_risk_bullish: "NFCI Risk bajo: riesgo sistémico contenido.",
+        signal_nfci_risk_bearish: "NFCI Risk elevado: mayor riesgo sistémico percibido.",
+        signal_nfci_risk_neutral: "NFCI Risk en niveles normales.",
+        // Signal Reasons - Lending
+        signal_lending_bullish: "Estándares de crédito relajados: expansión crediticia.",
+        signal_lending_bearish: "Estándares restrictivos: contracción crediticia.",
+        signal_lending_neutral: "Estándares de préstamo sin cambio significativo.",
+        // Signal Reasons - VIX
+        signal_vix_bullish: "VIX bajo: complacencia/confianza en el mercado.",
+        signal_vix_bearish: "VIX elevado: miedo y volatilidad en el mercado.",
+        signal_vix_neutral: "VIX en rango normal, volatilidad moderada.",
+        // Signal Reasons - CLI
+        signal_cli_bullish: "CLI indica expansión crediticia y apetito por riesgo.",
+        signal_cli_bearish: "CLI indica contracción crediticia y aversión al riesgo.",
+        signal_cli_neutral: "CLI neutral, condiciones de liquidez equilibradas.",
+        // Signal Reasons - Repo
+        signal_repo_bullish: "SOFR ≈ IORB: liquidez interbancaria adecuada.",
+        signal_repo_bearish: "SOFR >> IORB: tensión de liquidez en repo.",
+        signal_repo_neutral: "Spread repo en rangos normales.",
+        signal_repo_warning: "SOFR << IORB: exceso de liquidez (inusual).",
+        // Signal Reasons - TIPS
+        signal_tips_bullish: "Reflación: BE alto + RR bajo. Fed dovish, expansión económica.",
+        signal_tips_bearish: "Tightening: RR alto + BE bajo. Fed hawkish, restricción monetaria.",
+        signal_tips_neutral: "Goldilocks: BE y RR en rango normal, equilibrio macro.",
+        signal_tips_warning: "Stagflation: Inflación alta + Fed hawkish. Condiciones adversas.",
+        signal_tips_disinflation: "Desinflación: BE y RR bajos. Posible desaceleración o deflación.",
     },
 };
 

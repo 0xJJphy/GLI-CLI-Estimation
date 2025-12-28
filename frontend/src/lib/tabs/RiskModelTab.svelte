@@ -250,57 +250,27 @@
     export let getLatestROC = (rocs, period) =>
         rocs?.[period]?.[rocs?.[period]?.length - 1] ?? 0;
 
-    // Signal justification text based on indicator and state
+    // Signal justification text - uses translation keys
     function getSignalReason(signalKey, state) {
-        const reasons = {
-            hy_spread: {
-                bullish:
-                    "HY spread contraído: apetito por riesgo, crédito fácil.",
-                bearish:
-                    "HY spread ampliado: aversión al riesgo, estrés crediticio.",
-                neutral: "HY spread en rango normal, sin señal extrema.",
-            },
-            ig_spread: {
-                bullish: "IG spread bajo: condiciones crediticias sólidas.",
-                bearish: "IG spread elevado: tensión en mercado de crédito.",
-                neutral: "IG spread estable, condiciones normales.",
-            },
-            nfci_credit: {
-                bullish: "NFCI Credit negativo: condiciones crediticias laxas.",
-                bearish:
-                    "NFCI Credit positivo: condiciones crediticias restrictivas.",
-                neutral: "NFCI Credit neutral, sin presión extrema.",
-            },
-            nfci_risk: {
-                bullish: "NFCI Risk bajo: riesgo sistémico contenido.",
-                bearish: "NFCI Risk elevado: mayor riesgo sistémico percibido.",
-                neutral: "NFCI Risk en niveles normales.",
-            },
-            lending: {
-                bullish:
-                    "Estándares de crédito relajados: expansión crediticia.",
-                bearish: "Estándares restrictivos: contracción crediticia.",
-                neutral: "Estándares de préstamo sin cambio significativo.",
-            },
-            vix: {
-                bullish: "VIX bajo: complacencia/confianza en el mercado.",
-                bearish: "VIX elevado: miedo y volatilidad en el mercado.",
-                neutral: "VIX en rango normal, volatilidad moderada.",
-            },
-            cli: {
-                bullish:
-                    "CLI indica expansión crediticia y apetito por riesgo.",
-                bearish:
-                    "CLI indica contracción crediticia y aversión al riesgo.",
-                neutral: "CLI neutral, condiciones de liquidez equilibradas.",
-            },
-            repo: {
-                bullish: "SOFR ≈ IORB: liquidez interbancaria adecuada.",
-                bearish: "SOFR >> IORB: tensión de liquidez en repo.",
-                neutral: "Spread repo en rangos normales.",
-            },
+        // Map signalKey to translation prefix
+        const keyMap = {
+            hy_spread: "hy",
+            ig_spread: "ig",
+            nfci_credit: "nfci_credit",
+            nfci_risk: "nfci_risk",
+            lending: "lending",
+            vix: "vix",
+            cli: "cli",
+            repo: "repo",
+            tips: "tips",
         };
-        return reasons[signalKey]?.[state] || "Sin información adicional.";
+        const prefix = keyMap[signalKey] || signalKey;
+        const translationKey = `signal_${prefix}_${state}`;
+        return (
+            translations[translationKey] ||
+            translations[`signal_${prefix}_neutral`] ||
+            "—"
+        );
     }
 
     // Time range states - managed locally
@@ -501,39 +471,39 @@
         const rrLow = latestRR < rrAvg - 0.3;
 
         let state = "neutral";
-        let reason = "Goldilocks: BE & RR en rango normal, equilibrio macro.";
+        let reasonKey = "signal_tips_neutral";
 
         if (beHigh && rrHigh) {
             state = "warning";
-            reason =
-                "Stagflation: Inflación alta + Fed hawkish. Condiciones adversas.";
+            reasonKey = "signal_tips_warning";
         } else if (beHigh && !rrHigh) {
             state = "bullish";
-            reason =
-                "Reflación: BE alto + RR bajo. Fed dovish, expansión económica.";
+            reasonKey = "signal_tips_bullish";
         } else if (rrHigh && !beHigh) {
             state = "bearish";
-            reason =
-                "Tightening: RR alto + BE bajo. Fed hawkish, restricción monetaria.";
+            reasonKey = "signal_tips_bearish";
         } else if (beLow && rrLow) {
             state = "neutral";
-            reason =
-                "Desinflación: BE y RR bajos. Posible desaceleración o deflación.";
+            reasonKey = "signal_tips_disinflation";
         }
 
-        return { state, value: latestRR, valueBE: latestBE, reason };
+        return { state, value: latestRR, valueBE: latestBE, reasonKey };
     })();
 
-    // Repo Regime
+    // Repo Regime - corrected logic
+    // SOFR ≈ IORB (within 5bps) = Normal/Bullish (adequate liquidity)
+    // SOFR >> IORB (>10bps above) = Bearish (liquidity stress, like Sept 2019)
+    // SOFR << IORB (significantly below) = Warning (excess liquidity, unusual)
     $: repoRegimeSignals = (() => {
         const sofr = dashboardData.repo_stress?.sofr;
         const iorb = dashboardData.repo_stress?.iorb;
         if (!sofr || !iorb) return [];
         return sofr.map((s, i) => {
-            const spread = s - (iorb[i] || 0);
+            const spread = (s - (iorb[i] || 0)) * 100; // Convert to bps
             if (!Number.isFinite(spread)) return "neutral";
-            if (spread >= 0) return "bullish";
-            if (spread < -0.05) return "bearish";
+            if (spread > 10) return "bearish"; // SOFR >> IORB = liquidity stress
+            if (spread < -5) return "warning"; // SOFR << IORB = excess liquidity (unusual)
+            if (Math.abs(spread) <= 5) return "bullish"; // Normal range = healthy
             return "neutral";
         });
     })();
@@ -793,7 +763,7 @@
                             class="signal-reason"
                             style="font-size: 11px; color: rgba(255,255,255,0.55); margin-top: 6px; font-style: italic;"
                         >
-                            {s.reason}
+                            {translations[s.reasonKey] || s.reasonKey}
                         </div>
                     </div>
                 </div>
