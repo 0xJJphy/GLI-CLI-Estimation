@@ -98,7 +98,6 @@
     igRange = "ALL",
     nfciCreditRange = "ALL",
     nfciRiskRange = "ALL",
-    nfciRange = "ALL",
     lendingRange = "ALL",
     reservesRange = "ALL",
     repoStressRange = "ALL",
@@ -106,7 +105,8 @@
     rrpRange = "ALL",
     cbBreadthRange = "ALL",
     cbConcentrationRange = "ALL",
-    cbRange = "ALL";
+    cbRange = "ALL",
+    tipsRange = "ALL";
 
   // Individual M2 time ranges
   let usM2Range = "ALL",
@@ -1246,7 +1246,6 @@
   );
 
   // TIPS / Inflation Expectations Data
-  let tipsRange = "5Y";
   $: tipsDataRaw = [
     {
       x: $dashboardData.dates,
@@ -1607,7 +1606,7 @@
   $: nfciCreditZData = filterPlotlyData(
     nfciCreditZDataRaw,
     $dashboardData.dates,
-    nfciRange,
+    nfciCreditRange,
   );
 
   $: nfciRiskZDataRaw = [
@@ -1623,7 +1622,7 @@
   $: nfciRiskZData = filterPlotlyData(
     nfciRiskZDataRaw,
     $dashboardData.dates,
-    nfciRange,
+    nfciRiskRange,
   );
 
   $: lendingZDataRaw = [

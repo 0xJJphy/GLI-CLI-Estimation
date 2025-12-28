@@ -15,6 +15,173 @@
     // Satisfy lint for unused language prop
     $: _lang = language;
 
+    // --- Background Shading Helpers ---
+
+    function createZScoreBands(
+        darkMode,
+        {
+            bullishThreshold = 1.0,
+            bearishThreshold = -1.0,
+            invertColors = false,
+        } = {},
+    ) {
+        const greenColor = darkMode
+            ? "rgba(16, 185, 129, 0.08)"
+            : "rgba(16, 185, 129, 0.12)";
+        const redColor = darkMode
+            ? "rgba(239, 68, 68, 0.08)"
+            : "rgba(239, 68, 68, 0.12)";
+
+        const bullishColor = invertColors ? redColor : greenColor;
+        const bearishColor = invertColors ? greenColor : redColor;
+
+        return [
+            {
+                type: "rect",
+                xref: "paper",
+                yref: "y",
+                x0: 0,
+                x1: 1,
+                y0: bullishThreshold,
+                y1: 6,
+                fillcolor: bullishColor,
+                line: { width: 0 },
+                layer: "below",
+            },
+            {
+                type: "rect",
+                xref: "paper",
+                yref: "y",
+                x0: 0,
+                x1: 1,
+                y0: -6,
+                y1: bearishThreshold,
+                fillcolor: bearishColor,
+                line: { width: 0 },
+                layer: "below",
+            },
+            {
+                type: "line",
+                xref: "paper",
+                yref: "y",
+                x0: 0,
+                x1: 1,
+                y0: 0,
+                y1: 0,
+                line: {
+                    color: darkMode
+                        ? "rgba(148, 163, 184, 0.3)"
+                        : "rgba(100, 116, 139, 0.3)",
+                    width: 1,
+                    dash: "dot",
+                },
+                layer: "below",
+            },
+        ];
+    }
+
+    function createRegimeShapes(filteredDates, allDates, allSignals, darkMode) {
+        if (
+            !filteredDates ||
+            !allDates ||
+            !allSignals ||
+            filteredDates.length === 0
+        )
+            return [];
+
+        // Find the start and end indices of the filtered range in the original data
+        const startIdx = allDates.findIndex((d) => d === filteredDates[0]);
+        const endIdx = allDates.findIndex(
+            (d) => d === filteredDates[filteredDates.length - 1],
+        );
+
+        if (startIdx === -1 || endIdx === -1) return [];
+
+        const dates = allDates.slice(startIdx, endIdx + 1);
+        const signals = allSignals.slice(startIdx, endIdx + 1);
+
+        const shapes = [];
+        const greenColor = darkMode
+            ? "rgba(16, 185, 129, 0.12)"
+            : "rgba(16, 185, 129, 0.15)";
+        const redColor = darkMode
+            ? "rgba(239, 68, 68, 0.12)"
+            : "rgba(239, 68, 68, 0.15)";
+
+        let currentRegime = null;
+        let blockStartIdx = 0;
+
+        for (let i = 0; i <= dates.length; i++) {
+            const regime = i < dates.length ? signals[i] : null;
+            if (regime !== currentRegime || i === dates.length) {
+                if (
+                    currentRegime === "bullish" ||
+                    currentRegime === "bearish"
+                ) {
+                    const d0 = dates[blockStartIdx];
+                    const d1 = dates[Math.min(i, dates.length - 1)];
+                    if (d0 && d1) {
+                        shapes.push({
+                            type: "rect",
+                            xref: "x",
+                            yref: "paper",
+                            x0: d0,
+                            x1: d1,
+                            y0: 0,
+                            y1: 1,
+                            fillcolor:
+                                currentRegime === "bullish"
+                                    ? greenColor
+                                    : redColor,
+                            line: { width: 0 },
+                            layer: "below",
+                        });
+                    }
+                }
+                currentRegime = regime;
+                blockStartIdx = i;
+            }
+        }
+        return shapes;
+    }
+
+    function calculateSignalArray(
+        zScores,
+        {
+            bullishThreshold = 1.0,
+            bearishThreshold = -1.0,
+            invertLogic = false,
+            requireMomentum = false,
+            momentumBars = 21,
+        } = {},
+    ) {
+        if (!zScores || !Array.isArray(zScores)) return [];
+        return zScores.map((z, i) => {
+            if (z === null || z === undefined || !Number.isFinite(z))
+                return "neutral";
+            let momentumOk = true;
+            if (requireMomentum && i >= momentumBars) {
+                const prev = zScores[i - momentumBars];
+                if (Number.isFinite(prev)) {
+                    const momentum = z - prev;
+                    if (z > bullishThreshold && momentum < 0)
+                        momentumOk = false;
+                    if (z < bearishThreshold && momentum > 0)
+                        momentumOk = false;
+                }
+            }
+            if (!momentumOk) return "neutral";
+            if (invertLogic) {
+                if (z < -Math.abs(bullishThreshold)) return "bullish";
+                if (z > Math.abs(bearishThreshold)) return "bearish";
+            } else {
+                if (z > bullishThreshold) return "bullish";
+                if (z < bearishThreshold) return "bearish";
+            }
+            return "neutral";
+        });
+    }
+
     // Chart data
     export let cliData = [];
     export let hyZData = [];
@@ -44,6 +211,135 @@
     export let tipsRange = "ALL";
     export let repoStressRange = "ALL";
 
+    $: hyLayout = {
+        shapes: createZScoreBands(darkMode, {
+            bullishThreshold: 1.0,
+            bearishThreshold: -1.0,
+        }),
+        yaxis: { title: "Z-Score", dtick: 2.5, autorange: true },
+    };
+    $: igLayout = {
+        shapes: createZScoreBands(darkMode, {
+            bullishThreshold: 1.0,
+            bearishThreshold: -1.0,
+        }),
+        yaxis: { title: "Z-Score", dtick: 2.5, autorange: true },
+    };
+    $: nfciCreditLayout = {
+        shapes: createZScoreBands(darkMode, {
+            bullishThreshold: 0.5,
+            bearishThreshold: -0.5,
+            invertColors: true,
+        }),
+        yaxis: { title: "Z-Score", dtick: 2.5, autorange: true },
+    };
+    $: nfciRiskLayout = {
+        shapes: createZScoreBands(darkMode, {
+            bullishThreshold: -0.5,
+            bearishThreshold: 1.0,
+            invertColors: true,
+        }),
+        yaxis: { title: "Z-Score", dtick: 2.5, autorange: true },
+    };
+    $: lendingLayout = {
+        shapes: createZScoreBands(darkMode, {
+            bullishThreshold: 0,
+            bearishThreshold: 0.5,
+            invertColors: true,
+        }),
+        yaxis: { title: "Z-Score", dtick: 2.5, autorange: true },
+    };
+    $: vixLayout = {
+        shapes: createZScoreBands(darkMode, {
+            bullishThreshold: -0.5,
+            bearishThreshold: 2.0,
+            invertColors: true,
+        }),
+        yaxis: { title: "Z-Score", dtick: 2.5, autorange: true },
+    };
+
+    // CLI Composite Regime
+    $: cliSignals = calculateSignalArray(dashboardData.cli, {
+        bullishThreshold: 0.5,
+        bearishThreshold: -0.5,
+        requireMomentum: true,
+        momentumBars: 20,
+    });
+    $: cliLayout = {
+        shapes: createRegimeShapes(
+            cliData[0]?.x || [],
+            dashboardData.dates,
+            cliSignals,
+            darkMode,
+        ),
+        yaxis: { title: "CLI Index", dtick: 2.5, autorange: true },
+    };
+
+    // TIPS Composite Regime
+    $: tipsRegimeSignals = (() => {
+        const dates = dashboardData.dates;
+        const be = dashboardData.tips_breakeven;
+        const rr = dashboardData.tips_real_rate;
+        const fwd = dashboardData.tips_5y5y_forward;
+        if (!dates || !be || !rr || !fwd) return [];
+        return dates.map((_, i) => {
+            if (i < 63) return "neutral";
+            const rrNow = rr[i];
+            const beNow = be[i];
+            const fwdNow = fwd[i];
+            const rr3mAgo = rr[i - 63];
+            const be3mAgo = be[i - 63];
+            const fwd3mAgo = fwd[i - 63];
+            if (
+                [rrNow, beNow, fwdNow, rr3mAgo, be3mAgo, fwd3mAgo].some(
+                    (v) => !Number.isFinite(v),
+                )
+            )
+                return "neutral";
+            const rr3mDelta = rrNow - rr3mAgo;
+            const be3mDelta = beNow - be3mAgo;
+            const fwd3mDelta = fwdNow - fwd3mAgo;
+            if (rrNow > 2.0 || rr3mDelta > 0.5) return "bearish";
+            if (be3mDelta > 0.2 && rr3mDelta <= 0) return "bullish";
+            if (fwd3mDelta < -0.2) return "bearish";
+            return "neutral";
+        });
+    })();
+    $: tipsLayoutWithBands = {
+        ...tipsLayout,
+        shapes: createRegimeShapes(
+            tipsData[0]?.x || [],
+            dashboardData.dates,
+            tipsRegimeSignals,
+            darkMode,
+        ),
+        yaxis: { ...tipsLayout.yaxis, dtick: 0.5, autorange: true },
+        yaxis2: { ...tipsLayout.yaxis2, dtick: 0.5, autorange: true },
+    };
+
+    // Repo Regime
+    $: repoRegimeSignals = (() => {
+        const sofr = dashboardData.repo_stress?.sofr;
+        const iorb = dashboardData.repo_stress?.iorb;
+        if (!sofr || !iorb) return [];
+        return sofr.map((s, i) => {
+            const spread = s - (iorb[i] || 0);
+            if (!Number.isFinite(spread)) return "neutral";
+            if (spread >= 0) return "bullish";
+            if (spread < -0.05) return "bearish";
+            return "neutral";
+        });
+    })();
+    $: repoStressLayout = {
+        shapes: createRegimeShapes(
+            repoStressData[0]?.x || [],
+            dashboardData.dates,
+            repoRegimeSignals,
+            darkMode,
+        ),
+        yaxis: { title: "Percent (%)", dtick: 1.0, autorange: true },
+    };
+
     // Credit indicators configuration
     $: creditIndicators = [
         {
@@ -54,6 +350,7 @@
             setRange: (r) => (hyRange = r),
             bank: "HY_SPREAD",
             descKey: "hy_spread",
+            layout: hyLayout,
         },
         {
             id: "ig",
@@ -63,6 +360,7 @@
             setRange: (r) => (igRange = r),
             bank: "IG_SPREAD",
             descKey: "ig_spread",
+            layout: igLayout,
         },
         {
             id: "nfci_credit",
@@ -72,6 +370,7 @@
             setRange: (r) => (nfciCreditRange = r),
             bank: "NFCI",
             descKey: "nfci_credit",
+            layout: nfciCreditLayout,
         },
         {
             id: "nfci_risk",
@@ -81,6 +380,7 @@
             setRange: (r) => (nfciRiskRange = r),
             bank: "NFCI",
             descKey: "nfci_risk",
+            layout: nfciRiskLayout,
         },
         {
             id: "lending",
@@ -90,6 +390,7 @@
             setRange: (r) => (lendingRange = r),
             bank: "LENDING_STD",
             descKey: "lending",
+            layout: lendingLayout,
         },
         {
             id: "vix_z",
@@ -99,6 +400,7 @@
             setRange: (r) => (vixRange = r),
             bank: "VIX",
             descKey: "vix",
+            layout: vixLayout,
         },
     ];
 
@@ -179,7 +481,11 @@
                 {translations.tips || "Breakeven, Real Rate, and 5Y5Y Forward."}
             </p>
             <div class="chart-content">
-                <Chart {darkMode} data={tipsData} layout={tipsLayout} />
+                <Chart
+                    {darkMode}
+                    data={tipsData}
+                    layout={tipsLayoutWithBands}
+                />
             </div>
 
             {#if signals.tips}
@@ -255,7 +561,7 @@
                     "Aggregates credit conditions, volatility, and lending."}
             </p>
             <div class="chart-content">
-                <Chart {darkMode} data={cliData} />
+                <Chart {darkMode} data={cliData} layout={cliLayout} />
             </div>
 
             {#if signals.cli}
@@ -309,7 +615,11 @@
                     "SOFR vs IORB spread indicates funding stress."}
             </p>
             <div class="chart-content" style="height: 300px;">
-                <Chart {darkMode} data={repoStressData} />
+                <Chart
+                    {darkMode}
+                    data={repoStressData}
+                    layout={repoStressLayout}
+                />
             </div>
 
             <!-- Compact Metrics Sidebar Replacement -->
@@ -349,7 +659,9 @@
                                             ?.state === "bearish"}
                                         style="font-weight: 800; font-size: 1.1rem;"
                                     >
-                                        {(signals.repo?.value ?? 0).toFixed(3)} bps
+                                        {(
+                                            (signals.repo?.value ?? 0) * 100
+                                        ).toFixed(1)} bps
                                     </div>
                                     <div
                                         style="font-size: 14px; margin-top: 4px;"
@@ -399,7 +711,7 @@
                     {translations[item.descKey] || ""}
                 </p>
                 <div class="chart-content">
-                    <Chart {darkMode} data={item.data} />
+                    <Chart {darkMode} data={item.data} layout={item.layout} />
                 </div>
 
                 {#if signals[item.id === "vix_z" ? "vix" : item.id]}
