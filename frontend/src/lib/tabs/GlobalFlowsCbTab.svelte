@@ -52,6 +52,8 @@
     export let rbnzRange = "ALL";
     export let srRange = "ALL";
     export let bnmRange = "ALL";
+    export let cbBreadthRange = "ALL";
+    export let cbConcentrationRange = "ALL";
     export let cbRange = "ALL";
 
     // Bank configuration
@@ -196,8 +198,8 @@
                     <h3>Central Bank Breadth (% Expanding)</h3>
                     <div class="header-controls">
                         <TimeRangeSelector
-                            selectedRange={cbRange}
-                            onRangeChange={(r) => (cbRange = r)}
+                            selectedRange={cbBreadthRange}
+                            onRangeChange={(r) => (cbBreadthRange = r)}
                         />
                     </div>
                 </div>
@@ -217,8 +219,8 @@
                     <h3>Central Bank Concentration (HHI)</h3>
                     <div class="header-controls">
                         <TimeRangeSelector
-                            selectedRange={cbRange}
-                            onRangeChange={(r) => (cbRange = r)}
+                            selectedRange={cbConcentrationRange}
+                            onRangeChange={(r) => (cbConcentrationRange = r)}
                         />
                     </div>
                 </div>

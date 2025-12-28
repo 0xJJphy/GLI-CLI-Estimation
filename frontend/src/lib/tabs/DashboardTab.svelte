@@ -63,6 +63,7 @@
     export let gliShowConstantFx = false;
     export let netLiqRange = "ALL";
     export let cliRange = "ALL";
+    export let cliCompRange = "ALL";
     export let impulseRange = "ALL";
 </script>
 
@@ -73,6 +74,7 @@
             title={translations.stat_gli || "Global Liquidity Index"}
             value={latestStats.gli?.value}
             change={latestStats.gli?.change}
+            period="7d"
             suffix="T"
             icon="🌍"
         />
@@ -80,6 +82,7 @@
             title={translations.stat_us_net || "US Net Liquidity"}
             value={latestStats.us_net_liq?.value}
             change={latestStats.us_net_liq?.change}
+            period="7d"
             suffix="T"
             icon="🇺🇸"
         />
@@ -87,6 +90,7 @@
             title={translations.stat_cli || "Credit Liquidity Index"}
             value={latestStats.cli?.value}
             change={latestStats.cli?.change}
+            period="7d"
             suffix="Z"
             icon="💳"
             precision={3}
@@ -95,6 +99,7 @@
             title={translations.stat_vix || "VIX"}
             value={latestStats.vix?.value}
             change={latestStats.vix?.change}
+            period="7d"
             icon="🌪️"
         />
     </div>
@@ -666,8 +671,8 @@
             </div>
             <div class="header-controls">
                 <TimeRangeSelector
-                    selectedRange={cliRange}
-                    onRangeChange={(r) => (cliRange = r)}
+                    selectedRange={cliCompRange}
+                    onRangeChange={(r) => (cliCompRange = r)}
                 />
             </div>
         </div>

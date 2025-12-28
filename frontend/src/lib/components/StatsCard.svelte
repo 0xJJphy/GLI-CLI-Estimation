@@ -5,6 +5,7 @@
     export let suffix = "";
     export let precision = 2;
     export let icon = "📈";
+    export let period = "";
 
     $: isPositive = change >= 0;
 </script>
@@ -17,13 +18,18 @@
                 <span class="icon">{icon}</span>
                 <span class="title">{title}</span>
             </div>
-            <div
-                class="trend"
-                class:positive={isPositive}
-                class:negative={!isPositive}
-            >
-                {isPositive ? "▲" : "▼"}
-                {(Number(change) || 0).toFixed(2)}%
+            <div class="trend">
+                <span
+                    class="change-val"
+                    class:positive={isPositive}
+                    class:negative={!isPositive}
+                >
+                    {isPositive ? "▲" : "▼"}
+                    {Math.abs(change).toFixed(2)}%
+                    {#if period}
+                        <span class="period">({period})</span>
+                    {/if}
+                </span>
             </div>
         </div>
         <div class="value">
@@ -112,20 +118,19 @@
         letter-spacing: 0.01em;
     }
 
+    .period {
+        font-size: 0.75rem;
+        opacity: 0.7;
+        margin-left: 2px;
+        font-weight: normal;
+    }
+
     .trend {
         font-size: 0.75rem;
         font-weight: 700;
-        padding: 4px 10px;
-        border-radius: 8px;
         display: flex;
         align-items: center;
         gap: 4px;
-    }
-
-    .trend.positive {
-        color: var(--positive-color, #059669);
-        background: rgba(16, 185, 129, 0.1);
-        border: 1px solid rgba(16, 185, 129, 0.2);
     }
 
     .trend.negative {

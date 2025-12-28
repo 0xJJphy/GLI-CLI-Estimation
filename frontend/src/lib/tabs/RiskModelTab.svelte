@@ -34,7 +34,8 @@
     export let cliRange = "ALL";
     export let hyRange = "ALL";
     export let igRange = "ALL";
-    export let nfciRange = "ALL";
+    export let nfciCreditRange = "ALL";
+    export let nfciRiskRange = "ALL";
     export let lendingRange = "ALL";
     export let vixRange = "ALL";
     export let tipsRange = "ALL";
@@ -64,8 +65,8 @@
             id: "nfci_credit",
             name: "NFCI Credit Contrast",
             data: nfciCreditZData,
-            range: nfciRange,
-            setRange: (r) => (nfciRange = r),
+            range: nfciCreditRange,
+            setRange: (r) => (nfciCreditRange = r),
             bank: "NFCI",
             descKey: "nfci_credit",
         },
@@ -73,8 +74,8 @@
             id: "nfci_risk",
             name: "NFCI Risk Contrast",
             data: nfciRiskZData,
-            range: nfciRange,
-            setRange: (r) => (nfciRange = r),
+            range: nfciRiskRange,
+            setRange: (r) => (nfciRiskRange = r),
             bank: "NFCI",
             descKey: "nfci_risk",
         },

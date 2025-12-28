@@ -84,22 +84,28 @@
     rbnzRange = "ALL",
     srRange = "ALL",
     bnmRange = "ALL";
+  let netLiqRangeDashboard = "ALL";
   let netLiqRange = "ALL";
+  let cliRangeDashboard = "ALL";
+  let cliCompRangeDashboard = "ALL";
   let cliRange = "ALL";
   let impulseRange = "ALL";
-  let inflationRange = "ALL";
   let btcRange = "ALL";
   let m2Range = "ALL";
   let vixRange = "ALL";
   let spreadRange = "ALL";
   let hyRange = "ALL",
     igRange = "ALL",
+    nfciCreditRange = "ALL",
+    nfciRiskRange = "ALL",
     nfciRange = "ALL",
     lendingRange = "ALL",
     reservesRange = "ALL",
     repoStressRange = "ALL",
     tgaRange = "ALL",
     rrpRange = "ALL",
+    cbBreadthRange = "ALL",
+    cbConcentrationRange = "ALL",
     cbRange = "ALL";
 
   // Individual M2 time ranges
@@ -275,15 +281,11 @@
       name: gliShowConstantFx ? "GLI Constant-FX" : "GLI Total (Spot USD)",
       type: "scatter",
       mode: "lines",
-      fill: "tozeroy",
       line: {
         color: gliShowConstantFx ? "#10b981" : "#6366f1",
         width: 3,
         shape: "spline",
       },
-      fillcolor: gliShowConstantFx
-        ? "rgba(16, 185, 129, 0.05)"
-        : "rgba(99, 102, 241, 0.05)",
     },
   ];
   $: gliData = filterPlotlyData(gliDataRaw, $dashboardData.dates, gliRange);
@@ -296,8 +298,6 @@
       type: "scatter",
       mode: "lines",
       line: { color: "#3b82f6", width: 3, shape: "spline" },
-      fill: "tozeroy",
-      fillcolor: "rgba(59, 130, 246, 0.05)",
     },
   ];
   $: fedData = filterPlotlyData(fedDataRaw, $dashboardData.dates, fedRange);
@@ -310,8 +310,6 @@
       type: "scatter",
       mode: "lines",
       line: { color: "#8b5cf6", width: 3, shape: "spline" },
-      fill: "tozeroy",
-      fillcolor: "rgba(139, 92, 246, 0.05)",
     },
   ];
   $: ecbData = filterPlotlyData(ecbDataRaw, $dashboardData.dates, ecbRange);
@@ -324,8 +322,6 @@
       type: "scatter",
       mode: "lines",
       line: { color: "#f43f5e", width: 3, shape: "spline" },
-      fill: "tozeroy",
-      fillcolor: "rgba(244, 63, 94, 0.05)",
     },
   ];
   $: bojData = filterPlotlyData(bojDataRaw, $dashboardData.dates, bojRange);
@@ -338,8 +334,6 @@
       type: "scatter",
       mode: "lines",
       line: { color: "#f59e0b", width: 3, shape: "spline" },
-      fill: "tozeroy",
-      fillcolor: "rgba(245, 158, 11, 0.05)",
     },
   ];
   $: boeData = filterPlotlyData(boeDataRaw, $dashboardData.dates, boeRange);
@@ -352,8 +346,6 @@
       type: "scatter",
       mode: "lines",
       line: { color: "#10b981", width: 3, shape: "spline" },
-      fill: "tozeroy",
-      fillcolor: "rgba(16, 185, 129, 0.05)",
     },
   ];
   $: pbocData = filterPlotlyData(pbocDataRaw, $dashboardData.dates, pbocRange);
@@ -366,8 +358,6 @@
       type: "scatter",
       mode: "lines",
       line: { color: "#34d399", width: 3, shape: "spline" },
-      fill: "tozeroy",
-      fillcolor: "rgba(52, 211, 153, 0.05)",
     },
   ];
   $: bocData = filterPlotlyData(bocDataRaw, $dashboardData.dates, bocRange);
@@ -768,7 +758,7 @@
 
     const dates = $dashboardData.dates;
     const diffusion = $dashboardData.macro_regime.cb_diffusion_13w;
-    const indices = getFilteredIndices(dates, cbRange);
+    const indices = getFilteredIndices(dates, cbBreadthRange);
 
     const data = indices
       .map((i) => {
@@ -798,7 +788,7 @@
 
     const dates = $dashboardData.dates;
     const hhi = $dashboardData.macro_regime.cb_hhi_13w;
-    const indices = getFilteredIndices(dates, cbRange);
+    const indices = getFilteredIndices(dates, cbConcentrationRange);
 
     const data = indices
       .map((i) => {
@@ -1117,8 +1107,6 @@
       type: "scatter",
       mode: "lines",
       line: { color: "#fbbf24", width: 3, shape: "spline" },
-      fill: "tozeroy",
-      fillcolor: "rgba(251, 191, 36, 0.05)",
     },
   ];
   $: rbaData = filterPlotlyData(rbaDataRaw, $dashboardData.dates, rbaRange);
@@ -1131,8 +1119,6 @@
       type: "scatter",
       mode: "lines",
       line: { color: "#f87171", width: 3, shape: "spline" },
-      fill: "tozeroy",
-      fillcolor: "rgba(248, 113, 113, 0.05)",
     },
   ];
   $: snbData = filterPlotlyData(snbDataRaw, $dashboardData.dates, snbRange);
@@ -1145,8 +1131,6 @@
       type: "scatter",
       mode: "lines",
       line: { color: "#60a5fa", width: 3, shape: "spline" },
-      fill: "tozeroy",
-      fillcolor: "rgba(96, 165, 250, 0.05)",
     },
   ];
   $: bokData = filterPlotlyData(bokDataRaw, $dashboardData.dates, bokRange);
@@ -1159,8 +1143,6 @@
       type: "scatter",
       mode: "lines",
       line: { color: "#a78bfa", width: 3, shape: "spline" },
-      fill: "tozeroy",
-      fillcolor: "rgba(167, 139, 250, 0.05)",
     },
   ];
   $: rbiData = filterPlotlyData(rbiDataRaw, $dashboardData.dates, rbiRange);
@@ -1173,8 +1155,6 @@
       type: "scatter",
       mode: "lines",
       line: { color: "#fb7185", width: 3, shape: "spline" },
-      fill: "tozeroy",
-      fillcolor: "rgba(251, 113, 133, 0.05)",
     },
   ];
   $: cbrData = filterPlotlyData(cbrDataRaw, $dashboardData.dates, cbrRange);
@@ -1187,8 +1167,6 @@
       type: "scatter",
       mode: "lines",
       line: { color: "#4ade80", width: 3, shape: "spline" },
-      fill: "tozeroy",
-      fillcolor: "rgba(74, 222, 128, 0.05)",
     },
   ];
   $: bcbData = filterPlotlyData(bcbDataRaw, $dashboardData.dates, bcbRange);
@@ -1201,8 +1179,6 @@
       type: "scatter",
       mode: "lines",
       line: { color: "#22d3ee", width: 3, shape: "spline" },
-      fill: "tozeroy",
-      fillcolor: "rgba(34, 211, 238, 0.05)",
     },
   ];
   $: rbnzData = filterPlotlyData(rbnzDataRaw, $dashboardData.dates, rbnzRange);
@@ -1215,8 +1191,6 @@
       type: "scatter",
       mode: "lines",
       line: { color: "#818cf8", width: 3, shape: "spline" },
-      fill: "tozeroy",
-      fillcolor: "rgba(129, 140, 248, 0.05)",
     },
   ];
   $: srData = filterPlotlyData(srDataRaw, $dashboardData.dates, srRange);
@@ -1229,8 +1203,6 @@
       type: "scatter",
       mode: "lines",
       line: { color: "#fb923c", width: 3, shape: "spline" },
-      fill: "tozeroy",
-      fillcolor: "rgba(251, 146, 60, 0.05)",
     },
   ];
   $: bnmData = filterPlotlyData(bnmDataRaw, $dashboardData.dates, bnmRange);
@@ -1242,9 +1214,7 @@
       name: "US Net Liquidity",
       type: "scatter",
       mode: "lines",
-      fill: "tozeroy",
       line: { color: "#10b981", width: 3, shape: "spline" },
-      fillcolor: "rgba(16, 185, 129, 0.05)",
     },
   ];
   $: netLiqData = filterPlotlyData(
@@ -1252,18 +1222,28 @@
     $dashboardData.dates,
     netLiqRange,
   );
+  $: netLiqDataDashboard = filterPlotlyData(
+    netLiqDataRaw,
+    $dashboardData.dates,
+    netLiqRangeDashboard,
+  );
 
   $: cliDataRaw = [
     {
       x: $dashboardData.dates,
-      y: $dashboardData.cli,
-      name: "CLI",
+      y: $dashboardData.cli_components.cli_total,
+      name: "CLI Total",
       type: "scatter",
       mode: "lines",
       line: { color: "#f59e0b", width: 3, shape: "spline" },
     },
   ];
   $: cliData = filterPlotlyData(cliDataRaw, $dashboardData.dates, cliRange);
+  $: cliDataDashboard = filterPlotlyData(
+    cliDataRaw,
+    $dashboardData.dates,
+    cliRangeDashboard,
+  );
 
   // TIPS / Inflation Expectations Data
   let tipsRange = "5Y";
@@ -1558,7 +1538,7 @@
   $: cliComponentData = filterPlotlyData(
     cliComponentDataRaw,
     $dashboardData.dates,
-    cliRange,
+    cliCompRangeDashboard,
   );
 
   $: vixDataRaw = [
@@ -1682,9 +1662,7 @@
       name: "Global M2 Total",
       type: "scatter",
       mode: "lines",
-      fill: "tozeroy",
       line: { color: "#6366f1", width: 3, shape: "spline" },
-      fillcolor: "rgba(99, 102, 241, 0.05)",
     },
   ];
   $: m2TotalData = filterPlotlyData(
@@ -1701,8 +1679,6 @@
       type: "scatter",
       mode: "lines",
       line: { color: "#3b82f6", width: 3, shape: "spline" },
-      fill: "tozeroy",
-      fillcolor: "rgba(59, 130, 246, 0.05)",
     },
   ];
   $: usM2Data = filterPlotlyData(usM2DataRaw, $dashboardData.dates, usM2Range);
@@ -1715,8 +1691,6 @@
       type: "scatter",
       mode: "lines",
       line: { color: "#8b5cf6", width: 3, shape: "spline" },
-      fill: "tozeroy",
-      fillcolor: "rgba(139, 92, 246, 0.05)",
     },
   ];
   $: euM2Data = filterPlotlyData(euM2DataRaw, $dashboardData.dates, euM2Range);
@@ -1729,8 +1703,6 @@
       type: "scatter",
       mode: "lines",
       line: { color: "#10b981", width: 3, shape: "spline" },
-      fill: "tozeroy",
-      fillcolor: "rgba(16, 185, 129, 0.05)",
     },
   ];
   $: cnM2Data = filterPlotlyData(cnM2DataRaw, $dashboardData.dates, cnM2Range);
@@ -1743,8 +1715,6 @@
       type: "scatter",
       mode: "lines",
       line: { color: "#f43f5e", width: 3, shape: "spline" },
-      fill: "tozeroy",
-      fillcolor: "rgba(244, 63, 94, 0.05)",
     },
   ];
   $: jpM2Data = filterPlotlyData(jpM2DataRaw, $dashboardData.dates, jpM2Range);
@@ -1757,8 +1727,6 @@
       type: "scatter",
       mode: "lines",
       line: { color: "#f59e0b", width: 3, shape: "spline" },
-      fill: "tozeroy",
-      fillcolor: "rgba(245, 158, 11, 0.05)",
     },
   ];
   $: ukM2Data = filterPlotlyData(ukM2DataRaw, $dashboardData.dates, ukM2Range);
@@ -1771,8 +1739,6 @@
       type: "scatter",
       mode: "lines",
       line: { color: "#ef4444", width: 3, shape: "spline" },
-      fill: "tozeroy",
-      fillcolor: "rgba(239, 68, 68, 0.05)",
     },
   ];
   $: caM2Data = filterPlotlyData(caM2DataRaw, $dashboardData.dates, caM2Range);
@@ -1785,8 +1751,6 @@
       type: "scatter",
       mode: "lines",
       line: { color: "#3b82f6", width: 3, shape: "spline" },
-      fill: "tozeroy",
-      fillcolor: "rgba(59, 130, 246, 0.05)",
     },
   ];
   $: auM2Data = filterPlotlyData(auM2DataRaw, $dashboardData.dates, auM2Range);
@@ -1799,8 +1763,6 @@
       type: "scatter",
       mode: "lines",
       line: { color: "#6366f1", width: 3, shape: "spline" },
-      fill: "tozeroy",
-      fillcolor: "rgba(99, 102, 241, 0.05)",
     },
   ];
   $: inM2Data = filterPlotlyData(inM2DataRaw, $dashboardData.dates, inM2Range);
@@ -1813,8 +1775,6 @@
       type: "scatter",
       mode: "lines",
       line: { color: "#0ea5e9", width: 3, shape: "spline" },
-      fill: "tozeroy",
-      fillcolor: "rgba(14, 165, 233, 0.05)",
     },
   ];
   $: chM2Data = filterPlotlyData(chM2DataRaw, $dashboardData.dates, chM2Range);
@@ -1827,8 +1787,6 @@
       type: "scatter",
       mode: "lines",
       line: { color: "#dc2626", width: 3, shape: "spline" },
-      fill: "tozeroy",
-      fillcolor: "rgba(220, 38, 38, 0.05)",
     },
   ];
   $: ruM2Data = filterPlotlyData(ruM2DataRaw, $dashboardData.dates, ruM2Range);
@@ -1841,8 +1799,6 @@
       type: "scatter",
       mode: "lines",
       line: { color: "#10b981", width: 3, shape: "spline" },
-      fill: "tozeroy",
-      fillcolor: "rgba(16, 185, 129, 0.05)",
     },
   ];
   $: brM2Data = filterPlotlyData(brM2DataRaw, $dashboardData.dates, brM2Range);
@@ -1855,8 +1811,6 @@
       type: "scatter",
       mode: "lines",
       line: { color: "#8b5cf6", width: 3, shape: "spline" },
-      fill: "tozeroy",
-      fillcolor: "rgba(139, 92, 246, 0.05)",
     },
   ];
   $: krM2Data = filterPlotlyData(krM2DataRaw, $dashboardData.dates, krM2Range);
@@ -1869,8 +1823,6 @@
       type: "scatter",
       mode: "lines",
       line: { color: "#f59e0b", width: 3, shape: "spline" },
-      fill: "tozeroy",
-      fillcolor: "rgba(245, 158, 11, 0.05)",
     },
   ];
   $: mxM2Data = filterPlotlyData(mxM2DataRaw, $dashboardData.dates, mxM2Range);
@@ -1883,8 +1835,6 @@
       type: "scatter",
       mode: "lines",
       line: { color: "#f43f5e", width: 3, shape: "spline" },
-      fill: "tozeroy",
-      fillcolor: "rgba(244, 63, 94, 0.05)",
     },
   ];
   $: myM2Data = filterPlotlyData(myM2DataRaw, $dashboardData.dates, myM2Range);
@@ -2389,8 +2339,8 @@
           dashboardData={$dashboardData}
           latestStats={$latestStats}
           {gliData}
-          {netLiqData}
-          {cliData}
+          netLiqData={netLiqDataDashboard}
+          cliData={cliDataDashboard}
           {cliComponentData}
           {regimeLCData}
           {impulseData}
@@ -2412,8 +2362,9 @@
           {getLatestValue}
           bind:gliRange
           bind:gliShowConstantFx
-          bind:netLiqRange
-          bind:cliRange
+          bind:netLiqRange={netLiqRangeDashboard}
+          bind:cliRange={cliRangeDashboard}
+          bind:cliCompRange={cliCompRangeDashboard}
           bind:impulseRange
         />
       {:else if currentTab === "Global Flows CB"}
@@ -2454,6 +2405,8 @@
           bind:rbnzRange
           bind:srRange
           bind:bnmRange
+          bind:cbBreadthRange
+          bind:cbConcentrationRange
           bind:cbRange
         />
       {:else if currentTab === "Global M2"}
@@ -2537,7 +2490,8 @@
           bind:cliRange
           bind:hyRange
           bind:igRange
-          bind:nfciRange
+          bind:nfciCreditRange
+          bind:nfciRiskRange
           bind:lendingRange
           bind:vixRange
           bind:tipsRange
