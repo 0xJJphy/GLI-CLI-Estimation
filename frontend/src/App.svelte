@@ -3296,7 +3296,7 @@
                 <input
                   type="range"
                   min="0"
-                  max="120"
+                  max="365"
                   step="1"
                   bind:value={regimeLag}
                   style="width: 80px;"
@@ -3444,52 +3444,6 @@
             </div>
 
             <div class="regime-glow glow-{currentRegime.color}"></div>
-          </div>
-
-          <!-- CB Breadth Chart -->
-          <div class="chart-card">
-            <div class="chart-header">
-              <div class="label-group">
-                <h3>
-                  {language === "es"
-                    ? "Amplitud CB (% Expandiendo)"
-                    : "CB Breadth (% Expanding)"}
-                </h3>
-              </div>
-            </div>
-            <div class="chart-content">
-              <LightweightChart {darkMode} data={cbBreadthData} />
-            </div>
-            <p
-              style="font-size: 10px; color: var(--text-muted); margin-top: 8px;"
-            >
-              {language === "es"
-                ? "Porcentaje de bancos centrales con balance expandiéndose (13W). >50% = Mayoría inyectando liquidez."
-                : "Percentage of central banks with expanding balance sheets (13W). >50% = Majority injecting liquidity."}
-            </p>
-          </div>
-
-          <!-- CB Concentration Chart -->
-          <div class="chart-card">
-            <div class="chart-header">
-              <div class="label-group">
-                <h3>
-                  {language === "es"
-                    ? "Concentración CB (HHI)"
-                    : "CB Concentration (HHI)"}
-                </h3>
-              </div>
-            </div>
-            <div class="chart-content">
-              <LightweightChart {darkMode} data={cbConcentrationData} />
-            </div>
-            <p
-              style="font-size: 10px; color: var(--text-muted); margin-top: 8px;"
-            >
-              {language === "es"
-                ? "Índice Herfindahl-Hirschman de concentración de flujos CB. Alto = Liderazgo concentrado (menos robusto)."
-                : "Herfindahl-Hirschman Index of CB flow concentration. High = Concentrated leadership (less robust)."}
-            </p>
           </div>
 
           <div class="chart-card wide">
