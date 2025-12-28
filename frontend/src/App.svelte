@@ -2755,7 +2755,7 @@
 
   .content {
     flex: 1;
-    padding: 48px;
+    padding: 24px;
     overflow-y: auto;
     background: var(--bg-primary);
     transition: background-color 0.3s ease;
@@ -2765,9 +2765,8 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 48px;
-    max-width: 1600px;
-    margin-right: auto;
+    margin-bottom: 32px;
+    width: 100%;
   }
 
   .content-header h1 {
@@ -2851,8 +2850,7 @@
   }
 
   :global(.dashboard-grid) {
-    max-width: 1600px;
-    margin-right: auto;
+    width: 100%;
   }
 
   :global(.stats-grid) {
@@ -2860,12 +2858,14 @@
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 32px;
     margin-bottom: 40px;
+    width: 100%;
   }
 
   :global(.main-charts) {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    display: flex;
+    flex-direction: column;
     gap: 32px;
+    width: 100%;
   }
 
   :global(.chart-card) {
@@ -3482,14 +3482,6 @@
   :global(.interp-val) {
     font-size: 0.85rem;
     color: var(--text-secondary);
-  }
-
-  :global(.stats-grid) {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 20px;
-    margin-bottom: 24px;
-    width: 100%;
   }
 
   :global(.grid-2) {
