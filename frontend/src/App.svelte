@@ -2622,6 +2622,44 @@
       color 0.3s ease;
   }
 
+  /* Custom Scrollbar Styling */
+  :global(::-webkit-scrollbar) {
+    width: 8px;
+    height: 8px;
+  }
+
+  :global(::-webkit-scrollbar-track) {
+    background: transparent;
+  }
+
+  :global(::-webkit-scrollbar-thumb) {
+    background: rgba(100, 116, 139, 0.2);
+    border-radius: 10px;
+    transition: background 0.2s;
+  }
+
+  :global(::-webkit-scrollbar-thumb:hover) {
+    background: rgba(100, 116, 139, 0.4);
+  }
+
+  :global([data-theme="dark"] ::-webkit-scrollbar-thumb) {
+    background: rgba(148, 163, 184, 0.2);
+  }
+
+  :global([data-theme="dark"] ::-webkit-scrollbar-thumb:hover) {
+    background: rgba(148, 163, 184, 0.4);
+  }
+
+  /* Firefox Support */
+  :global(*) {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(100, 116, 139, 0.2) transparent;
+  }
+
+  :global([data-theme="dark"]) {
+    scrollbar-color: rgba(148, 163, 184, 0.2) transparent;
+  }
+
   .app-container {
     display: flex;
     min-height: 100vh;
@@ -3616,12 +3654,6 @@
   :global(.metrics-table-container) {
     width: 100%;
     overflow-x: auto;
-    scrollbar-width: none; /* Hide scrollbars for cleaner look */
-    -ms-overflow-style: none;
-  }
-
-  :global(.metrics-table-container::-webkit-scrollbar) {
-    display: none;
   }
 
   :global(.metrics-table) {
