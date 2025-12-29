@@ -267,14 +267,28 @@ def fetch_treasury_settlements() -> List[Dict]:
     """
     Fetch Treasury auction settlements from US Treasury Fiscal Data API.
     Returns a list of settlements with date, type, amount, and RRP coverage.
-    Includes both past and future settlements.
+    Includes both past and future settlements with historical RRP data.
     """
     settlements = []
     today = datetime.now().strftime('%Y-%m-%d')
     
     try:
-        # Get current RRP balance from FRED (and historical for past dates)
+        # Get current RRP balance and historical data
         rrp_balance_current = get_rrp_balance()
+        rrp_history = get_rrp_history()
+        
+        # Helper function to get RRP balance for a specific date
+        def get_rrp_for_date(date_str: str) -> float:
+            if date_str >= today:
+                return rrp_balance_current
+            # Look for exact match or closest previous date
+            if date_str in rrp_history:
+                return rrp_history[date_str]
+            # Find closest previous date
+            sorted_dates = sorted([d for d in rrp_history.keys() if d <= date_str], reverse=True)
+            if sorted_dates:
+                return rrp_history[sorted_dates[0]]
+            return rrp_balance_current
         
         # Fetch auctions from Treasury API (both past and future)
         base_url = "https://api.fiscaldata.treasury.gov/services/api/fiscal_service"
@@ -312,8 +326,8 @@ def fetch_treasury_settlements() -> List[Dict]:
                     # Determine if this is a past or future settlement
                     is_future = issue_date >= today
                     
-                    # Use current RRP for all (historical RRP would require separate FRED calls)
-                    rrp_at_time = rrp_balance_current
+                    # Get RRP balance for this specific date
+                    rrp_at_time = get_rrp_for_date(issue_date)
                     
                     # Calculate coverage ratio
                     coverage_ratio = rrp_at_time / amount_billions if amount_billions > 0 else 999
@@ -402,6 +416,28 @@ def get_rrp_balance() -> float:
         print(f"Error fetching RRP from FRED: {e}")
     
     return 300.0  # Fallback value (current approximate level)
+
+def get_rrp_history() -> Dict[str, float]:
+    """
+    Get the full history of RRP balances from FRED for historical analysis.
+    Returns a dict of date_str -> balance_in_billions
+    """
+    try:
+        fred_client = Fred(api_key=os.getenv('FRED_API_KEY'))
+        series = fred_client.get_series('RRPONTSYD')
+        
+        if not series.empty:
+            # Convert to dict with date strings as keys
+            result = {}
+            for date, value in series.dropna().items():
+                date_str = date.strftime('%Y-%m-%d')
+                result[date_str] = float(value)
+            return result
+            
+    except Exception as e:
+        print(f"Error fetching RRP history from FRED: {e}")
+    
+    return {}
 
 def fetch_fomc_calendar():
     """

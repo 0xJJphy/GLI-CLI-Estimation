@@ -757,7 +757,8 @@
                             <th>Status</th>
                             <th>{translations.type || "Type"}</th>
                             <th>{translations.amount || "Amount"}</th>
-                            <th>RRP Coverage</th>
+                            <th>RRP Balance</th>
+                            <th>Coverage</th>
                             <th>{translations.risk || "Risk"}</th>
                         </tr>
                     </thead>
@@ -790,6 +791,9 @@
                                 >
                                 <td class="settlement-amount"
                                     >${settlement.amount}B</td
+                                >
+                                <td class="settlement-rrp"
+                                    >${settlement.rrp_balance}B</td
                                 >
                                 <td class="settlement-coverage"
                                     >{settlement.coverage_ratio}x</td
@@ -1608,6 +1612,11 @@
     .settlement-amount {
         font-weight: 700;
         color: var(--accent-primary);
+    }
+
+    .settlement-rrp {
+        font-weight: 600;
+        color: #22c55e;
     }
 
     .settlement-coverage {
