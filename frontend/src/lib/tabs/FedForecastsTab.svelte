@@ -90,10 +90,24 @@
 
     // Filters
     let filterSecurityType = "all"; // all, Bill, Note, Bond, TIPS, FRN, CMB
-    let filterDateFrom = "";
-    let filterDateTo = "";
+    let filterTermMin = ""; // Term filter min (e.g., 4 for 4-Week)
+    let filterTermMax = ""; // Term filter max (e.g., 52 for 52-Week)
     let filterAmountMin = "";
     let filterAmountMax = "";
+
+    // Helper to extract term weeks/years from type string (e.g., "17-Week Bill" -> 17, "10-Year Note" -> 520)
+    function extractTermWeeks(typeStr) {
+        if (!typeStr) return null;
+        const weekMatch = typeStr.match(/(\d+)-Week/i);
+        if (weekMatch) return parseInt(weekMatch[1]);
+        const monthMatch = typeStr.match(/(\d+)-Month/i);
+        if (monthMatch) return parseInt(monthMatch[1]) * 4; // Convert months to weeks
+        const yearMatch = typeStr.match(/(\d+)-Year/i);
+        if (yearMatch) return parseInt(yearMatch[1]) * 52; // Convert years to weeks
+        const dayMatch = typeStr.match(/(\d+)-Day/i);
+        if (dayMatch) return Math.ceil(parseInt(dayMatch[1]) / 7); // Convert days to weeks
+        return null;
+    }
 
     $: settlementData = dashboardData.fed_forecasts?.treasury_settlements || {};
     $: currentRrp = settlementData.current_rrp || 0;
@@ -111,13 +125,19 @@
         ) {
             return false;
         }
-        // Date from filter
-        if (filterDateFrom && s.date < filterDateFrom) {
-            return false;
+        // Term min filter (in weeks)
+        if (filterTermMin) {
+            const termWeeks = extractTermWeeks(typeStr);
+            if (termWeeks === null || termWeeks < parseInt(filterTermMin)) {
+                return false;
+            }
         }
-        // Date to filter
-        if (filterDateTo && s.date > filterDateTo) {
-            return false;
+        // Term max filter (in weeks)
+        if (filterTermMax) {
+            const termWeeks = extractTermWeeks(typeStr);
+            if (termWeeks === null || termWeeks > parseInt(filterTermMax)) {
+                return false;
+            }
         }
         // Amount min filter
         if (filterAmountMin && s.amount < parseFloat(filterAmountMin)) {
@@ -828,20 +848,48 @@
                     </select>
                 </div>
                 <div class="filter-group">
-                    <label>From:</label>
-                    <input
-                        type="date"
-                        bind:value={filterDateFrom}
+                    <label>Term Min:</label>
+                    <select
+                        bind:value={filterTermMin}
                         on:change={resetPagination}
-                    />
+                    >
+                        <option value="">Any</option>
+                        <option value="4">4-Week</option>
+                        <option value="8">8-Week</option>
+                        <option value="13">13-Week</option>
+                        <option value="17">17-Week</option>
+                        <option value="26">26-Week</option>
+                        <option value="52">52-Week</option>
+                        <option value="104">2-Year</option>
+                        <option value="156">3-Year</option>
+                        <option value="260">5-Year</option>
+                        <option value="364">7-Year</option>
+                        <option value="520">10-Year</option>
+                        <option value="1040">20-Year</option>
+                        <option value="1560">30-Year</option>
+                    </select>
                 </div>
                 <div class="filter-group">
-                    <label>To:</label>
-                    <input
-                        type="date"
-                        bind:value={filterDateTo}
+                    <label>Term Max:</label>
+                    <select
+                        bind:value={filterTermMax}
                         on:change={resetPagination}
-                    />
+                    >
+                        <option value="">Any</option>
+                        <option value="4">4-Week</option>
+                        <option value="8">8-Week</option>
+                        <option value="13">13-Week</option>
+                        <option value="17">17-Week</option>
+                        <option value="26">26-Week</option>
+                        <option value="52">52-Week</option>
+                        <option value="104">2-Year</option>
+                        <option value="156">3-Year</option>
+                        <option value="260">5-Year</option>
+                        <option value="364">7-Year</option>
+                        <option value="520">10-Year</option>
+                        <option value="1040">20-Year</option>
+                        <option value="1560">30-Year</option>
+                    </select>
                 </div>
                 <div class="filter-group">
                     <label>Min $B:</label>
@@ -869,8 +917,8 @@
                     class="clear-filters-btn"
                     on:click={() => {
                         filterSecurityType = "all";
-                        filterDateFrom = "";
-                        filterDateTo = "";
+                        filterTermMin = "";
+                        filterTermMax = "";
                         filterAmountMin = "";
                         filterAmountMax = "";
                         resetPagination();
