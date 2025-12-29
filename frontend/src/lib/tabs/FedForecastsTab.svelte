@@ -607,6 +607,7 @@
         display: grid;
         grid-template-columns: repeat(4, 1fr);
         gap: 16px;
+        margin-bottom: 25px;
     }
 
     .metric-card {
@@ -696,7 +697,8 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        min-width: 50px;
+        min-width: 45px;
+        width: 45px;
     }
 
     .meeting-month {
@@ -714,6 +716,7 @@
     .meeting-info {
         display: flex;
         align-items: center;
+        justify-content: space-between;
         gap: 8px;
         flex: 1;
     }
