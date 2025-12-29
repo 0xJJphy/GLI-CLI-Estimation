@@ -18,7 +18,7 @@ A premium, real-time macro liquidity monitoring dashboard that tracks the Global
 -   **Cleveland Fed Inflation Swaps**: Integrated model-based inflation expectations that combine Treasury yields, inflation swaps, and surveys for superior accuracy over TIPS breakevens.
 -   **15 Central Banks**: FED, ECB, BoJ, BoE, PBoC, BoC, RBA, RBI, SNB, CBR, BCB, BoK, RBNZ, SR, BNM.
 -   **14 M2 Economies**: US, EU, China, Japan, UK, Canada, Australia, India, Switzerland, Russia, Brazil, Korea, Mexico, Malaysia (and others).
--   **Fed Forecasts Tab**: Real-time FOMC meeting countdown, Dot Plot visualizations, and comprehensive macro indicators (CPI, PCE, PMI, Unemployment, Fed Funds Rate, and TIPS Breakeven inflation expectations).
+-   **Fed Forecasts Tab**: Real-time FOMC meeting countdown, Dot Plot visualizations, and comprehensive macro indicators (**CPI, PCE, PMI, Unemployment, Fed Funds Rate, TIPS Breakevens, and Implied Rate Probabilities from Fed Funds Futures**).
 
 ## 📊 Data & Formulas
 

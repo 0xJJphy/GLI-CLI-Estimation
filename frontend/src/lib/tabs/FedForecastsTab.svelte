@@ -29,6 +29,7 @@
             date: new Date(m.date),
             label: m.label,
             hasSEP: m.hasSEP || false,
+            probs: m.probs || null,
         }),
     );
 
@@ -78,6 +79,61 @@
 
     // Use dynamic dates if available, fallback otherwise
     $: fomcDates = FOMC_DATES.length > 0 ? FOMC_DATES : FALLBACK_FOMC_DATES;
+
+    // Fed Rate Probabilities Chart logic
+    let selectedMeetingIndex = 0;
+
+    $: selectedMeeting = fomcDates[selectedMeetingIndex] || fomcDates[0];
+
+    $: probChartData =
+        selectedMeeting && selectedMeeting.probs
+            ? [
+                  {
+                      x: [
+                          translations.prob_cut || "Cut",
+                          translations.no_change || "Hold",
+                          translations.prob_hike || "Hike",
+                      ],
+                      y: [
+                          selectedMeeting.probs.cut,
+                          selectedMeeting.probs.hold,
+                          selectedMeeting.probs.hike,
+                      ],
+                      type: "bar",
+                      marker: {
+                          color: ["#10b981", "#f59e0b", "#ef4444"],
+                      },
+                      text: [
+                          `${selectedMeeting.probs.cut}%`,
+                          `${selectedMeeting.probs.hold}%`,
+                          `${selectedMeeting.probs.hike}%`,
+                      ],
+                      textposition: "auto",
+                      hoverinfo: "none",
+                  },
+              ]
+            : [];
+
+    $: probChartLayout = {
+        title: {
+            text: selectedMeeting
+                ? `${selectedMeeting.label} (${selectedMeeting.date.getFullYear()})`
+                : "",
+            font: { size: 13, color: darkMode ? "#e5e7eb" : "#374151" },
+        },
+        paper_bgcolor: "rgba(0,0,0,0)",
+        plot_bgcolor: "rgba(0,0,0,0)",
+        font: { color: darkMode ? "#e5e7eb" : "#374151" },
+        showlegend: false,
+        margin: { t: 40, b: 40, l: 40, r: 20 },
+        height: 300,
+        xaxis: { gridcolor: darkMode ? "#374151" : "#e5e7eb" },
+        yaxis: {
+            gridcolor: darkMode ? "#374151" : "#e5e7eb",
+            range: [0, 105],
+            title: "% Probability",
+        },
+    };
 
     // Dot Plot data - dynamically loaded from pipeline or fallback
     // Source: palewire/fed-dot-plot-scraper (scraped from Fed website)
@@ -138,9 +194,10 @@
         return { days, hours, mins };
     })();
 
-    // Dot plot aggregation for visualization
-    $: dotPlotAggregated = Object.entries(DOT_PLOT_DATA.projections).map(
-        ([year, dots]) => {
+    // Dot plot aggregation for visualization (Filtering out 'longerRun' as requested)
+    $: dotPlotAggregated = Object.entries(DOT_PLOT_DATA.projections)
+        .filter(([key]) => key !== "longerRun")
+        .map(([year, dots]) => {
             const counts = {};
             dots.forEach((d) => {
                 counts[d] = (counts[d] || 0) + 1;
@@ -155,8 +212,7 @@
                 min: Math.min(...dots),
                 max: Math.max(...dots),
             };
-        },
-    );
+        });
 
     // Chart layouts
     $: cpiLayout = {
@@ -297,64 +353,93 @@
 
     <!-- Dot Plot Section + FOMC Calendar -->
     <div class="dot-plot-section">
-        <!-- Dot Plot Card -->
-        <div class="chart-card dot-plot-card">
-            <div class="chart-header">
-                <h3>
-                    🎯 {translations.fed_dot_plot || "Fed Dot Plot"} ({DOT_PLOT_DATA.meeting})
-                </h3>
-            </div>
-            <p class="chart-description">
-                {translations.fomc_projections_description ||
-                    "FOMC participants' projections for the federal funds rate. Each dot represents one official's view."}
-            </p>
-            <div class="dot-plot-container">
-                <div class="dot-plot-grid">
-                    {#each dotPlotAggregated as yearData}
-                        <div class="dot-plot-column">
-                            <div class="dot-plot-year">
-                                {yearData.year === "longerRun"
-                                    ? translations.long_run || "Long Run"
-                                    : yearData.year}
-                            </div>
-                            <div class="dot-plot-dots">
-                                {#each Object.entries(yearData.counts).sort((a, b) => Number(b[0]) - Number(a[0])) as [rate, count]}
-                                    <div class="dot-row">
-                                        <span class="dot-rate">{rate}%</span>
-                                        <div class="dots">
-                                            {#each Array(count) as _}
-                                                <span
-                                                    class="dot"
-                                                    class:median={Number(
-                                                        rate,
-                                                    ) === yearData.median}
-                                                ></span>
-                                            {/each}
+        <div class="left-stats-column">
+            <!-- Dot Plot Card -->
+            <div class="chart-card dot-plot-card">
+                <div class="chart-header">
+                    <h3>
+                        🎯 {translations.fed_dot_plot || "Fed Dot Plot"} ({DOT_PLOT_DATA.meeting})
+                    </h3>
+                </div>
+                <p class="chart-description">
+                    {translations.fomc_projections_description ||
+                        "FOMC participants' projections for the federal funds rate. Each dot represents one official's view."}
+                </p>
+                <div class="dot-plot-container">
+                    <div class="dot-plot-grid">
+                        {#each dotPlotAggregated as yearData}
+                            <div class="dot-plot-column">
+                                <div class="dot-plot-year">
+                                    {yearData.year === "longerRun"
+                                        ? translations.long_run || "Long Run"
+                                        : yearData.year}
+                                </div>
+                                <div class="dot-plot-dots">
+                                    {#each Object.entries(yearData.counts).sort((a, b) => Number(b[0]) - Number(a[0])) as [rate, count]}
+                                        <div class="dot-row">
+                                            <span class="dot-rate">{rate}%</span
+                                            >
+                                            <div class="dots">
+                                                {#each Array(count) as _}
+                                                    <span
+                                                        class="dot"
+                                                        class:median={Number(
+                                                            rate,
+                                                        ) === yearData.median}
+                                                    ></span>
+                                                {/each}
+                                            </div>
                                         </div>
-                                    </div>
-                                {/each}
+                                    {/each}
+                                </div>
+                                <div class="dot-plot-median">
+                                    {translations.median || "Median"}: {yearData.median}%
+                                </div>
                             </div>
-                            <div class="dot-plot-median">
-                                {translations.median || "Median"}: {yearData.median}%
-                            </div>
-                        </div>
-                    {/each}
-                </div>
-                <div class="dot-plot-legend">
-                    <span class="legend-item"
-                        ><span class="dot"></span>
-                        {translations.individual_projection ||
-                            "Individual Projection"}</span
-                    >
-                    <span class="legend-item"
-                        ><span class="dot median"></span>
-                        {translations.median || "Median"}</span
-                    >
-                    <span class="legend-item current-rate"
-                        >{translations.current_rate || "Current Rate"}: {DOT_PLOT_DATA.currentRate}%</span
-                    >
+                        {/each}
+                    </div>
+                    <div class="dot-plot-legend">
+                        <span class="legend-item"
+                            ><span class="dot"></span>
+                            {translations.individual_projection ||
+                                "Individual Projection"}</span
+                        >
+                        <span class="legend-item"
+                            ><span class="dot median"></span>
+                            {translations.median || "Median"}</span
+                        >
+                        <span class="legend-item current-rate"
+                            >{translations.current_rate || "Current Rate"}: {DOT_PLOT_DATA.currentRate}%</span
+                        >
+                    </div>
                 </div>
             </div>
+
+            {#if probChartData.length > 0}
+                <div class="chart-card prob-chart-card">
+                    <div class="chart-header">
+                        <h3>
+                            📊 {translations.target_rate ||
+                                "Target Rate Probabilities"}
+                        </h3>
+                    </div>
+                    <div class="chart-content">
+                        <Chart
+                            {darkMode}
+                            data={probChartData}
+                            layout={probChartLayout}
+                        />
+                    </div>
+                    {#if selectedMeeting && selectedMeeting.probs}
+                        <div class="prob-footer">
+                            <span class="implied-info">
+                                {translations.implied_rate || "Implied Rate"}:
+                                <b>{selectedMeeting.probs.implied_rate}%</b>
+                            </span>
+                        </div>
+                    {/if}
+                </div>
+            {/if}
         </div>
 
         <!-- FOMC Calendar Card -->
@@ -367,7 +452,16 @@
             </div>
             <div class="fomc-meetings-list">
                 {#each fomcDates.slice(0, 8) as meeting, i}
-                    <div class="fomc-meeting-item" class:next-meeting={i === 0}>
+                    <div
+                        class="fomc-meeting-item"
+                        class:next-meeting={i === 0}
+                        class:selected={selectedMeetingIndex === i}
+                        on:click={() => (selectedMeetingIndex = i)}
+                        on:keydown={(e) =>
+                            e.key === "Enter" && (selectedMeetingIndex = i)}
+                        role="button"
+                        tabindex="0"
+                    >
                         <div class="meeting-date-badge">
                             <span class="meeting-month"
                                 >{meeting.label.split(" ")[0]}</span
@@ -384,6 +478,224 @@
                                 <span class="sep-badge">SEP</span>
                             {/if}
                         </div>
+
+                        {#if meeting.probs}
+                            <div class="meeting-probs">
+                                <div class="prob-row">
+                                    <div class="prob-label-group">
+                                        <span class="prob-label"
+                                            >{translations.prob_cut ||
+                                                "Cut"}</span
+                                        >
+                                        <div class="roc-container">
+                                            {#if meeting.probs.roc1d}
+                                                <span
+                                                    class="roc-value"
+                                                    title="1-Day Trend"
+                                                    class:up={meeting.probs
+                                                        .roc1d.cut > 0}
+                                                    class:down={meeting.probs
+                                                        .roc1d.cut < 0}
+                                                >
+                                                    1D: {meeting.probs.roc1d
+                                                        .cut > 0
+                                                        ? "+"
+                                                        : ""}{meeting.probs
+                                                        .roc1d.cut}%
+                                                </span>
+                                            {/if}
+                                            {#if meeting.probs.roc5d}
+                                                <span
+                                                    class="roc-value"
+                                                    title="5-Day Trend"
+                                                    class:up={meeting.probs
+                                                        .roc5d.cut > 0}
+                                                    class:down={meeting.probs
+                                                        .roc5d.cut < 0}
+                                                >
+                                                    5D: {meeting.probs.roc5d
+                                                        .cut > 0
+                                                        ? "+"
+                                                        : ""}{meeting.probs
+                                                        .roc5d.cut}%
+                                                </span>
+                                            {/if}
+                                            {#if meeting.probs.roc1m}
+                                                <span
+                                                    class="roc-value"
+                                                    title="1-Month Trend"
+                                                    class:up={meeting.probs
+                                                        .roc1m.cut > 0}
+                                                    class:down={meeting.probs
+                                                        .roc1m.cut < 0}
+                                                >
+                                                    1M: {meeting.probs.roc1m
+                                                        .cut > 0
+                                                        ? "+"
+                                                        : ""}{meeting.probs
+                                                        .roc1m.cut}%
+                                                </span>
+                                            {/if}
+                                        </div>
+                                    </div>
+                                    <span
+                                        class="prob-value"
+                                        class:high={meeting.probs.cut > 60}
+                                        class:med={meeting.probs.cut > 30 &&
+                                            meeting.probs.cut <= 60}
+                                        class:low={meeting.probs.cut <= 30}
+                                    >
+                                        {meeting.probs.cut}%
+                                    </span>
+                                </div>
+                                <div class="prob-row">
+                                    <div class="prob-label-group">
+                                        <span class="prob-label"
+                                            >{translations.prob_hold ||
+                                                "Hold"}</span
+                                        >
+                                        <div class="roc-container">
+                                            {#if meeting.probs.roc1d}
+                                                <span
+                                                    class="roc-value"
+                                                    title="1-Day Trend"
+                                                    class:up={meeting.probs
+                                                        .roc1d.hold > 0}
+                                                    class:down={meeting.probs
+                                                        .roc1d.hold < 0}
+                                                >
+                                                    1D: {meeting.probs.roc1d
+                                                        .hold > 0
+                                                        ? "+"
+                                                        : ""}{meeting.probs
+                                                        .roc1d.hold}%
+                                                </span>
+                                            {/if}
+                                            {#if meeting.probs.roc5d}
+                                                <span
+                                                    class="roc-value"
+                                                    title="5-Day Trend"
+                                                    class:up={meeting.probs
+                                                        .roc5d.hold > 0}
+                                                    class:down={meeting.probs
+                                                        .roc5d.hold < 0}
+                                                >
+                                                    5D: {meeting.probs.roc5d
+                                                        .hold > 0
+                                                        ? "+"
+                                                        : ""}{meeting.probs
+                                                        .roc5d.hold}%
+                                                </span>
+                                            {/if}
+                                            {#if meeting.probs.roc1m}
+                                                <span
+                                                    class="roc-value"
+                                                    title="1-Month Trend"
+                                                    class:up={meeting.probs
+                                                        .roc1m.hold > 0}
+                                                    class:down={meeting.probs
+                                                        .roc1m.hold < 0}
+                                                >
+                                                    1M: {meeting.probs.roc1m
+                                                        .hold > 0
+                                                        ? "+"
+                                                        : ""}{meeting.probs
+                                                        .roc1m.hold}%
+                                                </span>
+                                            {/if}
+                                        </div>
+                                    </div>
+                                    <span
+                                        class="prob-value"
+                                        class:high={meeting.probs.hold > 60}
+                                        class:med={meeting.probs.hold > 30 &&
+                                            meeting.probs.hold <= 60}
+                                        class:low={meeting.probs.hold <= 30}
+                                    >
+                                        {meeting.probs.hold}%
+                                    </span>
+                                </div>
+                                {#if meeting.probs.hike > 0}
+                                    <div class="prob-row">
+                                        <div class="prob-label-group">
+                                            <span class="prob-label"
+                                                >{translations.prob_hike ||
+                                                    "Hike"}</span
+                                            >
+                                            <div class="roc-container">
+                                                {#if meeting.probs.roc1d}
+                                                    <span
+                                                        class="roc-value"
+                                                        title="1-Day Trend"
+                                                        class:up={meeting.probs
+                                                            .roc1d.hike > 0}
+                                                        class:down={meeting
+                                                            .probs.roc1d.hike <
+                                                            0}
+                                                    >
+                                                        1D: {meeting.probs.roc1d
+                                                            .hike > 0
+                                                            ? "+"
+                                                            : ""}{meeting.probs
+                                                            .roc1d.hike}%
+                                                    </span>
+                                                {/if}
+                                                {#if meeting.probs.roc5d}
+                                                    <span
+                                                        class="roc-value"
+                                                        title="5-Day Trend"
+                                                        class:up={meeting.probs
+                                                            .roc5d.hike > 0}
+                                                        class:down={meeting
+                                                            .probs.roc5d.hike <
+                                                            0}
+                                                    >
+                                                        5D: {meeting.probs.roc5d
+                                                            .hike > 0
+                                                            ? "+"
+                                                            : ""}{meeting.probs
+                                                            .roc5d.hike}%
+                                                    </span>
+                                                {/if}
+                                                {#if meeting.probs.roc1m}
+                                                    <span
+                                                        class="roc-value"
+                                                        title="1-Month Trend"
+                                                        class:up={meeting.probs
+                                                            .roc1m.hike > 0}
+                                                        class:down={meeting
+                                                            .probs.roc1m.hike <
+                                                            0}
+                                                    >
+                                                        1M: {meeting.probs.roc1m
+                                                            .hike > 0
+                                                            ? "+"
+                                                            : ""}{meeting.probs
+                                                            .roc1m.hike}%
+                                                    </span>
+                                                {/if}
+                                            </div>
+                                        </div>
+                                        <span
+                                            class="prob-value"
+                                            class:high={meeting.probs.hike > 60}
+                                            class:med={meeting.probs.hike >
+                                                30 && meeting.probs.hike <= 60}
+                                            class:low={meeting.probs.hike <= 30}
+                                        >
+                                            {meeting.probs.hike}%
+                                        </span>
+                                    </div>
+                                {/if}
+                                {#if meeting.probs.cumulative_cuts > 0}
+                                    <div class="cumulative-info">
+                                        Σ {meeting.probs.cumulative_cuts}
+                                        {translations.cumulative_cuts || "Cuts"}
+                                    </div>
+                                {/if}
+                            </div>
+                        {/if}
+
                         {#if i === 0}
                             <div class="next-badge">
                                 {translations.next || "NEXT"}
@@ -641,25 +953,35 @@
     }
 
     /* Dot Plot Section - Two Column Layout */
+    /* Dot Plot Section - Two Column Layout */
     .dot-plot-section {
         display: grid;
-        grid-template-columns: 1fr 280px;
+        grid-template-columns: 1fr 1fr;
         gap: 20px;
-        margin-bottom: 30px;
+        margin-bottom: 25px;
         align-items: stretch;
     }
 
-    .dot-plot-card {
+    .left-stats-column {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .dot-plot-card,
+    .prob-chart-card,
+    .fomc-calendar-card {
         min-width: 0;
         display: flex;
         flex-direction: column;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
     }
 
-    .fomc-calendar-card {
-        min-width: 250px;
-        max-width: 300px;
-        display: flex;
-        flex-direction: column;
+    .dot-plot-card,
+    .prob-chart-card {
+        flex: 1;
     }
 
     .fomc-meetings-list {
@@ -672,45 +994,77 @@
     .fomc-meeting-item {
         display: flex;
         align-items: center;
-        gap: 10px;
-        padding: 10px 12px;
-        background: rgba(100, 100, 100, 0.1);
+        padding: 12px 15px;
+        background: rgba(0, 0, 0, 0.03);
         border-radius: 8px;
+        margin-bottom: 8px;
         position: relative;
+        border: 1px solid transparent;
         transition: all 0.2s ease;
+        cursor: pointer;
     }
 
     .fomc-meeting-item:hover {
-        background: rgba(100, 100, 100, 0.2);
+        background: rgba(0, 0, 0, 0.06);
+        border-color: var(--accent-primary);
+    }
+
+    .fomc-meeting-item.selected {
+        background: rgba(59, 130, 246, 0.1);
+        border-color: #3b82f6;
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
     }
 
     .fomc-meeting-item.next-meeting {
-        background: linear-gradient(
-            135deg,
-            rgba(76, 175, 80, 0.2),
-            rgba(76, 175, 80, 0.1)
-        );
-        border: 1px solid rgba(76, 175, 80, 0.5);
+        background: rgba(16, 185, 129, 0.05);
+        border-left: 4px solid #10b981;
+    }
+
+    .prob-footer {
+        padding: 10px;
+        text-align: center;
+        border-top: 1px solid var(--border-color);
+        margin-top: 10px;
+    }
+
+    .implied-info {
+        font-size: 0.9rem;
+        color: var(--text-muted);
+    }
+
+    .implied-info b {
+        color: var(--accent-primary);
     }
 
     .meeting-date-badge {
         display: flex;
         flex-direction: column;
         align-items: center;
-        min-width: 45px;
-        width: 45px;
+        justify-content: center;
+        min-width: 50px;
+        width: 50px;
+        height: 50px;
+        flex-shrink: 0;
+        background: rgba(255, 193, 7, 0.1);
+        border: 1px solid rgba(255, 193, 7, 0.3);
+        border-radius: 6px;
+        margin-right: 12px;
     }
 
     .meeting-month {
-        font-size: 0.75rem;
-        font-weight: 700;
+        font-size: 0.7rem;
+        font-weight: 800;
+        line-height: 1;
         text-transform: uppercase;
-        color: var(--primary-accent, #4fc3f7);
+        color: #ffc107;
+        margin-bottom: 2px;
     }
 
     .meeting-days {
-        font-size: 0.85rem;
-        font-weight: 600;
+        font-size: 0.9rem;
+        font-weight: 700;
+        line-height: 1;
+        color: var(--text-primary);
     }
 
     .meeting-info {
@@ -746,15 +1100,96 @@
 
     .next-badge {
         position: absolute;
-        right: 8px;
-        top: 50%;
-        transform: translateY(-50%);
+        left: -10px;
+        top: -10px;
         background: linear-gradient(135deg, #4caf50, #45a049);
         color: white;
-        font-size: 0.6rem;
-        font-weight: 700;
-        padding: 3px 8px;
+        font-size: 0.55rem;
+        font-weight: 800;
+        padding: 2px 6px;
         border-radius: 4px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        z-index: 10;
+        letter-spacing: 0.5px;
+    }
+
+    /* Rate Probabilities */
+    .meeting-probs {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        margin-left: auto;
+        padding-left: 15px;
+        border-left: 1px solid var(--border-color);
+        min-width: 240px;
+        position: relative;
+        z-index: 1;
+    }
+
+    .prob-label-group {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .roc-container {
+        display: flex;
+        gap: 5px;
+        flex-wrap: wrap;
+    }
+
+    .roc-value {
+        font-size: 0.62rem;
+        font-weight: 700;
+        white-space: nowrap;
+        background: rgba(0, 0, 0, 0.03);
+        padding: 1px 3px;
+        border-radius: 3px;
+        color: var(--text-muted);
+    }
+
+    .roc-value.up {
+        color: #10b981;
+    }
+
+    .roc-value.down {
+        color: #ef4444;
+    }
+
+    .prob-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.7rem;
+        gap: 8px;
+    }
+
+    .prob-label {
+        color: var(--text-muted);
+    }
+
+    .prob-value {
+        font-weight: 600;
+        font-family: "Monaco", monospace;
+    }
+
+    .prob-value.high {
+        color: #10b981;
+    }
+
+    .prob-value.med {
+        color: #f59e0b;
+    }
+
+    .prob-value.low {
+        color: var(--text-muted);
+    }
+
+    .cumulative-info {
+        margin-top: 4px;
+        font-size: 0.65rem;
+        color: #3b82f6;
+        font-weight: 600;
+        text-align: right;
     }
 
     .fomc-legend {
@@ -770,7 +1205,7 @@
         gap: 6px;
     }
 
-    @media (max-width: 900px) {
+    @media (max-width: 1200px) {
         .dot-plot-section {
             grid-template-columns: 1fr;
         }

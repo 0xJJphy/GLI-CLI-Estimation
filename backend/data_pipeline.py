@@ -9,6 +9,7 @@ import json
 import time
 import logging
 from typing import Dict, List, Any, Optional
+import calendar
 
 # Helper functions for JSON serialization and date handling
 def clean_for_json(obj):
@@ -29,6 +30,191 @@ def get_safe_last_date(series):
     except:
         pass
     return "N/A"
+
+def get_current_fed_rate() -> float:
+    """
+    Returns the current Effective Federal Funds Rate (DFF) from FRED.
+    This provides the real baseline used by CME FedWatch.
+    """
+    try:
+        fred_client = Fred(api_key=os.getenv('FRED_API_KEY'))
+        # Get latest Effective Fed Funds Rate
+        # Series 'DFF' is the Daily Effective Fed Funds Rate
+        s = fred_client.get_series('DFF')
+        if not s.empty:
+            return s.dropna().iloc[-1]
+            
+    except Exception as e:
+        print(f"Error fetching DFF from FRED: {e}")
+        
+    return 3.58  # Current EFFR as of late Dec 2025 (hard fallback)
+
+def calculate_projections(price: float, meeting: Dict, current_rate: float) -> Dict:
+    """Helper to calculate probabilities for a specific futures price."""
+    m_date = datetime.strptime(meeting['date'], '%Y-%m-%d')
+    day = m_date.day
+    _, num_days = calendar.monthrange(m_date.year, m_date.month)
+    
+    implied_month_avg = 100 - price
+    try:
+        target_post = (implied_month_avg * num_days - current_rate * (day - 1)) / (num_days - day + 1)
+    except ZeroDivisionError:
+        target_post = implied_month_avg
+        
+    rate_diff = target_post - current_rate
+    cuts_implied = -rate_diff / 0.25
+    
+    p_cut, p_hold, p_hike = 0.0, 0.0, 0.0
+    
+    if cuts_implied > 0:
+        if cuts_implied >= 1:
+            p_cut = 100.0
+        else:
+            p_cut = cuts_implied * 100
+            p_hold = (1 - cuts_implied) * 100
+    elif cuts_implied < 0:
+        hikes_implied = -cuts_implied
+        if hikes_implied >= 1:
+            p_hike = 100.0
+        else:
+            p_hike = hikes_implied * 100
+            p_hold = (1 - hikes_implied) * 100
+    else:
+        p_hold = 100.0
+        
+    return {
+        'cut': round(max(0, min(100, p_cut)), 1),
+        'hold': round(max(0, min(100, p_hold)), 1),
+        'hike': round(max(0, min(100, p_hike)), 1),
+        'implied_rate': round(target_post, 3),
+        'cumulative_cuts': round(max(0, cuts_implied), 2)
+    }
+
+def calculate_fed_probabilities(futures_data: Dict[str, Dict], meetings: List[Dict], current_rate: float) -> List[Dict]:
+    """
+    Calculate probabilities with 1D, 5D, and 1M ROC.
+    futures_data is month_name -> {'price': current, 'price_1d': old1, 'price_5d': old5, 'price_1m': oldM}
+    """
+    for meeting in meetings:
+        date_obj = datetime.strptime(meeting['date'], '%Y-%m-%d')
+        month_name = date_obj.strftime('%b %Y')
+        
+        if month_name not in futures_data:
+            continue
+            
+        data = futures_data[month_name]
+        
+        # Projections for each period
+        curr_probs = calculate_projections(data['price'], meeting, current_rate)
+        old1_probs = calculate_projections(data['price_1d'], meeting, current_rate)
+        old5_probs = calculate_projections(data['price_5d'], meeting, current_rate)
+        oldM_probs = calculate_projections(data['price_1m'], meeting, current_rate)
+        
+        # Add ROCs
+        curr_probs['roc1d'] = {
+            'cut': round(curr_probs['cut'] - old1_probs['cut'], 1),
+            'hold': round(curr_probs['hold'] - old1_probs['hold'], 1),
+            'hike': round(curr_probs['hike'] - old1_probs['hike'], 1)
+        }
+        curr_probs['roc5d'] = {
+            'cut': round(curr_probs['cut'] - old5_probs['cut'], 1),
+            'hold': round(curr_probs['hold'] - old5_probs['hold'], 1),
+            'hike': round(curr_probs['hike'] - old5_probs['hike'], 1)
+        }
+        curr_probs['roc1m'] = {
+            'cut': round(curr_probs['cut'] - oldM_probs['cut'], 1),
+            'hold': round(curr_probs['hold'] - oldM_probs['hold'], 1),
+            'hike': round(curr_probs['hike'] - oldM_probs['hike'], 1)
+        }
+        
+        meeting['probs'] = curr_probs
+        
+    return meetings
+
+def fetch_fed_funds_futures(meetings: List[Dict] = None) -> Dict[str, Dict]:
+    """
+    Fetch Fed Funds Futures (price vs 1D, 5D, 1M ago).
+    Returns month_name -> {'price': curr, 'price_1d': p1, 'price_5d': p5, 'price_1m': pM}
+    """
+    results = {}
+    
+    try:
+        from tvDatafeed import TvDatafeed, Interval
+        tv_client = TvDatafeed()
+        
+        today = datetime.now()
+        month_codes = {
+            1: 'F', 2: 'G', 3: 'H', 4: 'J', 5: 'K', 6: 'M',
+            7: 'N', 8: 'Q', 9: 'U', 10: 'V', 11: 'X', 12: 'Z'
+        }
+        
+        target_months = []
+        if meetings:
+            for m in meetings:
+                d = datetime.strptime(m['date'], '%Y-%m-%d')
+                target_months.append((d.month, d.year))
+        
+        for i in range(13):
+            d = today + timedelta(days=31 * i)
+            m_y = (d.month, d.year)
+            if m_y not in target_months: target_months.append(m_y)
+        
+        target_months.sort(key=lambda x: (x[1], x[0]))
+
+        # We need historical data (last 45 bars to cover 1M back)
+        for month, year in target_months:
+            code = month_codes[month]
+            yr_str = str(year)[-2:]
+            symbol = f"ZQ{code}20{yr_str}"
+            
+            try:
+                # Get historical daily data
+                data = tv_client.get_hist(symbol=symbol, exchange='CBOT', interval=Interval.in_daily, n_bars=45)
+                
+                if data is not None and not data.empty:
+                    curr_price = float(data['close'].iloc[-1])
+                    
+                    # 1D ago (approx 1 trading day)
+                    p1 = float(data['close'].iloc[-2]) if len(data) > 1 else curr_price
+                    # 5D ago (approx 5 trading days)
+                    p5 = float(data['close'].iloc[-6]) if len(data) > 6 else p1
+                    # 1 month ago (approx 22 trading days)
+                    pM = float(data['close'].iloc[-23]) if len(data) > 23 else p5
+                    
+                    month_name = datetime(year, month, 1).strftime('%b %Y')
+                    results[month_name] = {
+                        'price': round(curr_price, 4),
+                        'price_1d': round(p1, 4),
+                        'price_5d': round(p5, 4),
+                        'price_1m': round(pM, 4)
+                    }
+            except:
+                # Fallback to continuous front month ZQ1! if specific month fails
+                try:
+                    front = tv_client.get_hist(symbol='ZQ1!', exchange='CBOT', interval=Interval.in_daily, n_bars=45)
+                    if front is not None and not front.empty:
+                        c_p = float(front['close'].iloc[-1])
+                        p1f = float(front['close'].iloc[-2]) if len(front) > 1 else c_p
+                        p5f = float(front['close'].iloc[-6]) if len(front) > 6 else p1f
+                        pMf = float(front['close'].iloc[-23]) if len(front) > 23 else p5f
+                        
+                        month_name = datetime(year, month, 1).strftime('%b %Y')
+                        results[month_name] = {
+                            'price': round(c_p, 4),
+                            'price_1d': round(p1f, 4),
+                            'price_5d': round(p5f, 4),
+                            'price_1m': round(pMf, 4)
+                        }
+                except:
+                    continue
+                
+        return results
+        
+    except Exception as e:
+        print(f"Error in fetch_fed_funds_futures: {e}")
+        return {}
+        
+    return results
 
 def fetch_fomc_calendar():
     """
@@ -104,6 +290,13 @@ def fetch_fomc_calendar():
         
         # Sort by date
         meetings.sort(key=lambda x: x['date'])
+        
+        # Calculate probabilities for upcoming meetings
+        if meetings:
+            futures_prices = fetch_fed_funds_futures()
+            current_rate = get_current_fed_rate()
+            meetings = calculate_fed_probabilities(futures_prices, meetings, current_rate)
+            
         print(f"  -> Scraped {len(meetings)} upcoming FOMC dates from Fed calendar")
         return meetings[:8]  # Return next 8 meetings
         
