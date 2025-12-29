@@ -22,33 +22,62 @@
     export let inflationExpectationsData = [];
     export let inflationExpectationsRange = "5Y";
 
-    // FOMC 2025 Meeting Dates (upcoming only)
-    const FOMC_DATES = [
-        { date: new Date(Date.UTC(2025, 0, 29)), label: "Jan 28-29" },
+    // FOMC Meeting Dates - dynamically loaded from data pipeline or fallback to static
+    // The pipeline scrapes dates from federalreserve.gov/monetarypolicy/fomccalendars.htm
+    $: FOMC_DATES = (dashboardData.fed_forecasts?.fomc_dates || []).map(
+        (m) => ({
+            date: new Date(m.date),
+            label: m.label,
+            hasSEP: m.hasSEP || false,
+        }),
+    );
+
+    // Fallback dates if dynamic fetch fails
+    const FALLBACK_FOMC_DATES = [
+        {
+            date: new Date(Date.UTC(2025, 0, 29)),
+            label: "Jan 28-29",
+            hasSEP: false,
+        },
         {
             date: new Date(Date.UTC(2025, 2, 19)),
             label: "Mar 18-19",
             hasSEP: true,
         },
-        { date: new Date(Date.UTC(2025, 4, 7)), label: "May 6-7" },
+        {
+            date: new Date(Date.UTC(2025, 4, 7)),
+            label: "May 6-7",
+            hasSEP: false,
+        },
         {
             date: new Date(Date.UTC(2025, 5, 18)),
             label: "Jun 17-18",
             hasSEP: true,
         },
-        { date: new Date(Date.UTC(2025, 6, 30)), label: "Jul 29-30" },
+        {
+            date: new Date(Date.UTC(2025, 6, 30)),
+            label: "Jul 29-30",
+            hasSEP: false,
+        },
         {
             date: new Date(Date.UTC(2025, 8, 17)),
             label: "Sep 16-17",
             hasSEP: true,
         },
-        { date: new Date(Date.UTC(2025, 9, 29)), label: "Oct 28-29" },
+        {
+            date: new Date(Date.UTC(2025, 9, 29)),
+            label: "Oct 28-29",
+            hasSEP: false,
+        },
         {
             date: new Date(Date.UTC(2025, 11, 10)),
             label: "Dec 9-10",
             hasSEP: true,
         },
     ];
+
+    // Use dynamic dates if available, fallback otherwise
+    $: fomcDates = FOMC_DATES.length > 0 ? FOMC_DATES : FALLBACK_FOMC_DATES;
 
     // Latest Dot Plot data from December 2024 FOMC (most recent)
     // Each entry is a dot representing a Fed official's projection
@@ -87,7 +116,7 @@
     // Calculate next FOMC meeting
     $: nextFOMC = (() => {
         const now = new Date();
-        return FOMC_DATES.find((m) => m.date > now) || FOMC_DATES[0];
+        return fomcDates.find((m) => m.date > now) || fomcDates[0];
     })();
 
     // Countdown calculation (using UTC to avoid timezone issues)
@@ -265,13 +294,17 @@
         <!-- Key Metrics Cards -->
         <div class="metrics-row">
             <div class="metric-card">
-                <span class="metric-label">Fed Funds Rate</span>
+                <span class="metric-label"
+                    >{translations.fed_funds_rate || "Fed Funds Rate"}</span
+                >
                 <span class="metric-value"
                     >{latestFedFunds?.toFixed(2) ?? "—"}%</span
                 >
             </div>
             <div class="metric-card">
-                <span class="metric-label">Core PCE YoY</span>
+                <span class="metric-label"
+                    >{translations.core_pce_yoy || "Core PCE YoY"}</span
+                >
                 <span
                     class="metric-value"
                     class:above-target={latestCorePCE > 2}
@@ -279,13 +312,17 @@
                 >
             </div>
             <div class="metric-card">
-                <span class="metric-label">Unemployment</span>
+                <span class="metric-label"
+                    >{translations.unemployment_rate || "Unemployment"}</span
+                >
                 <span class="metric-value"
                     >{latestUnemployment?.toFixed(1) ?? "—"}%</span
                 >
             </div>
             <div class="metric-card">
-                <span class="metric-label">ISM Mfg PMI</span>
+                <span class="metric-label"
+                    >{translations.ism_mfg_pmi || "ISM Mfg PMI"}</span
+                >
                 <span class="metric-value" class:below-50={latestISMMfg < 50}
                     >{latestISMMfg?.toFixed(1) ?? "—"}</span
                 >
@@ -297,11 +334,13 @@
     <div class="dot-plot-section">
         <div class="chart-card full-width">
             <div class="chart-header">
-                <h3>🎯 Fed Dot Plot ({DOT_PLOT_DATA.meeting})</h3>
+                <h3>
+                    🎯 {translations.fed_dot_plot || "Fed Dot Plot"} ({DOT_PLOT_DATA.meeting})
+                </h3>
             </div>
             <p class="chart-description">
-                FOMC participants' projections for the federal funds rate. Each
-                dot represents one official's view.
+                {translations.fomc_projections_description ||
+                    "FOMC participants' projections for the federal funds rate. Each dot represents one official's view."}
             </p>
             <div class="dot-plot-container">
                 <div class="dot-plot-grid">
@@ -309,7 +348,7 @@
                         <div class="dot-plot-column">
                             <div class="dot-plot-year">
                                 {yearData.year === "longerRun"
-                                    ? "Long Run"
+                                    ? translations.long_run || "Long Run"
                                     : yearData.year}
                             </div>
                             <div class="dot-plot-dots">
@@ -337,13 +376,16 @@
                 </div>
                 <div class="dot-plot-legend">
                     <span class="legend-item"
-                        ><span class="dot"></span> Individual Projection</span
+                        ><span class="dot"></span>
+                        {translations.individual_projection ||
+                            "Individual Projection"}</span
                     >
                     <span class="legend-item"
-                        ><span class="dot median"></span> Median</span
+                        ><span class="dot median"></span>
+                        {translations.median || "Median"}</span
                     >
                     <span class="legend-item current-rate"
-                        >Current Rate: {DOT_PLOT_DATA.currentRate}%</span
+                        >{translations.current_rate || "Current Rate"}: {DOT_PLOT_DATA.currentRate}%</span
                     >
                 </div>
             </div>
@@ -354,7 +396,9 @@
     <div class="charts-grid">
         <div class="chart-card">
             <div class="chart-header">
-                <h3>📊 CPI Inflation (YoY)</h3>
+                <h3>
+                    📊 {translations.cpi_inflation_yoy || "CPI Inflation (YoY)"}
+                </h3>
                 <div class="header-controls">
                     <TimeRangeSelector
                         selectedRange={cpiRange}
@@ -363,22 +407,29 @@
                 </div>
             </div>
             <p class="chart-description">
-                Consumer Price Index year-over-year change. Target: 2%
+                {translations.cpi_description ||
+                    "Consumer Price Index year-over-year change. Target: 2%"}
             </p>
             <div class="chart-content">
                 <Chart {darkMode} data={cpiData} layout={cpiLayout} />
             </div>
             <div class="latest-values">
-                <span>Headline CPI: <b>{latestCPI?.toFixed(2) ?? "—"}%</b></span
+                <span
+                    >{translations.headline_cpi || "Headline CPI"}:
+                    <b>{latestCPI?.toFixed(2) ?? "—"}%</b></span
                 >
-                <span>Core CPI: <b>{latestCoreCPI?.toFixed(2) ?? "—"}%</b></span
+                <span
+                    >{translations.core_cpi || "Core CPI"}:
+                    <b>{latestCoreCPI?.toFixed(2) ?? "—"}%</b></span
                 >
             </div>
         </div>
 
         <div class="chart-card">
             <div class="chart-header">
-                <h3>📊 PCE Inflation (YoY)</h3>
+                <h3>
+                    📊 {translations.pce_inflation_yoy || "PCE Inflation (YoY)"}
+                </h3>
                 <div class="header-controls">
                     <TimeRangeSelector
                         selectedRange={pceRange}
@@ -387,23 +438,27 @@
                 </div>
             </div>
             <p class="chart-description">
-                Personal Consumption Expenditures (Fed's preferred gauge).
-                Target: 2%
+                {translations.pce_description ||
+                    "Personal Consumption Expenditures (Fed's preferred gauge). Target: 2%"}
             </p>
             <div class="chart-content">
                 <Chart {darkMode} data={pceData} layout={cpiLayout} />
             </div>
             <div class="latest-values">
-                <span>Headline PCE: <b>{latestPCE?.toFixed(2) ?? "—"}%</b></span
+                <span
+                    >{translations.headline_pce || "Headline PCE"}:
+                    <b>{latestPCE?.toFixed(2) ?? "—"}%</b></span
                 >
-                <span>Core PCE: <b>{latestCorePCE?.toFixed(2) ?? "—"}%</b></span
+                <span
+                    >{translations.core_pce || "Core PCE"}:
+                    <b>{latestCorePCE?.toFixed(2) ?? "—"}%</b></span
                 >
             </div>
         </div>
 
         <div class="chart-card">
             <div class="chart-header">
-                <h3>🏭 ISM PMI</h3>
+                <h3>🏭 {translations.ism_pmi || "ISM PMI"}</h3>
                 <div class="header-controls">
                     <TimeRangeSelector
                         selectedRange={pmiRange}
@@ -412,20 +467,22 @@
                 </div>
             </div>
             <p class="chart-description">
-                Manufacturing & Services PMI. Above 50 = Expansion, Below 50 =
-                Contraction
+                {translations.pmi_description ||
+                    "Manufacturing & Services PMI. Above 50 = Expansion, Below 50 = Contraction"}
             </p>
             <div class="chart-content">
                 <Chart {darkMode} data={pmiData} layout={pmiLayout} />
             </div>
             <div class="latest-values">
                 <span
-                    >Manufacturing: <b class:below-50={latestISMMfg < 50}
+                    >{translations.manufacturing || "Manufacturing"}:
+                    <b class:below-50={latestISMMfg < 50}
                         >{latestISMMfg?.toFixed(1) ?? "—"}</b
                     ></span
                 >
                 <span
-                    >Services: <b class:below-50={latestISMSvc < 50}
+                    >{translations.services || "Services"}:
+                    <b class:below-50={latestISMSvc < 50}
                         >{latestISMSvc?.toFixed(1) ?? "—"}</b
                     ></span
                 >
@@ -434,7 +491,9 @@
 
         <div class="chart-card">
             <div class="chart-header">
-                <h3>👷 Unemployment Rate</h3>
+                <h3>
+                    👷 {translations.unemployment_rate || "Unemployment Rate"}
+                </h3>
                 <div class="header-controls">
                     <TimeRangeSelector
                         selectedRange={unemploymentRange}
@@ -443,7 +502,8 @@
                 </div>
             </div>
             <p class="chart-description">
-                U.S. unemployment rate. Key indicator for Fed dual mandate.
+                {translations.unemployment_description ||
+                    "U.S. unemployment rate. Key indicator for Fed dual mandate."}
             </p>
             <div class="chart-content">
                 <Chart
@@ -454,15 +514,17 @@
             </div>
             <div class="latest-values">
                 <span
-                    >Current: <b>{latestUnemployment?.toFixed(1) ?? "—"}%</b
-                    ></span
+                    >{translations.current || "Current"}:
+                    <b>{latestUnemployment?.toFixed(1) ?? "—"}%</b></span
                 >
             </div>
         </div>
 
         <div class="chart-card">
             <div class="chart-header">
-                <h3>🏦 Federal Funds Rate</h3>
+                <h3>
+                    🏦 {translations.fed_funds_rate || "Federal Funds Rate"}
+                </h3>
                 <div class="header-controls">
                     <TimeRangeSelector
                         selectedRange={fedFundsRange}
@@ -471,15 +533,16 @@
                 </div>
             </div>
             <p class="chart-description">
-                Effective Federal Funds Rate. Primary tool for monetary policy.
+                {translations.fed_funds_description ||
+                    "Effective Federal Funds Rate. Primary tool for monetary policy."}
             </p>
             <div class="chart-content">
                 <Chart {darkMode} data={fedFundsData} layout={fedFundsLayout} />
             </div>
             <div class="latest-values">
                 <span
-                    >Current Rate: <b>{latestFedFunds?.toFixed(2) ?? "—"}%</b
-                    ></span
+                    >{translations.current_rate || "Current Rate"}:
+                    <b>{latestFedFunds?.toFixed(2) ?? "—"}%</b></span
                 >
             </div>
         </div>
@@ -488,10 +551,13 @@
     <!-- Inflation Expectations Chart -->
     <div class="chart-section">
         <div class="chart-header">
-            <h3>💹 Inflation Expectations (TIPS Breakeven)</h3>
+            <h3>
+                💹 {translations.inflation_expectations ||
+                    "Inflation Expectations (TIPS Breakeven)"}
+            </h3>
             <p class="chart-description">
-                Market-implied inflation expectations vs actual CPI. Divergence
-                signals potential policy shifts.
+                {translations.inflation_expectations_description ||
+                    "Market-implied inflation expectations vs actual CPI. Divergence signals potential policy shifts."}
             </p>
         </div>
         <div class="chart-container">

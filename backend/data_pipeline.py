@@ -30,6 +30,97 @@ def get_safe_last_date(series):
         pass
     return "N/A"
 
+def fetch_fomc_calendar():
+    """
+    Fetch upcoming FOMC meeting dates from the Federal Reserve's official calendar.
+    Returns a list of meeting dictionaries with date, label, and hasSEP flag.
+    """
+    try:
+        from bs4 import BeautifulSoup
+        import re
+        
+        url = 'https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm'
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        
+        soup = BeautifulSoup(response.text, 'html.parser')
+        meetings = []
+        today = datetime.now()
+        
+        # Parse all meeting rows from the calendar
+        for panel in soup.select('.panel.panel-default'):
+            year_header = panel.select_one('.panel-heading')
+            if not year_header:
+                continue
+            year_text = year_header.get_text(strip=True)
+            year_match = re.search(r'(\d{4})', year_text)
+            if not year_match:
+                continue
+            year = int(year_match.group(1))
+            
+            # Find meeting rows
+            for row in panel.select('.fomc-meeting'):
+                month_elem = row.select_one('.fomc-meeting__month')
+                dates_elem = row.select_one('.fomc-meeting__date')
+                
+                if not month_elem or not dates_elem:
+                    continue
+                
+                month_text = month_elem.get_text(strip=True)
+                dates_text = dates_elem.get_text(strip=True)
+                
+                # Parse month
+                month_map = {
+                    'January': 1, 'February': 2, 'March': 3, 'April': 4,
+                    'May': 5, 'June': 6, 'July': 7, 'August': 8,
+                    'September': 9, 'October': 10, 'November': 11, 'December': 12
+                }
+                month = month_map.get(month_text, 0)
+                if not month:
+                    continue
+                
+                # Parse dates (e.g., "28-29" or "18")
+                date_match = re.search(r'(\d+)(?:-(\d+))?', dates_text)
+                if not date_match:
+                    continue
+                end_day = int(date_match.group(2) or date_match.group(1))
+                
+                # Check if SEP meeting (has projection materials)
+                has_sep = '*' in dates_text or 'projection' in row.get_text().lower()
+                
+                # Create meeting date
+                try:
+                    meeting_date = datetime(year, month, end_day)
+                    if meeting_date > today:
+                        label = f"{month_text[:3]} {dates_text.replace('*', '').strip()}"
+                        meetings.append({
+                            'date': meeting_date.strftime('%Y-%m-%d'),
+                            'label': label,
+                            'hasSEP': has_sep
+                        })
+                except ValueError:
+                    continue
+        
+        # Sort by date
+        meetings.sort(key=lambda x: x['date'])
+        print(f"  -> Scraped {len(meetings)} upcoming FOMC dates from Fed calendar")
+        return meetings[:8]  # Return next 8 meetings
+        
+    except Exception as e:
+        print(f"  -> Warning: Could not fetch FOMC calendar: {e}")
+        # Return fallback hardcoded dates
+        return [
+            {'date': '2025-01-29', 'label': 'Jan 28-29', 'hasSEP': False},
+            {'date': '2025-03-19', 'label': 'Mar 18-19', 'hasSEP': True},
+            {'date': '2025-05-07', 'label': 'May 6-7', 'hasSEP': False},
+            {'date': '2025-06-18', 'label': 'Jun 17-18', 'hasSEP': True},
+            {'date': '2025-07-30', 'label': 'Jul 29-30', 'hasSEP': False},
+            {'date': '2025-09-17', 'label': 'Sep 16-17', 'hasSEP': True},
+            {'date': '2025-10-29', 'label': 'Oct 28-29', 'hasSEP': False},
+            {'date': '2025-12-10', 'label': 'Dec 9-10', 'hasSEP': True},
+        ]
+
 # tvDatafeed import
 try:
     from tvDatafeed import TvDatafeed, Interval
@@ -2282,6 +2373,8 @@ def run_pipeline():
                 'inflation_expect_1y': clean_for_json(df_t.get('INFLATION_EXPECT_1Y', pd.Series(dtype=float))),
                 'inflation_expect_5y': clean_for_json(df_t.get('INFLATION_EXPECT_5Y', pd.Series(dtype=float))),
                 'inflation_expect_10y': clean_for_json(df_t.get('INFLATION_EXPECT_10Y', pd.Series(dtype=float))),
+                # FOMC meeting dates (scraped from Federal Reserve website)
+                'fomc_dates': fetch_fomc_calendar(),
             }
         }
 
