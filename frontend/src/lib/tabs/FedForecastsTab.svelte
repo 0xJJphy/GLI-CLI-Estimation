@@ -603,76 +603,6 @@
         padding: 20px;
     }
 
-    /* FOMC Countdown Section */
-    .fomc-countdown-section {
-        margin-bottom: 30px;
-    }
-
-    .countdown-card {
-        background: linear-gradient(135deg, #1e40af 0%, #7c3aed 100%);
-        border-radius: 16px;
-        padding: 24px;
-        color: white;
-        margin-bottom: 20px;
-    }
-
-    .countdown-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 20px;
-    }
-
-    .countdown-header h3 {
-        margin: 0;
-        font-size: 1.3rem;
-    }
-
-    .meeting-date {
-        font-size: 1.1rem;
-        opacity: 0.9;
-        font-weight: 600;
-    }
-
-    .countdown-timer {
-        display: flex;
-        justify-content: center;
-        gap: 40px;
-    }
-
-    .countdown-unit {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-    }
-
-    .countdown-value {
-        font-size: 3rem;
-        font-weight: 800;
-        line-height: 1;
-    }
-
-    .countdown-label {
-        font-size: 0.9rem;
-        opacity: 0.8;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
-
-    .sep-indicator {
-        text-align: center;
-        margin-top: 15px;
-        font-size: 0.85rem;
-        opacity: 0.85;
-        padding: 8px 16px;
-        background: rgba(255, 255, 255, 0.15);
-        border-radius: 20px;
-        display: inline-block;
-        width: fit-content;
-        margin-left: auto;
-        margin-right: auto;
-    }
-
     .metrics-row {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -712,17 +642,23 @@
     /* Dot Plot Section - Two Column Layout */
     .dot-plot-section {
         display: grid;
-        grid-template-columns: 3fr 1fr;
+        grid-template-columns: 1fr 280px;
         gap: 20px;
         margin-bottom: 30px;
+        align-items: stretch;
     }
 
     .dot-plot-card {
         min-width: 0;
+        display: flex;
+        flex-direction: column;
     }
 
     .fomc-calendar-card {
-        min-width: 200px;
+        min-width: 250px;
+        max-width: 300px;
+        display: flex;
+        flex-direction: column;
     }
 
     .fomc-meetings-list {
@@ -992,14 +928,6 @@
     }
 
     @media (max-width: 768px) {
-        .countdown-timer {
-            gap: 20px;
-        }
-
-        .countdown-value {
-            font-size: 2rem;
-        }
-
         .metrics-row {
             grid-template-columns: 1fr;
         }
