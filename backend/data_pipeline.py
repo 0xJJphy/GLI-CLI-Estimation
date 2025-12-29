@@ -93,8 +93,8 @@ def calculate_projections(price: float, meeting: Dict, current_rate: float) -> D
 def calculate_fed_probabilities(futures_data: Dict[str, Dict], meetings: List[Dict], current_rate: float) -> List[Dict]:
     """
     Calculate probabilities using CME FedWatch-style methodology:
-    - Uses the prior month's futures contract as the baseline rate for each meeting.
-    - This is iterative: each meeting's outcome becomes the baseline for the next.
+    - For the first meeting: use the current EFFR (current_rate) as baseline
+    - For subsequent meetings: use the prior meeting's implied post-rate as baseline
     
     futures_data is month_name -> {'price': current, 'price_1d': old1, 'price_5d': old5, 'price_1m': oldM}
     """
@@ -103,30 +103,27 @@ def calculate_fed_probabilities(futures_data: Dict[str, Dict], meetings: List[Di
     
     # Running baseline: starts with current EFFR, then updated by each meeting's outcome
     running_baseline = current_rate
+    is_first_meeting = True
     
     for meeting in sorted_meetings:
         date_obj = datetime.strptime(meeting['date'], '%Y-%m-%d')
         meeting_month = date_obj.strftime('%b %Y')
         
-        # Get prior month's contract to establish baseline
-        prior_month_date = date_obj.replace(day=1) - timedelta(days=1)
-        prior_month_name = prior_month_date.strftime('%b %Y')
-        
-        # Use prior month's implied rate as baseline if available
-        if prior_month_name in futures_data:
-            prior_data = futures_data[prior_month_name]
-            baseline_for_meeting = 100 - prior_data['price']
-        else:
-            # Fallback to the running baseline if prior month not available
-            baseline_for_meeting = running_baseline
-        
         if meeting_month not in futures_data:
             # No data for this month, skip
             continue
+        
+        # For the first meeting, use current EFFR as baseline
+        # For subsequent meetings, use the running baseline (post-rate from prior meeting)
+        if is_first_meeting:
+            baseline_for_meeting = current_rate
+            is_first_meeting = False
+        else:
+            baseline_for_meeting = running_baseline
             
         data = futures_data[meeting_month]
         
-        # Calculate probabilities using the iterative baseline
+        # Calculate probabilities using the baseline
         curr_probs = calculate_projections(data['price'], meeting, baseline_for_meeting)
         old1_probs = calculate_projections(data['price_1d'], meeting, baseline_for_meeting)
         old5_probs = calculate_projections(data['price_5d'], meeting, baseline_for_meeting)
@@ -171,9 +168,12 @@ def calculate_fed_probabilities(futures_data: Dict[str, Dict], meetings: List[Di
             'hike': round(curr_probs['hike'] - oldM_probs['hike'], 1)
         }
         
+        # Store baseline used for this meeting (for debugging/display)
+        curr_probs['baseline'] = round(baseline_for_meeting, 3)
+        
         meeting['probs'] = curr_probs
         
-        # Update running baseline for the next meeting
+        # Update running baseline for the next meeting - use the implied post-meeting rate
         running_baseline = curr_probs['implied_rate']
         
     return meetings
