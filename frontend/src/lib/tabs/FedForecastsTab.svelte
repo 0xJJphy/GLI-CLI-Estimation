@@ -724,6 +724,76 @@
         </div>
     </div>
 
+    <!-- Treasury Settlements with RRP Liquidity Coverage -->
+    {#if dashboardData.fed_forecasts?.treasury_settlements?.length > 0}
+        <div class="chart-card treasury-settlements-card">
+            <div class="chart-header">
+                <h3>
+                    🏛️ {translations.treasury_settlements ||
+                        "Treasury Settlements"}
+                </h3>
+                <span class="rrp-indicator">
+                    RRP Balance: <b
+                        >${dashboardData.fed_forecasts.treasury_settlements[0]
+                            ?.rrp_balance || 0}B</b
+                    >
+                </span>
+            </div>
+            <div class="settlements-table-container">
+                <table class="settlements-table">
+                    <thead>
+                        <tr>
+                            <th>{translations.date || "Date"}</th>
+                            <th>{translations.type || "Type"}</th>
+                            <th>{translations.amount || "Amount"}</th>
+                            <th>RRP Coverage</th>
+                            <th>{translations.risk || "Risk"}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {#each dashboardData.fed_forecasts.treasury_settlements as settlement}
+                            <tr
+                                class="settlement-row"
+                                class:high-risk={settlement.risk_level ===
+                                    "high"}
+                                class:medium-risk={settlement.risk_level ===
+                                    "medium"}
+                            >
+                                <td class="settlement-date"
+                                    >{settlement.date}</td
+                                >
+                                <td class="settlement-type"
+                                    >{settlement.types}</td
+                                >
+                                <td class="settlement-amount"
+                                    >${settlement.amount}B</td
+                                >
+                                <td class="settlement-coverage"
+                                    >{settlement.coverage_ratio}x</td
+                                >
+                                <td class="settlement-risk">
+                                    {#if settlement.risk_level === "low"}
+                                        <span class="risk-badge low">🟢</span>
+                                    {:else if settlement.risk_level === "medium"}
+                                        <span class="risk-badge medium">🟡</span
+                                        >
+                                    {:else}
+                                        <span class="risk-badge high">🔴</span>
+                                    {/if}
+                                </td>
+                            </tr>
+                        {/each}
+                    </tbody>
+                </table>
+            </div>
+            <div class="settlements-legend">
+                <span>🟢 RRP ≥ 3x Settlement (Safe)</span>
+                <span>🟡 RRP 1.5-3x (Caution)</span>
+                <span>🔴 RRP &lt; 1.5x (Liquidity Stress)</span>
+            </div>
+        </div>
+    {/if}
+
     <!-- Inflation Charts -->
     <div class="charts-grid">
         <div class="chart-card">
@@ -1416,5 +1486,104 @@
             flex-direction: column;
             align-items: center;
         }
+    }
+
+    /* Treasury Settlements Table */
+    .treasury-settlements-card {
+        margin-bottom: 25px;
+    }
+
+    .treasury-settlements-card .chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .rrp-indicator {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        background: rgba(59, 130, 246, 0.1);
+        padding: 4px 10px;
+        border-radius: 6px;
+    }
+
+    .rrp-indicator b {
+        color: var(--accent-primary);
+    }
+
+    .settlements-table-container {
+        overflow-x: auto;
+        padding: 15px;
+    }
+
+    .settlements-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+    }
+
+    .settlements-table th {
+        text-align: left;
+        padding: 8px 12px;
+        border-bottom: 2px solid var(--border-color);
+        color: var(--text-muted);
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.5px;
+    }
+
+    .settlements-table td {
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .settlement-row:hover {
+        background: rgba(59, 130, 246, 0.05);
+    }
+
+    .settlement-row.high-risk {
+        background: rgba(239, 68, 68, 0.08);
+    }
+
+    .settlement-row.medium-risk {
+        background: rgba(245, 158, 11, 0.08);
+    }
+
+    .settlement-date {
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .settlement-type {
+        color: var(--text-muted);
+        font-size: 0.8rem;
+    }
+
+    .settlement-amount {
+        font-weight: 700;
+        color: var(--accent-primary);
+    }
+
+    .settlement-coverage {
+        font-weight: 600;
+    }
+
+    .settlement-risk {
+        text-align: center;
+    }
+
+    .risk-badge {
+        font-size: 1rem;
+    }
+
+    .settlements-legend {
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+        padding: 10px;
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        border-top: 1px solid var(--border-color);
     }
 </style>

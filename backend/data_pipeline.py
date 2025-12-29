@@ -263,6 +263,126 @@ def fetch_fed_funds_futures(meetings: List[Dict] = None) -> Dict[str, Dict]:
         
     return results
 
+def fetch_treasury_settlements() -> List[Dict]:
+    """
+    Fetch upcoming Treasury auction settlements from US Treasury Fiscal Data API.
+    Returns a list of settlements with date, type, and amount.
+    Also includes current RRP balance for liquidity coverage analysis.
+    """
+    settlements = []
+    
+    try:
+        # Get current RRP balance from FRED
+        rrp_balance = get_rrp_balance()
+        
+        # Fetch upcoming auctions from Treasury API
+        base_url = "https://api.fiscaldata.treasury.gov/services/api/fiscal_service"
+        endpoint = f"{base_url}/v1/accounting/od/upcoming_auctions"
+        
+        response = requests.get(endpoint, timeout=15)
+        response.raise_for_status()
+        data = response.json()
+        
+        if 'data' in data:
+            for auction in data['data']:
+                # Extract relevant fields
+                issue_date = auction.get('issue_date', '')
+                security_type = auction.get('security_type', '')
+                security_term = auction.get('security_term', '')
+                offering_amt = auction.get('offering_amt', '0')
+                
+                # Parse amount (convert from millions to billions)
+                try:
+                    amount_millions = float(offering_amt.replace(',', '')) if offering_amt else 0
+                    amount_billions = amount_millions / 1000  # Convert to billions
+                except ValueError:
+                    amount_billions = 0
+                
+                if issue_date and amount_billions > 0:
+                    # Calculate coverage ratio
+                    coverage_ratio = rrp_balance / amount_billions if amount_billions > 0 else 999
+                    
+                    # Determine risk level
+                    if coverage_ratio >= 3:
+                        risk_level = 'low'
+                    elif coverage_ratio >= 1.5:
+                        risk_level = 'medium'
+                    else:
+                        risk_level = 'high'
+                    
+                    settlements.append({
+                        'date': issue_date,
+                        'type': f"{security_term} {security_type}".strip(),
+                        'amount': round(amount_billions, 1),
+                        'rrp_balance': round(rrp_balance, 1),
+                        'coverage_ratio': round(coverage_ratio, 1),
+                        'risk_level': risk_level
+                    })
+        
+        # Sort by date
+        settlements.sort(key=lambda x: x['date'])
+        
+        # Group settlements by date and sum amounts
+        grouped = {}
+        for s in settlements:
+            date = s['date']
+            if date not in grouped:
+                grouped[date] = {
+                    'date': date,
+                    'types': [],
+                    'total_amount': 0,
+                    'rrp_balance': s['rrp_balance'],
+                    'coverage_ratio': 0,
+                    'risk_level': 'low'
+                }
+            grouped[date]['types'].append(s['type'])
+            grouped[date]['total_amount'] += s['amount']
+        
+        # Recalculate coverage for grouped settlements
+        result = []
+        for date, data in grouped.items():
+            coverage = data['rrp_balance'] / data['total_amount'] if data['total_amount'] > 0 else 999
+            if coverage >= 3:
+                risk = 'low'
+            elif coverage >= 1.5:
+                risk = 'medium'
+            else:
+                risk = 'high'
+            
+            result.append({
+                'date': date,
+                'types': ', '.join(data['types'][:3]) + ('...' if len(data['types']) > 3 else ''),
+                'amount': round(data['total_amount'], 1),
+                'rrp_balance': data['rrp_balance'],
+                'coverage_ratio': round(coverage, 1),
+                'risk_level': risk
+            })
+        
+        return sorted(result, key=lambda x: x['date'])[:15]  # Return next 15 settlement dates
+        
+    except Exception as e:
+        print(f"Error fetching treasury settlements: {e}")
+        return []
+
+def get_rrp_balance() -> float:
+    """
+    Get the current Overnight Reverse Repurchase Agreement balance from FRED.
+    Series: RRPONTSYD (in billions of dollars)
+    """
+    try:
+        fred_client = Fred(api_key=os.getenv('FRED_API_KEY'))
+        series = fred_client.get_series('RRPONTSYD')
+        
+        if not series.empty:
+            # Get latest non-null value
+            latest = series.dropna().iloc[-1]
+            return float(latest)  # Already in billions
+            
+    except Exception as e:
+        print(f"Error fetching RRP from FRED: {e}")
+    
+    return 300.0  # Fallback value (current approximate level)
+
 def fetch_fomc_calendar():
     """
     Fetch upcoming FOMC meeting dates from the Federal Reserve's official calendar.
@@ -3166,6 +3286,8 @@ def run_pipeline():
                 },
                 # Market Stress Analysis (calculated from current data)
                 'stress_analysis': calculate_market_stress_analysis(df_t),
+                # Treasury Settlements with RRP liquidity coverage
+                'treasury_settlements': fetch_treasury_settlements(),
             }
         }
 
