@@ -92,23 +92,67 @@ def calculate_projections(price: float, meeting: Dict, current_rate: float) -> D
 
 def calculate_fed_probabilities(futures_data: Dict[str, Dict], meetings: List[Dict], current_rate: float) -> List[Dict]:
     """
-    Calculate probabilities with 1D, 5D, and 1M ROC.
+    Calculate probabilities using CME FedWatch-style methodology:
+    - Uses the prior month's futures contract as the baseline rate for each meeting.
+    - This is iterative: each meeting's outcome becomes the baseline for the next.
+    
     futures_data is month_name -> {'price': current, 'price_1d': old1, 'price_5d': old5, 'price_1m': oldM}
     """
-    for meeting in meetings:
+    # Sort meetings by date to ensure correct iteration
+    sorted_meetings = sorted(meetings, key=lambda m: datetime.strptime(m['date'], '%Y-%m-%d'))
+    
+    # Running baseline: starts with current EFFR, then updated by each meeting's outcome
+    running_baseline = current_rate
+    
+    for meeting in sorted_meetings:
         date_obj = datetime.strptime(meeting['date'], '%Y-%m-%d')
-        month_name = date_obj.strftime('%b %Y')
+        meeting_month = date_obj.strftime('%b %Y')
         
-        if month_name not in futures_data:
+        # Get prior month's contract to establish baseline
+        prior_month_date = date_obj.replace(day=1) - timedelta(days=1)
+        prior_month_name = prior_month_date.strftime('%b %Y')
+        
+        # Use prior month's implied rate as baseline if available
+        if prior_month_name in futures_data:
+            prior_data = futures_data[prior_month_name]
+            baseline_for_meeting = 100 - prior_data['price']
+        else:
+            # Fallback to the running baseline if prior month not available
+            baseline_for_meeting = running_baseline
+        
+        if meeting_month not in futures_data:
+            # No data for this month, skip
             continue
             
-        data = futures_data[month_name]
+        data = futures_data[meeting_month]
         
-        # Projections for each period
-        curr_probs = calculate_projections(data['price'], meeting, current_rate)
-        old1_probs = calculate_projections(data['price_1d'], meeting, current_rate)
-        old5_probs = calculate_projections(data['price_5d'], meeting, current_rate)
-        oldM_probs = calculate_projections(data['price_1m'], meeting, current_rate)
+        # Calculate probabilities using the iterative baseline
+        curr_probs = calculate_projections(data['price'], meeting, baseline_for_meeting)
+        old1_probs = calculate_projections(data['price_1d'], meeting, baseline_for_meeting)
+        old5_probs = calculate_projections(data['price_5d'], meeting, baseline_for_meeting)
+        oldM_probs = calculate_projections(data['price_1m'], meeting, baseline_for_meeting)
+        
+        # Sanity check: if implied_rate is way off (<0 or >10), use raw implied instead
+        implied_month_avg = 100 - data['price']
+        if curr_probs['implied_rate'] < 0 or curr_probs['implied_rate'] > 10:
+            # Fallback: use raw implied month average
+            curr_probs['implied_rate'] = round(implied_month_avg, 3)
+            # Recalculate probabilities based on simple diff from baseline
+            rate_diff = implied_month_avg - baseline_for_meeting
+            cuts_implied = -rate_diff / 0.25
+            p_cut, p_hold, p_hike = 0.0, 0.0, 0.0
+            if cuts_implied > 0:
+                p_cut = min(100, cuts_implied * 100)
+                p_hold = max(0, 100 - p_cut)
+            elif cuts_implied < 0:
+                p_hike = min(100, -cuts_implied * 100)
+                p_hold = max(0, 100 - p_hike)
+            else:
+                p_hold = 100.0
+            curr_probs['cut'] = round(p_cut, 1)
+            curr_probs['hold'] = round(p_hold, 1)
+            curr_probs['hike'] = round(p_hike, 1)
+            curr_probs['cumulative_cuts'] = round(max(0, cuts_implied), 2)
         
         # Add ROCs
         curr_probs['roc1d'] = {
@@ -128,6 +172,9 @@ def calculate_fed_probabilities(futures_data: Dict[str, Dict], meetings: List[Di
         }
         
         meeting['probs'] = curr_probs
+        
+        # Update running baseline for the next meeting
+        running_baseline = curr_probs['implied_rate']
         
     return meetings
 

@@ -474,6 +474,17 @@
                             <span class="meeting-year"
                                 >{meeting.date.getFullYear()}</span
                             >
+                            {#if meeting.probs}
+                                <div class="market-target">
+                                    <span class="target-label"
+                                        >{translations.target_rate ||
+                                            "Target"}:</span
+                                    >
+                                    <span class="target-value"
+                                        >{meeting.probs.implied_rate}%</span
+                                    >
+                                </div>
+                            {/if}
                             {#if meeting.hasSEP}
                                 <span class="sep-badge">SEP</span>
                             {/if}
@@ -1070,23 +1081,54 @@
     .meeting-info {
         display: flex;
         align-items: center;
-        justify-content: space-between;
         gap: 8px;
         flex: 1;
+        position: relative;
     }
 
     .meeting-year {
         font-size: 0.85rem;
         opacity: 0.8;
+        min-width: 35px;
+    }
+
+    .market-target {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background: rgba(59, 130, 246, 0.1);
+        padding: 2px 8px;
+        border-radius: 6px;
+        border: 1px solid rgba(59, 130, 246, 0.2);
+    }
+
+    .target-label {
+        font-size: 0.6rem;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        letter-spacing: 0.5px;
+        line-height: 1;
+        margin-bottom: 1px;
+    }
+
+    .target-value {
+        font-size: 0.9rem;
+        font-weight: 800;
+        color: var(--accent-primary);
+        line-height: 1;
     }
 
     .sep-badge {
+        position: absolute;
+        top: -8px;
+        right: -5px;
         background: linear-gradient(135deg, #ff9800, #f57c00);
         color: white;
-        font-size: 0.65rem;
+        font-size: 0.55rem;
         font-weight: 700;
-        padding: 2px 6px;
+        padding: 1px 4px;
         border-radius: 4px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
     }
 
     .sep-badge-small {
