@@ -155,7 +155,22 @@ export const dashboardData = writable({
     fed_forecasts: {
         cpi_yoy: [], core_cpi_yoy: [], pce_yoy: [], core_pce_yoy: [],
         ism_mfg: [], ism_svc: [], unemployment: [], fed_funds_rate: [],
-        inflation_expect_1y: [], inflation_expect_5y: [], inflation_expect_10y: []
+        inflation_expect_1y: [], inflation_expect_5y: [], inflation_expect_10y: [],
+        inflation_swaps: {
+            cleveland_1y: [], cleveland_2y: [], cleveland_5y: [], cleveland_10y: [],
+            inf_risk_premium_1y: [], inf_risk_premium_10y: [],
+            real_rate_1y: [], real_rate_10y: [],
+            umich_expectations: [], tips_breakeven_5y: [], tips_breakeven_2y: []
+        },
+        stress_analysis: {
+            inflation_stress: { score: 0, level: 'LOW', signals: [], metrics: {} },
+            liquidity_stress: { score: 0, level: 'LOW', signals: [], metrics: {} },
+            credit_stress: { score: 0, level: 'LOW', signals: [], metrics: {} },
+            volatility_stress: { score: 0, level: 'LOW', signals: [], metrics: {} },
+            global_stress: { total_score: 0, level: 'LOW', assessment: '' },
+            chart_analyses: {},
+            overall_assessment: {}
+        }
     }
 });
 

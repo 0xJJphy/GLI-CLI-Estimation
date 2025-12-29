@@ -209,6 +209,420 @@ def fetch_dot_plot_data():
         print(f"  -> Warning: Could not fetch Dot Plot: {e}")
         return FALLBACK_DOT_PLOT
 
+def calculate_market_stress_analysis(df):
+    """
+    Calculates comprehensive market stress analysis based on multiple indicators.
+    Returns dict with stress scores for inflation, liquidity, credit, and volatility.
+    """
+    import numpy as np
+    
+    def safe_get_last(series, default=0):
+        """Get last valid value from series"""
+        if series is None or len(series) == 0:
+            return default
+        valid = series.dropna()
+        return float(valid.iloc[-1]) if len(valid) > 0 else default
+    
+    def calculate_zscore(series, window=252):
+        """Calculate rolling Z-score"""
+        if series is None or len(series) < window:
+            return pd.Series(dtype=float)
+        mean = series.rolling(window=window, min_periods=window//2).mean()
+        std = series.rolling(window=window, min_periods=window//2).std()
+        return (series - mean) / (std + 1e-10)
+    
+    def calculate_roc(series, periods):
+        """Calculate Rate of Change"""
+        if series is None or len(series) < periods:
+            return pd.Series(dtype=float)
+        return (series / series.shift(periods) - 1) * 100
+    
+    analysis = {
+        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        'inflation_stress': {'score': 0, 'max_score': 7, 'level': 'LOW', 'color': 'green', 'signals': [], 'metrics': {}},
+        'liquidity_stress': {'score': 0, 'max_score': 7, 'level': 'LOW', 'color': 'green', 'signals': [], 'metrics': {}},
+        'credit_stress': {'score': 0, 'max_score': 7, 'level': 'LOW', 'color': 'green', 'signals': [], 'metrics': {}},
+        'volatility_stress': {'score': 0, 'max_score': 4, 'level': 'LOW', 'color': 'green', 'signals': [], 'metrics': {}},
+        'global_stress': {'total_score': 0, 'max_score': 25, 'percentage': 0, 'level': 'LOW', 'color': '#16a34a', 'assessment': ''},
+        'chart_analyses': {},
+        'overall_assessment': {'headline': '', 'key_risks': [], 'key_positives': [], 'recommendation': ''}
+    }
+    
+    try:
+        # ============================================================
+        # 1. INFLATION STRESS ANALYSIS
+        # ============================================================
+        tips_be = df.get('TIPS_BREAKEVEN', pd.Series(dtype=float))
+        tips_5y5y = df.get('TIPS_5Y5Y_FORWARD', pd.Series(dtype=float))
+        tips_real = df.get('TIPS_REAL_RATE', pd.Series(dtype=float))
+        clev_10y = df.get('CLEV_EXPINF_10Y', pd.Series(dtype=float))
+        clev_5y = df.get('CLEV_EXPINF_5Y', pd.Series(dtype=float))
+        inf_risk_prem = df.get('INF_RISK_PREM_10Y', pd.Series(dtype=float))
+        
+        last_tips_be = safe_get_last(tips_be, 2.2)
+        last_clev_10y = safe_get_last(clev_10y, 2.3)
+        last_clev_5y = safe_get_last(clev_5y, 2.2)
+        last_5y5y = safe_get_last(tips_5y5y, 2.3)
+        last_real = safe_get_last(tips_real, 1.5)
+        last_inf_risk = safe_get_last(inf_risk_prem, 0.1)
+        
+        tips_clev_divergence = abs(last_tips_be - last_clev_10y)
+        tips_be_zscore = safe_get_last(calculate_zscore(tips_be), 0)
+        tips_be_roc_3m = safe_get_last(calculate_roc(tips_be, 63), 0)
+        
+        inflation_score = 0
+        inflation_signals = []
+        
+        if last_tips_be > 2.5:
+            inflation_score += 2
+            inflation_signals.append("⚠️ Breakeven inflation above 2.5% - hawkish Fed pressure")
+        elif last_tips_be > 2.2:
+            inflation_score += 1
+            inflation_signals.append("🔶 Breakeven inflation slightly elevated (2.2-2.5%)")
+        elif last_tips_be < 1.8:
+            inflation_score -= 1
+            inflation_signals.append("🔵 Breakeven inflation below target - potential easing")
+        else:
+            inflation_signals.append("✅ Breakeven inflation near 2% target")
+        
+        if tips_clev_divergence > 0.3:
+            inflation_score += 1
+            inflation_signals.append(f"⚠️ High TIPS/Swap divergence ({tips_clev_divergence:.2f}pp)")
+        
+        if last_5y5y > 2.5:
+            inflation_score += 1
+            inflation_signals.append("⚠️ Long-term inflation expectations elevated (>2.5%)")
+        
+        if last_inf_risk > 0.3:
+            inflation_score += 1
+            inflation_signals.append("⚠️ Elevated inflation risk premium")
+        
+        if tips_be_roc_3m > 20:
+            inflation_score += 2
+            inflation_signals.append("🔴 Rapid rise in inflation expectations (>20% 3M)")
+        
+        inf_level = 'HIGH' if inflation_score >= 4 else 'MODERATE' if inflation_score >= 2 else 'LOW'
+        inf_color = 'red' if inflation_score >= 4 else 'yellow' if inflation_score >= 2 else 'green'
+        
+        analysis['inflation_stress'] = {
+            'score': max(0, inflation_score),
+            'max_score': 7,
+            'level': inf_level,
+            'color': inf_color,
+            'signals': inflation_signals,
+            'metrics': {
+                'tips_breakeven_10y': round(last_tips_be, 3),
+                'tips_breakeven_10y_zscore': round(tips_be_zscore, 2),
+                'cleveland_10y': round(last_clev_10y, 3),
+                'cleveland_5y': round(last_clev_5y, 3),
+                'tips_clev_divergence': round(tips_clev_divergence, 3),
+                '5y5y_forward': round(last_5y5y, 3),
+                'real_rate_10y': round(last_real, 3),
+                'inflation_risk_premium': round(last_inf_risk, 3),
+                'breakeven_roc_3m': round(tips_be_roc_3m, 2)
+            }
+        }
+        
+        # ============================================================
+        # 2. LIQUIDITY STRESS ANALYSIS
+        # ============================================================
+        sofr = df.get('SOFR', pd.Series(dtype=float))
+        iorb = df.get('IORB', pd.Series(dtype=float))
+        reserves = df.get('BANK_RESERVES', pd.Series(dtype=float))
+        rrp = df.get('RRP_USD', pd.Series(dtype=float))
+        tga = df.get('TGA_USD', pd.Series(dtype=float))
+        fed_assets = df.get('FED_USD', pd.Series(dtype=float))
+        
+        last_sofr = safe_get_last(sofr, 5.0)
+        last_iorb = safe_get_last(iorb, 5.0)
+        last_reserves = safe_get_last(reserves, 3.0)
+        last_rrp = safe_get_last(rrp, 0.5)
+        last_tga = safe_get_last(tga, 0.7)
+        last_fed = safe_get_last(fed_assets, 7.0)
+        
+        sofr_iorb_spread = (last_sofr - last_iorb) * 100
+        net_liquidity = last_fed - last_tga - last_rrp
+        reserves_roc_3m = safe_get_last(calculate_roc(reserves, 63), 0)
+        
+        liquidity_score = 0
+        liquidity_signals = []
+        
+        if sofr_iorb_spread > 5:
+            liquidity_score += 2
+            liquidity_signals.append(f"🔴 SOFR trading {sofr_iorb_spread:.0f}bps above IORB - funding stress")
+        elif sofr_iorb_spread > 2:
+            liquidity_score += 1
+            liquidity_signals.append(f"🔶 SOFR slightly above IORB (+{sofr_iorb_spread:.0f}bps)")
+        else:
+            liquidity_signals.append(f"✅ SOFR-IORB spread normal ({sofr_iorb_spread:.0f}bps)")
+        
+        if last_reserves < 2.8:
+            liquidity_score += 2
+            liquidity_signals.append(f"🔴 Bank reserves critically low (${last_reserves:.2f}T)")
+        elif last_reserves < 3.2:
+            liquidity_score += 1
+            liquidity_signals.append(f"🔶 Bank reserves approaching stress zone")
+        else:
+            liquidity_signals.append(f"✅ Bank reserves adequate (${last_reserves:.2f}T)")
+        
+        if last_rrp < 0.1:
+            liquidity_score += 1
+            liquidity_signals.append("⚠️ RRP nearly depleted")
+        
+        if net_liquidity < 5.5:
+            liquidity_score += 1
+            liquidity_signals.append(f"⚠️ Net liquidity contracting (${net_liquidity:.2f}T)")
+        
+        liq_level = 'HIGH' if liquidity_score >= 4 else 'MODERATE' if liquidity_score >= 2 else 'LOW'
+        liq_color = 'red' if liquidity_score >= 4 else 'yellow' if liquidity_score >= 2 else 'green'
+        
+        analysis['liquidity_stress'] = {
+            'score': max(0, liquidity_score),
+            'max_score': 7,
+            'level': liq_level,
+            'color': liq_color,
+            'signals': liquidity_signals,
+            'metrics': {
+                'sofr': round(last_sofr, 3),
+                'iorb': round(last_iorb, 3),
+                'sofr_iorb_spread_bps': round(sofr_iorb_spread, 1),
+                'bank_reserves_t': round(last_reserves, 3),
+                'rrp_t': round(last_rrp, 3),
+                'tga_t': round(last_tga, 3),
+                'net_liquidity_t': round(net_liquidity, 3),
+                'reserves_roc_3m': round(reserves_roc_3m, 2)
+            }
+        }
+        
+        # ============================================================
+        # 3. CREDIT STRESS ANALYSIS
+        # ============================================================
+        hy_spread = df.get('HY_SPREAD', pd.Series(dtype=float))
+        ig_spread = df.get('IG_SPREAD', pd.Series(dtype=float))
+        nfci = df.get('NFCI', pd.Series(dtype=float))
+        
+        last_hy = safe_get_last(hy_spread, 400)
+        last_ig = safe_get_last(ig_spread, 100)
+        last_nfci = safe_get_last(nfci, 0)
+        hy_zscore = safe_get_last(calculate_zscore(hy_spread), 0)
+        
+        credit_score = 0
+        credit_signals = []
+        
+        if last_hy > 500:
+            credit_score += 2
+            credit_signals.append(f"🔴 HY spreads elevated ({last_hy:.0f}bps)")
+        elif last_hy > 400:
+            credit_score += 1
+            credit_signals.append(f"🔶 HY spreads above average ({last_hy:.0f}bps)")
+        elif last_hy < 300:
+            credit_signals.append(f"🟢 HY spreads tight ({last_hy:.0f}bps)")
+        else:
+            credit_signals.append(f"✅ HY spreads normal ({last_hy:.0f}bps)")
+        
+        if last_ig > 150:
+            credit_score += 1
+            credit_signals.append(f"⚠️ IG spreads elevated ({last_ig:.0f}bps)")
+        
+        if last_nfci > 0.5:
+            credit_score += 2
+            credit_signals.append(f"🔴 NFCI signals tight conditions ({last_nfci:.2f})")
+        elif last_nfci > 0:
+            credit_score += 1
+            credit_signals.append(f"🔶 NFCI slightly tight ({last_nfci:.2f})")
+        else:
+            credit_signals.append(f"✅ NFCI neutral/loose ({last_nfci:.2f})")
+        
+        cred_level = 'HIGH' if credit_score >= 4 else 'MODERATE' if credit_score >= 2 else 'LOW'
+        cred_color = 'red' if credit_score >= 4 else 'yellow' if credit_score >= 2 else 'green'
+        
+        analysis['credit_stress'] = {
+            'score': max(0, credit_score),
+            'max_score': 7,
+            'level': cred_level,
+            'color': cred_color,
+            'signals': credit_signals,
+            'metrics': {
+                'hy_spread_bps': round(last_hy, 1),
+                'hy_zscore': round(hy_zscore, 2),
+                'ig_spread_bps': round(last_ig, 1),
+                'nfci': round(last_nfci, 3)
+            }
+        }
+        
+        # ============================================================
+        # 4. VOLATILITY STRESS ANALYSIS
+        # ============================================================
+        vix = df.get('VIX', pd.Series(dtype=float))
+        last_vix = safe_get_last(vix, 18)
+        vix_zscore = safe_get_last(calculate_zscore(vix), 0)
+        vix_roc_1w = safe_get_last(calculate_roc(vix, 5), 0)
+        
+        vol_score = 0
+        vol_signals = []
+        
+        if last_vix > 30:
+            vol_score += 2
+            vol_signals.append(f"🔴 VIX elevated ({last_vix:.1f}) - high fear")
+        elif last_vix > 20:
+            vol_score += 1
+            vol_signals.append(f"🔶 VIX above average ({last_vix:.1f})")
+        elif last_vix < 12:
+            vol_signals.append(f"⚠️ VIX very low ({last_vix:.1f}) - complacency")
+        else:
+            vol_signals.append(f"✅ VIX normal ({last_vix:.1f})")
+        
+        if vix_zscore > 2:
+            vol_score += 1
+            vol_signals.append(f"🔴 VIX Z-score extreme ({vix_zscore:.2f})")
+        
+        if vix_roc_1w > 30:
+            vol_score += 1
+            vol_signals.append(f"⚠️ VIX spiking ({vix_roc_1w:.0f}% weekly)")
+        
+        vol_level = 'HIGH' if vol_score >= 3 else 'MODERATE' if vol_score >= 2 else 'LOW'
+        vol_color = 'red' if vol_score >= 3 else 'yellow' if vol_score >= 2 else 'green'
+        
+        analysis['volatility_stress'] = {
+            'score': max(0, vol_score),
+            'max_score': 4,
+            'level': vol_level,
+            'color': vol_color,
+            'signals': vol_signals,
+            'metrics': {
+                'vix': round(last_vix, 2),
+                'vix_zscore': round(vix_zscore, 2),
+                'vix_roc_1w': round(vix_roc_1w, 1)
+            }
+        }
+        
+        # ============================================================
+        # 5. GLOBAL STRESS SCORE
+        # ============================================================
+        total_score = (
+            analysis['inflation_stress']['score'] +
+            analysis['liquidity_stress']['score'] +
+            analysis['credit_stress']['score'] +
+            analysis['volatility_stress']['score']
+        )
+        max_total = 25
+        
+        if total_score >= 15:
+            global_level = 'CRITICAL'
+            global_color = '#dc2626'
+            global_assessment = "🚨 CRITICAL STRESS - Multiple systemic risk indicators elevated"
+        elif total_score >= 10:
+            global_level = 'HIGH'
+            global_color = '#ea580c'
+            global_assessment = "⚠️ HIGH STRESS - Significant tensions across markets"
+        elif total_score >= 5:
+            global_level = 'MODERATE'
+            global_color = '#ca8a04'
+            global_assessment = "🔶 MODERATE STRESS - Some warning signs present"
+        else:
+            global_level = 'LOW'
+            global_color = '#16a34a'
+            global_assessment = "✅ LOW STRESS - Market conditions relatively stable"
+        
+        analysis['global_stress'] = {
+            'total_score': total_score,
+            'max_score': max_total,
+            'percentage': round(total_score / max_total * 100, 1),
+            'level': global_level,
+            'color': global_color,
+            'assessment': global_assessment,
+            'breakdown': {
+                'inflation': analysis['inflation_stress']['score'],
+                'liquidity': analysis['liquidity_stress']['score'],
+                'credit': analysis['credit_stress']['score'],
+                'volatility': analysis['volatility_stress']['score']
+            }
+        }
+        
+        # ============================================================
+        # 6. CHART ANALYSES
+        # ============================================================
+        analysis['chart_analyses'] = {
+            'tips_market': {
+                'title': 'Inflation Expectations (TIPS Market)',
+                'summary': f"10Y Breakeven at {last_tips_be:.2f}%. 5Y5Y Forward at {last_5y5y:.2f}%. Real rates at {last_real:.2f}%.",
+                'signal': 'CAUTION' if last_tips_be > 2.5 or last_tips_be < 1.5 else 'NEUTRAL',
+                'signal_color': 'yellow' if last_tips_be > 2.5 or last_tips_be < 1.5 else 'green'
+            },
+            'tips_vs_swaps': {
+                'title': 'TIPS vs Cleveland Fed (Inflation Swaps)',
+                'summary': f"TIPS ({last_tips_be:.2f}%) vs Cleveland Fed ({last_clev_10y:.2f}%). Divergence: {tips_clev_divergence:.2f}pp.",
+                'signal': 'DIVERGENCE' if tips_clev_divergence > 0.3 else 'ALIGNED',
+                'signal_color': 'yellow' if tips_clev_divergence > 0.3 else 'green'
+            },
+            'bank_reserves': {
+                'title': 'Bank Reserves vs Net Liquidity',
+                'summary': f"Reserves at ${last_reserves:.2f}T. Net Liquidity: ${net_liquidity:.2f}T.",
+                'signal': 'STRESS' if last_reserves < 3.0 else 'OK',
+                'signal_color': 'red' if last_reserves < 3.0 else 'green'
+            },
+            'repo_stress': {
+                'title': 'Repo Market Stress (SOFR vs IORB)',
+                'summary': f"SOFR at {last_sofr:.3f}%, IORB at {last_iorb:.3f}%. Spread: {sofr_iorb_spread:.1f}bps.",
+                'signal': 'STRESS' if sofr_iorb_spread > 5 else 'NORMAL',
+                'signal_color': 'red' if sofr_iorb_spread > 5 else 'green'
+            },
+            'credit_conditions': {
+                'title': 'Credit Conditions (CLI)',
+                'summary': f"HY spread: {last_hy:.0f}bps. NFCI: {last_nfci:.2f}.",
+                'signal': 'TIGHT' if last_nfci > 0 else 'NORMAL',
+                'signal_color': 'yellow' if last_nfci > 0 else 'green'
+            },
+            'volatility': {
+                'title': 'Volatility (VIX)',
+                'summary': f"VIX at {last_vix:.1f} (Z: {vix_zscore:.1f}).",
+                'signal': 'FEAR' if last_vix > 25 else 'COMPLACENT' if last_vix < 12 else 'NEUTRAL',
+                'signal_color': 'red' if last_vix > 25 else 'yellow' if last_vix < 12 else 'green'
+            }
+        }
+        
+        # ============================================================
+        # 7. OVERALL ASSESSMENT
+        # ============================================================
+        key_risks = []
+        key_positives = []
+        
+        if inflation_score >= 3:
+            key_risks.append("Inflation expectations deviating from target")
+        if liquidity_score >= 3:
+            key_risks.append("Liquidity conditions tightening")
+        if credit_score >= 3:
+            key_risks.append("Credit spreads widening")
+        if vol_score >= 2:
+            key_risks.append("Elevated market volatility")
+        
+        if inflation_score <= 1:
+            key_positives.append("Inflation expectations well-anchored")
+        if liquidity_score <= 1:
+            key_positives.append("Ample liquidity in the system")
+        if credit_score <= 1:
+            key_positives.append("Credit conditions supportive")
+        if vol_score <= 1:
+            key_positives.append("Low volatility environment")
+        
+        analysis['overall_assessment'] = {
+            'headline': global_assessment,
+            'key_risks': key_risks if key_risks else ["No major stress signals detected"],
+            'key_positives': key_positives if key_positives else ["Market in transition phase"],
+            'recommendation': (
+                "Consider defensive positioning" if total_score >= 10 
+                else "Monitor closely for changes" if total_score >= 5 
+                else "Environment supportive for risk assets"
+            )
+        }
+        
+        print(f"  -> Stress analysis complete: {global_level} ({total_score}/{max_total})")
+        
+    except Exception as e:
+        print(f"  -> Warning: Stress analysis error: {e}")
+    
+    return analysis
+
 # tvDatafeed import
 try:
     from tvDatafeed import TvDatafeed, Interval
@@ -374,6 +788,21 @@ FRED_CONFIG = {
     'T5YIEM': 'INFLATION_EXPECT_5Y',       # 5-Year TIPS Breakeven Inflation Rate
     'T10YIEM': 'INFLATION_EXPECT_10Y',     # 10-Year TIPS Breakeven Inflation Rate
     'EXPINF1YR': 'INFLATION_EXPECT_1Y',    # 1-Year Expected Inflation (Cleveland Fed)
+    # Cleveland Fed Expected Inflation (incorporates Treasury yields, CPI, and Inflation Swaps)
+    'EXPINF2YR': 'CLEV_EXPINF_2Y',         # 2-Year Expected Inflation (Cleveland Fed)
+    'EXPINF5YR': 'CLEV_EXPINF_5Y',         # 5-Year Expected Inflation (Cleveland Fed)
+    'EXPINF10YR': 'CLEV_EXPINF_10Y',       # 10-Year Expected Inflation (Cleveland Fed)
+    # Inflation Risk Premium (Cleveland Fed)
+    'INFRISPR1YR': 'INF_RISK_PREM_1Y',     # 1-Year Inflation Risk Premium
+    'INFRISPR10YR': 'INF_RISK_PREM_10Y',   # 10-Year Inflation Risk Premium
+    # Real Interest Rate (Cleveland Fed)
+    'REAINT1YR': 'REAL_INT_RATE_1Y',       # 1-Year Real Interest Rate
+    'REAINT10YR': 'REAL_INT_RATE_10Y',     # 10-Year Real Interest Rate
+    # University of Michigan Inflation Expectations (Survey-based)
+    'MICH': 'UMICH_INFL_EXP',              # UMich 1-Year Ahead Inflation Expectations
+    # Additional TIPS Breakeven for curve construction
+    'T5YIE': 'TIPS_BREAKEVEN_5Y',          # 5-Year Breakeven Inflation Rate
+    'T2YIE': 'TIPS_BREAKEVEN_2Y',          # 2-Year Breakeven Inflation Rate
 }
 
 # Mapping: Symbol -> Internal Name (TradingView ECONOMICS)
@@ -2465,6 +2894,22 @@ def run_pipeline():
                 'fomc_dates': fetch_fomc_calendar(),
                 # Dot Plot data (scraped from palewire/fed-dot-plot-scraper)
                 'dot_plot': fetch_dot_plot_data(),
+                # Inflation Swaps / Cleveland Fed data (for TIPS vs Swaps comparison)
+                'inflation_swaps': {
+                    'cleveland_1y': clean_for_json(df_t.get('INFLATION_EXPECT_1Y', pd.Series(dtype=float))),
+                    'cleveland_2y': clean_for_json(df_t.get('CLEV_EXPINF_2Y', pd.Series(dtype=float))),
+                    'cleveland_5y': clean_for_json(df_t.get('CLEV_EXPINF_5Y', pd.Series(dtype=float))),
+                    'cleveland_10y': clean_for_json(df_t.get('CLEV_EXPINF_10Y', pd.Series(dtype=float))),
+                    'inf_risk_premium_1y': clean_for_json(df_t.get('INF_RISK_PREM_1Y', pd.Series(dtype=float))),
+                    'inf_risk_premium_10y': clean_for_json(df_t.get('INF_RISK_PREM_10Y', pd.Series(dtype=float))),
+                    'real_rate_1y': clean_for_json(df_t.get('REAL_INT_RATE_1Y', pd.Series(dtype=float))),
+                    'real_rate_10y': clean_for_json(df_t.get('REAL_INT_RATE_10Y', pd.Series(dtype=float))),
+                    'umich_expectations': clean_for_json(df_t.get('UMICH_INFL_EXP', pd.Series(dtype=float))),
+                    'tips_breakeven_5y': clean_for_json(df_t.get('TIPS_BREAKEVEN_5Y', pd.Series(dtype=float))),
+                    'tips_breakeven_2y': clean_for_json(df_t.get('TIPS_BREAKEVEN_2Y', pd.Series(dtype=float))),
+                },
+                # Market Stress Analysis (calculated from current data)
+                'stress_analysis': calculate_market_stress_analysis(df_t),
             }
         }
 
