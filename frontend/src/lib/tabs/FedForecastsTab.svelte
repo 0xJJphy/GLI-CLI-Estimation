@@ -334,9 +334,10 @@
         </div>
     </div>
 
-    <!-- Dot Plot Section -->
+    <!-- Dot Plot Section + FOMC Calendar -->
     <div class="dot-plot-section">
-        <div class="chart-card full-width">
+        <!-- Dot Plot Card -->
+        <div class="chart-card dot-plot-card">
             <div class="chart-header">
                 <h3>
                     🎯 {translations.fed_dot_plot || "Fed Dot Plot"} ({DOT_PLOT_DATA.meeting})
@@ -373,7 +374,7 @@
                                 {/each}
                             </div>
                             <div class="dot-plot-median">
-                                Median: {yearData.median}%
+                                {translations.median || "Median"}: {yearData.median}%
                             </div>
                         </div>
                     {/each}
@@ -392,6 +393,49 @@
                         >{translations.current_rate || "Current Rate"}: {DOT_PLOT_DATA.currentRate}%</span
                     >
                 </div>
+            </div>
+        </div>
+
+        <!-- FOMC Calendar Card -->
+        <div class="chart-card fomc-calendar-card">
+            <div class="chart-header">
+                <h3>
+                    📅 {translations.upcoming_fomc_meetings ||
+                        "Upcoming FOMC Meetings"}
+                </h3>
+            </div>
+            <div class="fomc-meetings-list">
+                {#each fomcDates.slice(0, 8) as meeting, i}
+                    <div class="fomc-meeting-item" class:next-meeting={i === 0}>
+                        <div class="meeting-date-badge">
+                            <span class="meeting-month"
+                                >{meeting.label.split(" ")[0]}</span
+                            >
+                            <span class="meeting-days"
+                                >{meeting.label.split(" ")[1]}</span
+                            >
+                        </div>
+                        <div class="meeting-info">
+                            <span class="meeting-year"
+                                >{meeting.date.getFullYear()}</span
+                            >
+                            {#if meeting.hasSEP}
+                                <span class="sep-badge">SEP</span>
+                            {/if}
+                        </div>
+                        {#if i === 0}
+                            <div class="next-badge">
+                                {translations.next || "NEXT"}
+                            </div>
+                        {/if}
+                    </div>
+                {/each}
+            </div>
+            <div class="fomc-legend">
+                <span class="legend-note">
+                    <span class="sep-badge-small">SEP</span> = {translations.summary_of_projections ||
+                        "Summary of Economic Projections"}
+                </span>
             </div>
         </div>
     </div>
@@ -704,13 +748,132 @@
         color: #f59e0b;
     }
 
-    /* Dot Plot Section */
+    /* Dot Plot Section - Two Column Layout */
     .dot-plot-section {
+        display: grid;
+        grid-template-columns: 3fr 1fr;
+        gap: 20px;
         margin-bottom: 30px;
     }
 
-    .chart-card.full-width {
-        width: 100%;
+    .dot-plot-card {
+        min-width: 0;
+    }
+
+    .fomc-calendar-card {
+        min-width: 200px;
+    }
+
+    .fomc-meetings-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 15px;
+    }
+
+    .fomc-meeting-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        background: rgba(100, 100, 100, 0.1);
+        border-radius: 8px;
+        position: relative;
+        transition: all 0.2s ease;
+    }
+
+    .fomc-meeting-item:hover {
+        background: rgba(100, 100, 100, 0.2);
+    }
+
+    .fomc-meeting-item.next-meeting {
+        background: linear-gradient(
+            135deg,
+            rgba(76, 175, 80, 0.2),
+            rgba(76, 175, 80, 0.1)
+        );
+        border: 1px solid rgba(76, 175, 80, 0.5);
+    }
+
+    .meeting-date-badge {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-width: 50px;
+    }
+
+    .meeting-month {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: var(--primary-accent, #4fc3f7);
+    }
+
+    .meeting-days {
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .meeting-info {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 1;
+    }
+
+    .meeting-year {
+        font-size: 0.85rem;
+        opacity: 0.8;
+    }
+
+    .sep-badge {
+        background: linear-gradient(135deg, #ff9800, #f57c00);
+        color: white;
+        font-size: 0.65rem;
+        font-weight: 700;
+        padding: 2px 6px;
+        border-radius: 4px;
+    }
+
+    .sep-badge-small {
+        background: linear-gradient(135deg, #ff9800, #f57c00);
+        color: white;
+        font-size: 0.6rem;
+        font-weight: 700;
+        padding: 1px 4px;
+        border-radius: 3px;
+    }
+
+    .next-badge {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: linear-gradient(135deg, #4caf50, #45a049);
+        color: white;
+        font-size: 0.6rem;
+        font-weight: 700;
+        padding: 3px 8px;
+        border-radius: 4px;
+    }
+
+    .fomc-legend {
+        padding: 10px 15px;
+        border-top: 1px solid rgba(100, 100, 100, 0.2);
+        font-size: 0.75rem;
+        opacity: 0.8;
+    }
+
+    .legend-note {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    @media (max-width: 900px) {
+        .dot-plot-section {
+            grid-template-columns: 1fr;
+        }
     }
 
     .dot-plot-container {
