@@ -83,6 +83,19 @@
     // Fed Rate Probabilities Chart logic
     let selectedMeetingIndex = 0;
 
+    // Treasury Settlements pagination
+    let settlementPage = 0;
+    const settlementsPerPage = 10;
+
+    $: allSettlements = dashboardData.fed_forecasts?.treasury_settlements || [];
+    $: totalSettlementPages = Math.ceil(
+        allSettlements.length / settlementsPerPage,
+    );
+    $: paginatedSettlements = allSettlements.slice(
+        settlementPage * settlementsPerPage,
+        (settlementPage + 1) * settlementsPerPage,
+    );
+
     $: selectedMeeting = fomcDates[selectedMeetingIndex] || fomcDates[0];
 
     $: probChartData =
@@ -725,7 +738,7 @@
     </div>
 
     <!-- Treasury Settlements with RRP Liquidity Coverage -->
-    {#if dashboardData.fed_forecasts?.treasury_settlements?.length > 0}
+    {#if allSettlements.length > 0}
         <div class="chart-card treasury-settlements-card">
             <div class="chart-header">
                 <h3>
@@ -733,10 +746,7 @@
                         "Treasury Settlements"}
                 </h3>
                 <span class="rrp-indicator">
-                    RRP Balance: <b
-                        >${dashboardData.fed_forecasts.treasury_settlements[0]
-                            ?.rrp_balance || 0}B</b
-                    >
+                    RRP Balance: <b>${allSettlements[0]?.rrp_balance || 0}B</b>
                 </span>
             </div>
             <div class="settlements-table-container">
@@ -744,6 +754,7 @@
                     <thead>
                         <tr>
                             <th>{translations.date || "Date"}</th>
+                            <th>Status</th>
                             <th>{translations.type || "Type"}</th>
                             <th>{translations.amount || "Amount"}</th>
                             <th>RRP Coverage</th>
@@ -751,17 +762,29 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {#each dashboardData.fed_forecasts.treasury_settlements as settlement}
+                        {#each paginatedSettlements as settlement}
                             <tr
                                 class="settlement-row"
                                 class:high-risk={settlement.risk_level ===
                                     "high"}
                                 class:medium-risk={settlement.risk_level ===
                                     "medium"}
+                                class:future-row={settlement.is_future}
                             >
                                 <td class="settlement-date"
                                     >{settlement.date}</td
                                 >
+                                <td class="settlement-status">
+                                    {#if settlement.is_future}
+                                        <span class="status-badge future"
+                                            >📅 Upcoming</span
+                                        >
+                                    {:else}
+                                        <span class="status-badge past"
+                                            >✓ Settled</span
+                                        >
+                                    {/if}
+                                </td>
                                 <td class="settlement-type"
                                     >{settlement.types}</td
                                 >
@@ -786,6 +809,28 @@
                     </tbody>
                 </table>
             </div>
+            <!-- Pagination Controls -->
+            {#if totalSettlementPages > 1}
+                <div class="pagination-controls">
+                    <button
+                        class="pagination-btn"
+                        disabled={settlementPage === 0}
+                        on:click={() => settlementPage--}
+                    >
+                        ← Prev
+                    </button>
+                    <span class="pagination-info">
+                        Page {settlementPage + 1} of {totalSettlementPages}
+                    </span>
+                    <button
+                        class="pagination-btn"
+                        disabled={settlementPage >= totalSettlementPages - 1}
+                        on:click={() => settlementPage++}
+                    >
+                        Next →
+                    </button>
+                </div>
+            {/if}
             <div class="settlements-legend">
                 <span>🟢 RRP ≥ 3x Settlement (Safe)</span>
                 <span>🟡 RRP 1.5-3x (Caution)</span>
@@ -1585,5 +1630,67 @@
         font-size: 0.75rem;
         color: var(--text-muted);
         border-top: 1px solid var(--border-color);
+    }
+
+    /* Pagination Controls */
+    .pagination-controls {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 15px;
+        padding: 12px;
+        border-top: 1px solid var(--border-color);
+    }
+
+    .pagination-btn {
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-color);
+        color: var(--text-primary);
+        padding: 6px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.8rem;
+        transition: all 0.2s ease;
+    }
+
+    .pagination-btn:hover:not(:disabled) {
+        background: var(--accent-primary);
+        color: white;
+    }
+
+    .pagination-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+
+    .pagination-info {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+    }
+
+    /* Status Badges */
+    .status-badge {
+        font-size: 0.7rem;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-weight: 600;
+    }
+
+    .status-badge.future {
+        background: rgba(59, 130, 246, 0.15);
+        color: #3b82f6;
+    }
+
+    .status-badge.past {
+        background: rgba(34, 197, 94, 0.15);
+        color: #22c55e;
+    }
+
+    .settlement-row.future-row {
+        background: rgba(59, 130, 246, 0.03);
+    }
+
+    .settlement-row.future-row:hover {
+        background: rgba(59, 130, 246, 0.08);
     }
 </style>

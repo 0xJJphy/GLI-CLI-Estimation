@@ -265,26 +265,25 @@ def fetch_fed_funds_futures(meetings: List[Dict] = None) -> Dict[str, Dict]:
 
 def fetch_treasury_settlements() -> List[Dict]:
     """
-    Fetch upcoming Treasury auction settlements from US Treasury Fiscal Data API.
-    Returns a list of settlements with date, type, and amount.
-    Also includes current RRP balance for liquidity coverage analysis.
+    Fetch Treasury auction settlements from US Treasury Fiscal Data API.
+    Returns a list of settlements with date, type, amount, and RRP coverage.
+    Includes both past and future settlements.
     """
     settlements = []
     today = datetime.now().strftime('%Y-%m-%d')
     
     try:
-        # Get current RRP balance from FRED
-        rrp_balance = get_rrp_balance()
+        # Get current RRP balance from FRED (and historical for past dates)
+        rrp_balance_current = get_rrp_balance()
         
-        # Fetch upcoming auctions from Treasury API
+        # Fetch auctions from Treasury API (both past and future)
         base_url = "https://api.fiscaldata.treasury.gov/services/api/fiscal_service"
         endpoint = f"{base_url}/v1/accounting/od/upcoming_auctions"
         
-        # Filter for future dates only
+        # Get all available auctions (no date filter, sort by issue_date descending)
         params = {
-            'filter': f'issue_date:gte:{today}',
-            'sort': 'issue_date',
-            'page[size]': 100
+            'sort': '-issue_date',
+            'page[size]': 500  # Get more data for pagination
         }
         
         response = requests.get(endpoint, params=params, timeout=15)
@@ -299,19 +298,25 @@ def fetch_treasury_settlements() -> List[Dict]:
                 security_term = auction.get('security_term', '')
                 offering_amt = auction.get('offering_amt', '0')
                 
-                # Parse amount - API returns in MILLIONS, convert to BILLIONS
+                # Parse amount - API returns in DOLLARS, convert to BILLIONS
                 try:
                     # Remove commas and convert
                     amount_str = str(offering_amt).replace(',', '') if offering_amt else '0'
-                    amount_millions = float(amount_str)
-                    amount_billions = amount_millions / 1000.0  # Millions to Billions
+                    amount_dollars = float(amount_str)
+                    amount_billions = amount_dollars / 1_000_000_000  # Dollars to Billions
                 except (ValueError, TypeError):
                     amount_billions = 0
                 
-                # Skip if no valid date or very small amounts
-                if issue_date and issue_date >= today and amount_billions > 0.01:
+                # Skip if no valid date or zero amounts
+                if issue_date and amount_billions > 0:
+                    # Determine if this is a past or future settlement
+                    is_future = issue_date >= today
+                    
+                    # Use current RRP for all (historical RRP would require separate FRED calls)
+                    rrp_at_time = rrp_balance_current
+                    
                     # Calculate coverage ratio
-                    coverage_ratio = rrp_balance / amount_billions if amount_billions > 0 else 999
+                    coverage_ratio = rrp_at_time / amount_billions if amount_billions > 0 else 999
                     
                     # Determine risk level
                     if coverage_ratio >= 3:
@@ -325,13 +330,14 @@ def fetch_treasury_settlements() -> List[Dict]:
                         'date': issue_date,
                         'type': f"{security_term} {security_type}".strip(),
                         'amount': round(amount_billions, 1),
-                        'rrp_balance': round(rrp_balance, 1),
+                        'rrp_balance': round(rrp_at_time, 1),
                         'coverage_ratio': round(coverage_ratio, 1),
-                        'risk_level': risk_level
+                        'risk_level': risk_level,
+                        'is_future': is_future
                     })
         
-        # Sort by date (ascending - upcoming first)
-        settlements.sort(key=lambda x: x['date'])
+        # Sort by date (descending - most recent first)
+        settlements.sort(key=lambda x: x['date'], reverse=True)
         
         # Group settlements by date and sum amounts
         grouped = {}
@@ -344,7 +350,8 @@ def fetch_treasury_settlements() -> List[Dict]:
                     'total_amount': 0,
                     'rrp_balance': s['rrp_balance'],
                     'coverage_ratio': 0,
-                    'risk_level': 'low'
+                    'risk_level': 'low',
+                    'is_future': s['is_future']
                 }
             grouped[date]['types'].append(s['type'])
             grouped[date]['total_amount'] += s['amount']
@@ -366,11 +373,12 @@ def fetch_treasury_settlements() -> List[Dict]:
                 'amount': round(data['total_amount'], 1),
                 'rrp_balance': data['rrp_balance'],
                 'coverage_ratio': round(coverage, 1),
-                'risk_level': risk
+                'risk_level': risk,
+                'is_future': data['is_future']
             })
         
-        # Sort by date ascending (upcoming dates first) and return top 15
-        return sorted(result, key=lambda x: x['date'])[:15]
+        # Sort by date descending (most recent/upcoming first)
+        return sorted(result, key=lambda x: x['date'], reverse=True)
         
     except Exception as e:
         print(f"Error fetching treasury settlements: {e}")
