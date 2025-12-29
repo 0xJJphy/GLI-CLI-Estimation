@@ -46,6 +46,13 @@ Advanced predictive model for BTC valuation:
 -   **Adaptive Bands**: 1σ and 2σ bands based on 52-week rolling volatility instead of fixed history.
 -   **Quarterly Reset**: Fair value rebalanced every 13 weeks to avoid cumulative drift while remaining tradeable.
 
+### 5. Fed Forecasts Tab
+Real-time FOMC meeting data with automated scraping:
+-   **FOMC Calendar**: Scraped from [federalreserve.gov/monetarypolicy/fomccalendars.htm](https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm) with countdown to next meeting.
+-   **Dot Plot**: Fed rate projections scraped from [palewire/fed-dot-plot-scraper](https://github.com/palewire/fed-dot-plot-scraper) open-source project.
+-   **Macro Indicators**: CPI, Core CPI, PCE, Core PCE, ISM PMI (Mfg/Svc), Unemployment Rate, Fed Funds Rate.
+-   **Inflation Expectations**: TIPS Breakeven (5Y/10Y) and Cleveland Fed 1Y Expected Inflation.
+
 ## 🛠️ Setup & Usage
 
 ### Prerequisites

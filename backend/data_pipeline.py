@@ -121,6 +121,94 @@ def fetch_fomc_calendar():
             {'date': '2025-12-10', 'label': 'Dec 9-10', 'hasSEP': True},
         ]
 
+def fetch_dot_plot_data():
+    """
+    Fetch latest Dot Plot data from palewire/fed-dot-plot-scraper GitHub repo.
+    Source: https://github.com/palewire/fed-dot-plot-scraper
+    Returns dict with meeting info, projections by year, and current rate.
+    """
+    import pandas as pd
+    import io
+    
+    DOT_PLOT_URL = 'https://raw.githubusercontent.com/palewire/fed-dot-plot-scraper/main/data/dotplot.csv'
+    
+    # Fallback data (December 2024 FOMC)
+    FALLBACK_DOT_PLOT = {
+        'year': 2024,
+        'meeting': 'December 2024',
+        'currentRate': 4.375,
+        'projections': {
+            '2024': [4.375] * 19,
+            '2025': [3.625, 3.625, 3.875, 3.875, 3.875, 3.875, 4.125, 4.125, 4.125, 4.375, 4.375, 4.375, 4.375, 4.375, 4.625, 4.625],
+            '2026': [2.875, 3.125, 3.125, 3.375, 3.375, 3.375, 3.375, 3.625, 3.625, 3.625, 3.625, 3.625, 3.875, 3.875, 3.875, 3.875, 4.125, 4.125, 4.125],
+            '2027': [2.625, 2.875, 2.875, 2.875, 2.875, 3.125, 3.125, 3.125, 3.125, 3.125, 3.375, 3.375, 3.375, 3.375, 3.625, 3.625, 3.625, 3.875, 3.875],
+            'longerRun': [2.625, 2.625, 2.875, 2.875, 2.875, 2.875, 2.875, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.125, 3.125, 3.25, 3.25, 3.5],
+        }
+    }
+    
+    try:
+        # Fetch CSV from GitHub
+        response = requests.get(DOT_PLOT_URL, timeout=15)
+        response.raise_for_status()
+        
+        df = pd.read_csv(io.StringIO(response.text))
+        
+        # Get latest meeting date
+        latest_date = df['date'].max()
+        latest_df = df[df['date'] == latest_date].copy()
+        
+        # Parse meeting date for display
+        meeting_dt = datetime.strptime(latest_date, '%Y-%m-%d')
+        meeting_label = meeting_dt.strftime('%B %Y')  # e.g., "December 2024"
+        
+        # Get projection years (columns that are numeric years or 'longer_run')
+        year_cols = [c for c in df.columns if c.isdigit() or c == 'longer_run']
+        
+        # Build projections dict
+        projections = {}
+        for col in year_cols:
+            if col not in latest_df.columns:
+                continue
+            
+            # Get rate-count pairs
+            col_data = latest_df[['midpoint', col]].dropna(subset=[col])
+            col_data = col_data[col_data[col] > 0]
+            
+            if col_data.empty:
+                continue
+            
+            # Convert to list of rates (repeat by count)
+            rates = []
+            for _, row in col_data.iterrows():
+                count = int(row[col])
+                rate = float(row['midpoint'])
+                rates.extend([rate] * count)
+            
+            # Use 'longerRun' key for consistency with frontend
+            key = 'longerRun' if col == 'longer_run' else col
+            projections[key] = sorted(rates)
+        
+        # Calculate current rate (median of current year's projections)
+        current_year = str(datetime.now().year)
+        current_rate = 4.375  # default
+        if current_year in projections and projections[current_year]:
+            rates = projections[current_year]
+            current_rate = rates[len(rates) // 2]
+        
+        result = {
+            'year': meeting_dt.year,
+            'meeting': meeting_label,
+            'currentRate': current_rate,
+            'projections': projections
+        }
+        
+        print(f"  -> Fetched Dot Plot data from {meeting_label} ({len(projections)} years)")
+        return result
+        
+    except Exception as e:
+        print(f"  -> Warning: Could not fetch Dot Plot: {e}")
+        return FALLBACK_DOT_PLOT
+
 # tvDatafeed import
 try:
     from tvDatafeed import TvDatafeed, Interval
@@ -2375,6 +2463,8 @@ def run_pipeline():
                 'inflation_expect_10y': clean_for_json(df_t.get('INFLATION_EXPECT_10Y', pd.Series(dtype=float))),
                 # FOMC meeting dates (scraped from Federal Reserve website)
                 'fomc_dates': fetch_fomc_calendar(),
+                # Dot Plot data (scraped from palewire/fed-dot-plot-scraper)
+                'dot_plot': fetch_dot_plot_data(),
             }
         }
 

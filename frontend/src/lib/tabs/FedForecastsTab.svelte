@@ -79,9 +79,9 @@
     // Use dynamic dates if available, fallback otherwise
     $: fomcDates = FOMC_DATES.length > 0 ? FOMC_DATES : FALLBACK_FOMC_DATES;
 
-    // Latest Dot Plot data from December 2024 FOMC (most recent)
-    // Each entry is a dot representing a Fed official's projection
-    const DOT_PLOT_DATA = {
+    // Dot Plot data - dynamically loaded from pipeline or fallback
+    // Source: palewire/fed-dot-plot-scraper (scraped from Fed website)
+    const FALLBACK_DOT_PLOT = {
         year: 2024,
         meeting: "December 2024",
         projections: {
@@ -112,6 +112,10 @@
         },
         currentRate: 4.375,
     };
+
+    // Use dynamic Dot Plot if available from data pipeline
+    $: DOT_PLOT_DATA =
+        dashboardData.fed_forecasts?.dot_plot || FALLBACK_DOT_PLOT;
 
     // Calculate next FOMC meeting
     $: nextFOMC = (() => {
