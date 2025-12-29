@@ -290,65 +290,94 @@ def fetch_treasury_settlements() -> List[Dict]:
                 return rrp_history[sorted_dates[0]]
             return rrp_balance_current
         
-        # Fetch auctions from Treasury API (both past and future)
-        base_url = "https://api.fiscaldata.treasury.gov/services/api/fiscal_service"
-        endpoint = f"{base_url}/v1/accounting/od/upcoming_auctions"
+        # Helper function to process auction data
+        def process_auction(auction: Dict, is_upcoming: bool = False) -> Optional[Dict]:
+            issue_date = auction.get('issue_date', '')
+            security_type = auction.get('security_type', '')
+            security_term = auction.get('security_term', '')
+            offering_amt = auction.get('offering_amt', '0')
+            
+            # Parse amount - API returns in DOLLARS, convert to BILLIONS
+            try:
+                amount_str = str(offering_amt).replace(',', '').replace('null', '0') if offering_amt else '0'
+                amount_dollars = float(amount_str) if amount_str and amount_str != 'null' else 0
+                amount_billions = amount_dollars / 1_000_000_000
+            except (ValueError, TypeError):
+                amount_billions = 0
+            
+            # Skip if no valid date or zero amounts
+            if not issue_date or amount_billions <= 0:
+                return None
+                
+            is_future = issue_date >= today
+            rrp_at_time = get_rrp_for_date(issue_date)
+            coverage_ratio = rrp_at_time / amount_billions if amount_billions > 0 else 999
+            
+            if coverage_ratio >= 3:
+                risk_level = 'low'
+            elif coverage_ratio >= 1.5:
+                risk_level = 'medium'
+            else:
+                risk_level = 'high'
+            
+            return {
+                'date': issue_date,
+                'type': f"{security_term} {security_type}".strip(),
+                'amount': round(amount_billions, 1),
+                'rrp_balance': round(rrp_at_time, 1),
+                'coverage_ratio': round(coverage_ratio, 1),
+                'risk_level': risk_level,
+                'is_future': is_future
+            }
         
-        # Get all available auctions (no date filter, sort by issue_date descending)
-        params = {
+        base_url = "https://api.fiscaldata.treasury.gov/services/api/fiscal_service"
+        
+        # 1. Fetch HISTORICAL auctions (completed) from auctions_query endpoint
+        # Get last 2 years of data
+        two_years_ago = (datetime.now() - timedelta(days=730)).strftime('%Y-%m-%d')
+        historical_endpoint = f"{base_url}/v1/accounting/od/auctions_query"
+        historical_params = {
+            'filter': f'issue_date:gte:{two_years_ago}',
             'sort': '-issue_date',
-            'page[size]': 500  # Get more data for pagination
+            'page[size]': 500,
+            'fields': 'issue_date,security_type,security_term,offering_amt'
         }
         
-        response = requests.get(endpoint, params=params, timeout=15)
-        response.raise_for_status()
-        data = response.json()
+        try:
+            response = requests.get(historical_endpoint, params=historical_params, timeout=20)
+            response.raise_for_status()
+            data = response.json()
+            
+            if 'data' in data:
+                for auction in data['data']:
+                    result = process_auction(auction)
+                    if result:
+                        settlements.append(result)
+        except Exception as e:
+            print(f"Error fetching historical auctions: {e}")
         
-        if 'data' in data:
-            for auction in data['data']:
-                # Extract relevant fields
-                issue_date = auction.get('issue_date', '')
-                security_type = auction.get('security_type', '')
-                security_term = auction.get('security_term', '')
-                offering_amt = auction.get('offering_amt', '0')
-                
-                # Parse amount - API returns in DOLLARS, convert to BILLIONS
-                try:
-                    # Remove commas and convert
-                    amount_str = str(offering_amt).replace(',', '') if offering_amt else '0'
-                    amount_dollars = float(amount_str)
-                    amount_billions = amount_dollars / 1_000_000_000  # Dollars to Billions
-                except (ValueError, TypeError):
-                    amount_billions = 0
-                
-                # Skip if no valid date or zero amounts
-                if issue_date and amount_billions > 0:
-                    # Determine if this is a past or future settlement
-                    is_future = issue_date >= today
-                    
-                    # Get RRP balance for this specific date
-                    rrp_at_time = get_rrp_for_date(issue_date)
-                    
-                    # Calculate coverage ratio
-                    coverage_ratio = rrp_at_time / amount_billions if amount_billions > 0 else 999
-                    
-                    # Determine risk level
-                    if coverage_ratio >= 3:
-                        risk_level = 'low'
-                    elif coverage_ratio >= 1.5:
-                        risk_level = 'medium'
-                    else:
-                        risk_level = 'high'
-                    
-                    settlements.append({
-                        'date': issue_date,
-                        'type': f"{security_term} {security_type}".strip(),
-                        'amount': round(amount_billions, 1),
-                        'rrp_balance': round(rrp_at_time, 1),
-                        'coverage_ratio': round(coverage_ratio, 1),
-                        'risk_level': risk_level,
-                        'is_future': is_future
-                    })
+        # 2. Fetch UPCOMING auctions (scheduled) from upcoming_auctions endpoint
+        upcoming_endpoint = f"{base_url}/v1/accounting/od/upcoming_auctions"
+        upcoming_params = {
+            'sort': '-issue_date',
+            'page[size]': 100
+        }
+        
+        try:
+            response = requests.get(upcoming_endpoint, params=upcoming_params, timeout=15)
+            response.raise_for_status()
+            data = response.json()
+            
+            if 'data' in data:
+                for auction in data['data']:
+                    # Only add if it's a future date not already in settlements
+                    issue_date = auction.get('issue_date', '')
+                    if issue_date >= today:
+                        result = process_auction(auction, is_upcoming=True)
+                        if result and not any(s['date'] == result['date'] and s['type'] == result['type'] for s in settlements):
+                            settlements.append(result)
+        except Exception as e:
+            print(f"Error fetching upcoming auctions: {e}")
         
         # Sort by date (descending - most recent first)
         settlements.sort(key=lambda x: x['date'], reverse=True)
