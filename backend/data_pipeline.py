@@ -270,6 +270,7 @@ def fetch_treasury_settlements() -> List[Dict]:
     Also includes current RRP balance for liquidity coverage analysis.
     """
     settlements = []
+    today = datetime.now().strftime('%Y-%m-%d')
     
     try:
         # Get current RRP balance from FRED
@@ -279,7 +280,14 @@ def fetch_treasury_settlements() -> List[Dict]:
         base_url = "https://api.fiscaldata.treasury.gov/services/api/fiscal_service"
         endpoint = f"{base_url}/v1/accounting/od/upcoming_auctions"
         
-        response = requests.get(endpoint, timeout=15)
+        # Filter for future dates only
+        params = {
+            'filter': f'issue_date:gte:{today}',
+            'sort': 'issue_date',
+            'page[size]': 100
+        }
+        
+        response = requests.get(endpoint, params=params, timeout=15)
         response.raise_for_status()
         data = response.json()
         
@@ -291,14 +299,17 @@ def fetch_treasury_settlements() -> List[Dict]:
                 security_term = auction.get('security_term', '')
                 offering_amt = auction.get('offering_amt', '0')
                 
-                # Parse amount (convert from millions to billions)
+                # Parse amount - API returns in MILLIONS, convert to BILLIONS
                 try:
-                    amount_millions = float(offering_amt.replace(',', '')) if offering_amt else 0
-                    amount_billions = amount_millions / 1000  # Convert to billions
-                except ValueError:
+                    # Remove commas and convert
+                    amount_str = str(offering_amt).replace(',', '') if offering_amt else '0'
+                    amount_millions = float(amount_str)
+                    amount_billions = amount_millions / 1000.0  # Millions to Billions
+                except (ValueError, TypeError):
                     amount_billions = 0
                 
-                if issue_date and amount_billions > 0:
+                # Skip if no valid date or very small amounts
+                if issue_date and issue_date >= today and amount_billions > 0.01:
                     # Calculate coverage ratio
                     coverage_ratio = rrp_balance / amount_billions if amount_billions > 0 else 999
                     
@@ -319,7 +330,7 @@ def fetch_treasury_settlements() -> List[Dict]:
                         'risk_level': risk_level
                     })
         
-        # Sort by date
+        # Sort by date (ascending - upcoming first)
         settlements.sort(key=lambda x: x['date'])
         
         # Group settlements by date and sum amounts
@@ -358,7 +369,8 @@ def fetch_treasury_settlements() -> List[Dict]:
                 'risk_level': risk
             })
         
-        return sorted(result, key=lambda x: x['date'])[:15]  # Return next 15 settlement dates
+        # Sort by date ascending (upcoming dates first) and return top 15
+        return sorted(result, key=lambda x: x['date'])[:15]
         
     except Exception as e:
         print(f"Error fetching treasury settlements: {e}")
