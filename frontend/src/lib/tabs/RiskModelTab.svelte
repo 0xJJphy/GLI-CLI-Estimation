@@ -5,6 +5,7 @@
      */
     import Chart from "../components/Chart.svelte";
     import TimeRangeSelector from "../components/TimeRangeSelector.svelte";
+    import StressPanel from "../components/StressPanel.svelte";
 
     // Props
     export let darkMode = false;
@@ -845,6 +846,9 @@
             : bearCount > bullCount + 1
               ? "bearish"
               : "neutral";
+
+    // Stress Analysis reactive variable
+    $: stressAnalysis = dashboardData.fed_forecasts?.stress_analysis || {};
 </script>
 
 <!-- Header with Aggregate Stance & View Mode Toggle -->
@@ -866,6 +870,11 @@
         {translations.risk_bearish || "Bearish"} | {signalConfig.length}
         {translations.risk_factors || "Factors"}
     </div>
+</div>
+
+<!-- Market Stress Dashboard -->
+<div class="stress-dashboard-row" style="margin-bottom: 25px;">
+    <StressPanel {stressAnalysis} {darkMode} {translations} />
 </div>
 
 <div class="main-charts">

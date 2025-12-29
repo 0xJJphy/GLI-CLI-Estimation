@@ -14,6 +14,8 @@ A premium, real-time macro liquidity monitoring dashboard that tracks the Global
 -   **No-Scroll Density**: Extreme table compaction (10px font, micro-padding) to ensure 8+ columns fit on standard desktops without horizontal scrolling.
 -   **Signal-Integrated Styling**: Dynamic top-borders and text coloring (bullish/bearish) for valuation cards and metrics.
 -   **Adaptive Layouts**: Refactored Risk Model and BTC Quant v2 tabs for superior information density using grid-based statistical panels.
+-   **Market Stress Dashboard (New)**: Automated scoring system in the **Risk Model** tab that evaluates 4 dimensions (Inflation, Liquidity, Credit, Volatility) to detect systemic risk.
+-   **Cleveland Fed Inflation Swaps**: Integrated model-based inflation expectations that combine Treasury yields, inflation swaps, and surveys for superior accuracy over TIPS breakevens.
 -   **15 Central Banks**: FED, ECB, BoJ, BoE, PBoC, BoC, RBA, RBI, SNB, CBR, BCB, BoK, RBNZ, SR, BNM.
 -   **14 M2 Economies**: US, EU, China, Japan, UK, Canada, Australia, India, Switzerland, Russia, Brazil, Korea, Mexico, Malaysia (and others).
 -   **Fed Forecasts Tab**: Real-time FOMC meeting countdown, Dot Plot visualizations, and comprehensive macro indicators (CPI, PCE, PMI, Unemployment, Fed Funds Rate, and TIPS Breakeven inflation expectations).

@@ -1,7 +1,6 @@
 <script>
     import Chart from "../components/Chart.svelte";
     import TimeRangeSelector from "../components/TimeRangeSelector.svelte";
-    import StressPanel from "../components/StressPanel.svelte";
 
     export let darkMode = false;
     export let translations = {};
@@ -253,15 +252,9 @@
     $: latestInflationExpect10Y = getLatest(
         dashboardData.fed_forecasts?.inflation_expect_10y,
     );
-
-    // Stress Analysis reactive variable
-    $: stressAnalysis = dashboardData.fed_forecasts?.stress_analysis || {};
 </script>
 
 <div class="fed-forecasts-tab">
-    <!-- Market Stress Dashboard -->
-    <StressPanel {stressAnalysis} {darkMode} {translations} />
-
     <!-- Key Metrics Cards -->
     <div class="metrics-section">
         <div class="metrics-row">

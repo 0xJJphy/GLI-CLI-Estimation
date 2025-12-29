@@ -1,8 +1,11 @@
 <script>
+    /** @type {{ signal?: string, signal_color?: string, summary?: string, title?: string } | null} */
     export let analysis = null;
     export let darkMode = false;
 
-    $: signalColor = getSignalColorFromText(analysis?.signal_color || "yellow");
+    $: signalColor = analysis
+        ? getSignalColorFromText(analysis.signal_color || "yellow")
+        : getSignalColorFromText("yellow");
 
     function getSignalColorFromText(color) {
         const colors = {
