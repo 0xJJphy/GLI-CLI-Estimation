@@ -255,47 +255,8 @@
 </script>
 
 <div class="fed-forecasts-tab">
-    <!-- FOMC Countdown Card -->
-    <div class="fomc-countdown-section">
-        <div class="countdown-card">
-            <div class="countdown-header">
-                <h3>
-                    📅 {translations.next_fomc_meeting || "Next FOMC Meeting"}
-                </h3>
-                <span class="meeting-date"
-                    >{nextFOMC?.label || "TBD"}
-                    {nextFOMC?.hasSEP ? "(SEP)" : ""}</span
-                >
-            </div>
-            <div class="countdown-timer">
-                <div class="countdown-unit">
-                    <span class="countdown-value">{countdown.days}</span>
-                    <span class="countdown-label"
-                        >{translations.days || "Days"}</span
-                    >
-                </div>
-                <div class="countdown-unit">
-                    <span class="countdown-value">{countdown.hours}</span>
-                    <span class="countdown-label"
-                        >{translations.hours || "Hours"}</span
-                    >
-                </div>
-                <div class="countdown-unit">
-                    <span class="countdown-value">{countdown.mins}</span>
-                    <span class="countdown-label"
-                        >{translations.mins || "Mins"}</span
-                    >
-                </div>
-            </div>
-            {#if nextFOMC?.hasSEP}
-                <div class="sep-indicator">
-                    {translations.includes_sep ||
-                        "Includes Summary of Economic Projections (Dot Plot)"}
-                </div>
-            {/if}
-        </div>
-
-        <!-- Key Metrics Cards -->
+    <!-- Key Metrics Cards -->
+    <div class="metrics-section">
         <div class="metrics-row">
             <div class="metric-card">
                 <span class="metric-label"
