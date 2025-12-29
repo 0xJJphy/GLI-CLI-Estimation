@@ -258,6 +258,7 @@ def calculate_market_stress_analysis(df):
         clev_10y = df.get('CLEV_EXPINF_10Y', pd.Series(dtype=float))
         clev_5y = df.get('CLEV_EXPINF_5Y', pd.Series(dtype=float))
         inf_risk_prem = df.get('INF_RISK_PREM_10Y', pd.Series(dtype=float))
+        umich = df.get('UMICH_INFL_EXP', pd.Series(dtype=float))
         
         last_tips_be = safe_get_last(tips_be, 2.2)
         last_clev_10y = safe_get_last(clev_10y, 2.3)
@@ -265,9 +266,11 @@ def calculate_market_stress_analysis(df):
         last_5y5y = safe_get_last(tips_5y5y, 2.3)
         last_real = safe_get_last(tips_real, 1.5)
         last_inf_risk = safe_get_last(inf_risk_prem, 0.1)
+        last_umich = safe_get_last(umich, 3.0)
         
         tips_clev_divergence = abs(last_tips_be - last_clev_10y)
         tips_be_zscore = safe_get_last(calculate_zscore(tips_be), 0)
+        tips_be_roc_1m = safe_get_last(calculate_roc(tips_be, 21), 0)
         tips_be_roc_3m = safe_get_last(calculate_roc(tips_be, 63), 0)
         
         inflation_score = 0
@@ -319,6 +322,8 @@ def calculate_market_stress_analysis(df):
                 '5y5y_forward': round(last_5y5y, 3),
                 'real_rate_10y': round(last_real, 3),
                 'inflation_risk_premium': round(last_inf_risk, 3),
+                'umich_expectations': round(last_umich, 2),
+                'breakeven_roc_1m': round(tips_be_roc_1m, 2),
                 'breakeven_roc_3m': round(tips_be_roc_3m, 2)
             }
         }
@@ -400,11 +405,18 @@ def calculate_market_stress_analysis(df):
         hy_spread = df.get('HY_SPREAD', pd.Series(dtype=float))
         ig_spread = df.get('IG_SPREAD', pd.Series(dtype=float))
         nfci = df.get('NFCI', pd.Series(dtype=float))
+        nfci_credit = df.get('NFCI_CREDIT', pd.Series(dtype=float))
+        nfci_risk = df.get('NFCI_RISK', pd.Series(dtype=float))
+        lending_std = df.get('LENDING_STD', pd.Series(dtype=float))
         
         last_hy = safe_get_last(hy_spread, 400)
         last_ig = safe_get_last(ig_spread, 100)
         last_nfci = safe_get_last(nfci, 0)
+        last_nfci_credit = safe_get_last(nfci_credit, 0)
+        last_nfci_risk = safe_get_last(nfci_risk, 0)
+        last_lending = safe_get_last(lending_std, 0)
         hy_zscore = safe_get_last(calculate_zscore(hy_spread), 0)
+        ig_zscore = safe_get_last(calculate_zscore(ig_spread), 0)
         
         credit_score = 0
         credit_signals = []
@@ -446,7 +458,11 @@ def calculate_market_stress_analysis(df):
                 'hy_spread_bps': round(last_hy, 1),
                 'hy_zscore': round(hy_zscore, 2),
                 'ig_spread_bps': round(last_ig, 1),
-                'nfci': round(last_nfci, 3)
+                'ig_zscore': round(ig_zscore, 2),
+                'nfci': round(last_nfci, 3),
+                'nfci_credit': round(last_nfci_credit, 3),
+                'nfci_risk': round(last_nfci_risk, 3),
+                'lending_standards': round(last_lending, 1)
             }
         }
         
