@@ -382,7 +382,10 @@ def fetch_treasury_settlements() -> List[Dict]:
         # Sort by date (descending - most recent first)
         settlements.sort(key=lambda x: x['date'], reverse=True)
         
-        # Group settlements by date and sum amounts
+        # Individual settlements (no grouping) - for individual view
+        individual = settlements.copy()
+        
+        # Group settlements by date and sum amounts - for grouped view
         grouped = {}
         for s in settlements:
             date = s['date']
@@ -400,7 +403,7 @@ def fetch_treasury_settlements() -> List[Dict]:
             grouped[date]['total_amount'] += s['amount']
         
         # Recalculate coverage for grouped settlements
-        result = []
+        grouped_result = []
         for date, data in grouped.items():
             coverage = data['rrp_balance'] / data['total_amount'] if data['total_amount'] > 0 else 999
             if coverage >= 3:
@@ -410,7 +413,7 @@ def fetch_treasury_settlements() -> List[Dict]:
             else:
                 risk = 'high'
             
-            result.append({
+            grouped_result.append({
                 'date': date,
                 'types': ', '.join(data['types'][:3]) + ('...' if len(data['types']) > 3 else ''),
                 'amount': round(data['total_amount'], 1),
@@ -420,12 +423,19 @@ def fetch_treasury_settlements() -> List[Dict]:
                 'is_future': data['is_future']
             })
         
-        # Sort by date descending (most recent/upcoming first)
-        return sorted(result, key=lambda x: x['date'], reverse=True)
+        # Sort grouped by date descending
+        grouped_result = sorted(grouped_result, key=lambda x: x['date'], reverse=True)
+        
+        # Return both individual and grouped data
+        return {
+            'individual': individual,
+            'grouped': grouped_result,
+            'current_rrp': rrp_balance_current
+        }
         
     except Exception as e:
         print(f"Error fetching treasury settlements: {e}")
-        return []
+        return {'individual': [], 'grouped': [], 'current_rrp': 300.0}
 
 def get_rrp_balance() -> float:
     """

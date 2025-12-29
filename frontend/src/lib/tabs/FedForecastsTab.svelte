@@ -83,11 +83,16 @@
     // Fed Rate Probabilities Chart logic
     let selectedMeetingIndex = 0;
 
-    // Treasury Settlements pagination
+    // Treasury Settlements pagination and view toggle
     let settlementPage = 0;
     const settlementsPerPage = 10;
+    let groupedView = false; // Default to individual view
 
-    $: allSettlements = dashboardData.fed_forecasts?.treasury_settlements || [];
+    $: settlementData = dashboardData.fed_forecasts?.treasury_settlements || {};
+    $: currentRrp = settlementData.current_rrp || 0;
+    $: allSettlements = groupedView
+        ? settlementData.grouped || []
+        : settlementData.individual || [];
     $: totalSettlementPages = Math.ceil(
         allSettlements.length / settlementsPerPage,
     );
@@ -738,16 +743,32 @@
     </div>
 
     <!-- Treasury Settlements with RRP Liquidity Coverage -->
-    {#if allSettlements.length > 0}
+    {#if allSettlements.length > 0 || settlementData.individual?.length > 0}
         <div class="chart-card treasury-settlements-card">
             <div class="chart-header">
                 <h3>
                     🏛️ {translations.treasury_settlements ||
                         "Treasury Settlements"}
                 </h3>
-                <span class="rrp-indicator">
-                    RRP Balance: <b>${allSettlements[0]?.rrp_balance || 0}B</b>
-                </span>
+                <div class="header-controls-right">
+                    <label class="view-toggle">
+                        <input
+                            type="checkbox"
+                            bind:checked={groupedView}
+                            on:change={() => {
+                                settlementPage = 0;
+                            }}
+                        />
+                        <span class="toggle-label"
+                            >{groupedView
+                                ? "Grouped by Date"
+                                : "Individual"}</span
+                        >
+                    </label>
+                    <span class="rrp-indicator">
+                        RRP: <b>${currentRrp.toFixed(1)}B</b>
+                    </span>
+                </div>
             </div>
             <div class="settlements-table-container">
                 <table class="settlements-table">
@@ -1701,5 +1722,34 @@
 
     .settlement-row.future-row:hover {
         background: rgba(59, 130, 246, 0.08);
+    }
+
+    /* Header Controls Right */
+    .header-controls-right {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    /* View Toggle */
+    .view-toggle {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        font-size: 0.8rem;
+    }
+
+    .view-toggle input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+        accent-color: var(--accent-primary);
+    }
+
+    .toggle-label {
+        color: var(--text-muted);
+        font-size: 0.75rem;
+        white-space: nowrap;
     }
 </style>
