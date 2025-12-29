@@ -83,16 +83,54 @@
     // Fed Rate Probabilities Chart logic
     let selectedMeetingIndex = 0;
 
-    // Treasury Settlements pagination and view toggle
+    // Treasury Settlements pagination, view toggle, and filters
     let settlementPage = 0;
     const settlementsPerPage = 10;
     let groupedView = false; // Default to individual view
 
+    // Filters
+    let filterSecurityType = "all"; // all, Bill, Note, Bond, TIPS, FRN, CMB
+    let filterDateFrom = "";
+    let filterDateTo = "";
+    let filterAmountMin = "";
+    let filterAmountMax = "";
+
     $: settlementData = dashboardData.fed_forecasts?.treasury_settlements || {};
     $: currentRrp = settlementData.current_rrp || 0;
-    $: allSettlements = groupedView
+    $: rawSettlements = groupedView
         ? settlementData.grouped || []
         : settlementData.individual || [];
+
+    // Apply filters
+    $: filteredSettlements = rawSettlements.filter((s) => {
+        // Security type filter
+        const typeStr = s.type || s.types || "";
+        if (
+            filterSecurityType !== "all" &&
+            !typeStr.toLowerCase().includes(filterSecurityType.toLowerCase())
+        ) {
+            return false;
+        }
+        // Date from filter
+        if (filterDateFrom && s.date < filterDateFrom) {
+            return false;
+        }
+        // Date to filter
+        if (filterDateTo && s.date > filterDateTo) {
+            return false;
+        }
+        // Amount min filter
+        if (filterAmountMin && s.amount < parseFloat(filterAmountMin)) {
+            return false;
+        }
+        // Amount max filter
+        if (filterAmountMax && s.amount > parseFloat(filterAmountMax)) {
+            return false;
+        }
+        return true;
+    });
+
+    $: allSettlements = filteredSettlements;
     $: totalSettlementPages = Math.ceil(
         allSettlements.length / settlementsPerPage,
     );
@@ -100,6 +138,11 @@
         settlementPage * settlementsPerPage,
         (settlementPage + 1) * settlementsPerPage,
     );
+
+    // Reset pagination when filters change
+    function resetPagination() {
+        settlementPage = 0;
+    }
 
     $: selectedMeeting = fomcDates[selectedMeetingIndex] || fomcDates[0];
 
@@ -755,14 +798,10 @@
                         <input
                             type="checkbox"
                             bind:checked={groupedView}
-                            on:change={() => {
-                                settlementPage = 0;
-                            }}
+                            on:change={resetPagination}
                         />
                         <span class="toggle-label"
-                            >{groupedView
-                                ? "Grouped by Date"
-                                : "Individual"}</span
+                            >{groupedView ? "Grouped" : "Individual"}</span
                         >
                     </label>
                     <span class="rrp-indicator">
@@ -770,6 +809,75 @@
                     </span>
                 </div>
             </div>
+
+            <!-- Filters Row -->
+            <div class="settlements-filters">
+                <div class="filter-group">
+                    <label>Type:</label>
+                    <select
+                        bind:value={filterSecurityType}
+                        on:change={resetPagination}
+                    >
+                        <option value="all">All</option>
+                        <option value="Bill">Bills</option>
+                        <option value="Note">Notes</option>
+                        <option value="Bond">Bonds</option>
+                        <option value="TIPS">TIPS</option>
+                        <option value="FRN">FRN</option>
+                        <option value="CMB">CMB</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>From:</label>
+                    <input
+                        type="date"
+                        bind:value={filterDateFrom}
+                        on:change={resetPagination}
+                    />
+                </div>
+                <div class="filter-group">
+                    <label>To:</label>
+                    <input
+                        type="date"
+                        bind:value={filterDateTo}
+                        on:change={resetPagination}
+                    />
+                </div>
+                <div class="filter-group">
+                    <label>Min $B:</label>
+                    <input
+                        type="number"
+                        placeholder="0"
+                        bind:value={filterAmountMin}
+                        on:input={resetPagination}
+                        min="0"
+                        step="10"
+                    />
+                </div>
+                <div class="filter-group">
+                    <label>Max $B:</label>
+                    <input
+                        type="number"
+                        placeholder="∞"
+                        bind:value={filterAmountMax}
+                        on:input={resetPagination}
+                        min="0"
+                        step="10"
+                    />
+                </div>
+                <button
+                    class="clear-filters-btn"
+                    on:click={() => {
+                        filterSecurityType = "all";
+                        filterDateFrom = "";
+                        filterDateTo = "";
+                        filterAmountMin = "";
+                        filterAmountMax = "";
+                        resetPagination();
+                    }}>Clear</button
+                >
+            </div>
+
             <div class="settlements-table-container">
                 <table class="settlements-table">
                     <thead>
@@ -808,7 +916,7 @@
                                     {/if}
                                 </td>
                                 <td class="settlement-type"
-                                    >{settlement.types}</td
+                                    >{settlement.type || settlement.types}</td
                                 >
                                 <td class="settlement-amount"
                                     >${settlement.amount}B</td
@@ -1751,5 +1859,78 @@
         color: var(--text-muted);
         font-size: 0.75rem;
         white-space: nowrap;
+    }
+
+    /* Settlements Filters */
+    .settlements-filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        padding: 12px 15px;
+        background: rgba(0, 0, 0, 0.03);
+        border-bottom: 1px solid var(--border-color);
+        align-items: center;
+    }
+
+    .filter-group {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .filter-group label {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        white-space: nowrap;
+    }
+
+    .filter-group select,
+    .filter-group input[type="date"],
+    .filter-group input[type="number"] {
+        font-size: 0.75rem;
+        padding: 4px 8px;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+    }
+
+    .filter-group select {
+        min-width: 80px;
+    }
+
+    .filter-group input[type="date"] {
+        width: 130px;
+    }
+
+    .filter-group input[type="number"] {
+        width: 70px;
+    }
+
+    .clear-filters-btn {
+        font-size: 0.75rem;
+        padding: 4px 10px;
+        background: transparent;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        color: var(--text-muted);
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .clear-filters-btn:hover {
+        background: var(--accent-primary);
+        color: white;
+        border-color: var(--accent-primary);
+    }
+
+    @media (max-width: 768px) {
+        .settlements-filters {
+            gap: 8px;
+        }
+
+        .filter-group input[type="date"] {
+            width: 110px;
+        }
     }
 </style>
