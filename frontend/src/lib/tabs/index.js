@@ -10,3 +10,4 @@ export { default as RiskModelTab } from './RiskModelTab.svelte';
 export { default as UsSystemTab } from './UsSystemTab.svelte';
 export { default as BtcAnalysisTab } from './BtcAnalysisTab.svelte';
 export { default as BtcQuantV2Tab } from './BtcQuantV2Tab.svelte';
+export { default as FedForecastsTab } from './FedForecastsTab.svelte';

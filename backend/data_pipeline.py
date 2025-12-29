@@ -182,6 +182,19 @@ FRED_CONFIG = {
     'RESBALNS': 'BANK_RESERVES',          # Bank Reserves
     'SOFR': 'SOFR',                       # Secured Overnight Financing Rate
     'IORB': 'IORB',                       # Interest on Reserve Balances
+    # Note: EVZCLS removed - EVZ discontinued Jan 2025. Using DXY realized vol instead.
+    # Fed Forecasts tab - Macro Indicators
+    'CPIAUCSL': 'CPI',                     # Consumer Price Index (All Urban)
+    'CPILFESL': 'CORE_CPI',                # Core CPI (excl. Food & Energy)
+    'PCEPI': 'PCE',                        # Personal Consumption Expenditures
+    'PCEPILFE': 'CORE_PCE',                # Core PCE (Fed's preferred gauge)
+    'UNRATE': 'UNEMPLOYMENT',              # Unemployment Rate
+    'FEDFUNDS': 'FED_FUNDS_RATE',          # Effective Federal Funds Rate
+    # Inflation Expectations (TIPS Breakeven + Cleveland Fed Model)
+    # Note: ICE Swap Rates (ICERATES1100USD*) discontinued Jan 2022
+    'T5YIEM': 'INFLATION_EXPECT_5Y',       # 5-Year TIPS Breakeven Inflation Rate
+    'T10YIEM': 'INFLATION_EXPECT_10Y',     # 10-Year TIPS Breakeven Inflation Rate
+    'EXPINF1YR': 'INFLATION_EXPECT_1Y',    # 1-Year Expected Inflation (Cleveland Fed)
 }
 
 # Mapping: Symbol -> Internal Name (TradingView ECONOMICS)
@@ -253,9 +266,13 @@ TV_CONFIG = {
     'ZARUSD': ('FX_IDC', 'ZARUSD'),
     
     # ==========================================================
-    # OTHER
+    # OTHER & MACRO
     # ==========================================================
     'BTCUSD': ('BITSTAMP', 'BTC'),
+    'MOVE': ('TVC', 'MOVE'),             # ICE BofA MOVE Index
+    'DXY': ('TVC', 'DXY'),               # US Dollar Index
+    'USBCOI': ('ECONOMICS', 'ISM_MFG'),   # US ISM Manufacturing PMI
+    'USNMBA': ('ECONOMICS', 'ISM_SVC'),   # US ISM Non-Manufacturing (Services)
 }
 
 # ============================================================
@@ -932,6 +949,20 @@ def compute_signal_metrics(df: pd.DataFrame, cli_df: pd.DataFrame, window: int =
             'bullish_pct': 40,  # Reflación moderada es OK
             'bearish_pct': 20,  # Muy bajo = deflación scare
         },
+        'move': {
+            'source': df,
+            'col': 'MOVE',
+            'invert': True,
+            'bullish_pct': 30,
+            'bearish_pct': 85,
+        },
+        'fx_vol': {
+            'source': df,
+            'col': 'FX_VOL',
+            'invert': True,
+            'bullish_pct': 30,
+            'bearish_pct': 85,
+        },
     }
     
     for key, config in series_config.items():
@@ -981,6 +1012,32 @@ def compute_signal_metrics(df: pd.DataFrame, cli_df: pd.DataFrame, window: int =
                 'percentile': float(pct.iloc[-1]) if not np.isnan(pct.iloc[-1]) else None,
                 'zscore': float(zscore.iloc[-1]) if not np.isnan(zscore.iloc[-1]) else None,
                 'state': signals[-1] if len(signals) > 0 else 'neutral',
+            }
+        }
+    
+    # Composite TIPS signal
+    if 'TIPS_REAL_RATE' in df.columns and 'TIPS_BREAKEVEN' in df.columns:
+        rr = df['TIPS_REAL_RATE'].astype(float)
+        be = df['TIPS_BREAKEVEN'].astype(float)
+        
+        # Simple rolling stats for the composite
+        rr_z = (rr - rr.rolling(window, min_periods=126).mean()) / rr.rolling(window, min_periods=126).std()
+        be_z = (be - be.rolling(window, min_periods=126).mean()) / be.rolling(window, min_periods=126).std()
+        
+        # State logic matches front-end (simplified)
+        state = 'neutral'
+        if be.iloc[-1] > be.rolling(252, min_periods=126).mean().iloc[-1] * 1.1:
+            state = 'bullish'
+        if rr.iloc[-1] > rr.rolling(252, min_periods=126).mean().iloc[-1] + 0.5:
+            state = 'bearish'
+            
+        metrics['tips'] = {
+            'percentile': clean_for_json_series(rolling_percentile(rr, window=window)),
+            'zscore': clean_for_json_series(rr_z),
+            'latest': {
+                'value': float(rr.iloc[-1]),
+                'valueBE': float(be.iloc[-1]),
+                'state': state
             }
         }
     
@@ -1671,7 +1728,20 @@ def run_pipeline():
     df_fred_t['BANK_RESERVES'] = df_fred.get('BANK_RESERVES', pd.Series(dtype=float)) / 1e6 # Trillions
     df_fred_t['SOFR'] = df_fred.get('SOFR', pd.Series(dtype=float))
     df_fred_t['IORB'] = df_fred.get('IORB', pd.Series(dtype=float))
+    df_fred_t['MOVE'] = df_fred.get('MOVE', pd.Series(dtype=float))
+    df_fred_t['FX_VOL'] = df_fred.get('FX_VOL', pd.Series(dtype=float))
     df_fred_t['CLI'] = calculate_cli(df_fred)['CLI']
+    # Fed Forecasts tab - Macro Indicators (no conversion needed, raw values)
+    df_fred_t['CPI'] = df_fred.get('CPI', pd.Series(dtype=float))
+    df_fred_t['CORE_CPI'] = df_fred.get('CORE_CPI', pd.Series(dtype=float))
+    df_fred_t['PCE'] = df_fred.get('PCE', pd.Series(dtype=float))
+    df_fred_t['CORE_PCE'] = df_fred.get('CORE_PCE', pd.Series(dtype=float))
+    df_fred_t['UNEMPLOYMENT'] = df_fred.get('UNEMPLOYMENT', pd.Series(dtype=float))
+    df_fred_t['FED_FUNDS_RATE'] = df_fred.get('FED_FUNDS_RATE', pd.Series(dtype=float))
+    # Inflation Expectations (TIPS Breakeven + Cleveland Fed)
+    df_fred_t['INFLATION_EXPECT_1Y'] = df_fred.get('INFLATION_EXPECT_1Y', pd.Series(dtype=float))
+    df_fred_t['INFLATION_EXPECT_5Y'] = df_fred.get('INFLATION_EXPECT_5Y', pd.Series(dtype=float))
+    df_fred_t['INFLATION_EXPECT_10Y'] = df_fred.get('INFLATION_EXPECT_10Y', pd.Series(dtype=float))
 
     # 2. Fetch TV and Normalize to Trillions
     print("Fetching TradingView Update Data (Trillions)...")
@@ -1805,8 +1875,12 @@ def run_pipeline():
         fred_cols_to_sync = ['TGA_USD', 'RRP_USD', 'VIX', 'HY_SPREAD', 'IG_SPREAD', 
                              'NFCI', 'NFCI_CREDIT', 'NFCI_RISK', 'LENDING_STD', 'CLI',
                              'TIPS_BREAKEVEN', 'TIPS_REAL_RATE', 'TIPS_5Y5Y_FORWARD',
-                             'BANK_RESERVES', 'SOFR', 'IORB']
-        res_tv_t = res_tv_t.combine_first(df_fred_t[fred_cols_to_sync]).ffill()
+                             'BANK_RESERVES', 'SOFR', 'IORB', 'FX_VOL',
+                             'CPI', 'CORE_CPI', 'PCE', 'CORE_PCE', 'UNEMPLOYMENT', 'FED_FUNDS_RATE',
+                             'INFLATION_EXPECT_1Y', 'INFLATION_EXPECT_5Y', 'INFLATION_EXPECT_10Y']
+        # Only select columns that actually exist in df_fred_t
+        fred_cols_available = [col for col in fred_cols_to_sync if col in df_fred_t.columns]
+        res_tv_t = res_tv_t.combine_first(df_fred_t[fred_cols_available]).ffill()
         # Preserve RAW local units in the hybrid dataframe
         df_hybrid_processed = res_tv_t.combine_first(df_tv_t)
     
@@ -1848,6 +1922,23 @@ def run_pipeline():
         btc_rocs = {}
         if 'BTC' in df_t.columns and df_t['BTC'].notna().sum() > 0:
             btc_rocs = calculate_rocs(df_t['BTC'])
+
+        # New: ROCs for Risk Model tab indicators
+        cli_rocs = calculate_rocs(df_t['CLI']) if 'CLI' in df_t.columns else {}
+        vix_rocs = calculate_rocs(df_t['VIX']) if 'VIX' in df_t.columns else {}
+        tips_real_rocs = calculate_rocs(df_t['TIPS_REAL_RATE']) if 'TIPS_REAL_RATE' in df_t.columns else {}
+        move_rocs = calculate_rocs(df_t['MOVE']) if 'MOVE' in df_t.columns else {}
+        
+        # Calculate FX Volatility from DXY (realized vol, annualized)
+        # EVZ was discontinued Jan 2025, so we compute realized vol from DXY
+        if 'DXY' in df_t.columns and df_t['DXY'].notna().sum() > 20:
+            dxy_returns = np.log(df_t['DXY']).diff()
+            # 21-day rolling realized volatility, annualized (252 trading days)
+            df_t['FX_VOL'] = dxy_returns.rolling(21, min_periods=10).std() * np.sqrt(252) * 100
+        else:
+            df_t['FX_VOL'] = pd.Series(dtype=float, index=df_t.index)
+        
+        fx_vol_rocs = calculate_rocs(df_t['FX_VOL']) if 'FX_VOL' in df_t.columns and df_t['FX_VOL'].notna().sum() > 0 else {}
 
         # Cross-Correlations (using ROC/returns for stationarity, not raw levels)
         correlations = {}
@@ -2100,8 +2191,11 @@ def run_pipeline():
                 b: float(latest_gli.get(f'{b.upper()}_USD', 0) / latest_gli['GLI_TOTAL'] * 100) if latest_gli['GLI_TOTAL'] > 0 else 0
                 for b in ['fed', 'ecb', 'boj', 'boe', 'pboc', 'boc', 'rba', 'snb', 'bok', 'rbi', 'cbr', 'bcb', 'rbnz', 'sr', 'bnm']
             })(gli.iloc[-1] if not gli.empty else {}),
-            'cli': clean_for_json(df_t['CLI']),
-            'cli_percentile': clean_for_json(rolling_percentile(df_t['CLI'], window=1260)),
+            'cli': {
+                'total': clean_for_json(df_t['CLI']),
+                'percentile': clean_for_json(rolling_percentile(df_t['CLI'], window=1260)),
+                'rocs': {k: clean_for_json(v) for k, v in cli_rocs.items()}
+            },
             'signal_metrics': compute_signal_metrics(df_t, cli_df, window=1260),
             'cli_components': {
                 'hy_z': clean_for_json(cli_df.get('HY_SPREAD_Z', pd.Series(dtype=float))),
@@ -2113,13 +2207,27 @@ def run_pipeline():
                 'weights': {'HY': 0.25, 'IG': 0.15, 'NFCI_CREDIT': 0.20, 'NFCI_RISK': 0.20, 'LENDING': 0.10, 'VIX': 0.10}
             },
             'signals': signals,
-            'vix': clean_for_json(df_t['VIX']),
+            'vix': {
+                'total': clean_for_json(df_t['VIX']),
+                'rocs': {k: clean_for_json(v) for k, v in vix_rocs.items()}
+            },
+            'move': {
+                'total': clean_for_json(df_t.get('MOVE', pd.Series(dtype=float))),
+                'rocs': {k: clean_for_json(v) for k, v in move_rocs.items()}
+            },
+            'fx_vol': {
+                'total': clean_for_json(df_t.get('FX_VOL', pd.Series(dtype=float))),
+                'rocs': {k: clean_for_json(v) for k, v in fx_vol_rocs.items()}
+            },
             'hy_spread': clean_for_json(df_t['HY_SPREAD']),
             'ig_spread': clean_for_json(df_t['IG_SPREAD']),
             # TIPS / Inflation Expectations
-            'tips_breakeven': clean_for_json(df_t.get('TIPS_BREAKEVEN', pd.Series(dtype=float))),
-            'tips_real_rate': clean_for_json(df_t.get('TIPS_REAL_RATE', pd.Series(dtype=float))),
-            'tips_5y5y_forward': clean_for_json(df_t.get('TIPS_5Y5Y_FORWARD', pd.Series(dtype=float))),
+            'tips': {
+                'breakeven': clean_for_json(df_t.get('TIPS_BREAKEVEN', pd.Series(dtype=float))),
+                'real_rate': clean_for_json(df_t.get('TIPS_REAL_RATE', pd.Series(dtype=float))),
+                'fwd_5y5y': clean_for_json(df_t.get('TIPS_5Y5Y_FORWARD', pd.Series(dtype=float))),
+                'rocs': {k: clean_for_json(v) for k, v in tips_real_rocs.items()}
+            },
             'repo_stress': {
                 'sofr': clean_for_json(df_t.get('SOFR', pd.Series(dtype=float))),
                 'iorb': clean_for_json(df_t.get('IORB', pd.Series(dtype=float))),
@@ -2155,7 +2263,26 @@ def run_pipeline():
             'series_metadata': series_metadata,
             'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'correlations': correlations,
-            'predictive': predictive
+            'predictive': predictive,
+            # Fed Forecasts tab data
+            'fed_forecasts': {
+                # Inflation (YoY % change calculated from index levels)
+                # Using 365.25 for calendar daily ffilled data
+                'cpi_yoy': clean_for_json(df_t['CPI'].pct_change(365) * 100) if 'CPI' in df_t.columns else [],
+                'core_cpi_yoy': clean_for_json(df_t['CORE_CPI'].pct_change(365) * 100) if 'CORE_CPI' in df_t.columns else [],
+                'pce_yoy': clean_for_json(df_t['PCE'].pct_change(365) * 100) if 'PCE' in df_t.columns else [],
+                'core_pce_yoy': clean_for_json(df_t['CORE_PCE'].pct_change(365) * 100) if 'CORE_PCE' in df_t.columns else [],
+                # PMI data (from TV ECONOMICS)
+                'ism_mfg': clean_for_json(df_t.get('ISM_MFG', pd.Series(dtype=float))),
+                'ism_svc': clean_for_json(df_t.get('ISM_SVC', pd.Series(dtype=float))),
+                # Labor & Rates
+                'unemployment': clean_for_json(df_t.get('UNEMPLOYMENT', pd.Series(dtype=float))),
+                'fed_funds_rate': clean_for_json(df_t.get('FED_FUNDS_RATE', pd.Series(dtype=float))),
+                # Market-based Inflation Expectations (TIPS Breakeven + Cleveland Fed)
+                'inflation_expect_1y': clean_for_json(df_t.get('INFLATION_EXPECT_1Y', pd.Series(dtype=float))),
+                'inflation_expect_5y': clean_for_json(df_t.get('INFLATION_EXPECT_5Y', pd.Series(dtype=float))),
+                'inflation_expect_10y': clean_for_json(df_t.get('INFLATION_EXPECT_10Y', pd.Series(dtype=float))),
+            }
         }
 
         output_path = os.path.join(OUTPUT_DIR, filename)

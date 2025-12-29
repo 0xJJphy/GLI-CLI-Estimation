@@ -721,7 +721,7 @@
                     class="score-val"
                     class:high={liquidityScore >= 70}
                     class:low={liquidityScore <= 30}
-                    >{liquidityScore.toFixed(0)}</span
+                    >{liquidityScore?.toFixed(0) ?? 50}</span
                 >
             </div>
         </div>

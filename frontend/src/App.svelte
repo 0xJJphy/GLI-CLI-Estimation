@@ -22,6 +22,7 @@
     RiskModelTab,
     BtcAnalysisTab,
     BtcQuantV2Tab,
+    FedForecastsTab,
   } from "./lib/tabs";
 
   // Global Settings Store
@@ -106,7 +107,9 @@
     cbBreadthRange = "ALL",
     cbConcentrationRange = "ALL",
     cbRange = "ALL",
-    tipsRange = "ALL";
+    tipsRange = "ALL",
+    moveRange = "ALL",
+    fxVolRange = "ALL";
 
   // Individual M2 time ranges
   let usM2Range = "ALL",
@@ -123,6 +126,14 @@
     krM2Range = "ALL",
     mxM2Range = "ALL",
     myM2Range = "ALL";
+
+  // Fed Forecasts tab ranges
+  let cpiRange = "5Y";
+  let pceRange = "5Y";
+  let pmiRange = "5Y";
+  let unemploymentRange = "5Y";
+  let fedFundsRange = "5Y";
+  let inflationExpectationsRange = "5Y";
 
   // GLI FX mode: false = Spot USD, true = Constant FX (2019-12-31)
 
@@ -902,7 +913,7 @@
     });
 
     const best = findOptimalLag($dashboardData.dates, comp, fullRoc, 0, 120); // Scan 0 to 120 days positive lag
-    optimalLagLabel = `Best Offset: +${best.lag}d (Corr: ${best.corr.toFixed(2)})`;
+    optimalLagLabel = `Best Offset: +${best.lag}d (Corr: ${best.corr !== null && best.corr !== undefined ? best.corr.toFixed(2) : "0.00"})`;
 
     return comp;
   })();
@@ -1229,7 +1240,7 @@
   $: cliDataRaw = [
     {
       x: $dashboardData.dates,
-      y: $dashboardData.cli,
+      y: $dashboardData.cli?.total,
       name: "CLI",
       type: "scatter",
       mode: "lines",
@@ -1247,7 +1258,7 @@
   $: tipsDataRaw = [
     {
       x: $dashboardData.dates,
-      y: $dashboardData.tips_breakeven,
+      y: $dashboardData.tips?.breakeven,
       name: "10Y Breakeven Inflation",
       type: "scatter",
       mode: "lines",
@@ -1256,7 +1267,7 @@
     },
     {
       x: $dashboardData.dates,
-      y: $dashboardData.tips_real_rate,
+      y: $dashboardData.tips?.real_rate,
       name: "10Y Real Rate (TIPS Yield)",
       type: "scatter",
       mode: "lines",
@@ -1265,7 +1276,7 @@
     },
     {
       x: $dashboardData.dates,
-      y: $dashboardData.tips_5y5y_forward,
+      y: $dashboardData.tips?.fwd_5y5y,
       name: "5Y5Y Forward Inflation",
       type: "scatter",
       mode: "lines",
@@ -1541,7 +1552,7 @@
   $: vixDataRaw = [
     {
       x: $dashboardData.dates,
-      y: $dashboardData.vix,
+      y: $dashboardData.vix?.total,
       name: "VIX",
       type: "scatter",
       mode: "lines",
@@ -1612,6 +1623,31 @@
     },
   ];
   $: igPctData = filterPlotlyData(igPctDataRaw, $dashboardData.dates, igRange);
+
+  // Raw data (original values) for Risk Model
+  $: hyRawDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.hy_spread || [],
+      name: "HY Spread (bps)",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#ef4444", width: 2 },
+    },
+  ];
+  $: hyRawData = filterPlotlyData(hyRawDataRaw, $dashboardData.dates, hyRange);
+
+  $: igRawDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.ig_spread || [],
+      name: "IG Spread (bps)",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#f97316", width: 2 },
+    },
+  ];
+  $: igRawData = filterPlotlyData(igRawDataRaw, $dashboardData.dates, igRange);
 
   $: nfciCreditZDataRaw = [
     {
@@ -1736,7 +1772,7 @@
   $: cliPercentileDataRaw = [
     {
       x: $dashboardData.dates,
-      y: $dashboardData.cli_percentile || [],
+      y: $dashboardData.cli?.percentile || [],
       name: "CLI (Percentile)",
       type: "scatter",
       mode: "lines",
@@ -1747,6 +1783,310 @@
     cliPercentileDataRaw,
     $dashboardData.dates,
     cliRange,
+  );
+
+  // --- New Risk Model Factors (MOVE & FX Vol) ---
+  $: moveZDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.signal_metrics?.move?.zscore || [],
+      name: "MOVE Index (Z-Score)",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#ec4899", width: 2 },
+    },
+  ];
+  $: moveZData = filterPlotlyData(
+    moveZDataRaw,
+    $dashboardData.dates,
+    moveRange || "ALL",
+  );
+
+  $: movePctDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.signal_metrics?.move?.percentile || [],
+      name: "MOVE Index (Percentile)",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#ec4899", width: 2 },
+    },
+  ];
+  $: movePctData = filterPlotlyData(
+    movePctDataRaw,
+    $dashboardData.dates,
+    moveRange || "ALL",
+  );
+
+  $: fxVolZDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.signal_metrics?.fx_vol?.zscore || [],
+      name: "FX Volatility (Z-Score)",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#06b6d4", width: 2 },
+    },
+  ];
+  $: fxVolZData = filterPlotlyData(
+    fxVolZDataRaw,
+    $dashboardData.dates,
+    fxVolRange || "ALL",
+  );
+
+  $: fxVolPctDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.signal_metrics?.fx_vol?.percentile || [],
+      name: "FX Volatility (Percentile)",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#06b6d4", width: 2 },
+    },
+  ];
+  $: fxVolPctData = filterPlotlyData(
+    fxVolPctDataRaw,
+    $dashboardData.dates,
+    fxVolRange || "ALL",
+  );
+
+  // Raw data series for remaining Risk Model indicators
+  $: nfciCreditRawDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.signal_metrics?.nfci_credit?.values || [],
+      name: "NFCI Credit",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#22c55e", width: 2 },
+    },
+  ];
+  $: nfciCreditRawData = filterPlotlyData(
+    nfciCreditRawDataRaw,
+    $dashboardData.dates,
+    nfciCreditRange,
+  );
+
+  $: nfciRiskRawDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.signal_metrics?.nfci_risk?.values || [],
+      name: "NFCI Risk",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#a855f7", width: 2 },
+    },
+  ];
+  $: nfciRiskRawData = filterPlotlyData(
+    nfciRiskRawDataRaw,
+    $dashboardData.dates,
+    nfciRiskRange,
+  );
+
+  $: lendingRawDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.signal_metrics?.lending?.values || [],
+      name: "Lending Standards (Net %)",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#3b82f6", width: 2 },
+    },
+  ];
+  $: lendingRawData = filterPlotlyData(
+    lendingRawDataRaw,
+    $dashboardData.dates,
+    lendingRange,
+  );
+
+  $: vixRawDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.vix?.total || [],
+      name: "VIX Level",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#6b7280", width: 2 },
+    },
+  ];
+  $: vixRawData = filterPlotlyData(
+    vixRawDataRaw,
+    $dashboardData.dates,
+    vixRange,
+  );
+
+  $: moveRawDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.move?.total || [],
+      name: "MOVE Index",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#ec4899", width: 2 },
+    },
+  ];
+  $: moveRawData = filterPlotlyData(
+    moveRawDataRaw,
+    $dashboardData.dates,
+    moveRange || "ALL",
+  );
+
+  $: fxVolRawDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.fx_vol?.total || [],
+      name: "DXY Realized Vol (%)",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#06b6d4", width: 2 },
+    },
+  ];
+  $: fxVolRawData = filterPlotlyData(
+    fxVolRawDataRaw,
+    $dashboardData.dates,
+    fxVolRange || "ALL",
+  );
+
+  // --- Fed Forecasts Tab Chart Data ---
+  $: cpiChartDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.fed_forecasts?.cpi_yoy || [],
+      name: "CPI YoY",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#ef4444", width: 2 },
+    },
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.fed_forecasts?.core_cpi_yoy || [],
+      name: "Core CPI YoY",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#f97316", width: 2, dash: "dash" },
+    },
+  ];
+  $: cpiChartData = filterPlotlyData(
+    cpiChartDataRaw,
+    $dashboardData.dates,
+    cpiRange,
+  );
+
+  $: pceChartDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.fed_forecasts?.pce_yoy || [],
+      name: "PCE YoY",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#8b5cf6", width: 2 },
+    },
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.fed_forecasts?.core_pce_yoy || [],
+      name: "Core PCE YoY",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#a855f7", width: 2, dash: "dash" },
+    },
+  ];
+  $: pceChartData = filterPlotlyData(
+    pceChartDataRaw,
+    $dashboardData.dates,
+    pceRange,
+  );
+
+  $: pmiChartDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.fed_forecasts?.ism_mfg || [],
+      name: "ISM Manufacturing",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#3b82f6", width: 2 },
+    },
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.fed_forecasts?.ism_svc || [],
+      name: "ISM Services",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#10b981", width: 2, dash: "dash" },
+    },
+  ];
+  $: pmiChartData = filterPlotlyData(
+    pmiChartDataRaw,
+    $dashboardData.dates,
+    pmiRange,
+  );
+
+  $: unemploymentChartDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.fed_forecasts?.unemployment || [],
+      name: "Unemployment Rate",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#6b7280", width: 2 },
+      fill: "tozeroy",
+      fillcolor: "rgba(107, 114, 128, 0.1)",
+    },
+  ];
+  $: unemploymentChartData = filterPlotlyData(
+    unemploymentChartDataRaw,
+    $dashboardData.dates,
+    unemploymentRange,
+  );
+
+  $: fedFundsChartDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.fed_forecasts?.fed_funds_rate || [],
+      name: "Fed Funds Rate",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#1e40af", width: 3 },
+      fill: "tozeroy",
+      fillcolor: "rgba(30, 64, 175, 0.1)",
+    },
+  ];
+  $: fedFundsChartData = filterPlotlyData(
+    fedFundsChartDataRaw,
+    $dashboardData.dates,
+    fedFundsRange,
+  );
+
+  // Inflation Expectations Chart (TIPS Breakeven vs Actual)
+  $: inflationExpectationsChartDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.fed_forecasts?.inflation_expect_5y || [],
+      name: "5Y TIPS Breakeven",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#10b981", width: 2 },
+    },
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.fed_forecasts?.inflation_expect_10y || [],
+      name: "10Y TIPS Breakeven",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#3b82f6", width: 2, dash: "dash" },
+    },
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.fed_forecasts?.cpi_yoy || [],
+      name: "CPI YoY (Actual)",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#ef4444", width: 1.5, dash: "dot" },
+    },
+  ];
+  $: inflationExpectationsChartData = filterPlotlyData(
+    inflationExpectationsChartDataRaw,
+    $dashboardData.dates,
+    inflationExpectationsRange,
   );
 
   // --- M2 Money Supply Chart Data ---
@@ -2236,15 +2576,17 @@
     if (!rocsObj || !rocsObj[window] || !Array.isArray(rocsObj[window]))
       return 0;
     const series = rocsObj[window];
-    return series.length > 0 ? series[series.length - 1] : 0;
+    if (series.length === 0) return 0;
+    const val = series[series.length - 1];
+    return val === null || val === undefined ? 0 : val;
   };
 
   const getLatestValue = (series) => {
-    if (!series || !Array.isArray(series) || series.length === 0) return null;
+    if (!series || !Array.isArray(series) || series.length === 0) return 0;
     for (let i = series.length - 1; i >= 0; i--) {
       if (series[i] !== null && series[i] !== undefined) return series[i];
     }
-    return null;
+    return 0;
   };
 </script>
 
@@ -2363,6 +2705,17 @@
         <span class="nav-icon">🧪</span>
         {$currentTranslations.nav_btc_quant}
       </div>
+      <div
+        class="nav-item"
+        class:active={currentTab === "Fed Forecasts"}
+        on:click={() => setTab("Fed Forecasts")}
+        on:keydown={(e) => e.key === "Enter" && setTab("Fed Forecasts")}
+        role="button"
+        tabindex="0"
+      >
+        <span class="nav-icon">🏦</span>
+        {$currentTranslations.nav_fed_forecasts || "Fed Forecasts"}
+      </div>
     </nav>
 
     <div class="sidebar-footer"></div>
@@ -2401,7 +2754,7 @@
             ? $currentTranslations.light_mode
             : $currentTranslations.dark_mode}
         >
-          <span class="toggle-icon">{darkMode ? "☀️" : "🌙"}</span>
+          <span class="toggle-icon">{$darkMode ? "☀️" : "🌙"}</span>
           <span class="toggle-label"
             >{$darkMode
               ? ($currentTranslations.light_mode || "").split(" ")[0]
@@ -2597,6 +2950,20 @@
           bind:vixRange
           bind:tipsRange
           bind:repoStressRange
+          {moveZData}
+          {movePctData}
+          {fxVolZData}
+          {fxVolPctData}
+          {hyRawData}
+          {igRawData}
+          {nfciCreditRawData}
+          {nfciRiskRawData}
+          {lendingRawData}
+          {vixRawData}
+          {moveRawData}
+          {fxVolRawData}
+          bind:moveRange
+          bind:fxVolRange
         />
       {:else if currentTab === "BTC Analysis"}
         <BtcAnalysisTab
@@ -2621,6 +2988,24 @@
           {quantV2RebalancedData}
           {quantV2ReturnsData}
           {getLatestValue}
+        />
+      {:else if currentTab === "Fed Forecasts"}
+        <FedForecastsTab
+          darkMode={$darkMode}
+          translations={$currentTranslations}
+          dashboardData={$dashboardData}
+          cpiData={cpiChartData}
+          pceData={pceChartData}
+          pmiData={pmiChartData}
+          unemploymentData={unemploymentChartData}
+          fedFundsData={fedFundsChartData}
+          inflationExpectationsData={inflationExpectationsChartData}
+          bind:cpiRange
+          bind:pceRange
+          bind:pmiRange
+          bind:unemploymentRange
+          bind:fedFundsRange
+          bind:inflationExpectationsRange
         />
       {/if}
     </div>

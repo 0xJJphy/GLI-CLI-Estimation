@@ -213,6 +213,8 @@
         nfci_risk: { bullishPct: 30, bearishPct: 80, invert: true },
         lending: { bullishPct: 40, bearishPct: 60, invert: true },
         vix: { bullishPct: 25, bearishPct: 90, invert: true },
+        move: { bullishPct: 30, bearishPct: 80, invert: true },
+        fx_vol: { bullishPct: 30, bearishPct: 70, invert: true },
         tips_real: { bullishPct: 30, bearishPct: 75, invert: true },
     };
 
@@ -231,11 +233,25 @@
     export let lendingPctData = [];
     export let vixZData = [];
     export let vixPctData = [];
+    export let moveZData = [];
+    export let movePctData = [];
+    export let fxVolZData = [];
+    export let fxVolPctData = [];
     export let tipsData = [];
     export let tipsLayout = {};
     export let repoStressData = [];
 
-    // View mode per chart: 'zscore' or 'percentile'
+    // Raw data props (original values without transformation)
+    export let vixRawData = [];
+    export let moveRawData = [];
+    export let fxVolRawData = [];
+    export let hyRawData = [];
+    export let igRawData = [];
+    export let nfciCreditRawData = [];
+    export let nfciRiskRawData = [];
+    export let lendingRawData = [];
+
+    // View mode per chart: 'zscore', 'percentile', or 'raw'
     let cliViewMode = "zscore";
     let hyViewMode = "zscore";
     let igViewMode = "zscore";
@@ -243,6 +259,8 @@
     let nfciRiskViewMode = "zscore";
     let lendingViewMode = "zscore";
     let vixViewMode = "zscore";
+    let moveViewMode = "zscore";
+    let fxVolViewMode = "zscore";
 
     // Last date lookup function
     export let getLastDate = (bank) => "N/A";
@@ -281,6 +299,8 @@
     export let nfciRiskRange = "ALL";
     export let lendingRange = "ALL";
     export let vixRange = "ALL";
+    export let moveRange = "ALL";
+    export let fxVolRange = "ALL";
     export let tipsRange = "ALL";
     export let repoStressRange = "ALL";
 
@@ -306,6 +326,14 @@
         yaxis: { title: "Z-Score", dtick: 2.5, autorange: true },
     };
     $: vixZLayout = {
+        shapes: createZScoreBands(darkMode),
+        yaxis: { title: "Z-Score", dtick: 2.5, autorange: true },
+    };
+    $: moveZLayout = {
+        shapes: createZScoreBands(darkMode),
+        yaxis: { title: "Z-Score", dtick: 2.5, autorange: true },
+    };
+    $: fxVolZLayout = {
         shapes: createZScoreBands(darkMode),
         yaxis: { title: "Z-Score", dtick: 2.5, autorange: true },
     };
@@ -371,6 +399,64 @@
         },
         margin: { l: 50, r: 20, t: 20, b: 40 },
     };
+    $: moveLayout = {
+        shapes: createPercentileBands(darkMode, PERCENTILE_CONFIG.move),
+        yaxis: {
+            title: "Percentile",
+            range: [-5, 105],
+            dtick: 25,
+            autorange: false,
+        },
+        margin: { l: 50, r: 20, t: 20, b: 40 },
+    };
+    $: fxVolLayout = {
+        shapes: createPercentileBands(darkMode, PERCENTILE_CONFIG.fx_vol),
+        yaxis: {
+            title: "Percentile",
+            range: [-5, 105],
+            dtick: 25,
+            autorange: false,
+        },
+        margin: { l: 50, r: 20, t: 20, b: 40 },
+    };
+
+    // Raw Layouts (no bands, just autorange y-axis)
+    const rawLayoutBase = {
+        shapes: [],
+        margin: { l: 50, r: 20, t: 20, b: 40 },
+    };
+    $: hyRawLayout = {
+        ...rawLayoutBase,
+        yaxis: { title: "HY Spread (bps)", autorange: true },
+    };
+    $: igRawLayout = {
+        ...rawLayoutBase,
+        yaxis: { title: "IG Spread (bps)", autorange: true },
+    };
+    $: nfciCreditRawLayout = {
+        ...rawLayoutBase,
+        yaxis: { title: "NFCI Credit", autorange: true },
+    };
+    $: nfciRiskRawLayout = {
+        ...rawLayoutBase,
+        yaxis: { title: "NFCI Risk", autorange: true },
+    };
+    $: lendingRawLayout = {
+        ...rawLayoutBase,
+        yaxis: { title: "Net % Tightening", autorange: true },
+    };
+    $: vixRawLayout = {
+        ...rawLayoutBase,
+        yaxis: { title: "VIX Level", autorange: true },
+    };
+    $: moveRawLayout = {
+        ...rawLayoutBase,
+        yaxis: { title: "MOVE Index", autorange: true },
+    };
+    $: fxVolRawLayout = {
+        ...rawLayoutBase,
+        yaxis: { title: "DXY Realized Vol (%)", autorange: true },
+    };
 
     // CLI Chart - use cliData for Z-score, or cliPercentileData for percentile
     $: cliChartData =
@@ -396,9 +482,9 @@
     // TIPS Composite Regime
     $: tipsRegimeSignals = (() => {
         const dates = dashboardData.dates;
-        const be = dashboardData.tips_breakeven;
-        const rr = dashboardData.tips_real_rate;
-        const fwd = dashboardData.tips_5y5y_forward;
+        const be = dashboardData.tips?.breakeven;
+        const rr = dashboardData.tips?.real_rate;
+        const fwd = dashboardData.tips?.fwd_5y5y;
         if (!dates || !be || !rr || !fwd) return [];
         return dates.map((_, i) => {
             if (i < 63) return "neutral";
@@ -446,14 +532,13 @@
             overlaying: "y",
         },
         showlegend: false,
-        height: 350,
         margin: { l: 60, r: 60, t: 20, b: 40 },
     };
 
     // Computed TIPS signal from frontend data (fallback if backend signal_metrics.tips not populated)
     $: computedTipsSignal = (() => {
-        const be = dashboardData.tips_breakeven;
-        const rr = dashboardData.tips_real_rate;
+        const be = dashboardData.tips?.breakeven;
+        const rr = dashboardData.tips?.real_rate;
         if (!be || !rr || be.length < 63) return null;
 
         const latestBE = be[be.length - 1];
@@ -521,99 +606,207 @@
     $: creditIndicators = [
         {
             id: "hy",
-            name: "HY Spread Contrast",
+            name: translations.credit_hy_name || "HY Spread Contrast",
             signalKey: "hy_spread",
-            desc: "High Yield spread vs Treasury. Higher = Risk-off, Lower = Risk-on.",
-            data: hyViewMode === "percentile" ? hyPctData : hyZData,
+            desc:
+                translations.credit_hy_desc ||
+                "High Yield spread vs Treasury. Higher = Risk-off, Lower = Risk-on.",
+            data:
+                hyViewMode === "raw"
+                    ? hyRawData
+                    : hyViewMode === "percentile"
+                      ? hyPctData
+                      : hyZData,
             range: hyRange,
             setRange: (r) => (hyRange = r),
             bank: "HY_SPREAD",
-            layout: hyViewMode === "percentile" ? hyLayout : hyZLayout,
+            layout:
+                hyViewMode === "raw"
+                    ? hyRawLayout
+                    : hyViewMode === "percentile"
+                      ? hyLayout
+                      : hyZLayout,
             viewMode: hyViewMode,
             setViewMode: (m) => (hyViewMode = m),
         },
         {
             id: "ig",
-            name: "IG Spread Contrast",
+            name: translations.credit_ig_name || "IG Spread Contrast",
             signalKey: "ig_spread",
-            desc: "Investment Grade spread vs Treasury. Higher = Stress, Lower = Calm.",
-            data: igViewMode === "percentile" ? igPctData : igZData,
+            desc:
+                translations.credit_ig_desc ||
+                "Investment Grade spread vs Treasury. Higher = Stress, Lower = Calm.",
+            data:
+                igViewMode === "raw"
+                    ? igRawData
+                    : igViewMode === "percentile"
+                      ? igPctData
+                      : igZData,
             range: igRange,
             setRange: (r) => (igRange = r),
             bank: "IG_SPREAD",
-            layout: igViewMode === "percentile" ? igLayout : igZLayout,
+            layout:
+                igViewMode === "raw"
+                    ? igRawLayout
+                    : igViewMode === "percentile"
+                      ? igLayout
+                      : igZLayout,
             viewMode: igViewMode,
             setViewMode: (m) => (igViewMode = m),
         },
         {
             id: "nfci_credit",
-            name: "NFCI Credit Contrast",
+            name:
+                translations.credit_nfci_credit_name || "NFCI Credit Contrast",
             signalKey: "nfci_credit",
-            desc: "Fed Chicago NFCI Credit subindex. Positive = Tighter, Negative = Easier.",
+            desc:
+                translations.credit_nfci_credit_desc ||
+                "Fed Chicago NFCI Credit subindex. Positive = Tighter, Negative = Easier.",
             data:
-                nfciCreditViewMode === "percentile"
-                    ? nfciCreditPctData
-                    : nfciCreditZData,
+                nfciCreditViewMode === "raw"
+                    ? nfciCreditRawData
+                    : nfciCreditViewMode === "percentile"
+                      ? nfciCreditPctData
+                      : nfciCreditZData,
             range: nfciCreditRange,
             setRange: (r) => (nfciCreditRange = r),
             bank: "NFCI_CREDIT",
             layout:
-                nfciCreditViewMode === "percentile"
-                    ? nfciCreditLayout
-                    : nfciCreditZLayout,
+                nfciCreditViewMode === "raw"
+                    ? nfciCreditRawLayout
+                    : nfciCreditViewMode === "percentile"
+                      ? nfciCreditLayout
+                      : nfciCreditZLayout,
             viewMode: nfciCreditViewMode,
             setViewMode: (m) => (nfciCreditViewMode = m),
         },
         {
             id: "nfci_risk",
-            name: "NFCI Risk Contrast",
+            name: translations.credit_nfci_risk_name || "NFCI Risk Contrast",
             signalKey: "nfci_risk",
-            desc: "Fed Chicago NFCI Risk subindex. Positive = Higher risk, Negative = Lower risk.",
+            desc:
+                translations.credit_nfci_risk_desc ||
+                "Fed Chicago NFCI Risk subindex. Positive = Higher risk, Negative = Lower risk.",
             data:
-                nfciRiskViewMode === "percentile"
-                    ? nfciRiskPctData
-                    : nfciRiskZData,
+                nfciRiskViewMode === "raw"
+                    ? nfciRiskRawData
+                    : nfciRiskViewMode === "percentile"
+                      ? nfciRiskPctData
+                      : nfciRiskZData,
             range: nfciRiskRange,
             setRange: (r) => (nfciRiskRange = r),
             bank: "NFCI_RISK",
             layout:
-                nfciRiskViewMode === "percentile"
-                    ? nfciRiskLayout
-                    : nfciRiskZLayout,
+                nfciRiskViewMode === "raw"
+                    ? nfciRiskRawLayout
+                    : nfciRiskViewMode === "percentile"
+                      ? nfciRiskLayout
+                      : nfciRiskZLayout,
             viewMode: nfciRiskViewMode,
             setViewMode: (m) => (nfciRiskViewMode = m),
         },
         {
             id: "lending",
-            name: "Lending Standards Contrast",
+            name:
+                translations.credit_lending_name ||
+                "Lending Standards Contrast",
             signalKey: "lending",
-            desc: "Fed SLOOS survey. Positive = Tighter lending, Negative = Easier lending.",
+            desc:
+                translations.credit_lending_desc ||
+                "Fed SLOOS survey. Positive = Tighter lending, Negative = Easier lending.",
             data:
-                lendingViewMode === "percentile"
-                    ? lendingPctData
-                    : lendingZData,
+                lendingViewMode === "raw"
+                    ? lendingRawData
+                    : lendingViewMode === "percentile"
+                      ? lendingPctData
+                      : lendingZData,
             range: lendingRange,
             setRange: (r) => (lendingRange = r),
             bank: "LENDING_STD",
             layout:
-                lendingViewMode === "percentile"
-                    ? lendingLayout
-                    : lendingZLayout,
+                lendingViewMode === "raw"
+                    ? lendingRawLayout
+                    : lendingViewMode === "percentile"
+                      ? lendingLayout
+                      : lendingZLayout,
             viewMode: lendingViewMode,
             setViewMode: (m) => (lendingViewMode = m),
         },
         {
             id: "vix",
-            name: "VIX Contrast",
+            name: translations.credit_vix_name || "VIX Contrast",
             signalKey: "vix",
-            desc: "CBOE Volatility Index. Higher = Fear/Stress, Lower = Complacency.",
-            data: vixViewMode === "percentile" ? vixPctData : vixZData,
+            desc:
+                translations.credit_vix_desc ||
+                "CBOE Volatility Index. Higher = Fear/Stress, Lower = Complacency.",
+            data:
+                vixViewMode === "raw"
+                    ? vixRawData
+                    : vixViewMode === "percentile"
+                      ? vixPctData
+                      : vixZData,
             range: vixRange,
             setRange: (r) => (vixRange = r),
             bank: "VIX",
-            layout: vixViewMode === "percentile" ? vixLayout : vixZLayout,
+            layout:
+                vixViewMode === "raw"
+                    ? vixRawLayout
+                    : vixViewMode === "percentile"
+                      ? vixLayout
+                      : vixZLayout,
             viewMode: vixViewMode,
             setViewMode: (m) => (vixViewMode = m),
+        },
+        {
+            id: "move",
+            name: translations.indicator_move_name || "MOVE Index Contrast",
+            signalKey: "move",
+            desc:
+                translations.indicator_move_desc ||
+                "ICE BofA MOVE Index. Measures implied bond volatility. Higher = Stress.",
+            data:
+                moveViewMode === "raw"
+                    ? moveRawData
+                    : moveViewMode === "percentile"
+                      ? movePctData
+                      : moveZData,
+            range: moveRange,
+            setRange: (r) => (moveRange = r),
+            bank: "MOVE",
+            layout:
+                moveViewMode === "raw"
+                    ? moveRawLayout
+                    : moveViewMode === "percentile"
+                      ? moveLayout
+                      : moveZLayout,
+            viewMode: moveViewMode,
+            setViewMode: (m) => (moveViewMode = m),
+        },
+        {
+            id: "fx_vol",
+            name:
+                translations.indicator_fx_vol_name || "DXY Realized Volatility",
+            signalKey: "fx_vol",
+            desc:
+                translations.indicator_fx_vol_desc ||
+                "21-day realized volatility of the US Dollar Index. Measures currency market stress.",
+            data:
+                fxVolViewMode === "raw"
+                    ? fxVolRawData
+                    : fxVolViewMode === "percentile"
+                      ? fxVolPctData
+                      : fxVolZData,
+            range: fxVolRange,
+            setRange: (r) => (fxVolRange = r),
+            bank: "FX_VOL",
+            layout:
+                fxVolViewMode === "raw"
+                    ? fxVolRawLayout
+                    : fxVolViewMode === "percentile"
+                      ? fxVolLayout
+                      : fxVolZLayout,
+            viewMode: fxVolViewMode,
+            setViewMode: (m) => (fxVolViewMode = m),
         },
     ];
 
@@ -628,13 +821,16 @@
         { id: "nfci_risk", label: "Risk (NFCI)" },
         { id: "lending", label: "Lending (SLOOS)" },
         { id: "vix", label: "Volatility (VIX)" },
+        { id: "move", label: "MOVE Index" },
+        { id: "fx_vol", label: "FX Volatility" },
         { id: "tips", label: "Macro (TIPS)" },
         { id: "repo", label: "Liquidity (SOFR)" },
     ];
 
     function getStatusLabel(state) {
-        if (!state) return "NEUTRAL";
-        return state.toUpperCase();
+        if (!state) return translations.status_neutral || "NEUTRAL";
+        const key = `status_${state.toLowerCase()}`;
+        return translations[key] || state.toUpperCase();
     }
 
     $: bullCount = Object.values(signalsFromMetrics).filter(
@@ -661,10 +857,14 @@
                   ? "⚠️"
                   : "⚖️"}</span
         >
-        {aggregateState.toUpperCase()} STANCE
+        {getStatusLabel(aggregateState)}
+        {translations.risk_stance || "STANCE"}
     </div>
     <div class="stance-details">
-        {bullCount} Bullish | {bearCount} Bearish | {signalConfig.length} Factors
+        {bullCount}
+        {translations.risk_bullish || "Bullish"} | {bearCount}
+        {translations.risk_bearish || "Bearish"} | {signalConfig.length}
+        {translations.risk_factors || "Factors"}
     </div>
 </div>
 
@@ -691,18 +891,32 @@
             <div class="chart-legend">
                 <span class="legend-item">
                     <span class="legend-dot" style="background: #f59e0b"></span>
-                    <span class="legend-label">Breakeven</span>
-                    <span class="legend-desc">Inflation expectations</span>
+                    <span class="legend-label"
+                        >{translations.tips_breakeven || "Breakeven"}</span
+                    >
+                    <span class="legend-desc"
+                        >{translations.tips_be_desc ||
+                            "Inflation expectations"}</span
+                    >
                 </span>
                 <span class="legend-item">
                     <span class="legend-dot" style="background: #3b82f6"></span>
-                    <span class="legend-label">Real Rate</span>
-                    <span class="legend-desc">Cost of money</span>
+                    <span class="legend-label"
+                        >{translations.tips_real_rate || "Real Rate"}</span
+                    >
+                    <span class="legend-desc"
+                        >{translations.tips_rr_desc || "Cost of money"}</span
+                    >
                 </span>
                 <span class="legend-item">
                     <span class="legend-dot" style="background: #10b981"></span>
-                    <span class="legend-label">5Y5Y Forward</span>
-                    <span class="legend-desc">Long-term anchor</span>
+                    <span class="legend-label"
+                        >{translations.tips_fwd || "5Y5Y Forward"}</span
+                    >
+                    <span class="legend-desc"
+                        >{translations.tips_fwd_desc ||
+                            "Long-term anchor"}</span
+                    >
                 </span>
             </div>
             <div class="chart-content">
@@ -723,15 +937,20 @@
                         class="signal-item"
                         style="background: rgba(0,0,0,0.15); border: none;"
                     >
-                        <div class="signal-label">TIPS Macro Signal</div>
+                        <div class="signal-label">
+                            {translations.tips_signal_label ||
+                                "TIPS Macro Signal"}
+                        </div>
                         <div class="signal-status text-{s.state}">
                             <span class="signal-dot"></span>
                             {getStatusLabel(s.state)}
                         </div>
                         <div class="signal-value">
-                            Value: {s.value?.toFixed(2) ?? "N/A"} | Percentile: P{s.percentile?.toFixed(
-                                0,
-                            ) ?? "N/A"}
+                            {translations.repo_value || "Value"}: {s.value?.toFixed(
+                                2,
+                            ) ?? "N/A"} | {translations.percentile ||
+                                "Percentile"}: P{s.percentile?.toFixed(0) ??
+                                "N/A"}
                         </div>
                     </div>
                 </div>
@@ -745,7 +964,10 @@
                         class="signal-item"
                         style="background: rgba(0,0,0,0.15); border: none;"
                     >
-                        <div class="signal-label">TIPS Macro Signal</div>
+                        <div class="signal-label">
+                            {translations.tips_signal_label ||
+                                "TIPS Macro Signal"}
+                        </div>
                         <div class="signal-status text-{s.state}">
                             <span class="signal-dot"></span>
                             {s.state === "warning"
@@ -776,10 +998,13 @@
                         class="signal-item"
                         style="background: rgba(0,0,0,0.15); border: none;"
                     >
-                        <div class="signal-label">TIPS Macro Signal</div>
+                        <div class="signal-label">
+                            {translations.tips_signal_label ||
+                                "TIPS Macro Signal"}
+                        </div>
                         <div class="signal-status text-neutral">
                             <span class="signal-dot"></span>
-                            Loading...
+                            {translations.refresh_data || "Loading..."}
                         </div>
                     </div>
                 </div>
@@ -815,7 +1040,8 @@
                 {translations.cli ||
                     "Aggregates credit conditions, volatility, and lending."}
                 {cliViewMode === "percentile"
-                    ? "↑ CLI = Easier credit (bullish) ↓ Contraction = Tighter (bearish)"
+                    ? translations.cli_desc_ext ||
+                      "↑ CLI = Easier credit (bullish) ↓ Contraction = Tighter (bearish)"
                     : ""}
             </p>
             <div class="chart-content">
@@ -826,23 +1052,28 @@
             {#if dashboardData.signal_metrics?.cli?.latest}
                 {@const s = dashboardData.signal_metrics.cli.latest}
                 <div class="signal-box">
-                    <div class="signal-header">CLI STANCE</div>
+                    <div class="signal-header">
+                        {translations.cli_stance || "CLI STANCE"}
+                    </div>
                     <div class="signal-badge {s.state}">
                         {s.state === "bullish"
                             ? "🟢"
                             : s.state === "bearish"
                               ? "🔴"
                               : "⚪"}
-                        {s.state.toUpperCase()}
+                        {getStatusLabel(s.state)}
                     </div>
                     <div class="signal-details">
-                        Percentile: {s.percentile?.toFixed(0) ?? "N/A"}
+                        {translations.percentile || "Percentile"}: {s.percentile?.toFixed(
+                            0,
+                        ) ?? "N/A"}
                         <span class="signal-hint">
                             ({s.percentile >= 70
-                                ? "Top 30%"
+                                ? translations.cli_top_30 || "Top 30%"
                                 : s.percentile <= 30
-                                  ? "Bottom 30%"
-                                  : "Middle range"})
+                                  ? translations.cli_bottom_30 || "Bottom 30%"
+                                  : translations.cli_mid_range ||
+                                    "Middle range"})
                         </span>
                     </div>
                     <div
@@ -894,9 +1125,12 @@
                     <table class="metrics-table compact">
                         <thead>
                             <tr>
-                                <th>Rate</th>
-                                <th>Value</th>
-                                <th>Spread/Signal</th>
+                                <th>{translations.repo_rate || "Rate"}</th>
+                                <th>{translations.repo_value || "Value"}</th>
+                                <th
+                                    >{translations.repo_spread_sig ||
+                                        "Spread/Signal"}</th
+                                >
                             </tr>
                         </thead>
                         <tbody>
@@ -937,9 +1171,10 @@
                                         style="font-size: 14px; margin-top: 4px;"
                                     >
                                         {#if signalsFromMetrics.repo?.latest?.state === "bullish" || signalsFromMetrics.repo?.latest?.state === "neutral"}
-                                            ✅ OK
+                                            ✅ {translations.status_ok || "OK"}
                                         {:else}
-                                            ⚠️ STRESS
+                                            ⚠️ {translations.status_stress ||
+                                                "STRESS"}
                                         {/if}
                                     </div>
                                 </td>
@@ -972,12 +1207,17 @@
                             <button
                                 class:active={item.viewMode === "zscore"}
                                 on:click={() => item.setViewMode("zscore")}
-                                >Z</button
+                                title="Z-Score">Z</button
                             >
                             <button
                                 class:active={item.viewMode === "percentile"}
                                 on:click={() => item.setViewMode("percentile")}
-                                >%</button
+                                title="Percentile">%</button
+                            >
+                            <button
+                                class:active={item.viewMode === "raw"}
+                                on:click={() => item.setViewMode("raw")}
+                                title="Raw Values">📊</button
                             >
                         </div>
                         <TimeRangeSelector
@@ -985,7 +1225,9 @@
                             onRangeChange={item.setRange}
                         />
                         <span class="last-date"
-                            >Last: {getLastDate(item.bank)}</span
+                            >{translations.last || "Last"}: {getLastDate(
+                                item.bank,
+                            )}</span
                         >
                     </div>
                 </div>
@@ -1006,24 +1248,18 @@
                             class="signal-item"
                             style="background: rgba(0,0,0,0.15); border: none;"
                         >
-                            <div class="signal-label">{item.name} Signal</div>
+                            <div class="signal-label">
+                                {translations.signal_status || "Signal Status"}
+                            </div>
                             <div class="signal-status text-{s.state}">
                                 <span class="signal-dot"></span>
                                 {getStatusLabel(s.state)}
                             </div>
-                            <div
-                                class="signal-value"
-                                style="display: flex; gap: 15px;"
-                            >
-                                <span
-                                    >Value: <b>{s.value?.toFixed(2) ?? "N/A"}</b
-                                    ></span
-                                >
-                                <span
-                                    >Percentile: <b
-                                        >P{s.percentile?.toFixed(0) ?? "N/A"}</b
-                                    ></span
-                                >
+                            <div class="signal-value">
+                                {translations.repo_value || "Value"}:
+                                <b>{s.value?.toFixed(2) ?? "N/A"}</b>
+                                | {translations.percentile || "Percentile"}:
+                                <b>P{s.percentile?.toFixed(0) ?? "N/A"}</b>
                             </div>
                             <div
                                 class="signal-reason"
@@ -1042,279 +1278,232 @@
 <!-- ROC Section -->
 <div class="roc-section">
     <div class="roc-card">
-        <h4>Pulsar Momentum (ROC)</h4>
+        <h4>{translations.roc_title || "Momentum Pulse (ROC)"}</h4>
         <div class="metrics-table-container">
             <div class="roc-grid">
                 <div class="roc-row header">
-                    <div class="roc-col">Factor</div>
+                    <div class="roc-col">
+                        {translations.roc_factor || "Factor"}
+                    </div>
                     <div class="roc-col">1M</div>
                     <div class="roc-col">3M</div>
                     <div class="roc-col">6M</div>
                     <div class="roc-col">1Y</div>
                 </div>
                 <div class="roc-row">
-                    <div class="roc-col label">Global GLI</div>
-                    <div
-                        class="roc-col"
-                        class:plus={getLatestROC(
-                            dashboardData.gli?.rocs,
-                            "1M",
-                        ) > 0}
-                        class:minus={getLatestROC(
-                            dashboardData.gli?.rocs,
-                            "1M",
-                        ) < 0}
-                    >
-                        {getLatestROC(dashboardData.gli?.rocs, "1M").toFixed(
-                            2,
-                        )}%
+                    <div class="roc-col label">
+                        {translations.indicator_gli || "Global GLI"}
                     </div>
-                    <div
-                        class="roc-col"
-                        class:plus={getLatestROC(
-                            dashboardData.gli?.rocs,
-                            "3M",
-                        ) > 0}
-                        class:minus={getLatestROC(
-                            dashboardData.gli?.rocs,
-                            "3M",
-                        ) < 0}
-                    >
-                        {getLatestROC(dashboardData.gli?.rocs, "3M").toFixed(
-                            2,
-                        )}%
-                    </div>
-                    <div
-                        class="roc-col"
-                        class:plus={getLatestROC(
-                            dashboardData.gli?.rocs,
-                            "6M",
-                        ) > 0}
-                        class:minus={getLatestROC(
-                            dashboardData.gli?.rocs,
-                            "6M",
-                        ) < 0}
-                    >
-                        {getLatestROC(dashboardData.gli?.rocs, "6M").toFixed(
-                            2,
-                        )}%
-                    </div>
-                    <div
-                        class="roc-col"
-                        class:plus={getLatestROC(
-                            dashboardData.gli?.rocs,
-                            "1Y",
-                        ) > 0}
-                        class:minus={getLatestROC(
-                            dashboardData.gli?.rocs,
-                            "1Y",
-                        ) < 0}
-                    >
-                        {getLatestROC(dashboardData.gli?.rocs, "1Y").toFixed(
-                            2,
-                        )}%
-                    </div>
+                    {#each ["1M", "3M", "6M", "1Y"] as period}
+                        <div
+                            class="roc-col"
+                            class:plus={getLatestROC(
+                                dashboardData.gli?.rocs,
+                                period,
+                            ) > 0}
+                            class:minus={getLatestROC(
+                                dashboardData.gli?.rocs,
+                                period,
+                            ) < 0}
+                        >
+                            {getLatestROC(
+                                dashboardData.gli?.rocs,
+                                period,
+                            ).toFixed(2)}%
+                        </div>
+                    {/each}
                 </div>
                 <div class="roc-row">
-                    <div class="roc-col label">US Net Liq</div>
-                    <div
-                        class="roc-col"
-                        class:plus={getLatestROC(
-                            dashboardData.us_net_liq_rocs,
-                            "1M",
-                        ) > 0}
-                        class:minus={getLatestROC(
-                            dashboardData.us_net_liq_rocs,
-                            "1M",
-                        ) < 0}
-                    >
-                        {getLatestROC(
-                            dashboardData.us_net_liq_rocs,
-                            "1M",
-                        ).toFixed(2)}%
+                    <div class="roc-col label">
+                        {translations.indicator_netliq || "US Net Liquidity"}
                     </div>
-                    <div
-                        class="roc-col"
-                        class:plus={getLatestROC(
-                            dashboardData.us_net_liq_rocs,
-                            "3M",
-                        ) > 0}
-                        class:minus={getLatestROC(
-                            dashboardData.us_net_liq_rocs,
-                            "3M",
-                        ) < 0}
-                    >
-                        {getLatestROC(
-                            dashboardData.us_net_liq_rocs,
-                            "3M",
-                        ).toFixed(2)}%
+                    {#each ["1M", "3M", "6M", "1Y"] as period}
+                        <div
+                            class="roc-col"
+                            class:plus={getLatestROC(
+                                dashboardData.us_net_liq_rocs,
+                                period,
+                            ) > 0}
+                            class:minus={getLatestROC(
+                                dashboardData.us_net_liq_rocs,
+                                period,
+                            ) < 0}
+                        >
+                            {getLatestROC(
+                                dashboardData.us_net_liq_rocs,
+                                period,
+                            ).toFixed(2)}%
+                        </div>
+                    {/each}
+                </div>
+                <!-- Core Banks -->
+                <div class="roc-row">
+                    <div class="roc-col label">
+                        {translations.indicator_fed || "Fed Assets"}
                     </div>
-                    <div
-                        class="roc-col"
-                        class:plus={getLatestROC(
-                            dashboardData.us_net_liq_rocs,
-                            "6M",
-                        ) > 0}
-                        class:minus={getLatestROC(
-                            dashboardData.us_net_liq_rocs,
-                            "6M",
-                        ) < 0}
-                    >
-                        {getLatestROC(
-                            dashboardData.us_net_liq_rocs,
-                            "6M",
-                        ).toFixed(2)}%
-                    </div>
-                    <div
-                        class="roc-col"
-                        class:plus={getLatestROC(
-                            dashboardData.us_net_liq_rocs,
-                            "1Y",
-                        ) > 0}
-                        class:minus={getLatestROC(
-                            dashboardData.us_net_liq_rocs,
-                            "1Y",
-                        ) < 0}
-                    >
-                        {getLatestROC(
-                            dashboardData.us_net_liq_rocs,
-                            "1Y",
-                        ).toFixed(2)}%
-                    </div>
+                    {#each ["1M", "3M", "6M", "1Y"] as period}
+                        <div
+                            class="roc-col"
+                            class:plus={getLatestROC(
+                                dashboardData.bank_rocs?.fed,
+                                period,
+                            ) > 0}
+                            class:minus={getLatestROC(
+                                dashboardData.bank_rocs?.fed,
+                                period,
+                            ) < 0}
+                        >
+                            {getLatestROC(
+                                dashboardData.bank_rocs?.fed,
+                                period,
+                            ).toFixed(2)}%
+                        </div>
+                    {/each}
                 </div>
                 <div class="roc-row">
-                    <div class="roc-col label">Fed Assets</div>
-                    <div
-                        class="roc-col"
-                        class:plus={getLatestROC(
-                            dashboardData.bank_rocs?.fed,
-                            "1M",
-                        ) > 0}
-                        class:minus={getLatestROC(
-                            dashboardData.bank_rocs?.fed,
-                            "1M",
-                        ) < 0}
-                    >
-                        {getLatestROC(
-                            dashboardData.bank_rocs?.fed,
-                            "1M",
-                        ).toFixed(2)}%
+                    <div class="roc-col label">
+                        {translations.indicator_pboc || "PBoC Assets"}
                     </div>
-                    <div
-                        class="roc-col"
-                        class:plus={getLatestROC(
-                            dashboardData.bank_rocs?.fed,
-                            "3M",
-                        ) > 0}
-                        class:minus={getLatestROC(
-                            dashboardData.bank_rocs?.fed,
-                            "3M",
-                        ) < 0}
-                    >
-                        {getLatestROC(
-                            dashboardData.bank_rocs?.fed,
-                            "3M",
-                        ).toFixed(2)}%
+                    {#each ["1M", "3M", "6M", "1Y"] as period}
+                        <div
+                            class="roc-col"
+                            class:plus={getLatestROC(
+                                dashboardData.bank_rocs?.pboc,
+                                period,
+                            ) > 0}
+                            class:minus={getLatestROC(
+                                dashboardData.bank_rocs?.pboc,
+                                period,
+                            ) < 0}
+                        >
+                            {getLatestROC(
+                                dashboardData.bank_rocs?.pboc,
+                                period,
+                            ).toFixed(2)}%
+                        </div>
+                    {/each}
+                </div>
+                <!-- Macro Factors -->
+                <div class="roc-row">
+                    <div class="roc-col label">
+                        {translations.indicator_cli || "Credit (CLI)"}
                     </div>
-                    <div
-                        class="roc-col"
-                        class:plus={getLatestROC(
-                            dashboardData.bank_rocs?.fed,
-                            "6M",
-                        ) > 0}
-                        class:minus={getLatestROC(
-                            dashboardData.bank_rocs?.fed,
-                            "6M",
-                        ) < 0}
-                    >
-                        {getLatestROC(
-                            dashboardData.bank_rocs?.fed,
-                            "6M",
-                        ).toFixed(2)}%
-                    </div>
-                    <div
-                        class="roc-col"
-                        class:plus={getLatestROC(
-                            dashboardData.bank_rocs?.fed,
-                            "1Y",
-                        ) > 0}
-                        class:minus={getLatestROC(
-                            dashboardData.bank_rocs?.fed,
-                            "1Y",
-                        ) < 0}
-                    >
-                        {getLatestROC(
-                            dashboardData.bank_rocs?.fed,
-                            "1Y",
-                        ).toFixed(2)}%
-                    </div>
+                    {#each ["1M", "3M", "6M", "1Y"] as period}
+                        <div
+                            class="roc-col"
+                            class:plus={getLatestROC(
+                                dashboardData.cli?.rocs,
+                                period,
+                            ) > 0}
+                            class:minus={getLatestROC(
+                                dashboardData.cli?.rocs,
+                                period,
+                            ) < 0}
+                        >
+                            {(
+                                getLatestROC(dashboardData.cli?.rocs, period) ??
+                                0
+                            ).toFixed(2)}%
+                        </div>
+                    {/each}
                 </div>
                 <div class="roc-row">
-                    <div class="roc-col label">PBoC Assets</div>
-                    <div
-                        class="roc-col"
-                        class:plus={getLatestROC(
-                            dashboardData.bank_rocs?.pboc,
-                            "1M",
-                        ) > 0}
-                        class:minus={getLatestROC(
-                            dashboardData.bank_rocs?.pboc,
-                            "1M",
-                        ) < 0}
-                    >
-                        {getLatestROC(
-                            dashboardData.bank_rocs?.pboc,
-                            "1M",
-                        ).toFixed(2)}%
+                    <div class="roc-col label">
+                        {translations.indicator_real_rates || "Real Rates (5Y)"}
                     </div>
-                    <div
-                        class="roc-col"
-                        class:plus={getLatestROC(
-                            dashboardData.bank_rocs?.pboc,
-                            "3M",
-                        ) > 0}
-                        class:minus={getLatestROC(
-                            dashboardData.bank_rocs?.pboc,
-                            "3M",
-                        ) < 0}
-                    >
-                        {getLatestROC(
-                            dashboardData.bank_rocs?.pboc,
-                            "3M",
-                        ).toFixed(2)}%
+                    {#each ["1M", "3M", "6M", "1Y"] as period}
+                        <div
+                            class="roc-col"
+                            class:plus={getLatestROC(
+                                dashboardData.tips?.rocs,
+                                period,
+                            ) > 0}
+                            class:minus={getLatestROC(
+                                dashboardData.tips?.rocs,
+                                period,
+                            ) < 0}
+                        >
+                            {(
+                                getLatestROC(
+                                    dashboardData.tips?.rocs,
+                                    period,
+                                ) ?? 0
+                            ).toFixed(2)}%
+                        </div>
+                    {/each}
+                </div>
+                <div class="roc-row">
+                    <div class="roc-col label">
+                        {translations.indicator_move || "MOVE Index (Bonds)"}
                     </div>
-                    <div
-                        class="roc-col"
-                        class:plus={getLatestROC(
-                            dashboardData.bank_rocs?.pboc,
-                            "6M",
-                        ) > 0}
-                        class:minus={getLatestROC(
-                            dashboardData.bank_rocs?.pboc,
-                            "6M",
-                        ) < 0}
-                    >
-                        {getLatestROC(
-                            dashboardData.bank_rocs?.pboc,
-                            "6M",
-                        ).toFixed(2)}%
+                    {#each ["1M", "3M", "6M", "1Y"] as period}
+                        <div
+                            class="roc-col"
+                            class:plus={getLatestROC(
+                                dashboardData.move?.rocs,
+                                period,
+                            ) > 0}
+                            class:minus={getLatestROC(
+                                dashboardData.move?.rocs,
+                                period,
+                            ) < 0}
+                        >
+                            {(
+                                getLatestROC(
+                                    dashboardData.move?.rocs,
+                                    period,
+                                ) ?? 0
+                            ).toFixed(2)}%
+                        </div>
+                    {/each}
+                </div>
+                <div class="roc-row">
+                    <div class="roc-col label">
+                        {translations.indicator_fxvol || "FX Volatility (EVZ)"}
                     </div>
-                    <div
-                        class="roc-col"
-                        class:plus={getLatestROC(
-                            dashboardData.bank_rocs?.pboc,
-                            "1Y",
-                        ) > 0}
-                        class:minus={getLatestROC(
-                            dashboardData.bank_rocs?.pboc,
-                            "1Y",
-                        ) < 0}
-                    >
-                        {getLatestROC(
-                            dashboardData.bank_rocs?.pboc,
-                            "1Y",
-                        ).toFixed(2)}%
+                    {#each ["1M", "3M", "6M", "1Y"] as period}
+                        <div
+                            class="roc-col"
+                            class:plus={getLatestROC(
+                                dashboardData.fx_vol?.rocs,
+                                period,
+                            ) > 0}
+                            class:minus={getLatestROC(
+                                dashboardData.fx_vol?.rocs,
+                                period,
+                            ) < 0}
+                        >
+                            {(
+                                getLatestROC(
+                                    dashboardData.fx_vol?.rocs,
+                                    period,
+                                ) ?? 0
+                            ).toFixed(2)}%
+                        </div>
+                    {/each}
+                </div>
+                <div class="roc-row">
+                    <div class="roc-col label">
+                        {translations.indicator_vix || "Volatility (VIX)"}
                     </div>
+                    {#each ["1M", "3M", "6M", "1Y"] as period}
+                        <div
+                            class="roc-col"
+                            class:plus={getLatestROC(
+                                dashboardData.vix?.rocs,
+                                period,
+                            ) > 0}
+                            class:minus={getLatestROC(
+                                dashboardData.vix?.rocs,
+                                period,
+                            ) < 0}
+                        >
+                            {getLatestROC(
+                                dashboardData.vix?.rocs,
+                                period,
+                            )?.toFixed(2) ?? "0.00"}%
+                        </div>
+                    {/each}
                 </div>
             </div>
         </div>

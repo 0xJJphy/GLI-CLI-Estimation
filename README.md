@@ -16,6 +16,7 @@ A premium, real-time macro liquidity monitoring dashboard that tracks the Global
 -   **Adaptive Layouts**: Refactored Risk Model and BTC Quant v2 tabs for superior information density using grid-based statistical panels.
 -   **15 Central Banks**: FED, ECB, BoJ, BoE, PBoC, BoC, RBA, RBI, SNB, CBR, BCB, BoK, RBNZ, SR, BNM.
 -   **14 M2 Economies**: US, EU, China, Japan, UK, Canada, Australia, India, Switzerland, Russia, Brazil, Korea, Mexico, Malaysia (and others).
+-   **Fed Forecasts Tab**: Real-time FOMC meeting countdown, Dot Plot visualizations, and comprehensive macro indicators (CPI, PCE, PMI, Unemployment, Fed Funds Rate, and TIPS Breakeven inflation expectations).
 
 ## 📊 Data & Formulas
 

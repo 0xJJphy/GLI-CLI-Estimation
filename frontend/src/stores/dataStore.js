@@ -89,18 +89,23 @@ export const dashboardData = writable({
         boc: {}, rba: {}, snb: {}, bok: {}, rbi: {},
         cbr: {}, bcb: {}, rbnz: {}, sr: {}, bnm: {}
     },
-    cli: [],
+    cli: { total: [], percentile: [], rocs: {} },
     cli_components: {
         hy_z: [], ig_z: [], nfci_credit_z: [], nfci_risk_z: [], lending_z: [], vix_z: [],
         weights: { HY: 0.25, IG: 0.15, NFCI_CREDIT: 0.20, NFCI_RISK: 0.20, LENDING: 0.10, VIX: 0.10 }
     },
-    vix: [],
+    vix: { total: [], rocs: {} },
+    move: { total: [], rocs: {} },
+    fx_vol: { total: [], rocs: {} },
     hy_spread: [],
     ig_spread: [],
     // TIPS / Inflation Expectations
-    tips_breakeven: [],
-    tips_real_rate: [],
-    tips_5y5y_forward: [],
+    tips: {
+        breakeven: [],
+        real_rate: [],
+        fwd_5y5y: [],
+        rocs: {}
+    },
     repo_stress: {
         sofr: [],
         iorb: []
@@ -142,8 +147,15 @@ export const dashboardData = writable({
         nfci_risk: { latest: { state: "neutral", percentile: 50 }, percentile: [] },
         lending: { latest: { state: "neutral", percentile: 50 }, percentile: [] },
         vix: { latest: { state: "neutral", percentile: 50 }, percentile: [] },
+        move: { latest: { state: "neutral", percentile: 50 }, percentile: [] },
+        fx_vol: { latest: { state: "neutral", percentile: 50 }, percentile: [] },
         tips: { latest: { state: "neutral", percentile: 50 }, percentile: [] },
         repo: { latest: { state: "neutral", percentile: 50 }, percentile: [] }
+    },
+    fed_forecasts: {
+        cpi_yoy: [], core_cpi_yoy: [], pce_yoy: [], core_pce_yoy: [],
+        ism_mfg: [], ism_svc: [], unemployment: [], fed_funds_rate: [],
+        inflation_expect_1y: [], inflation_expect_5y: [], inflation_expect_10y: []
     }
 });
 
@@ -211,12 +223,16 @@ export const latestStats = derived(dashboardData, ($data) => {
             change: getChange($data.us_net_liq)
         },
         cli: {
-            value: getLatestValue('cli'),
-            change: (safeGet($data.cli, lastIdx) ?? 0) - (safeGet($data.cli, prevIdx) ?? 0)
+            value: getLatestValue('cli.total'),
+            change: (safeGet($data.cli?.total, lastIdx) ?? 0) - (safeGet($data.cli?.total, prevIdx) ?? 0)
         },
         vix: {
-            value: getLatestValue('vix'),
-            change: getChange($data.vix)
+            value: getLatestValue('vix.total'),
+            change: getChange($data.vix?.total)
+        },
+        move: {
+            value: getLatestValue('move.total'),
+            change: getChange($data.move?.total)
         },
         btc: {
             price: getLatestValue('btc.price'),

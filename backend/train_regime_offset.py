@@ -63,11 +63,11 @@ def load_dashboard_json(json_path: str) -> pd.DataFrame:
     df["GLI_TOTAL"] = to_float_series(jget(data, "gli.total"), df.index)
     df["NET_LIQUIDITY"] = to_float_series(jget(data, "us_net_liq"), df.index)
     df["M2_TOTAL"] = to_float_series(jget(data, "m2.total"), df.index)
-    df["CLI"] = to_float_series(jget(data, "cli"), df.index)
+    df["CLI"] = to_float_series(jget(data, "cli.total"), df.index)
 
     # Plumbing / brakes
     df["BANK_RESERVES"] = to_float_series(jget(data, "us_net_liq_reserves"), df.index)
-    df["TIPS_REAL_RATE"] = to_float_series(jget(data, "tips_real_rate"), df.index)
+    df["TIPS_REAL_RATE"] = to_float_series(jget(data, "tips.real_rate"), df.index)
     df["SOFR"] = to_float_series(jget(data, "repo_stress.sofr"), df.index)
     df["IORB"] = to_float_series(jget(data, "repo_stress.iorb"), df.index)
 

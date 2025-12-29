@@ -1,5 +1,6 @@
 <script>
-    let { selectedRange = "ALL", onRangeChange = () => {} } = $props();
+    let { selectedRange = $bindable("ALL"), onRangeChange = () => {} } =
+        $props();
 
     const ranges = [
         { value: "1M", label: "1M" },
@@ -12,6 +13,7 @@
     ];
 
     function handleClick(range) {
+        selectedRange = range;
         onRangeChange(range);
     }
 </script>
