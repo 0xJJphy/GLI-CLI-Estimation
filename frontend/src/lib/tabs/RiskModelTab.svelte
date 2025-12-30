@@ -1212,6 +1212,165 @@
             </div>
         </div>
 
+        <!-- Treasury Stress Indicators Section -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3>
+                    {translations.chart_treasury_10y ||
+                        "10-Year Treasury Yield"}
+                </h3>
+                <div class="header-controls">
+                    <TimeRangeSelector
+                        selectedRange={treasury10yRange}
+                        onRangeChange={(r) => (treasury10yRange = r)}
+                    />
+                    <span class="last-date"
+                        >{translations.last_data || "Last Data:"}
+                        {getLastDate("TREASURY_10Y_YIELD")}</span
+                    >
+                </div>
+            </div>
+            <p class="chart-description">
+                {translations.treasury_10y_desc ||
+                    "10-Year Treasury Constant Maturity Yield. Key benchmark rate for risk-free rate and market stress."}
+            </p>
+            <div class="chart-content" style="height: 300px;">
+                <Chart
+                    {darkMode}
+                    data={treasury10yData}
+                    layout={{
+                        yaxis: { title: "Yield (%)", autorange: true },
+                        margin: { l: 50, r: 20, t: 20, b: 40 },
+                    }}
+                />
+            </div>
+        </div>
+
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3>
+                    {translations.chart_credit_spreads ||
+                        "Credit Spreads (HY vs IG)"}
+                </h3>
+                <div class="header-controls">
+                    <TimeRangeSelector
+                        selectedRange={creditSpreadsRange}
+                        onRangeChange={(r) => (creditSpreadsRange = r)}
+                    />
+                    <span class="last-date"
+                        >{translations.last_data || "Last Data:"}
+                        {getLastDate("HY_SPREAD")}</span
+                    >
+                </div>
+            </div>
+            <p class="chart-description">
+                {translations.credit_spreads_desc ||
+                    "High Yield (red) and Investment Grade (green) credit spreads. Higher spreads = more risk aversion."}
+            </p>
+            <div class="chart-content" style="height: 300px;">
+                <Chart
+                    {darkMode}
+                    data={creditSpreadsData}
+                    layout={{
+                        yaxis: {
+                            title: "HY Spread (bps)",
+                            side: "left",
+                            autorange: true,
+                        },
+                        yaxis2: {
+                            title: "IG Spread (bps)",
+                            side: "right",
+                            overlaying: "y",
+                            autorange: true,
+                        },
+                        legend: {
+                            x: 0.01,
+                            y: 0.99,
+                            bgcolor: "rgba(0,0,0,0.0)",
+                        },
+                        margin: { l: 60, r: 60, t: 20, b: 40 },
+                    }}
+                />
+            </div>
+
+            <!-- Compact Metrics for Credit Spreads -->
+            <div
+                class="metrics-section"
+                style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px;"
+            >
+                <div class="metrics-table-container">
+                    <table class="metrics-table compact">
+                        <thead>
+                            <tr>
+                                <th>{translations.spread_type || "Spread"}</th>
+                                <th
+                                    >{translations.current_value ||
+                                        "Current"}</th
+                                >
+                                <th>{translations.status || "Status"}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="color: #ef4444; font-weight: 600;"
+                                    >HY</td
+                                >
+                                <td
+                                    >{(
+                                        getLatestValue(
+                                            dashboardData.hy_spread,
+                                        ) ?? 0
+                                    ).toFixed(0)} bps</td
+                                >
+                                <td>
+                                    {#if getLatestValue(dashboardData.hy_spread) > 500}
+                                        <span style="color: #ef4444;"
+                                            >🔴 Stress</span
+                                        >
+                                    {:else if getLatestValue(dashboardData.hy_spread) > 400}
+                                        <span style="color: #f59e0b;"
+                                            >🔶 Elevated</span
+                                        >
+                                    {:else}
+                                        <span style="color: #22c55e;"
+                                            >✅ Normal</span
+                                        >
+                                    {/if}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="color: #22c55e; font-weight: 600;"
+                                    >IG</td
+                                >
+                                <td
+                                    >{(
+                                        getLatestValue(
+                                            dashboardData.ig_spread,
+                                        ) ?? 0
+                                    ).toFixed(0)} bps</td
+                                >
+                                <td>
+                                    {#if getLatestValue(dashboardData.ig_spread) > 150}
+                                        <span style="color: #ef4444;"
+                                            >🔴 Stress</span
+                                        >
+                                    {:else if getLatestValue(dashboardData.ig_spread) > 100}
+                                        <span style="color: #f59e0b;"
+                                            >🔶 Elevated</span
+                                        >
+                                    {:else}
+                                        <span style="color: #22c55e;"
+                                            >✅ Normal</span
+                                        >
+                                    {/if}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
         <!-- Individual Indicators -->
         {#each creditIndicators as item}
             <div class="chart-card">
