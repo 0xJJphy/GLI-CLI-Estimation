@@ -252,6 +252,10 @@
     export let nfciRiskRawData = [];
     export let lendingRawData = [];
 
+    // Treasury Stress Indicators
+    export let treasury10yData = [];
+    export let creditSpreadsData = [];
+
     // View mode per chart: 'zscore', 'percentile', or 'raw'
     let cliViewMode = "zscore";
     let hyViewMode = "zscore";
@@ -304,6 +308,8 @@
     export let fxVolRange = "ALL";
     export let tipsRange = "ALL";
     export let repoStressRange = "ALL";
+    export let treasury10yRange = "ALL";
+    export let creditSpreadsRange = "ALL";
 
     // Z-Score Layouts (using original createZScoreBands from line 20)
     $: hyZLayout = {

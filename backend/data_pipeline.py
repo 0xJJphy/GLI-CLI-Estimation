@@ -3333,6 +3333,9 @@ def run_pipeline():
             },
             'hy_spread': clean_for_json(df_t['HY_SPREAD']),
             'ig_spread': clean_for_json(df_t['IG_SPREAD']),
+            # Treasury Yields for stress analysis
+            'treasury_10y': clean_for_json(df_t.get('TREASURY_10Y_YIELD', pd.Series(dtype=float))),
+            'treasury_2y': clean_for_json(df_t.get('TREASURY_2Y_YIELD', pd.Series(dtype=float))),
             # TIPS / Inflation Expectations
             'tips': {
                 'breakeven': clean_for_json(df_t.get('TIPS_BREAKEVEN', pd.Series(dtype=float))),
