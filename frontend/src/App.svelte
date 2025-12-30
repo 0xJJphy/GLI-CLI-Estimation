@@ -111,6 +111,8 @@
     moveRange = "ALL",
     fxVolRange = "ALL",
     treasury10yRange = "ALL",
+    treasury2yRange = "ALL",
+    yieldCurveRange = "ALL",
     creditSpreadsRange = "ALL";
 
   // Individual M2 time ranges
@@ -1668,6 +1670,42 @@
     treasury10yRange,
   );
 
+  // Treasury 2Y Yield
+  $: treasury2yDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.treasury_2y || [],
+      name: "2Y UST Yield (%)",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#60a5fa", width: 2 },
+    },
+  ];
+  $: treasury2yData = filterPlotlyData(
+    treasury2yDataRaw,
+    $dashboardData.dates,
+    treasury2yRange,
+  );
+
+  // Yield Curve (10Y - 2Y)
+  $: yieldCurveDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.yield_curve || [],
+      name: "10Y-2Y Spread (%)",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#8b5cf6", width: 2.5 },
+      fill: "tozeroy",
+      fillcolor: "rgba(139, 92, 246, 0.1)",
+    },
+  ];
+  $: yieldCurveData = filterPlotlyData(
+    yieldCurveDataRaw,
+    $dashboardData.dates,
+    yieldCurveRange,
+  );
+
   // Combined Credit Spreads (HY + IG on same chart)
   $: creditSpreadsDataRaw = [
     {
@@ -2996,6 +3034,14 @@
           bind:vixRange
           bind:tipsRange
           bind:repoStressRange
+          {treasury10yData}
+          {treasury2yData}
+          {yieldCurveData}
+          {creditSpreadsData}
+          bind:treasury10yRange
+          bind:treasury2yRange
+          bind:yieldCurveRange
+          bind:creditSpreadsRange
           {moveZData}
           {movePctData}
           {fxVolZData}
@@ -3010,10 +3056,6 @@
           {fxVolRawData}
           bind:moveRange
           bind:fxVolRange
-          {treasury10yData}
-          {creditSpreadsData}
-          bind:treasury10yRange
-          bind:creditSpreadsRange
         />
       {:else if currentTab === "BTC Analysis"}
         <BtcAnalysisTab

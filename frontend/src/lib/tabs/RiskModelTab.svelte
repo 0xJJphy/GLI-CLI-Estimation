@@ -254,6 +254,8 @@
 
     // Treasury Stress Indicators
     export let treasury10yData = [];
+    export let treasury2yData = [];
+    export let yieldCurveData = [];
     export let creditSpreadsData = [];
 
     // View mode per chart: 'zscore', 'percentile', or 'raw'
@@ -309,6 +311,8 @@
     export let tipsRange = "ALL";
     export let repoStressRange = "ALL";
     export let treasury10yRange = "ALL";
+    export let treasury2yRange = "ALL";
+    export let yieldCurveRange = "ALL";
     export let creditSpreadsRange = "ALL";
 
     // Z-Score Layouts (using original createZScoreBands from line 20)
@@ -1239,11 +1243,124 @@
                     {darkMode}
                     data={treasury10yData}
                     layout={{
-                        yaxis: { title: "Yield (%)", autorange: true },
+                        yaxis: { title: "10Y Yield (%)", autorange: true },
                         margin: { l: 50, r: 20, t: 20, b: 40 },
                     }}
                 />
             </div>
+        </div>
+
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3>
+                    {translations.chart_treasury_2y || "2-Year Treasury Yield"}
+                </h3>
+                <div class="header-controls">
+                    <TimeRangeSelector
+                        selectedRange={treasury2yRange}
+                        onRangeChange={(r) => (treasury2yRange = r)}
+                    />
+                    <span class="last-date"
+                        >{translations.last_data || "Last Data:"}
+                        {getLastDate("TREASURY_2Y_YIELD")}</span
+                    >
+                </div>
+            </div>
+            <p class="chart-description">
+                {translations.treasury_2y_desc ||
+                    "2-Year Treasury Constant Maturity Yield. Indicator of short-term interest rate expectations and liquidity."}
+            </p>
+            <div class="chart-content" style="height: 300px;">
+                <Chart
+                    {darkMode}
+                    data={treasury2yData}
+                    layout={{
+                        yaxis: { title: "2Y Yield (%)", autorange: true },
+                        margin: { l: 50, r: 20, t: 20, b: 40 },
+                    }}
+                />
+            </div>
+        </div>
+
+        <!-- Yield Curve Spread (10Y - 2Y) Chart -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3>
+                    {translations.chart_yield_curve ||
+                        "Yield Curve (10Y-2Y Spread)"}
+                </h3>
+                <div class="header-controls">
+                    <TimeRangeSelector
+                        selectedRange={yieldCurveRange}
+                        onRangeChange={(r) => (yieldCurveRange = r)}
+                    />
+                    <span class="last-date"
+                        >{translations.last_data || "Last Data:"}
+                        {getLastDate("TREASURY_10Y_YIELD")}</span
+                    >
+                </div>
+            </div>
+            <p class="chart-description">
+                {translations.yield_curve_desc ||
+                    "Spread between 10-year and 2-year Treasury yields. Inversion (< 0) is a major recession warning."}
+            </p>
+            <div class="chart-content" style="height: 300px;">
+                <Chart
+                    {darkMode}
+                    data={yieldCurveData}
+                    layout={{
+                        yaxis: {
+                            title: "Spread (%)",
+                            zeroline: true,
+                            zerolinecolor: darkMode ? "#ffffff" : "#000000",
+                        },
+                        shapes: [
+                            {
+                                type: "rect",
+                                xref: "paper",
+                                yref: "y",
+                                x0: 0,
+                                x1: 1,
+                                y0: -2,
+                                y1: 0,
+                                fillcolor: "rgba(239, 68, 68, 0.1)",
+                                line: { width: 0 },
+                            },
+                        ],
+                        margin: { l: 50, r: 20, t: 20, b: 40 },
+                    }}
+                />
+            </div>
+
+            <!-- Yield Curve Signal -->
+            {#if yieldCurveData[0]?.y}
+                {@const lastSpread = getLatestValue(dashboardData.yield_curve)}
+                {@const prevSpread =
+                    dashboardData.yield_curve?.[
+                        dashboardData.yield_curve?.length - 22
+                    ] ?? lastSpread}
+                <div class="signal-box" style="margin-top: 15px;">
+                    <div
+                        class="signal-badge {lastSpread < 0
+                            ? 'bearish'
+                            : lastSpread < 0.2 && lastSpread > prevSpread
+                              ? 'warning'
+                              : 'bullish'}"
+                    >
+                        {#if lastSpread < 0}
+                            🔴 INVERTED
+                        {:else if lastSpread < 0.2 && lastSpread > prevSpread}
+                            ⚠️ DE-INVERTING (DANGER)
+                        {:else}
+                            🟢 NORMAL
+                        {/if}
+                    </div>
+                    <div class="signal-details" style="font-size: 13px;">
+                        Current: <b>{lastSpread?.toFixed(2)}%</b> | 1M Change:
+                        <b>{(lastSpread - prevSpread).toFixed(2)}%</b>
+                    </div>
+                </div>
+            {/if}
         </div>
 
         <div class="chart-card">

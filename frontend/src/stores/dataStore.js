@@ -99,6 +99,9 @@ export const dashboardData = writable({
     fx_vol: { total: [], rocs: {} },
     hy_spread: [],
     ig_spread: [],
+    treasury_10y: [],
+    treasury_2y: [],
+    yield_curve: [],
     // TIPS / Inflation Expectations
     tips: {
         breakeven: [],

@@ -2851,6 +2851,9 @@ def run_pipeline():
     df_fred_t['INFLATION_EXPECT_1Y'] = df_fred.get('INFLATION_EXPECT_1Y', pd.Series(dtype=float))
     df_fred_t['INFLATION_EXPECT_5Y'] = df_fred.get('INFLATION_EXPECT_5Y', pd.Series(dtype=float))
     df_fred_t['INFLATION_EXPECT_10Y'] = df_fred.get('INFLATION_EXPECT_10Y', pd.Series(dtype=float))
+    # Treasury Yields for stress analysis
+    df_fred_t['TREASURY_10Y_YIELD'] = df_fred.get('TREASURY_10Y_YIELD', pd.Series(dtype=float))
+    df_fred_t['TREASURY_2Y_YIELD'] = df_fred.get('TREASURY_2Y_YIELD', pd.Series(dtype=float))
 
     # 2. Fetch TV and Normalize to Trillions
     print("Fetching TradingView Update Data (Trillions)...")
@@ -2986,7 +2989,8 @@ def run_pipeline():
                              'TIPS_BREAKEVEN', 'TIPS_REAL_RATE', 'TIPS_5Y5Y_FORWARD',
                              'BANK_RESERVES', 'SOFR', 'IORB', 'FX_VOL',
                              'CPI', 'CORE_CPI', 'PCE', 'CORE_PCE', 'UNEMPLOYMENT', 'FED_FUNDS_RATE',
-                             'INFLATION_EXPECT_1Y', 'INFLATION_EXPECT_5Y', 'INFLATION_EXPECT_10Y']
+                             'INFLATION_EXPECT_1Y', 'INFLATION_EXPECT_5Y', 'INFLATION_EXPECT_10Y',
+                             'TREASURY_10Y_YIELD', 'TREASURY_2Y_YIELD']
         # Only select columns that actually exist in df_fred_t
         fred_cols_available = [col for col in fred_cols_to_sync if col in df_fred_t.columns]
         res_tv_t = res_tv_t.combine_first(df_fred_t[fred_cols_available]).ffill()
@@ -3333,6 +3337,7 @@ def run_pipeline():
             # Treasury Yields for stress analysis
             'treasury_10y': clean_for_json(df_t.get('TREASURY_10Y_YIELD', pd.Series(dtype=float))),
             'treasury_2y': clean_for_json(df_t.get('TREASURY_2Y_YIELD', pd.Series(dtype=float))),
+            'yield_curve': clean_for_json(df_t.get('TREASURY_10Y_YIELD', 0) - df_t.get('TREASURY_2Y_YIELD', 0)),
             # TIPS / Inflation Expectations
             'tips': {
                 'breakeven': clean_for_json(df_t.get('TIPS_BREAKEVEN', pd.Series(dtype=float))),
