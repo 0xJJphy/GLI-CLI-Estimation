@@ -1293,17 +1293,14 @@ FRED_CONFIG = {
     'EXPINF2YR': 'CLEV_EXPINF_2Y',         # 2-Year Expected Inflation (Cleveland Fed)
     'EXPINF5YR': 'CLEV_EXPINF_5Y',         # 5-Year Expected Inflation (Cleveland Fed)
     'EXPINF10YR': 'CLEV_EXPINF_10Y',       # 10-Year Expected Inflation (Cleveland Fed)
-    # Inflation Risk Premium (Cleveland Fed)
-    'INFRISPR1YR': 'INF_RISK_PREM_1Y',     # 1-Year Inflation Risk Premium
-    'INFRISPR10YR': 'INF_RISK_PREM_10Y',   # 10-Year Inflation Risk Premium
-    # Real Interest Rate (Cleveland Fed)
-    'REAINT1YR': 'REAL_INT_RATE_1Y',       # 1-Year Real Interest Rate
-    'REAINT10YR': 'REAL_INT_RATE_10Y',     # 10-Year Real Interest Rate
+    # Note: Removed discontinued FRED series:
+    # - INFRISPR1YR, INFRISPR10YR (Inflation Risk Premium) - no longer available
+    # - REAINT1YR, REAINT10YR (Real Interest Rate) - no longer available
+    # - T2YIE (2-Year Breakeven) - no longer available
     # University of Michigan Inflation Expectations (Survey-based)
     'MICH': 'UMICH_INFL_EXP',              # UMich 1-Year Ahead Inflation Expectations
     # Additional TIPS Breakeven for curve construction
     'T5YIE': 'TIPS_BREAKEVEN_5Y',          # 5-Year Breakeven Inflation Rate
-    'T2YIE': 'TIPS_BREAKEVEN_2Y',          # 2-Year Breakeven Inflation Rate
     # Treasury Yields for stress analysis
     'DGS10': 'TREASURY_10Y_YIELD',         # 10-Year Treasury Constant Maturity Yield
     'DGS2': 'TREASURY_2Y_YIELD',           # 2-Year Treasury Constant Maturity Yield
