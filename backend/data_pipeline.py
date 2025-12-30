@@ -925,13 +925,28 @@ def calculate_market_stress_analysis(df):
         # 4. VOLATILITY STRESS ANALYSIS
         # ============================================================
         vix = df.get('VIX', pd.Series(dtype=float))
+        treasury_10y = df.get('TREASURY_10Y_YIELD', pd.Series(dtype=float))
+        
         last_vix = safe_get_last(vix, 18)
         vix_zscore = safe_get_last(calculate_zscore(vix), 0)
         vix_roc_1w = safe_get_last(calculate_roc(vix, 5), 0)
         
+        # Calculate 10Y yield volatility (20-day rolling std of yield changes in bps)
+        if treasury_10y is not None and len(treasury_10y) > 20:
+            yield_changes = treasury_10y.diff() * 100  # Convert to bps
+            yield_vol_20d = yield_changes.rolling(window=20, min_periods=10).std()
+            last_yield_vol = safe_get_last(yield_vol_20d, 5)
+            yield_vol_zscore = safe_get_last(calculate_zscore(yield_vol_20d), 0)
+        else:
+            last_yield_vol = 5.0  # Default ~5bps daily vol
+            yield_vol_zscore = 0
+        
+        last_10y_yield = safe_get_last(treasury_10y, 4.0)
+        
         vol_score = 0
         vol_signals = []
         
+        # VIX signals
         if last_vix > 30:
             vol_score += 2
             vol_signals.append(f"🔴 VIX elevated ({last_vix:.1f}) - high fear")
@@ -951,19 +966,34 @@ def calculate_market_stress_analysis(df):
             vol_score += 1
             vol_signals.append(f"⚠️ VIX spiking ({vix_roc_1w:.0f}% weekly)")
         
-        vol_level = 'HIGH' if vol_score >= 3 else 'MODERATE' if vol_score >= 2 else 'LOW'
-        vol_color = 'red' if vol_score >= 3 else 'yellow' if vol_score >= 2 else 'green'
+        # Treasury yield volatility signals (MOVE proxy)
+        if last_yield_vol > 10:
+            vol_score += 2
+            vol_signals.append(f"🔴 10Y yield volatility HIGH ({last_yield_vol:.1f}bps/day)")
+        elif last_yield_vol > 7:
+            vol_score += 1
+            vol_signals.append(f"🔶 10Y yield volatility elevated ({last_yield_vol:.1f}bps/day)")
+        else:
+            vol_signals.append(f"✅ 10Y yield volatility normal ({last_yield_vol:.1f}bps/day)")
+        
+        # Update max score to account for new yield vol signals
+        vol_max_score = 6  # VIX (4) + Yield Vol (2)
+        vol_level = 'HIGH' if vol_score >= 4 else 'MODERATE' if vol_score >= 2 else 'LOW'
+        vol_color = 'red' if vol_score >= 4 else 'yellow' if vol_score >= 2 else 'green'
         
         analysis['volatility_stress'] = {
             'score': max(0, vol_score),
-            'max_score': 4,
+            'max_score': vol_max_score,
             'level': vol_level,
             'color': vol_color,
             'signals': vol_signals,
             'metrics': {
                 'vix': round(last_vix, 2),
                 'vix_zscore': round(vix_zscore, 2),
-                'vix_roc_1w': round(vix_roc_1w, 1)
+                'vix_roc_1w': round(vix_roc_1w, 1),
+                'yield_10y': round(last_10y_yield, 3),
+                'yield_vol_20d': round(last_yield_vol, 2),
+                'yield_vol_zscore': round(yield_vol_zscore, 2)
             }
         }
         
@@ -976,7 +1006,7 @@ def calculate_market_stress_analysis(df):
             analysis['credit_stress']['score'] +
             analysis['volatility_stress']['score']
         )
-        max_total = 25
+        max_total = 27  # 7+7+7+6 (inflation, liquidity, credit, volatility)
         
         if total_score >= 15:
             global_level = 'CRITICAL'
@@ -1274,6 +1304,9 @@ FRED_CONFIG = {
     # Additional TIPS Breakeven for curve construction
     'T5YIE': 'TIPS_BREAKEVEN_5Y',          # 5-Year Breakeven Inflation Rate
     'T2YIE': 'TIPS_BREAKEVEN_2Y',          # 2-Year Breakeven Inflation Rate
+    # Treasury Yields for stress analysis
+    'DGS10': 'TREASURY_10Y_YIELD',         # 10-Year Treasury Constant Maturity Yield
+    'DGS2': 'TREASURY_2Y_YIELD',           # 2-Year Treasury Constant Maturity Yield
 }
 
 # Mapping: Symbol -> Internal Name (TradingView ECONOMICS)
