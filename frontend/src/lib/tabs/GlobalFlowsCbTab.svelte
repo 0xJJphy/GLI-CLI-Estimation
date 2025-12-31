@@ -257,61 +257,39 @@
         bnmRange,
     );
 
-    // CB Breadth and Concentration data (for LightweightChart format)
+    // CB Breadth and Concentration data (Plotly format for better stability)
     // Now with time range filtering
-    $: cbBreadthData = [
-        {
-            name: "CB Breadth (% Expanding)",
-            type: "line",
-            color: "#10b981",
-            width: 2,
-            data: (() => {
-                const cutoff = getCutoffDate(cbBreadthRange);
-                return (dashboardData.macro_regime?.cb_diffusion_13w || [])
-                    .map((v, i) => ({
-                        time: dashboardData.dates?.[i],
-                        value: v,
-                    }))
-                    .filter((d) => {
-                        if (
-                            !d.time ||
-                            d.value === null ||
-                            d.value === undefined
-                        )
-                            return false;
-                        if (!cutoff) return true;
-                        return new Date(d.time) >= cutoff;
-                    });
-            })(),
-        },
-    ];
+    $: cbBreadthData = filterPlotlyData(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.macro_regime?.cb_diffusion_13w,
+                name: "CB Breadth (% Expanding)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#10b981", width: 2, shape: "spline" },
+                fill: "tozeroy",
+                fillcolor: "rgba(16, 185, 129, 0.1)",
+            },
+        ],
+        dashboardData.dates,
+        cbBreadthRange,
+    );
 
-    $: cbConcentrationData = [
-        {
-            name: "CB Concentration (HHI)",
-            type: "line",
-            color: "#f59e0b",
-            width: 2,
-            data: (() => {
-                const cutoff = getCutoffDate(cbConcentrationRange);
-                return (dashboardData.macro_regime?.cb_hhi_13w || [])
-                    .map((v, i) => ({
-                        time: dashboardData.dates?.[i],
-                        value: v,
-                    }))
-                    .filter((d) => {
-                        if (
-                            !d.time ||
-                            d.value === null ||
-                            d.value === undefined
-                        )
-                            return false;
-                        if (!cutoff) return true;
-                        return new Date(d.time) >= cutoff;
-                    });
-            })(),
-        },
-    ];
+    $: cbConcentrationData = filterPlotlyData(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.macro_regime?.cb_hhi_13w,
+                name: "CB Concentration (HHI)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#f59e0b", width: 2, shape: "spline" },
+            },
+        ],
+        dashboardData.dates,
+        cbConcentrationRange,
+    );
 
     // Bank ROC lookup for indicators
     function getBankRocs(bankId) {
@@ -448,7 +426,7 @@
                     : "Percentage of CBs expanding (13-week basis). ↑ Bullish."}
             </p>
             <div class="chart-content">
-                <LightweightChart {darkMode} data={cbBreadthData} />
+                <Chart {darkMode} data={cbBreadthData} />
             </div>
         </div>
 
@@ -468,7 +446,7 @@
                     : "HHI Index. High = few banks drive liquidity."}
             </p>
             <div class="chart-content">
-                <LightweightChart {darkMode} data={cbConcentrationData} />
+                <Chart {darkMode} data={cbConcentrationData} />
             </div>
         </div>
     </div>
