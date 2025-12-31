@@ -2492,35 +2492,6 @@
           language={$language}
           translations={$currentTranslations}
           dashboardData={$dashboardData}
-          latestStats={$latestStats}
-          {gliData}
-          netLiqData={netLiqDataDashboard}
-          cliData={cliDataDashboard}
-          {cliComponentData}
-          {regimeLCData}
-          {impulseData}
-          {impulseLayout}
-          {gliWeights}
-          {usSystemMetrics}
-          {usSystemTotal}
-          {gliSignal}
-          {liqSignal}
-          {currentRegime}
-          {liquidityScore}
-          {regimeDiagnostics}
-          bind:regimeLag
-          bind:btcRocPeriod
-          bind:btcLag
-          bind:showComposite
-          {optimalLagLabel}
-          {getLastDate}
-          {getLatestValue}
-          bind:gliRange
-          bind:gliShowConstantFx
-          bind:netLiqRange={netLiqRangeDashboard}
-          bind:cliRange={cliRangeDashboard}
-          bind:cliCompRange={cliCompRangeDashboard}
-          bind:impulseRange
         />
       {:else if currentTab === "Global Flows CB"}
         <GlobalFlowsCbTab
