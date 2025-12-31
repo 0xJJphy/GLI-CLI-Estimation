@@ -408,9 +408,10 @@
         </div>
     </div>
 
-    <!-- CB Breadth and Concentration (Full Width after aggregate) -->
-    <div class="chart-row">
-        <div class="chart-card half">
+    <!-- All Charts in 2-column grid -->
+    <div class="chart-grid">
+        <!-- CB Breadth Chart -->
+        <div class="chart-card">
             <div class="chart-header">
                 <h3>Central Bank Breadth (% Expanding)</h3>
                 <div class="header-controls">
@@ -425,12 +426,13 @@
                     ? "% de bancos centrales en expansión (13 semanas). ↑ Alcista."
                     : "Percentage of CBs expanding (13-week basis). ↑ Bullish."}
             </p>
-            <div class="chart-content">
+            <div class="chart-content short">
                 <Chart {darkMode} data={cbBreadthData} />
             </div>
         </div>
 
-        <div class="chart-card half">
+        <!-- CB Concentration Chart -->
+        <div class="chart-card">
             <div class="chart-header">
                 <h3>Central Bank Concentration (HHI)</h3>
                 <div class="header-controls">
@@ -445,14 +447,12 @@
                     ? "Índice HHI. Alto = pocos bancos dominan flujos."
                     : "HHI Index. High = few banks drive liquidity."}
             </p>
-            <div class="chart-content">
+            <div class="chart-content short">
                 <Chart {darkMode} data={cbConcentrationData} />
             </div>
         </div>
-    </div>
 
-    <!-- Individual Banks: 2 per row with ROC indicators -->
-    <div class="chart-grid">
+        <!-- Individual Banks with ROC indicators -->
         {#each bankConfigs as item}
             {@const rocs = getBankRocs(item.id)}
             <div class="chart-card">
