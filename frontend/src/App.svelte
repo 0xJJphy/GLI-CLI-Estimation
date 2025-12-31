@@ -13,17 +13,15 @@
   import SignalBadge from "./lib/components/SignalBadge.svelte";
   import TimeRangeSelector from "./lib/components/TimeRangeSelector.svelte";
 
-  // Tab Components
-  import {
-    DashboardTab,
-    GlobalFlowsCbTab,
-    GlobalM2Tab,
-    UsSystemTab,
-    RiskModelTab,
-    BtcAnalysisTab,
-    BtcQuantV2Tab,
-    FedForecastsTab,
-  } from "./lib/tabs";
+  // Tab Components - Individual imports for potential code splitting
+  import DashboardTab from "./lib/tabs/DashboardTab.svelte";
+  import GlobalFlowsCbTab from "./lib/tabs/GlobalFlowsCbTab.svelte";
+  import GlobalM2Tab from "./lib/tabs/GlobalM2Tab.svelte";
+  import UsSystemTab from "./lib/tabs/UsSystemTab.svelte";
+  import RiskModelTab from "./lib/tabs/RiskModelTab.svelte";
+  import BtcAnalysisTab from "./lib/tabs/BtcAnalysisTab.svelte";
+  import BtcQuantV2Tab from "./lib/tabs/BtcQuantV2Tab.svelte";
+  import FedForecastsTab from "./lib/tabs/FedForecastsTab.svelte";
 
   // Global Settings Store
   import {

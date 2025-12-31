@@ -3,6 +3,53 @@
  * Extracted from App.svelte for modularity and reusability.
  */
 
+// ============================================================================
+// DATA ACCESS HELPERS
+// ============================================================================
+
+/**
+ * Get the last available date for a series from dashboardData.last_dates
+ * @param {Object} dashboardData - The dashboard data object
+ * @param {string} seriesKey - Key for the series (e.g., "GLI", "FED", "NFCI")
+ * @returns {string} - Formatted date string or "N/A"
+ */
+export const getLastDate = (dashboardData, seriesKey) => {
+    if (!dashboardData?.last_dates) return "N/A";
+    const key = seriesKey.toUpperCase();
+    return (
+        dashboardData.last_dates[key] ||
+        dashboardData.last_dates[key + "_USD"] ||
+        dashboardData.last_dates[seriesKey] ||
+        "N/A"
+    );
+};
+
+/**
+ * Get the latest value from an array.
+ * @param {Array} arr - Array of values
+ * @returns {number|null} - Latest value or 0
+ */
+export const getLatestValue = (arr) => arr?.[arr?.length - 1] ?? 0;
+
+/**
+ * Calculate percentage change over a period.
+ * @param {Array} arr - Array of values
+ * @param {number} period - Number of periods to look back (default 7)
+ * @returns {number} - Percentage change
+ */
+export const getChange = (arr, period = 7) => {
+    if (!arr || arr.length <= period) return 0;
+    const lastIdx = arr.length - 1;
+    const current = arr[lastIdx];
+    const previous = arr[lastIdx - period];
+    if (previous === 0 || previous === null || previous === undefined) return 0;
+    return ((current - previous) / previous) * 100;
+};
+
+// ============================================================================
+// TIME RANGE HELPERS
+// ============================================================================
+
 /**
  * Get cutoff date based on time range string.
  * @param {string} range - "1M", "3M", "6M", "1Y", "3Y", "5Y", or "ALL"

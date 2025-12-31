@@ -1,41 +1,70 @@
+/**
+ * GLI-CLI Dashboard - Global Styles
+ * Centralized CSS Variables and Common Styles
+ */
+
+/* =============================================================================
+   CSS VARIABLES - Theme System
+   ============================================================================= */
+
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  /* Typography */
+  font-family: "Inter", -apple-system, system-ui, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* Light Theme (Default) */
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f1f5f9;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --border-color: #e2e8f0;
+  --accent-primary: #4f46e5;
+  --accent-secondary: #3b82f6;
+  --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --chart-description-bg: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  --positive-color: #059669;
+  --negative-color: #dc2626;
+  --card-bg-alt: rgba(0, 0, 0, 0.05);
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
+/* Dark Theme */
+[data-theme="dark"] {
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --border-color: #334155;
+  --accent-primary: #6366f1;
+  --accent-secondary: #60a5fa;
+  --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --chart-description-bg: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  --positive-color: #10b981;
+  --negative-color: #f87171;
+  --card-bg-alt: rgba(255, 255, 255, 0.05);
 }
 
-a:hover {
-  color: #535bf2;
-}
+/* =============================================================================
+   BASE STYLES
+   ============================================================================= */
 
 body {
   margin: 0;
+  padding: 0;
   min-width: 320px;
   min-height: 100vh;
-}
-
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-.card {
-  padding: 2em;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 #app {
@@ -43,6 +72,68 @@ h1 {
   height: 100%;
 }
 
+a {
+  font-weight: 500;
+  color: var(--accent-primary);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--accent-secondary);
+}
+
+/* =============================================================================
+   SCROLLBAR STYLING
+   ============================================================================= */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.2);
+  border-radius: 10px;
+  transition: background 0.2s;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.4);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.2);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.4);
+}
+
+/* Firefox Support */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 116, 139, 0.2) transparent;
+}
+
+[data-theme="dark"] {
+  scrollbar-color: rgba(148, 163, 184, 0.2) transparent;
+}
+
+/* =============================================================================
+   COMMON COMPONENT STYLES
+   ============================================================================= */
+
+/* Signal Colors */
+.positive, .text-positive { color: var(--positive-color); }
+.negative, .text-negative { color: var(--negative-color); }
+.text-bullish { color: #10b981; }
+.text-bearish { color: #ef4444; }
+
+/* Common Button Styles */
 button {
   border-radius: 8px;
   border: 1px solid transparent;
@@ -50,31 +141,88 @@ button {
   font-size: 1em;
   font-weight: 500;
   font-family: inherit;
-  background-color: #1a1a1a;
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
   cursor: pointer;
-  transition: border-color 0.25s;
+  transition: all 0.2s ease;
 }
 
 button:hover {
-  border-color: #646cff;
+  border-color: var(--accent-primary);
 }
 
 button:focus,
 button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-
-  a:hover {
-    color: #747bff;
-  }
-
-  button {
-    background-color: #f9f9f9;
-  }
+/* Chart Card Base Styles */
+.chart-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: var(--card-shadow);
+  transition: all 0.3s ease;
 }
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.chart-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.chart-description {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0 0 16px 0;
+  padding: 10px 14px;
+  background: var(--chart-description-bg);
+  border-radius: 8px;
+  border-left: 3px solid var(--accent-primary);
+}
+
+.chart-content {
+  min-height: 300px;
+}
+
+/* Last Date Badge */
+.last-date {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  padding: 4px 8px;
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+}
+
+/* Header Controls */
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* =============================================================================
+   UTILITY CLASSES
+   ============================================================================= */
+
+.no-margin { margin: 0; }
+.text-center { text-align: center; }
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.gap-2 { gap: 8px; }
+.gap-4 { gap: 16px; }
