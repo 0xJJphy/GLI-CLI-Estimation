@@ -2,391 +2,69 @@
     /**
      * DashboardTab.svelte
      * Main dashboard displaying GLI, Net Liquidity, CLI, Regime and Impulse Analysis.
-     * FULLY ENCAPSULATED - all chart data and metrics computed internally.
      */
     import Chart from "../components/Chart.svelte";
     import LightweightChart from "../components/LightweightChart.svelte";
     import StatsCard from "../components/StatsCard.svelte";
     import SignalBadge from "../components/SignalBadge.svelte";
     import TimeRangeSelector from "../components/TimeRangeSelector.svelte";
-    import { filterPlotlyData } from "../utils/helpers.js";
 
-    // Core props only
+    // Props
     export let darkMode = false;
     export let language = "en";
     export let translations = {};
     export let dashboardData = {};
+    /** @type {{ gli?: { value: number, change: number }, us_net_liq?: { value: number, change: number }, cli?: { value: number, change: number }, vix?: { value: number, change: number } } | null} */
+    export let latestStats = null;
 
-    // Local state (no longer props)
-    let gliRange = "ALL";
-    let gliShowConstantFx = false;
-    let netLiqRange = "ALL";
-    let cliRange = "ALL";
-    let cliCompRange = "ALL";
-    let impulseRange = "ALL";
-    let regimeLag = 42;
-    let btcRocPeriod = 21;
-    let btcLag = 0;
-    let showComposite = false;
+    // Chart data
+    export let gliData = [];
+    export let netLiqData = [];
+    export let cliData = [];
+    export let cliComponentData = [];
+    export let regimeLCData = [];
+    export let impulseData = [];
+    export let impulseLayout = {};
 
-    // --- Internal Helper Functions ---
-    function getLastDate(seriesKey) {
-        if (!dashboardData.last_dates) return "N/A";
-        const key = seriesKey.toUpperCase();
-        return (
-            dashboardData.last_dates[key] ||
-            dashboardData.last_dates[key + "_USD"] ||
-            dashboardData.last_dates[seriesKey] ||
-            "N/A"
-        );
-    }
-
-    function getLatestValue(arr) {
-        return arr?.[arr?.length - 1] ?? 0;
-    }
-
-    // --- Internal Data Processing ---
-    // Compute latestStats from dashboardData (mirrors the derived store logic)
-    $: latestStats = (() => {
-        if (!dashboardData.dates?.length) return null;
-        const lastIdx = dashboardData.dates.length - 1;
-        const prevIdx = lastIdx - 1;
-
-        const getChange = (arr, period = 7) => {
-            if (!arr || arr.length <= period) return 0;
-            const current = arr[lastIdx];
-            const previous = arr[lastIdx - period];
-            if (previous === 0 || previous === null || previous === undefined)
-                return 0;
-            return ((current - previous) / previous) * 100;
-        };
-
-        const getLatestValue = (path) => {
-            const arr = path
-                .split(".")
-                .reduce((obj, key) => obj?.[key], dashboardData);
-            if (!arr || !arr.length) return null;
-            return arr[arr.length - 1];
-        };
-
-        return {
-            gli: {
-                value: getLatestValue("gli.total"),
-                change: getChange(dashboardData.gli?.total),
-            },
-            us_net_liq: {
-                value: dashboardData.us_net_liq?.[lastIdx] ?? null,
-                change: getChange(dashboardData.us_net_liq),
-            },
-            cli: {
-                value: getLatestValue("cli.total"),
-                change:
-                    (dashboardData.cli?.total?.[lastIdx] ?? 0) -
-                    (dashboardData.cli?.total?.[prevIdx] ?? 0),
-            },
-            vix: {
-                value: getLatestValue("vix.total"),
-                change: getChange(dashboardData.vix?.total),
-            },
-        };
-    })();
-
-    // GLI Data
-    $: gliDataSource = gliShowConstantFx
-        ? dashboardData.gli?.total_const_fx
-        : dashboardData.gli?.total;
-
-    $: gliData = filterPlotlyData(
-        [
-            {
-                x: dashboardData.dates,
-                y: gliDataSource,
-                name: gliShowConstantFx ? "GLI (Const FX)" : "GLI Total",
-                type: "scatter",
-                mode: "lines",
-                fill: "tozeroy",
-                line: { color: "#6366f1", width: 3, shape: "spline" },
-            },
-        ],
-        dashboardData.dates,
-        gliRange,
-    );
-
-    // Net Liquidity Data (us_net_liq is an array, not object)
-    $: netLiqData = filterPlotlyData(
-        [
-            {
-                x: dashboardData.dates,
-                y: dashboardData.us_net_liq,
-                name: "US Net Liquidity",
-                type: "scatter",
-                mode: "lines",
-                fill: "tozeroy",
-                line: { color: "#10b981", width: 3, shape: "spline" },
-            },
-        ],
-        dashboardData.dates,
-        netLiqRange,
-    );
-
-    // CLI Data
-    $: cliData = filterPlotlyData(
-        [
-            {
-                x: dashboardData.dates,
-                y: dashboardData.cli?.total,
-                name: "CLI Total",
-                type: "scatter",
-                mode: "lines",
-                line: { color: "#f59e0b", width: 3, shape: "spline" },
-            },
-        ],
-        dashboardData.dates,
-        cliRange,
-    );
-
-    // CLI Component Data
-    $: cliComponentData = filterPlotlyData(
-        [
-            {
-                x: dashboardData.dates,
-                y: dashboardData.cli?.nfci,
-                name: "NFCI",
-                type: "scatter",
-                mode: "lines",
-                line: { color: "#6366f1", width: 2 },
-            },
-            {
-                x: dashboardData.dates,
-                y: dashboardData.cli?.hy_spread,
-                name: "HY Spread",
-                type: "scatter",
-                mode: "lines",
-                line: { color: "#f43f5e", width: 2 },
-            },
-            {
-                x: dashboardData.dates,
-                y: dashboardData.cli?.ig_spread,
-                name: "IG Spread",
-                type: "scatter",
-                mode: "lines",
-                line: { color: "#f59e0b", width: 2 },
-            },
-            {
-                x: dashboardData.dates,
-                y: dashboardData.cli?.vix,
-                name: "VIX",
-                type: "scatter",
-                mode: "lines",
-                line: { color: "#10b981", width: 2 },
-            },
-        ],
-        dashboardData.dates,
-        cliCompRange,
-    );
-
-    // GLI Weights (bank_rocs is the correct property name)
-    $: gliWeights = Object.entries(dashboardData.gli_weights || {})
-        .map(([id, weight]) => {
-            const rocs = dashboardData.bank_rocs?.[id] || {};
-            return {
-                id,
-                name: id.toUpperCase(),
-                weight,
-                m1: rocs["1M"]?.[rocs["1M"]?.length - 1] || 0,
-                m3: rocs["3M"]?.[rocs["3M"]?.length - 1] || 0,
-                y1: rocs["1Y"]?.[rocs["1Y"]?.length - 1] || 0,
-                imp1: rocs["impact_1m"]?.[rocs["impact_1m"]?.length - 1] || 0,
-                imp3: rocs["impact_3m"]?.[rocs["impact_3m"]?.length - 1] || 0,
-                imp1y: rocs["impact_1y"]?.[rocs["impact_1y"]?.length - 1] || 0,
-            };
-        })
-        .sort((a, b) => b.weight - a.weight);
-
-    // US System Metrics
-    $: usSystemMetrics = [
-        { name: "Fed", key: "fed", isLiability: false },
-        { name: "TGA", key: "tga", isLiability: true },
-        { name: "RRP", key: "rrp", isLiability: true },
-        { name: "Reserves", key: "reserves", isLiability: false },
-    ].map((acc) => {
-        const rocs = dashboardData.us_system_rocs?.[acc.key] || {};
-        return {
-            ...acc,
-            m1: rocs["1M"]?.[rocs["1M"]?.length - 1] || 0,
-            m3: rocs["3M"]?.[rocs["3M"]?.length - 1] || 0,
-            y1: rocs["1Y"]?.[rocs["1Y"]?.length - 1] || 0,
-            delta1: rocs["delta_1m"]?.[rocs["delta_1m"]?.length - 1] || 0,
-            imp1: rocs["impact_1m"]?.[rocs["impact_1m"]?.length - 1] || 0,
-            imp3: rocs["impact_3m"]?.[rocs["impact_3m"]?.length - 1] || 0,
-            imp1y: rocs["impact_1y"]?.[rocs["impact_1y"]?.length - 1] || 0,
-        };
-    });
-
-    $: usSystemTotal = usSystemMetrics.reduce(
-        (acc, item) => ({
-            delta1:
-                acc.delta1 + (item.isLiability ? -item.delta1 : item.delta1),
-            imp1: acc.imp1 + item.imp1,
-            imp3: acc.imp3 + item.imp3,
-            imp1y: acc.imp1y + item.imp1y,
-        }),
-        { delta1: 0, imp1: 0, imp3: 0, imp1y: 0 },
-    );
-
-    // Regime Logic
-    $: liquidityScore = (() => {
-        const macroRegime = dashboardData.macro_regime;
-        if (
-            !macroRegime ||
-            !macroRegime.score ||
-            macroRegime.score.length === 0
-        )
-            return 50;
-        const latest = macroRegime.score[macroRegime.score.length - 1];
-        return latest !== null && latest !== undefined ? latest : 50;
-    })();
-
-    $: regimeDiagnostics = (() => {
-        const mr = dashboardData.macro_regime;
-        if (!mr)
-            return { liquidity_z: 0, credit_z: 0, brakes_z: 0, total_z: 0 };
-        const getLatest = (arr) => {
-            if (!arr || arr.length === 0) return 0;
-            const val = arr[arr.length - 1];
-            return val !== null && val !== undefined ? val : 0;
-        };
-        return {
-            liquidity_z: getLatest(mr.liquidity_z),
-            credit_z: getLatest(mr.credit_z),
-            brakes_z: getLatest(mr.brakes_z),
-            total_z: getLatest(mr.total_z),
-        };
-    })();
-
-    $: currentRegimeId = (() => {
-        const macroRegime = dashboardData.macro_regime;
-        if (
-            !macroRegime ||
-            !macroRegime.regime_code ||
-            macroRegime.regime_code.length === 0
-        )
-            return "neutral";
-        const lastCode =
-            macroRegime.regime_code[macroRegime.regime_code.length - 1];
-        if (lastCode === 1) return "bullish";
-        if (lastCode === -1) return "bearish";
-        return "neutral";
-    })();
-
-    $: currentRegime = (() => {
-        const isEs = language === "es";
-        switch (currentRegimeId) {
-            case "bullish":
-                return {
-                    name: translations.regime_bullish || "Bullish",
-                    emoji: "🐂",
-                    color: "bullish",
-                    desc: isEs
-                        ? "Expansión Sincronizada: Tanto la liquidez Global como la de EE.UU. están expandiéndose."
-                        : "Synchronized Expansion: Both Global and US liquidity are expanding.",
-                    details: isEs
-                        ? "Entorno favorable para activos de riesgo."
-                        : "Favorable environment for risk assets.",
-                };
-            case "bearish":
-                return {
-                    name: translations.regime_bearish || "Bearish",
-                    emoji: "🐻",
-                    color: "bearish",
-                    desc: isEs
-                        ? "Contracción Sincronizada: Tanto la liquidez Global como la de EE.UU. se están contrayendo."
-                        : "Synchronized Contraction: Both Global and US liquidity are contracting.",
-                    details: isEs
-                        ? "Entorno defensivo/adverso para activos de riesgo."
-                        : "Defensive/Headwind environment for risk assets.",
-                };
-            case "neutral":
-            default:
-                return {
-                    name: translations.regime_neutral || "Neutral",
-                    emoji: "⚖️",
-                    color: "neutral",
-                    desc: isEs
-                        ? "Régimen Mixto/Divergente: Señales contradictorias entre liquidez Global y doméstica."
-                        : "Mixed/Divergent Regime: Conflicting signals between Global and domestic liquidity.",
-                    details: isEs
-                        ? "Comportamiento lateral o errático esperado."
-                        : "Choppy or sideways price action expected.",
-                };
-        }
-    })();
-
-    // Regime LC Data for chart
-    $: regimeLCData = (() => {
-        const dates = dashboardData.dates || [];
-        const regimeScore = dashboardData.macro_regime?.score || [];
-        if (dates.length === 0 || regimeScore.length === 0) return [];
-        return dates
-            .map((d, i) => ({
-                time: d,
-                value: regimeScore[i] ?? 50,
-            }))
-            .filter((d) => d.value !== null);
-    })();
-
-    // Impulse Data
-    $: impulseData = filterPlotlyData(
-        [
-            {
-                x: dashboardData.dates,
-                y: dashboardData.flow_metrics?.gli_impulse_zscore || [],
-                name: "GLI Impulse Z",
-                type: "scatter",
-                mode: "lines",
-                line: { color: "#6366f1", width: 2 },
-            },
-            {
-                x: dashboardData.dates,
-                y: dashboardData.flow_metrics?.m2_impulse_zscore || [],
-                name: "M2 Impulse Z",
-                type: "scatter",
-                mode: "lines",
-                line: { color: "#10b981", width: 2 },
-            },
-        ],
-        dashboardData.dates,
-        impulseRange,
-    );
-
-    $: impulseLayout = {
-        yaxis: { title: "Z-Score" },
-        shapes: [
-            {
-                type: "line",
-                y0: 1,
-                y1: 1,
-                x0: 0,
-                x1: 1,
-                xref: "paper",
-                line: { color: "#10b981", width: 1, dash: "dot" },
-            },
-            {
-                type: "line",
-                y0: -1,
-                y1: -1,
-                x0: 0,
-                x1: 1,
-                xref: "paper",
-                line: { color: "#ef4444", width: 1, dash: "dot" },
-            },
-        ],
+    // Metrics
+    export let gliWeights = [];
+    export let usSystemMetrics = [];
+    export let usSystemTotal = { delta1: 0, imp1: 0, imp3: 0, imp1y: 0 };
+    export let gliSignal = "neutral";
+    export let liqSignal = "neutral";
+    export let currentRegime = {
+        color: "grey",
+        emoji: "⚖️",
+        name: "Neutral",
+        desc: "",
+        details: "",
+    };
+    export let liquidityScore = 50;
+    export let regimeDiagnostics = {
+        liquidity_z: 0,
+        credit_z: 0,
+        brakes_z: 0,
+        total_z: 0,
     };
 
-    // Signals
-    $: gliSignal = latestStats?.gli?.change > 0 ? "bullish" : "bearish";
-    $: liqSignal = latestStats?.us_net_liq?.change > 0 ? "bullish" : "bearish";
-    $: optimalLagLabel = `${regimeLag}d`;
+    // State bindings
+    export let regimeLag = 42;
+    export let btcRocPeriod = 21;
+    export let btcLag = 0;
+    export let showComposite = false;
+    export let optimalLagLabel = "";
+
+    // Helper functions
+    export let getLastDate = (key) => "N/A";
+    export let getLatestValue = (arr) => arr?.[arr?.length - 1] ?? 0;
+
+    // Local time range states
+    export let gliRange = "ALL";
+    export let gliShowConstantFx = false;
+    export let netLiqRange = "ALL";
+    export let cliRange = "ALL";
+    export let cliCompRange = "ALL";
+    export let impulseRange = "ALL";
 </script>
 
 <!-- Stats Cards -->
