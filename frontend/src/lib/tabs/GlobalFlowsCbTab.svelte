@@ -553,6 +553,7 @@
 
     .chart-card.half {
         width: 100%;
+        height: fit-content;
     }
 
     .chart-grid {
@@ -602,11 +603,13 @@
     }
 
     .chart-content {
-        min-height: 300px;
+        height: 280px;
+        min-height: 280px;
     }
 
     .chart-content.short {
-        min-height: 220px;
+        height: 200px;
+        min-height: 200px;
     }
 
     /* ROC Indicator Bar */
