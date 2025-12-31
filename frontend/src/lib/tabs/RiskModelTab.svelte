@@ -235,6 +235,7 @@
     let repoStressRange = "ALL";
     let tipsRange = "ALL";
     let creditSpreadsRange = "ALL";
+    let inflationExpectRange = "5Y";
 
     // Imports
     import { filterPlotlyData } from "../utils/helpers.js";
@@ -1025,6 +1026,85 @@
         creditSpreadsRange,
     );
 
+    // Inflation Expectations Chart (Cleveland Fed Expected Inflation)
+    $: inflationExpectData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.inflation_swaps?.cleveland_1y || [],
+                name: "1Y Inflation Exp. (%)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#3b82f6", width: 2.5 },
+            },
+            {
+                x: dashboardData.dates,
+                y: dashboardData.inflation_swaps?.cleveland_2y || [],
+                name: "2Y Inflation Exp. (%)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#1e3a8a", width: 2 },
+            },
+            {
+                x: dashboardData.dates,
+                y: dashboardData.inflation_swaps?.cleveland_5y || [],
+                name: "5Y Inflation Exp. (%)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#f59e0b", width: 2 },
+            },
+            {
+                x: dashboardData.dates,
+                y: dashboardData.inflation_swaps?.cleveland_10y || [],
+                name: "10Y Inflation Exp. (%)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#ef4444", width: 2 },
+            },
+            {
+                x: dashboardData.dates,
+                y: dashboardData.tips?.fwd_5y5y || [],
+                name: "5Y5Y Forward (%)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#10b981", width: 2, dash: "dash" },
+            },
+        ],
+        inflationExpectRange,
+    );
+
+    // Inflation Expectations Signal (1Y < 2Y = Inverted = Bearish)
+    $: inflationExpectSignal = (() => {
+        const clev1y = dashboardData.inflation_swaps?.cleveland_1y;
+        const clev2y = dashboardData.inflation_swaps?.cleveland_2y;
+        if (!clev1y || !clev2y || clev1y.length === 0 || clev2y.length === 0)
+            return "neutral";
+
+        const last1y = clev1y[clev1y.length - 1];
+        const last2y = clev2y[clev2y.length - 1];
+
+        if (last1y === null || last2y === null) return "neutral";
+
+        // Inverted: 1Y < 2Y by more than 0.05pp = bearish (cooldown imminent)
+        if (last1y < last2y - 0.05) return "bearish";
+        // Normal: 1Y > 2Y = bullish (rising inflation expectations)
+        if (last1y > last2y + 0.05) return "bullish";
+        return "neutral";
+    })();
+
+    $: inflationExpectInversionSpread = (() => {
+        const clev1y = dashboardData.inflation_swaps?.cleveland_1y;
+        const clev2y = dashboardData.inflation_swaps?.cleveland_2y;
+        if (!clev1y || !clev2y || clev1y.length === 0 || clev2y.length === 0)
+            return 0;
+
+        const last1y = clev1y[clev1y.length - 1];
+        const last2y = clev2y[clev2y.length - 1];
+
+        if (last1y === null || last2y === null) return 0;
+        return last1y - last2y;
+    })();
+
     // Local helper functions (no longer props)
     function getLastDate(seriesKey) {
         if (!dashboardData.last_dates) return "N/A";
@@ -1702,7 +1782,7 @@
               : "neutral";
 
     // Stress Analysis reactive variable
-    $: stressAnalysis = dashboardData.fed_forecasts?.stress_analysis || {};
+    $: stressAnalysis = dashboardData.stress_analysis || {};
 </script>
 
 <!-- Header with Aggregate Stance & View Mode Toggle -->
@@ -1733,6 +1813,116 @@
 
 <div class="main-charts">
     <div class="grid-2">
+        <!-- Inflation Expectations (Swap Rates / Cleveland Fed) Chart -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3>
+                    {translations.chart_inflation_swap_title ||
+                        "USD Inflation Swap Rates (Cleveland Fed)"}
+                </h3>
+                <div class="header-controls">
+                    <TimeRangeSelector
+                        selectedRange={inflationExpectRange}
+                        onRangeChange={(r) => (inflationExpectRange = r)}
+                    />
+                    <span class="last-date"
+                        >{translations.last_data || "Last Data:"}
+                        {getLastDate("INFLATION_EXPECT_1Y")}</span
+                    >
+                </div>
+            </div>
+            <div
+                class="chart-legend"
+                style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px;"
+            >
+                <span class="legend-item">
+                    <span class="legend-dot" style="background: #3b82f6"></span>
+                    <span class="legend-label">1Y</span>
+                </span>
+                <span class="legend-item">
+                    <span class="legend-dot" style="background: #1e3a8a"></span>
+                    <span class="legend-label">2Y</span>
+                </span>
+                <span class="legend-item">
+                    <span class="legend-dot" style="background: #f59e0b"></span>
+                    <span class="legend-label">5Y</span>
+                </span>
+                <span class="legend-item">
+                    <span class="legend-dot" style="background: #ef4444"></span>
+                    <span class="legend-label">10Y</span>
+                </span>
+                <span class="legend-item">
+                    <span
+                        class="legend-dot"
+                        style="background: #10b981; border: 1px dashed rgba(255,255,255,0.5)"
+                    ></span>
+                    <span class="legend-label">5Y5Y Fwd</span>
+                </span>
+            </div>
+            <div class="chart-content" style="height: 300px;">
+                <Chart
+                    {darkMode}
+                    data={inflationExpectData}
+                    layout={{
+                        yaxis: {
+                            title: translations.inflation_rate_y || "Rate (%)",
+                            autorange: true,
+                        },
+                        margin: { l: 50, r: 20, t: 10, b: 40 },
+                        showlegend: false,
+                    }}
+                />
+            </div>
+
+            <!-- Inflation Inversion Signal -->
+            <div
+                class="metrics-section"
+                style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;"
+            >
+                <div
+                    class="signal-item"
+                    style="background: rgba(0,0,0,0.15); border: none;"
+                >
+                    <div class="signal-label">
+                        {translations.inflation_curve_signal ||
+                            "Inflation Curve Signal (1Y-2Y)"}
+                    </div>
+                    <div class="signal-status text-{inflationExpectSignal}">
+                        <span class="signal-dot"></span>
+                        {#if inflationExpectSignal === "bearish"}
+                            🚫 {translations.signal_inverted ||
+                                "INVERTED (Bearish)"}
+                        {:else if inflationExpectSignal === "bullish"}
+                            🐂 {translations.signal_normal ||
+                                "NORMAL (Bullish)"}
+                        {:else}
+                            ⚖️ {translations.signal_neutral || "NEUTRAL"}
+                        {/if}
+                    </div>
+                    <div class="signal-value">
+                        Spread (1Y-2Y): <b
+                            >{inflationExpectInversionSpread.toFixed(2)}%</b
+                        >
+                    </div>
+                    <div
+                        class="signal-reason"
+                        style="font-size: 11px; color: rgba(255,255,255,0.55); margin-top: 6px; font-style: italic;"
+                    >
+                        {#if inflationExpectSignal === "bearish"}
+                            {translations.inflation_inverted_desc ||
+                                "1Y Swap below 2Y Swap: Market expects imminent cooldown/disinflation."}
+                        {:else if inflationExpectSignal === "bullish"}
+                            {translations.inflation_normal_desc ||
+                                "1Y Swap above 2Y Swap: Market expects near-term inflation to remain elevated."}
+                        {:else}
+                            {translations.inflation_neutral_desc ||
+                                "Curve is flat or mixed."}
+                        {/if}
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- TIPS / Inflation Expectations Chart -->
         <div class="chart-card">
             <div class="chart-header">

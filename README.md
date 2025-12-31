@@ -14,8 +14,8 @@ A premium, real-time macro liquidity monitoring dashboard that tracks the Global
 -   **No-Scroll Density**: Extreme table compaction (10px font, micro-padding) to ensure 8+ columns fit on standard desktops without horizontal scrolling.
 -   **Signal-Integrated Styling**: Dynamic top-borders and text coloring (bullish/bearish) for valuation cards and metrics.
 -   **Adaptive Layouts**: Refactored Risk Model and BTC Quant v2 tabs for superior information density using grid-based statistical panels.
--   **Market Stress Dashboard (New)**: Automated scoring system in the **Risk Model** tab that evaluates 4 dimensions (Inflation, Liquidity, Credit, Volatility) to detect systemic risk.
--   **Cleveland Fed Inflation Swaps**: Integrated model-based inflation expectations that combine Treasury yields, inflation swaps, and surveys for superior accuracy over TIPS breakevens.
+-   **Cleveland Fed Inflation Swaps (New)**: Integrated USD Inflation Swap Rates (1Y, 2Y, 5Y, 10Y) with automated signal detection for yield curve inversions (1Y-2Y spread), providing lead signals for disinflationary regimes.
+-   **Market Stress Dashboard**: Automated scoring system in the **Risk Model** tab that evaluates 4 dimensions (Inflation, Liquidity, Credit, Volatility) to detect systemic risk.
 -   **Fed Forecasts Tab**: Real-time FOMC meeting countdown, Dot Plot visualizations, and comprehensive macro indicators (**CPI, PCE, PMI, Unemployment, Fed Funds Rate, TIPS Breakeven, and Implied Rate Probabilities from Fed Funds Futures**).
 -   **Aggregate ROC Momentum Indicators (New)**: Real-time 1M, 3M, 6M, and 1Y Rate-of-Change indicators for Global M2 and GLI aggregates to evaluate global liquidity velocity.
 -   **Synchronized Responsive Layouts**: Unified premium design across all tabs with optimized Plotly chart margins, ensuring 100% axis visibility and independent time-range controls for aggregate vs. individual bank views.

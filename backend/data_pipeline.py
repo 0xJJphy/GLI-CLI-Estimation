@@ -667,7 +667,7 @@ def fetch_dot_plot_data():
         print(f"  -> Warning: Could not fetch Dot Plot: {e}")
         return FALLBACK_DOT_PLOT
 
-def calculate_market_stress_analysis(df):
+def calculate_market_stress_analysis(df, silent=False):
     """
     Calculates comprehensive market stress analysis based on multiple indicators.
     Returns dict with stress scores for inflation, liquidity, credit, and volatility.
@@ -1120,7 +1120,8 @@ def calculate_market_stress_analysis(df):
             )
         }
         
-        print(f"  -> Stress analysis complete: {global_level} ({total_score}/{max_total})")
+        if not silent:
+            print(f"  -> Stress analysis complete: {global_level} ({total_score}/{max_total})")
         
     except Exception as e:
         print(f"  -> Warning: Stress analysis error: {e}")
@@ -2929,6 +2930,9 @@ def run_pipeline():
     df_fred_t['FED_FUNDS_RATE'] = df_fred.get('FED_FUNDS_RATE', pd.Series(dtype=float))
     # Inflation Expectations (TIPS Breakeven + Cleveland Fed)
     df_fred_t['INFLATION_EXPECT_1Y'] = df_fred.get('INFLATION_EXPECT_1Y', pd.Series(dtype=float))
+    df_fred_t['CLEV_EXPINF_2Y'] = df_fred.get('CLEV_EXPINF_2Y', pd.Series(dtype=float))
+    df_fred_t['CLEV_EXPINF_5Y'] = df_fred.get('CLEV_EXPINF_5Y', pd.Series(dtype=float))
+    df_fred_t['CLEV_EXPINF_10Y'] = df_fred.get('CLEV_EXPINF_10Y', pd.Series(dtype=float))
     df_fred_t['INFLATION_EXPECT_5Y'] = df_fred.get('INFLATION_EXPECT_5Y', pd.Series(dtype=float))
     df_fred_t['INFLATION_EXPECT_10Y'] = df_fred.get('INFLATION_EXPECT_10Y', pd.Series(dtype=float))
     # Treasury Yields for stress analysis
@@ -3090,7 +3094,7 @@ def run_pipeline():
         df_hybrid_t = df_fred_t
 
     # 4. Final Processing and JSON Save
-    def process_and_save_final(df_t, filename):
+    def process_and_save_final(df_t, filename, silent=False):
         # Alignment: Ensure index is strictly daily for charts
         all_dates = pd.date_range(start=df_t.index.min(), end=df_t.index.max(), freq='D')
         df_t = df_t.reindex(all_dates).ffill()
@@ -3491,41 +3495,37 @@ def run_pipeline():
                 'nfp_change': clean_for_json(df_t.get('NFP', pd.Series(dtype=float)).diff(22)), # Approx 1 month
                 'jolts': clean_for_json(df_t.get('JOLTS', pd.Series(dtype=float))),
                 'fed_funds_rate': clean_for_json(df_t.get('FED_FUNDS_RATE', pd.Series(dtype=float))),
-                # Market-based Inflation Expectations (TIPS Breakeven + Cleveland Fed)
-                'inflation_expect_1y': clean_for_json(df_t.get('INFLATION_EXPECT_1Y', pd.Series(dtype=float))),
-                'inflation_expect_5y': clean_for_json(df_t.get('INFLATION_EXPECT_5Y', pd.Series(dtype=float))),
-                'inflation_expect_10y': clean_for_json(df_t.get('INFLATION_EXPECT_10Y', pd.Series(dtype=float))),
-                # FOMC meeting dates (scraped from Federal Reserve website)
-                'fomc_dates': fetch_fomc_calendar(),
-                # Dot Plot data (scraped from palewire/fed-dot-plot-scraper)
-                'dot_plot': fetch_dot_plot_data(),
-                # Inflation Swaps / Cleveland Fed data (for TIPS vs Swaps comparison)
-                'inflation_swaps': {
-                    'cleveland_1y': clean_for_json(df_t.get('INFLATION_EXPECT_1Y', pd.Series(dtype=float))),
-                    'cleveland_2y': clean_for_json(df_t.get('CLEV_EXPINF_2Y', pd.Series(dtype=float))),
-                    'cleveland_5y': clean_for_json(df_t.get('CLEV_EXPINF_5Y', pd.Series(dtype=float))),
-                    'cleveland_10y': clean_for_json(df_t.get('CLEV_EXPINF_10Y', pd.Series(dtype=float))),
-                    'inf_risk_premium_1y': clean_for_json(df_t.get('INF_RISK_PREM_1Y', pd.Series(dtype=float))),
-                    'inf_risk_premium_10y': clean_for_json(df_t.get('INF_RISK_PREM_10Y', pd.Series(dtype=float))),
-                    'real_rate_1y': clean_for_json(df_t.get('REAL_INT_RATE_1Y', pd.Series(dtype=float))),
-                    'real_rate_10y': clean_for_json(df_t.get('REAL_INT_RATE_10Y', pd.Series(dtype=float))),
-                    'umich_expectations': clean_for_json(df_t.get('UMICH_INFL_EXP', pd.Series(dtype=float))),
-                    'tips_breakeven_5y': clean_for_json(df_t.get('TIPS_BREAKEVEN_5Y', pd.Series(dtype=float))),
-                    'tips_breakeven_2y': clean_for_json(df_t.get('TIPS_BREAKEVEN_2Y', pd.Series(dtype=float))),
-                },
-                # Market Stress Analysis (calculated from current data)
-                'stress_analysis': calculate_market_stress_analysis(df_t),
-                # Treasury Settlements with RRP liquidity coverage
-                'treasury_settlements': fetch_treasury_settlements(),
-            }
+            },
+            # Inflation Swaps / Cleveland Fed data (for TIPS vs Swaps comparison)
+            'inflation_swaps': {
+                'cleveland_1y': clean_for_json(df_t.get('INFLATION_EXPECT_1Y', pd.Series(dtype=float))),
+                'cleveland_2y': clean_for_json(df_t.get('CLEV_EXPINF_2Y', pd.Series(dtype=float))),
+                'cleveland_5y': clean_for_json(df_t.get('CLEV_EXPINF_5Y', pd.Series(dtype=float))),
+                'cleveland_10y': clean_for_json(df_t.get('CLEV_EXPINF_10Y', pd.Series(dtype=float))),
+                'inf_risk_premium_1y': clean_for_json(df_t.get('INF_RISK_PREM_1Y', pd.Series(dtype=float))),
+                'inf_risk_premium_10y': clean_for_json(df_t.get('INF_RISK_PREM_10Y', pd.Series(dtype=float))),
+                'real_rate_1y': clean_for_json(df_t.get('REAL_INT_RATE_1Y', pd.Series(dtype=float))),
+                'real_rate_10y': clean_for_json(df_t.get('REAL_INT_RATE_10Y', pd.Series(dtype=float))),
+                'umich_expectations': clean_for_json(df_t.get('UMICH_INFL_EXP', pd.Series(dtype=float))),
+                'tips_breakeven_5y': clean_for_json(df_t.get('TIPS_BREAKEVEN_5Y', pd.Series(dtype=float))),
+                'tips_breakeven_2y': clean_for_json(df_t.get('TIPS_BREAKEVEN_2Y', pd.Series(dtype=float))),
+            },
+            # Market-based Inflation Expectations (TIPS Breakeven + Cleveland Fed)
+            'inflation_expect_1y': clean_for_json(df_t.get('INFLATION_EXPECT_1Y', pd.Series(dtype=float))),
+            'inflation_expect_5y': clean_for_json(df_t.get('INFLATION_EXPECT_5Y', pd.Series(dtype=float))),
+            'inflation_expect_10y': clean_for_json(df_t.get('INFLATION_EXPECT_10Y', pd.Series(dtype=float))),
+            # Market Stress Analysis (calculated from current data)
+            'stress_analysis': calculate_market_stress_analysis(df_t, silent=silent),
+            # Treasury Settlements with RRP liquidity coverage
+            'treasury_settlements': fetch_treasury_settlements(),
         }
 
         output_path = os.path.join(OUTPUT_DIR, filename)
         with open(output_path, 'w') as f:
             json.dump(data_output, f)
 
-    process_and_save_final(df_fred_t, 'dashboard_data_fred.json')
-    process_and_save_final(df_hybrid_t, 'dashboard_data_tv.json')
+    process_and_save_final(df_fred_t, 'dashboard_data_fred.json', silent=True)
+    process_and_save_final(df_hybrid_t, 'dashboard_data_tv.json', silent=False)
     import shutil
     shutil.copyfile(os.path.join(OUTPUT_DIR, 'dashboard_data_tv.json'), os.path.join(OUTPUT_DIR, 'dashboard_data.json'))
     print("Pipeline complete.")
