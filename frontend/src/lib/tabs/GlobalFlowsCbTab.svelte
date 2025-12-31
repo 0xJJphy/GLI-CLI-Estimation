@@ -259,19 +259,40 @@
 
     // CB Breadth and Concentration data (for LightweightChart format)
     // Correct paths: macro_regime.cb_diffusion_13w and macro_regime.cb_hhi_13w
-    $: cbBreadthData = (dashboardData.macro_regime?.cb_diffusion_13w || [])
-        .map((v, i) => ({
-            time: dashboardData.dates?.[i],
-            value: v,
-        }))
-        .filter((d) => d.time && d.value !== null);
+    // LightweightChart expects: [{name, type, color, data: [{time, value}...]}]
+    $: cbBreadthData = [
+        {
+            name: "CB Breadth (% Expanding)",
+            type: "line",
+            color: "#10b981",
+            width: 2,
+            data: (dashboardData.macro_regime?.cb_diffusion_13w || [])
+                .map((v, i) => ({
+                    time: dashboardData.dates?.[i],
+                    value: v,
+                }))
+                .filter(
+                    (d) => d.time && d.value !== null && d.value !== undefined,
+                ),
+        },
+    ];
 
-    $: cbConcentrationData = (dashboardData.macro_regime?.cb_hhi_13w || [])
-        .map((v, i) => ({
-            time: dashboardData.dates?.[i],
-            value: v,
-        }))
-        .filter((d) => d.time && d.value !== null);
+    $: cbConcentrationData = [
+        {
+            name: "CB Concentration (HHI)",
+            type: "line",
+            color: "#f59e0b",
+            width: 2,
+            data: (dashboardData.macro_regime?.cb_hhi_13w || [])
+                .map((v, i) => ({
+                    time: dashboardData.dates?.[i],
+                    value: v,
+                }))
+                .filter(
+                    (d) => d.time && d.value !== null && d.value !== undefined,
+                ),
+        },
+    ];
 
     // Bank configuration - STATIC to avoid cyclical dependencies
     const bankConfigs = [
