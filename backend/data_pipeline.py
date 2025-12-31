@@ -11,6 +11,15 @@ import logging
 from typing import Dict, List, Any, Optional
 import calendar
 
+# Import Regime V2 module for CLI V2 and advanced regime calculations
+from regime_v2 import (
+    calculate_cli_v2,
+    calculate_macro_regime_v2a,
+    calculate_macro_regime_v2b,
+    calculate_stress_historical,
+    clean_series_for_json as clean_series_v2
+)
+
 # Helper functions for JSON serialization and date handling
 def clean_for_json(obj):
     if isinstance(obj, pd.Series):
@@ -3143,6 +3152,19 @@ def run_pipeline():
         
         fx_vol_rocs = calculate_rocs(df_t['FX_VOL']) if 'FX_VOL' in df_t.columns and df_t['FX_VOL'].notna().sum() > 0 else {}
 
+        # ================================================================
+        # CLI V2 and Regime V2 Calculations (from regime_v2 module)
+        # ================================================================
+        cli_v2_df = calculate_cli_v2(df_t)
+        df_t['CLI_V2'] = cli_v2_df['CLI_V2']  # Add to df_t for regime calculations
+        
+        # Regime V2A (Inflation-Aware) and V2B (Growth-Aware)
+        regime_v2a = calculate_macro_regime_v2a(df_t)
+        regime_v2b = calculate_macro_regime_v2b(df_t)
+        
+        # Historical Stress Dashboard
+        stress_historical = calculate_stress_historical(df_t)
+
         # Cross-Correlations (using ROC/returns for stationarity, not raw levels)
         correlations = {}
         if 'BTC' in df_t.columns and df_t['BTC'].notna().sum() > 100:
@@ -3518,6 +3540,60 @@ def run_pipeline():
             'stress_analysis': calculate_market_stress_analysis(df_t, silent=silent),
             # Treasury Settlements with RRP liquidity coverage
             'treasury_settlements': fetch_treasury_settlements(),
+            # ================================================================
+            # NEW: CLI V2 and Regime V2 Data (from regime_v2 module)
+            # ================================================================
+            'cli_v2': {
+                'cli_v2': clean_for_json(cli_v2_df['CLI_V2']),
+                'cli_v2_percentile': clean_for_json(cli_v2_df['CLI_V2_PERCENTILE']),
+                'hy_spread_z': clean_for_json(cli_v2_df['HY_SPREAD_Z']),
+                'hy_momentum_z': clean_for_json(cli_v2_df['HY_MOMENTUM_Z']),
+                'ig_spread_z': clean_for_json(cli_v2_df['IG_SPREAD_Z']),
+                'nfci_credit_z': clean_for_json(cli_v2_df['NFCI_CREDIT_Z']),
+                'nfci_risk_z': clean_for_json(cli_v2_df['NFCI_RISK_Z']),
+                'lending_std_z': clean_for_json(cli_v2_df['LENDING_STD_Z']),
+                'move_z': clean_for_json(cli_v2_df['MOVE_Z']),
+                'fx_vol_z': clean_for_json(cli_v2_df['FX_VOL_Z']),
+                'yield_curve_z': clean_for_json(cli_v2_df['YIELD_CURVE_Z']),
+                'real_rate_shock_z': clean_for_json(cli_v2_df['REAL_RATE_SHOCK_Z']),
+            },
+            'regime_v2a': {
+                'score': clean_for_json(regime_v2a['score']),
+                'regime_code': clean_for_json(regime_v2a['regime_code']),
+                'transition': clean_for_json(regime_v2a['transition']),
+                'total_z': clean_for_json(regime_v2a['total_z']),
+                'liquidity_z': clean_for_json(regime_v2a['liquidity_z']),
+                'credit_z': clean_for_json(regime_v2a['credit_z']),
+                'brakes_z': clean_for_json(regime_v2a['brakes_z']),
+                'cli_gli_divergence': clean_for_json(regime_v2a['cli_gli_divergence']),
+                'z_move': clean_for_json(regime_v2a['z_move']),
+                'z_fx_vol': clean_for_json(regime_v2a['z_fx_vol']),
+                'z_yield_curve': clean_for_json(regime_v2a['z_yield_curve']),
+                'z_inf_divergence': clean_for_json(regime_v2a['z_inf_divergence']),
+            },
+            'regime_v2b': {
+                'score': clean_for_json(regime_v2b['score']),
+                'regime_code': clean_for_json(regime_v2b['regime_code']),
+                'transition': clean_for_json(regime_v2b['transition']),
+                'total_z': clean_for_json(regime_v2b['total_z']),
+                'liquidity_z': clean_for_json(regime_v2b['liquidity_z']),
+                'credit_z': clean_for_json(regime_v2b['credit_z']),
+                'growth_z': clean_for_json(regime_v2b['growth_z']),
+                'brakes_z': clean_for_json(regime_v2b['brakes_z']),
+                'z_ism': clean_for_json(regime_v2b['z_ism']),
+                'z_unemployment': clean_for_json(regime_v2b['z_unemployment']),
+                'z_pce_deviation': clean_for_json(regime_v2b['z_pce_deviation']),
+                'z_nfp_momentum': clean_for_json(regime_v2b['z_nfp_momentum']),
+                'z_fed_momentum': clean_for_json(regime_v2b['z_fed_momentum']),
+            },
+            'stress_historical': {
+                'inflation_stress': clean_for_json(stress_historical['inflation_stress']),
+                'liquidity_stress': clean_for_json(stress_historical['liquidity_stress']),
+                'credit_stress': clean_for_json(stress_historical['credit_stress']),
+                'volatility_stress': clean_for_json(stress_historical['volatility_stress']),
+                'total_stress': clean_for_json(stress_historical['total_stress']),
+                'total_stress_pct': clean_for_json(stress_historical['total_stress_pct']),
+            },
         }
 
         output_path = os.path.join(OUTPUT_DIR, filename)

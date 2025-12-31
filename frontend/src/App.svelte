@@ -22,6 +22,7 @@
   import BtcAnalysisTab from "./lib/tabs/BtcAnalysisTab.svelte";
   import BtcQuantV2Tab from "./lib/tabs/BtcQuantV2Tab.svelte";
   import FedForecastsTab from "./lib/tabs/FedForecastsTab.svelte";
+  import RegimesTab from "./lib/tabs/RegimesTab.svelte";
 
   // Global Settings Store
   import {
@@ -2421,6 +2422,17 @@
         <span class="nav-icon">🏦</span>
         {$currentTranslations.nav_fed_forecasts || "Fed Forecasts"}
       </div>
+      <div
+        class="nav-item"
+        class:active={currentTab === "Regimes"}
+        on:click={() => setTab("Regimes")}
+        on:keydown={(e) => e.key === "Enter" && setTab("Regimes")}
+        role="button"
+        tabindex="0"
+      >
+        <span class="nav-icon">📊</span>
+        {$currentTranslations.nav_regimes || "Regimes"}
+      </div>
     </nav>
 
     <div class="sidebar-footer"></div>
@@ -2532,6 +2544,13 @@
       {:else if currentTab === "Fed Forecasts"}
         <FedForecastsTab
           darkMode={$darkMode}
+          translations={$currentTranslations}
+          dashboardData={$dashboardData}
+        />
+      {:else if currentTab === "Regimes"}
+        <RegimesTab
+          darkMode={$darkMode}
+          language={$language}
           translations={$currentTranslations}
           dashboardData={$dashboardData}
         />
