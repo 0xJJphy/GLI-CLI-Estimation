@@ -30,6 +30,7 @@
     let rbnzRange = "ALL";
     let srRange = "ALL";
     let bnmRange = "ALL";
+    let gliRange = "ALL";
     let cbBreadthRange = "5Y";
     let cbConcentrationRange = "5Y";
 
@@ -58,7 +59,7 @@
             },
         ],
         dashboardData.dates,
-        fedRange, // Using fedRange as the master aggregate range
+        gliRange, // Using gliRange independently
     );
 
     $: fedData = filterPlotlyData(
@@ -407,6 +408,7 @@
         else if (id === "rbnz") rbnzRange = r;
         else if (id === "sr") srRange = r;
         else if (id === "bnm") bnmRange = r;
+        else if (id === "gli") gliRange = r;
     }
 </script>
 
@@ -417,8 +419,8 @@
             <h3>{translations.chart_gli || "Global Liquidity Index (GLI)"}</h3>
             <div class="header-controls">
                 <TimeRangeSelector
-                    selectedRange={fedRange}
-                    onRangeChange={(r) => setRangeForBank("fed", r)}
+                    selectedRange={gliRange}
+                    onRangeChange={(r) => setRangeForBank("gli", r)}
                 />
                 <span class="last-date"
                     >{translations.last_data || "Last:"}
