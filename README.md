@@ -16,9 +16,10 @@ A premium, real-time macro liquidity monitoring dashboard that tracks the Global
 -   **Adaptive Layouts**: Refactored Risk Model and BTC Quant v2 tabs for superior information density using grid-based statistical panels.
 -   **Market Stress Dashboard (New)**: Automated scoring system in the **Risk Model** tab that evaluates 4 dimensions (Inflation, Liquidity, Credit, Volatility) to detect systemic risk.
 -   **Cleveland Fed Inflation Swaps**: Integrated model-based inflation expectations that combine Treasury yields, inflation swaps, and surveys for superior accuracy over TIPS breakevens.
--   **15 Central Banks**: FED, ECB, BoJ, BoE, PBoC, BoC, RBA, RBI, SNB, CBR, BCB, BoK, RBNZ, SR, BNM.
--   **14 M2 Economies**: US, EU, China, Japan, UK, Canada, Australia, India, Switzerland, Russia, Brazil, Korea, Mexico, Malaysia (and others).
--   **Fed Forecasts Tab**: Real-time FOMC meeting countdown, Dot Plot visualizations, and comprehensive macro indicators (**CPI, PCE, PMI, Unemployment, Fed Funds Rate, TIPS Breakevens, and Implied Rate Probabilities from Fed Funds Futures**).
+-   **Fed Forecasts Tab**: Real-time FOMC meeting countdown, Dot Plot visualizations, and comprehensive macro indicators (**CPI, PCE, PMI, Unemployment, Fed Funds Rate, TIPS Breakeven, and Implied Rate Probabilities from Fed Funds Futures**).
+-   **Aggregate ROC Momentum Indicators (New)**: Real-time 1M, 3M, 6M, and 1Y Rate-of-Change indicators for Global M2 and GLI aggregates to evaluate global liquidity velocity.
+-   **Synchronized Responsive Layouts**: Unified premium design across all tabs with optimized Plotly chart margins, ensuring 100% axis visibility and independent time-range controls for aggregate vs. individual bank views.
+-   **Corrected GLI Aggregation**: Accurate global liquidity summing across all 15+ central banks for the primary GLI Total indicator.
 
 ## 📊 Data & Formulas
 
