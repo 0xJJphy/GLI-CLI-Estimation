@@ -2527,41 +2527,7 @@
           darkMode={$darkMode}
           language={$language}
           translations={$currentTranslations}
-          {fedData}
-          {ecbData}
-          {bojData}
-          {boeData}
-          {pbocData}
-          {bocData}
-          {rbaData}
-          {snbData}
-          {bokData}
-          {rbiData}
-          {cbrData}
-          {bcbData}
-          {rbnzData}
-          {srData}
-          {bnmData}
-          {cbBreadthData}
-          {cbConcentrationData}
-          {getLastDate}
-          bind:fedRange
-          bind:ecbRange
-          bind:bojRange
-          bind:boeRange
-          bind:pbocRange
-          bind:bocRange
-          bind:rbaRange
-          bind:snbRange
-          bind:bokRange
-          bind:rbiRange
-          bind:cbrRange
-          bind:bcbRange
-          bind:rbnzRange
-          bind:srRange
-          bind:bnmRange
-          bind:cbBreadthRange
-          bind:cbConcentrationRange
+          dashboardData={$dashboardData}
         />
       {:else if currentTab === "Global M2"}
         <GlobalM2Tab
@@ -2587,15 +2553,7 @@
         <BtcAnalysisTab
           darkMode={$darkMode}
           translations={$currentTranslations}
-          latestStats={$latestStats}
           dashboardData={$dashboardData}
-          {btcFairValueData}
-          lagCorrelationChartData={$dashboardData.predictive?.lag_correlations}
-          {correlationData}
-          {getLatestROC}
-          bind:selectedBtcModel
-          bind:selectedLagWindow
-          bind:btcRange
         />
       {:else if currentTab === "BTC Quant v2"}
         <BtcQuantV2Tab

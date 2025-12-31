@@ -7,25 +7,96 @@
     import LightweightChart from "../components/LightweightChart.svelte";
     import TimeRangeSelector from "../components/TimeRangeSelector.svelte";
 
-    // Props
+    // Core props only
     export let darkMode = false;
     export let translations = {};
-    export let latestStats = {};
     export let dashboardData = {};
 
-    // Chart data
-    export let btcFairValueData = [];
-    export let lagCorrelationChartData = {};
-    export let correlationData = {};
+    // Local state (no longer exported for binding)
+    let btcRange = "ALL";
+    let selectedBtcModel = "macro";
+    let selectedLagWindow = "7d";
 
-    // Helper function
-    export let getLatestROC = (rocs, period) =>
-        rocs?.[period]?.[rocs?.[period]?.length - 1] ?? 0;
+    // --- Internal Helper Functions ---
+    function formatTV(dates, values) {
+        if (!dates || !values) return [];
+        return dates
+            .map((date, i) => ({
+                time: date,
+                value: values[i],
+            }))
+            .filter((d) => d.value !== null && d.value !== undefined);
+    }
 
-    // Local state (exported for binding)
-    export let btcRange = "ALL";
-    export let selectedBtcModel = "macro";
-    export let selectedLagWindow = "7d";
+    function getLatestROC(rocs, period) {
+        return rocs?.[period]?.[rocs?.[period]?.length - 1] ?? 0;
+    }
+
+    // --- Internal Data Processing ---
+    $: latestStats = dashboardData.latest || {};
+
+    $: activeBtcModel = dashboardData.btc?.models?.[selectedBtcModel] || {
+        fair_value: [],
+        upper_2sd: [],
+        upper_1sd: [],
+        lower_1sd: [],
+        lower_2sd: [],
+        deviation_zscore: [],
+    };
+
+    $: btcFairValueData = [
+        {
+            name: "BTC Price",
+            type: "area",
+            color: "#f7931a",
+            topColor: "rgba(247, 147, 26, 0.1)",
+            bottomColor: "rgba(247, 147, 26, 0)",
+            data: formatTV(dashboardData.dates, dashboardData.btc?.price),
+            width: 3,
+        },
+        {
+            name: "Fair Value",
+            type: "line",
+            color: "#10b981",
+            data: formatTV(dashboardData.dates, activeBtcModel.fair_value),
+            width: 2,
+        },
+        {
+            name: "+2σ",
+            type: "line",
+            color: "#ef4444",
+            data: formatTV(dashboardData.dates, activeBtcModel.upper_2sd),
+            width: 1,
+            options: { lineStyle: 2 },
+        },
+        {
+            name: "+1σ",
+            type: "line",
+            color: "#f59e0b",
+            data: formatTV(dashboardData.dates, activeBtcModel.upper_1sd),
+            width: 1,
+            options: { lineStyle: 2 },
+        },
+        {
+            name: "-1σ",
+            type: "line",
+            color: "#f59e0b",
+            data: formatTV(dashboardData.dates, activeBtcModel.lower_1sd),
+            width: 1,
+            options: { lineStyle: 2 },
+        },
+        {
+            name: "-2σ",
+            type: "line",
+            color: "#ef4444",
+            data: formatTV(dashboardData.dates, activeBtcModel.lower_2sd),
+            width: 1,
+            options: { lineStyle: 2 },
+        },
+    ];
+
+    $: lagCorrelationChartData =
+        dashboardData.predictive?.lag_correlations || {};
 
     $: formattedLagData = lagCorrelationChartData?.[selectedLagWindow]
         ? [
@@ -50,6 +121,45 @@
               },
           ]
         : [];
+
+    $: correlationData = (() => {
+        const corrs = dashboardData.correlations || {};
+        return [
+            {
+                x: Object.keys(corrs["gli_btc"] || {}).map(Number),
+                y: Object.values(corrs["gli_btc"] || {}),
+                name: "GLI vs BTC",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#6366f1", width: 2 },
+            },
+            {
+                x: Object.keys(corrs["cli_btc"] || {}).map(Number),
+                y: Object.values(corrs["cli_btc"] || {}),
+                name: "CLI vs BTC",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#f59e0b", width: 2 },
+            },
+            {
+                x: Object.keys(corrs["vix_btc"] || {}).map(Number),
+                y: Object.values(corrs["vix_btc"] || {}),
+                name: "VIX vs BTC",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#dc2626", width: 2 },
+            },
+            {
+                x: Object.keys(corrs["netliq_btc"] || {}).map(Number),
+                y: Object.values(corrs["netliq_btc"] || {}),
+                name: "Net Liq vs BTC",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#10b981", width: 2 },
+            },
+        ];
+    })();
+
     $: formattedCorrData = Array.isArray(correlationData)
         ? correlationData
         : Object.values(correlationData || {});
