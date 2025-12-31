@@ -46,7 +46,50 @@
     }
 
     // --- Internal Data Processing ---
-    $: latestStats = dashboardData.latest || {};
+    // Compute latestStats from dashboardData (mirrors the derived store logic)
+    $: latestStats = (() => {
+        if (!dashboardData.dates?.length) return null;
+        const lastIdx = dashboardData.dates.length - 1;
+        const prevIdx = lastIdx - 1;
+
+        const getChange = (arr, period = 7) => {
+            if (!arr || arr.length <= period) return 0;
+            const current = arr[lastIdx];
+            const previous = arr[lastIdx - period];
+            if (previous === 0 || previous === null || previous === undefined)
+                return 0;
+            return ((current - previous) / previous) * 100;
+        };
+
+        const getLatestValue = (path) => {
+            const arr = path
+                .split(".")
+                .reduce((obj, key) => obj?.[key], dashboardData);
+            if (!arr || !arr.length) return null;
+            return arr[arr.length - 1];
+        };
+
+        return {
+            gli: {
+                value: getLatestValue("gli.total"),
+                change: getChange(dashboardData.gli?.total),
+            },
+            us_net_liq: {
+                value: dashboardData.us_net_liq?.[lastIdx] ?? null,
+                change: getChange(dashboardData.us_net_liq),
+            },
+            cli: {
+                value: getLatestValue("cli.total"),
+                change:
+                    (dashboardData.cli?.total?.[lastIdx] ?? 0) -
+                    (dashboardData.cli?.total?.[prevIdx] ?? 0),
+            },
+            vix: {
+                value: getLatestValue("vix.total"),
+                change: getChange(dashboardData.vix?.total),
+            },
+        };
+    })();
 
     // GLI Data
     $: gliDataSource = gliShowConstantFx
@@ -69,12 +112,12 @@
         gliRange,
     );
 
-    // Net Liquidity Data
+    // Net Liquidity Data (us_net_liq is an array, not object)
     $: netLiqData = filterPlotlyData(
         [
             {
                 x: dashboardData.dates,
-                y: dashboardData.us_net_liq?.total,
+                y: dashboardData.us_net_liq,
                 name: "US Net Liquidity",
                 type: "scatter",
                 mode: "lines",
@@ -142,10 +185,10 @@
         cliCompRange,
     );
 
-    // GLI Weights
+    // GLI Weights (bank_rocs is the correct property name)
     $: gliWeights = Object.entries(dashboardData.gli_weights || {})
         .map(([id, weight]) => {
-            const rocs = dashboardData.gli_bank_rocs?.[id] || {};
+            const rocs = dashboardData.bank_rocs?.[id] || {};
             return {
                 id,
                 name: id.toUpperCase(),
