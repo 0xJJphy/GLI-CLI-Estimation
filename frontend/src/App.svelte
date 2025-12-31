@@ -2628,24 +2628,6 @@
           language={$language}
           translations={$currentTranslations}
           dashboardData={$dashboardData}
-          bind:cliRange
-          bind:hyRange
-          bind:igRange
-          bind:nfciCreditRange
-          bind:nfciRiskRange
-          bind:lendingRange
-          bind:vixRange
-          bind:tipsRange
-          bind:repoStressRange
-          bind:treasury10yRange
-          bind:treasury2yRange
-          bind:yieldCurveRange
-          bind:divergenceRange
-          bind:moveRange
-          bind:fxVolRange
-          {getLastDate}
-          {getLatestValue}
-          {getLatestROC}
         />
       {:else if currentTab === "BTC Analysis"}
         <BtcAnalysisTab

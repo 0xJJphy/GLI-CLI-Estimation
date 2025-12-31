@@ -218,23 +218,23 @@
     export let language = "en";
     export let translations = {};
 
-    // Range props
-    export let cliRange = "ALL";
-    export let hyRange = "ALL";
-    export let igRange = "ALL";
-    export let nfciCreditRange = "ALL";
-    export let nfciRiskRange = "ALL";
-    export let lendingRange = "ALL";
-    export let vixRange = "ALL";
-    export let moveRange = "ALL";
-    export let fxVolRange = "ALL";
-    export let treasury10yRange = "ALL";
-    export let treasury2yRange = "ALL";
-    export let yieldCurveRange = "ALL";
-    export let divergenceRange = "ALL";
-    export let repoStressRange = "ALL";
-    export let tipsRange = "ALL";
-    export let creditSpreadsRange = "ALL";
+    // Local state for time range selectors (no longer props)
+    let cliRange = "ALL";
+    let hyRange = "ALL";
+    let igRange = "ALL";
+    let nfciCreditRange = "ALL";
+    let nfciRiskRange = "ALL";
+    let lendingRange = "ALL";
+    let vixRange = "ALL";
+    let moveRange = "ALL";
+    let fxVolRange = "ALL";
+    let treasury10yRange = "ALL";
+    let treasury2yRange = "ALL";
+    let yieldCurveRange = "ALL";
+    let divergenceRange = "ALL";
+    let repoStressRange = "ALL";
+    let tipsRange = "ALL";
+    let creditSpreadsRange = "ALL";
 
     // Imports
     import { filterPlotlyData } from "../utils/helpers.js";
@@ -1025,11 +1025,34 @@
         creditSpreadsRange,
     );
 
-    // Last date lookup function
-    export let getLastDate = (bank) => "N/A";
-    export let getLatestValue = (arr) => arr?.[arr?.length - 1] ?? 0;
-    export let getLatestROC = (rocs, period) =>
-        rocs?.[period]?.[rocs?.[period]?.length - 1] ?? 0;
+    // Local helper functions (no longer props)
+    function getLastDate(seriesKey) {
+        if (!dashboardData.last_dates) return "N/A";
+        const key = seriesKey.toUpperCase();
+        return (
+            dashboardData.last_dates[key] ||
+            dashboardData.last_dates[key + "_USD"] ||
+            dashboardData.last_dates[seriesKey] ||
+            "N/A"
+        );
+    }
+
+    function getLatestValue(series) {
+        if (!series || !Array.isArray(series) || series.length === 0) return 0;
+        for (let i = series.length - 1; i >= 0; i--) {
+            if (series[i] !== null && series[i] !== undefined) return series[i];
+        }
+        return 0;
+    }
+
+    function getLatestROC(rocsObj, window) {
+        if (!rocsObj || !rocsObj[window] || !Array.isArray(rocsObj[window]))
+            return 0;
+        const series = rocsObj[window];
+        if (series.length === 0) return 0;
+        const val = series[series.length - 1];
+        return val === null || val === undefined ? 0 : val;
+    }
 
     // Signal justification text - uses translation keys
     function getSignalReason(signalKey, state) {
