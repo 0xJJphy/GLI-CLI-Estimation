@@ -258,14 +258,15 @@
     );
 
     // CB Breadth and Concentration data (for LightweightChart format)
-    $: cbBreadthData = (dashboardData.cb_breadth || [])
+    // Correct paths: macro_regime.cb_diffusion_13w and macro_regime.cb_hhi_13w
+    $: cbBreadthData = (dashboardData.macro_regime?.cb_diffusion_13w || [])
         .map((v, i) => ({
             time: dashboardData.dates?.[i],
             value: v,
         }))
         .filter((d) => d.time && d.value !== null);
 
-    $: cbConcentrationData = (dashboardData.cb_concentration || [])
+    $: cbConcentrationData = (dashboardData.macro_regime?.cb_hhi_13w || [])
         .map((v, i) => ({
             time: dashboardData.dates?.[i],
             value: v,
