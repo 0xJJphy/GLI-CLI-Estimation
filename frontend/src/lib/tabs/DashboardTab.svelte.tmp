@@ -628,7 +628,7 @@
 </script>
 
 <!-- Stats Cards -->
-{#if $latestStats}
+{#if latestStats}
     <div class="stats-grid">
         <StatsCard
             title={translations.stat_gli || "Global Liquidity Index"}
@@ -673,8 +673,8 @@
                 <div class="chart-header">
                     <div class="label-group">
                         <h3>
-                            {translations.stat_gli || "GLI"} ({$dashboardData
-                                .gli?.cb_count || 15}
+                            {translations.stat_gli || "GLI"} ({$dashboardData.gli
+                                ?.cb_count || 15}
                             {translations.nav_dashboard === "Dashboard"
                                 ? "Banks"
                                 : "Bancos"})
@@ -711,7 +711,7 @@
                         "Sum of 15 major central bank balance sheets in USD."}
                 </p>
                 <div class="chart-content">
-                    <Chart darkMode={$darkMode} data={gliData} />
+                    <Chart {darkMode} data={gliData} />
                 </div>
             </div>
 
@@ -735,7 +735,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {#each Object.entries($dashboardData.series_metadata || {}) as [id, meta]}
+                                {#each Object.entries(dashboardData.series_metadata || {}) as [id, meta]}
                                     <tr>
                                         <td><strong>{id}</strong></td>
                                         <td>{meta.last_date || "N/A"}</td>
@@ -755,7 +755,7 @@
                             </tbody>
                         </table>
                     </div>
-                    {#if $dashboardData.series_metadata?.GLI?.cb_count}
+                    {#if dashboardData.series_metadata?.GLI?.cb_count}
                         <div class="coverage-note">
                             {translations.active_cbs || "Active CBs"}:
                             <strong
@@ -876,18 +876,18 @@
                                         <td
                                             class="roc-val"
                                             class:positive={getLatestValue(
-                                                $dashboardData.flow_metrics?.[
+                                                dashboardData.flow_metrics?.[
                                                     `${aggregate.key}_impulse_13w`
                                                 ],
                                             ) > 0}
                                             class:negative={getLatestValue(
-                                                $dashboardData.flow_metrics?.[
+                                                dashboardData.flow_metrics?.[
                                                     `${aggregate.key}_impulse_13w`
                                                 ],
                                             ) < 0}
                                         >
                                             {getLatestValue(
-                                                $dashboardData.flow_metrics?.[
+                                                dashboardData.flow_metrics?.[
                                                     `${aggregate.key}_impulse_13w`
                                                 ],
                                             )?.toFixed(2)}T
@@ -895,18 +895,18 @@
                                         <td
                                             class="roc-val"
                                             class:positive={getLatestValue(
-                                                $dashboardData.flow_metrics?.[
+                                                dashboardData.flow_metrics?.[
                                                     `${aggregate.key}_accel`
                                                 ],
                                             ) > 0}
                                             class:negative={getLatestValue(
-                                                $dashboardData.flow_metrics?.[
+                                                dashboardData.flow_metrics?.[
                                                     `${aggregate.key}_accel`
                                                 ],
                                             ) < 0}
                                         >
                                             {getLatestValue(
-                                                $dashboardData.flow_metrics?.[
+                                                dashboardData.flow_metrics?.[
                                                     `${aggregate.key}_accel`
                                                 ],
                                             )?.toFixed(2)}T
@@ -914,18 +914,18 @@
                                         <td
                                             class="signal-cell"
                                             class:plus={getLatestValue(
-                                                $dashboardData.flow_metrics?.[
+                                                dashboardData.flow_metrics?.[
                                                     `${aggregate.key}_impulse_zscore`
                                                 ],
                                             ) > 1}
                                             class:minus={getLatestValue(
-                                                $dashboardData.flow_metrics?.[
+                                                dashboardData.flow_metrics?.[
                                                     `${aggregate.key}_impulse_zscore`
                                                 ],
                                             ) < -1}
                                         >
                                             {getLatestValue(
-                                                $dashboardData.flow_metrics?.[
+                                                dashboardData.flow_metrics?.[
                                                     `${aggregate.key}_impulse_zscore`
                                                 ],
                                             )?.toFixed(2)}σ
@@ -953,26 +953,26 @@
                             </thead>
                             <tbody>
                                 {#each [{ name: "Fed", key: "fed" }, { name: "ECB", key: "ecb" }, { name: "BoJ", key: "boj" }, { name: "PBoC", key: "pboc" }, { name: "BoE", key: "boe" }] as cb}
-                                    {#if getLatestValue($dashboardData.flow_metrics?.[`${cb.key}_contrib_13w`]) !== undefined}
+                                    {#if getLatestValue(dashboardData.flow_metrics?.[`${cb.key}_contrib_13w`]) !== undefined}
                                         <tr>
                                             <td>{cb.name}</td>
                                             <td
                                                 class="roc-val"
                                                 class:positive={getLatestValue(
-                                                    $dashboardData
+                                                    dashboardData
                                                         .flow_metrics?.[
                                                         `${cb.key}_contrib_13w`
                                                     ],
                                                 ) > 0}
                                                 class:negative={getLatestValue(
-                                                    $dashboardData
+                                                    dashboardData
                                                         .flow_metrics?.[
                                                         `${cb.key}_contrib_13w`
                                                     ],
                                                 ) < 0}
                                             >
                                                 {getLatestValue(
-                                                    $dashboardData
+                                                    dashboardData
                                                         .flow_metrics?.[
                                                         `${cb.key}_contrib_13w`
                                                     ],
@@ -981,27 +981,27 @@
                                             <td
                                                 class="signal-cell"
                                                 class:plus={getLatestValue(
-                                                    $dashboardData
+                                                    dashboardData
                                                         .flow_metrics?.[
                                                         `${cb.key}_contrib_13w`
                                                     ],
                                                 ) > 20}
                                                 class:minus={getLatestValue(
-                                                    $dashboardData
+                                                    dashboardData
                                                         .flow_metrics?.[
                                                         `${cb.key}_contrib_13w`
                                                     ],
                                                 ) < -5}
                                             >
                                                 {getLatestValue(
-                                                    $dashboardData
+                                                    dashboardData
                                                         .flow_metrics?.[
                                                         `${cb.key}_contrib_13w`
                                                     ],
                                                 ) > 20
                                                     ? "Driver"
                                                     : getLatestValue(
-                                                            $dashboardData
+                                                            dashboardData
                                                                 .flow_metrics?.[
                                                                 `${cb.key}_contrib_13w`
                                                             ],
@@ -1047,7 +1047,7 @@
                     {translations.net_liq || "Fed Balance Sheet - TGA - RRP"}
                 </p>
                 <div class="chart-content">
-                    <Chart darkMode={$darkMode} data={netLiqData} />
+                    <Chart {darkMode} data={netLiqData} />
                 </div>
             </div>
 
@@ -1219,7 +1219,7 @@
             {translations.cli || "Credit conditions indicator."}
         </p>
         <div class="chart-content">
-            <Chart darkMode={$darkMode} data={cliData} />
+            <Chart {darkMode} data={cliData} />
         </div>
     </div>
 
@@ -1237,7 +1237,7 @@
             </div>
         </div>
         <div class="chart-content">
-            <Chart darkMode={$darkMode} data={cliComponentData} />
+            <Chart {darkMode} data={cliComponentData} />
         </div>
     </div>
 
@@ -1387,7 +1387,7 @@
             </p>
             <div style="flex: 1; min-height: 0;">
                 <LightweightChart
-                    darkMode={$darkMode}
+                    {darkMode}
                     data={regimeLCData}
                     logScale={true}
                 />
@@ -1474,11 +1474,7 @@
                 "Compare BTC ROC with liquidity impulse."}
         </p>
         <div class="chart-content">
-            <Chart
-                darkMode={$darkMode}
-                data={impulseData}
-                layout={impulseLayout}
-            />
+            <Chart {darkMode} data={impulseData} layout={impulseLayout} />
         </div>
     </div>
 </div>
