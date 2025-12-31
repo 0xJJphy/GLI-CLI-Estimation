@@ -5,35 +5,192 @@
      */
     import Chart from "../components/Chart.svelte";
     import TimeRangeSelector from "../components/TimeRangeSelector.svelte";
+    import { filterPlotlyData } from "../utils/helpers.js";
 
-    // Props
+    // Core props only
     export let darkMode = false;
     export let language = "en";
     export let translations = {};
     export let dashboardData = {};
 
-    // Chart data
-    export let netLiqData = [];
-    export let bankReservesData = [];
-    export let bankReservesLayout = {};
-    export let fedData = [];
-    export let rrpData = [];
-    export let tgaData = [];
+    // Local state for time ranges (no longer props)
+    let netLiqRange = "ALL";
+    let reservesRange = "ALL";
+    let fedRange = "ALL";
+    let rrpRange = "ALL";
+    let tgaRange = "ALL";
 
-    // Metrics
-    export let usSystemMetrics = [];
-    export let usSystemTotal = { delta1: 0, imp1: 0, imp3: 0, imp1y: 0 };
+    // --- Internal Helper Functions ---
+    function getLastDate(seriesKey) {
+        if (!dashboardData.last_dates) return "N/A";
+        const key = seriesKey.toUpperCase();
+        return (
+            dashboardData.last_dates[key] ||
+            dashboardData.last_dates[key + "_USD"] ||
+            dashboardData.last_dates[seriesKey] ||
+            "N/A"
+        );
+    }
 
-    // Helper functions
-    export let getLastDate = (bank) => "N/A";
-    export let getLatestValue = (arr) => arr?.[arr?.length - 1] ?? 0;
+    function getLatestValue(series) {
+        if (!series || !Array.isArray(series) || series.length === 0) return 0;
+        for (let i = series.length - 1; i >= 0; i--) {
+            if (series[i] !== null && series[i] !== undefined) return series[i];
+        }
+        return 0;
+    }
 
-    // Time range states - managed locally
-    export let netLiqRange = "ALL";
-    export let reservesRange = "ALL";
-    export let fedRange = "ALL";
-    export let rrpRange = "ALL";
-    export let tgaRange = "ALL";
+    // --- Internal Chart Data Processing ---
+
+    // Net Liquidity Chart
+    $: netLiqData = filterPlotlyData(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.us_net_liq,
+                name: "US Net Liquidity",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#10b981", width: 3, shape: "spline" },
+            },
+        ],
+        dashboardData.dates,
+        netLiqRange,
+    );
+
+    // Bank Reserves Chart
+    $: bankReservesData = filterPlotlyData(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.us_net_liq_reserves,
+                name: "Bank Reserves (T)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#22c55e", width: 2, shape: "spline" },
+                fill: "tozeroy",
+                fillcolor: "rgba(34, 197, 94, 0.05)",
+            },
+            {
+                x: dashboardData.dates,
+                y: dashboardData.us_net_liq,
+                name: "Net Liquidity (T)",
+                type: "scatter",
+                mode: "lines",
+                line: {
+                    color: "#3b82f6",
+                    width: 2,
+                    dash: "dot",
+                    shape: "spline",
+                },
+                yaxis: "y2",
+            },
+        ],
+        dashboardData.dates,
+        reservesRange,
+    );
+
+    $: bankReservesLayout = {
+        yaxis: { title: "Reserves (T)", side: "left", showgrid: false },
+        yaxis2: {
+            title: "Net Liq (T)",
+            overlaying: "y",
+            side: "right",
+            showgrid: false,
+        },
+        legend: { orientation: "h", y: 1.1 },
+    };
+
+    // Fed Assets Chart
+    $: fedData = filterPlotlyData(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.gli?.fed,
+                name: "Fed Assets",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#3b82f6", width: 3, shape: "spline" },
+            },
+        ],
+        dashboardData.dates,
+        fedRange,
+    );
+
+    // RRP Chart
+    $: rrpData = filterPlotlyData(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.us_net_liq_rrp,
+                name: "Fed RRP (T)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#ef4444", width: 2, shape: "spline" },
+                fill: "tozeroy",
+                fillcolor: "rgba(239, 68, 68, 0.05)",
+            },
+        ],
+        dashboardData.dates,
+        rrpRange,
+    );
+
+    // TGA Chart
+    $: tgaData = filterPlotlyData(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.us_net_liq_tga,
+                name: "TGA (T)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#f59e0b", width: 2, shape: "spline" },
+                fill: "tozeroy",
+                fillcolor: "rgba(245, 158, 11, 0.05)",
+            },
+        ],
+        dashboardData.dates,
+        tgaRange,
+    );
+
+    // US System Metrics (computed internally)
+    $: usSystemMetrics = dashboardData.us_system_rocs
+        ? Object.entries(dashboardData.us_system_rocs).map(([id, data]) => {
+              const labels = {
+                  fed: "Fed Assets",
+                  rrp: "Fed RRP",
+                  tga: "Treasury TGA",
+              };
+              return {
+                  id,
+                  name: labels[id] || id.toUpperCase(),
+                  isLiability: id !== "fed",
+                  m1: data["1M"]?.[data["1M"].length - 1] || 0,
+                  m3: data["3M"]?.[data["3M"].length - 1] || 0,
+                  y1: data["1Y"]?.[data["1Y"].length - 1] || 0,
+                  imp1: data["impact_1m"]?.[data["impact_1m"].length - 1] || 0,
+                  imp3: data["impact_3m"]?.[data["impact_3m"].length - 1] || 0,
+                  imp1y: data["impact_1y"]?.[data["impact_1y"].length - 1] || 0,
+                  delta1: data["delta_1m"]?.[data["delta_1m"].length - 1] || 0,
+                  delta3: data["delta_3m"]?.[data["delta_3m"].length - 1] || 0,
+                  delta1y: data["delta_1y"]?.[data["delta_1y"].length - 1] || 0,
+              };
+          })
+        : [];
+
+    $: usSystemTotal = usSystemMetrics.reduce(
+        (acc, item) => {
+            return {
+                delta1: acc.delta1 + item.delta1,
+                imp1: acc.imp1 + item.imp1,
+                delta3: acc.delta3 + item.delta3,
+                imp3: acc.imp3 + item.imp3,
+                delta1y: acc.delta1y + item.delta1y,
+                imp1y: acc.imp1y + item.imp1y,
+            };
+        },
+        { delta1: 0, imp1: 0, delta3: 0, imp3: 0, delta1y: 0, imp1y: 0 },
+    );
 </script>
 
 <div class="main-charts">

@@ -2567,38 +2567,7 @@
         <GlobalM2Tab
           darkMode={$darkMode}
           translations={$currentTranslations}
-          {m2TotalData}
-          {m2Weights}
-          {usM2Data}
-          {euM2Data}
-          {cnM2Data}
-          {jpM2Data}
-          {ukM2Data}
-          {caM2Data}
-          {auM2Data}
-          {krM2Data}
-          {inM2Data}
-          {brM2Data}
-          {mxM2Data}
-          {ruM2Data}
-          {chM2Data}
-          {myM2Data}
-          {getLastDate}
-          bind:m2Range
-          bind:usM2DataRange={usM2Range}
-          bind:euM2DataRange={euM2Range}
-          bind:cnM2DataRange={cnM2Range}
-          bind:jpM2DataRange={jpM2Range}
-          bind:ukM2DataRange={ukM2Range}
-          bind:caM2DataRange={caM2Range}
-          bind:auM2DataRange={auM2Range}
-          bind:inM2DataRange={inM2Range}
-          bind:chM2DataRange={chM2Range}
-          bind:ruM2DataRange={ruM2Range}
-          bind:brM2DataRange={brM2Range}
-          bind:krM2DataRange={krM2Range}
-          bind:mxM2DataRange={mxM2Range}
-          bind:myM2DataRange={myM2Range}
+          dashboardData={$dashboardData}
         />
       {:else if currentTab === "US System"}
         <UsSystemTab
@@ -2606,21 +2575,6 @@
           language={$language}
           translations={$currentTranslations}
           dashboardData={$dashboardData}
-          {netLiqData}
-          {bankReservesData}
-          {bankReservesLayout}
-          {fedData}
-          {rrpData}
-          {tgaData}
-          {usSystemMetrics}
-          {usSystemTotal}
-          {getLastDate}
-          {getLatestValue}
-          bind:netLiqRange
-          bind:reservesRange
-          bind:fedRange
-          bind:rrpRange
-          bind:tgaRange
         />
       {:else if currentTab === "Risk Model"}
         <RiskModelTab
@@ -2658,26 +2612,6 @@
           darkMode={$darkMode}
           translations={$currentTranslations}
           dashboardData={$dashboardData}
-          cpiData={cpiChartData}
-          pceData={pceChartData}
-          pmiData={pmiChartData}
-          unemploymentData={unemploymentChartData}
-          fedFundsData={fedFundsChartData}
-          nfpData={nfpChartData}
-          {nfpZData}
-          {nfpPctData}
-          joltsData={joltsChartData}
-          {joltsZData}
-          {joltsPctData}
-          inflationExpectationsData={inflationExpectationsChartData}
-          bind:cpiRange
-          bind:pceRange
-          bind:pmiRange
-          bind:unemploymentRange
-          bind:fedFundsRange
-          bind:nfpRange
-          bind:joltsRange
-          bind:inflationExpectationsRange
         />
       {/if}
     </div>

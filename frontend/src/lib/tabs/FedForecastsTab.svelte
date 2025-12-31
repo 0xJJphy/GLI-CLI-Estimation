@@ -1,34 +1,263 @@
 <script>
     import Chart from "../components/Chart.svelte";
     import TimeRangeSelector from "../components/TimeRangeSelector.svelte";
+    import { filterPlotlyData } from "../utils/helpers.js";
 
+    // Core props only
     export let darkMode = false;
     export let translations = {};
     export let dashboardData = {};
 
-    // Chart data props
-    export let cpiData = [];
-    export let pceData = [];
-    export let pmiData = [];
-    export let unemploymentData = [];
-    export let fedFundsData = [];
-    export let nfpData = [];
-    export let nfpZData = [];
-    export let nfpPctData = [];
-    export let joltsData = [];
-    export let joltsZData = [];
-    export let joltsPctData = [];
+    // Local state for time ranges (no longer props)
+    let cpiRange = "5Y";
+    let pceRange = "5Y";
+    let pmiRange = "5Y";
+    let unemploymentRange = "5Y";
+    let fedFundsRange = "5Y";
+    let nfpRange = "5Y";
+    let joltsRange = "5Y";
+    let inflationExpectationsRange = "5Y";
 
-    // Ranges
-    export let cpiRange = "5Y";
-    export let pceRange = "5Y";
-    export let pmiRange = "5Y";
-    export let unemploymentRange = "5Y";
-    export let fedFundsRange = "5Y";
-    export let nfpRange = "5Y";
-    export let joltsRange = "5Y";
-    export let inflationExpectationsData = [];
-    export let inflationExpectationsRange = "5Y";
+    // --- Internal Chart Data Processing ---
+
+    // CPI Chart
+    $: cpiData = filterPlotlyData(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.fed_forecasts?.cpi_yoy || [],
+                name: "CPI YoY",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#ef4444", width: 2 },
+            },
+            {
+                x: dashboardData.dates,
+                y: dashboardData.fed_forecasts?.core_cpi_yoy || [],
+                name: "Core CPI YoY",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#f97316", width: 2, dash: "dash" },
+            },
+        ],
+        dashboardData.dates,
+        cpiRange,
+    );
+
+    // PCE Chart
+    $: pceData = filterPlotlyData(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.fed_forecasts?.pce_yoy || [],
+                name: "PCE YoY",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#8b5cf6", width: 2 },
+            },
+            {
+                x: dashboardData.dates,
+                y: dashboardData.fed_forecasts?.core_pce_yoy || [],
+                name: "Core PCE YoY",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#a855f7", width: 2, dash: "dash" },
+            },
+        ],
+        dashboardData.dates,
+        pceRange,
+    );
+
+    // PMI Chart
+    $: pmiData = filterPlotlyData(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.fed_forecasts?.ism_mfg || [],
+                name: "ISM Manufacturing",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#3b82f6", width: 2 },
+            },
+            {
+                x: dashboardData.dates,
+                y: dashboardData.fed_forecasts?.ism_svc || [],
+                name: "ISM Services",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#10b981", width: 2, dash: "dash" },
+            },
+        ],
+        dashboardData.dates,
+        pmiRange,
+    );
+
+    // Unemployment Chart
+    $: unemploymentData = filterPlotlyData(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.fed_forecasts?.unemployment || [],
+                name: "Unemployment Rate",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#6b7280", width: 2 },
+                fill: "tozeroy",
+                fillcolor: "rgba(107, 114, 128, 0.1)",
+            },
+        ],
+        dashboardData.dates,
+        unemploymentRange,
+    );
+
+    // Fed Funds Rate Chart
+    $: fedFundsData = filterPlotlyData(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.fed_forecasts?.fed_funds_rate || [],
+                name: "Fed Funds Rate",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#1e40af", width: 3 },
+                fill: "tozeroy",
+                fillcolor: "rgba(30, 64, 175, 0.1)",
+            },
+        ],
+        dashboardData.dates,
+        fedFundsRange,
+    );
+
+    // NFP Charts (Raw, Z-Score, Percentile)
+    $: nfpData = filterPlotlyData(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.fed_forecasts?.nfp_change || [],
+                name: "NFP Change (Raw)",
+                type: "bar",
+                marker: {
+                    color: (dashboardData.fed_forecasts?.nfp_change || []).map(
+                        (v) => {
+                            if (v === null || v === undefined)
+                                return "rgba(0,0,0,0)";
+                            return v >= 0 ? "#10b981" : "#ef4444";
+                        },
+                    ),
+                },
+            },
+        ],
+        dashboardData.dates,
+        nfpRange,
+    );
+
+    $: nfpZData = filterPlotlyData(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.signal_metrics?.nfp?.zscore || [],
+                name: "NFP Change (Z-Score)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#3b82f6", width: 2 },
+            },
+        ],
+        dashboardData.dates,
+        nfpRange,
+    );
+
+    $: nfpPctData = filterPlotlyData(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.signal_metrics?.nfp?.percentile || [],
+                name: "NFP Change (Percentile)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#3b82f6", width: 2 },
+            },
+        ],
+        dashboardData.dates,
+        nfpRange,
+    );
+
+    // JOLTS Charts (Raw, Z-Score, Percentile)
+    $: joltsData = filterPlotlyData(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.fed_forecasts?.jolts || [],
+                name: "JOLTS (Raw)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#10b981", width: 2 },
+            },
+        ],
+        dashboardData.dates,
+        joltsRange,
+    );
+
+    $: joltsZData = filterPlotlyData(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.signal_metrics?.jolts?.zscore || [],
+                name: "JOLTS (Z-Score)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#10b981", width: 2 },
+            },
+        ],
+        dashboardData.dates,
+        joltsRange,
+    );
+
+    $: joltsPctData = filterPlotlyData(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.signal_metrics?.jolts?.percentile || [],
+                name: "JOLTS (Percentile)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#10b981", width: 2 },
+            },
+        ],
+        dashboardData.dates,
+        joltsRange,
+    );
+
+    // Inflation Expectations Chart
+    $: inflationExpectationsData = filterPlotlyData(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.fed_forecasts?.inflation_expect_5y || [],
+                name: "5Y TIPS Breakeven",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#10b981", width: 2 },
+            },
+            {
+                x: dashboardData.dates,
+                y: dashboardData.fed_forecasts?.inflation_expect_10y || [],
+                name: "10Y TIPS Breakeven",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#3b82f6", width: 2, dash: "dash" },
+            },
+            {
+                x: dashboardData.dates,
+                y: dashboardData.fed_forecasts?.cpi_yoy || [],
+                name: "CPI YoY (Actual)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#ef4444", width: 1.5, dash: "dot" },
+            },
+        ],
+        dashboardData.dates,
+        inflationExpectationsRange,
+    );
 
     // FOMC Meeting Dates - dynamically loaded from data pipeline or fallback to static
     // The pipeline scrapes dates from federalreserve.gov/monetarypolicy/fomccalendars.htm
