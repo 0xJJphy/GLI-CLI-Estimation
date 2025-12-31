@@ -2,6 +2,7 @@
     /**
      * DashboardTab.svelte
      * Main dashboard displaying GLI, Net Liquidity, CLI, Regime and Impulse Analysis.
+     * Fully encapsulated: imports stores directly and computes all data internally.
      */
     import Chart from "../components/Chart.svelte";
     import LightweightChart from "../components/LightweightChart.svelte";
@@ -9,62 +10,621 @@
     import SignalBadge from "../components/SignalBadge.svelte";
     import TimeRangeSelector from "../components/TimeRangeSelector.svelte";
 
-    // Props
-    export let darkMode = false;
-    export let language = "en";
+    // Import stores directly
+    import { dashboardData, latestStats } from "../../stores/dataStore";
+    import {
+        darkMode,
+        language,
+        currentTranslations,
+    } from "../../stores/settingsStore";
+
+    // Import utility functions
+    import {
+        filterPlotlyData,
+        getLastDate as getLastDateHelper,
+        getLatestValue,
+        calculateZScore,
+        calculateBtcRoc,
+        findOptimalLag,
+    } from "../utils/helpers.js";
+
+    // Translations prop (can be passed or derived from store)
     export let translations = {};
-    export let dashboardData = {};
-    /** @type {{ gli?: { value: number, change: number }, us_net_liq?: { value: number, change: number }, cli?: { value: number, change: number }, vix?: { value: number, change: number } } | null} */
-    export let latestStats = null;
 
-    // Chart data
-    export let gliData = [];
-    export let netLiqData = [];
-    export let cliData = [];
-    export let cliComponentData = [];
-    export let regimeLCData = [];
-    export let impulseData = [];
-    export let impulseLayout = {};
+    // ========================================================================
+    // LOCAL STATE (all managed internally)
+    // ========================================================================
+    let gliRange = "ALL";
+    let gliShowConstantFx = false;
+    let netLiqRange = "ALL";
+    let cliRange = "ALL";
+    let cliCompRange = "ALL";
+    let impulseRange = "ALL";
+    let regimeLag = 42;
+    let btcRocPeriod = 21;
+    let btcLag = 0;
+    let normalizeImpulse = true;
+    let showComposite = false;
+    let optimalLagLabel = "N/A";
 
-    // Metrics
-    export let gliWeights = [];
-    export let usSystemMetrics = [];
-    export let usSystemTotal = { delta1: 0, imp1: 0, imp3: 0, imp1y: 0 };
-    export let gliSignal = "neutral";
-    export let liqSignal = "neutral";
-    export let currentRegime = {
-        color: "grey",
-        emoji: "⚖️",
-        name: "Neutral",
-        desc: "",
-        details: "",
+    // Load optimized params on mount
+    import { onMount } from "svelte";
+    onMount(async () => {
+        try {
+            const response = await fetch("/regime_params.json");
+            if (response.ok) {
+                const params = await response.json();
+                if (params.recommended_offset_days !== undefined) {
+                    regimeLag = params.recommended_offset_days;
+                }
+            }
+        } catch (e) {
+            console.warn("Could not load optimized regime params", e);
+        }
+    });
+
+    // ========================================================================
+    // HELPER FUNCTIONS
+    // ========================================================================
+    function getLastDate(key) {
+        return getLastDateHelper($dashboardData, key);
+    }
+
+    function shiftData(dates, values, lagDays) {
+        if (!dates || !values || dates.length !== values.length)
+            return { x: dates || [], y: values || [] };
+        if (lagDays === 0) return { x: dates, y: values };
+
+        const shiftedX = [];
+        const shiftedY = [];
+
+        for (let i = 0; i < values.length; i++) {
+            if (values[i] === null || values[i] === undefined) continue;
+            const originalDate = new Date(dates[i]);
+            const shiftedDate = new Date(originalDate);
+            shiftedDate.setDate(shiftedDate.getDate() + lagDays);
+            const shiftedDateStr = shiftedDate.toISOString().split("T")[0];
+            shiftedX.push(shiftedDateStr);
+            shiftedY.push(values[i]);
+        }
+        return { x: shiftedX, y: shiftedY };
+    }
+
+    // ========================================================================
+    // REACTIVE CHART DATA COMPUTATIONS
+    // ========================================================================
+
+    // GLI Chart Data
+    $: gliDataSource = gliShowConstantFx
+        ? $dashboardData.gli?.constant_fx
+        : $dashboardData.gli?.total;
+    $: gliDataRaw = [
+        {
+            x: $dashboardData.dates,
+            y: gliDataSource,
+            name: gliShowConstantFx
+                ? "GLI Constant-FX"
+                : "GLI Total (Spot USD)",
+            type: "scatter",
+            mode: "lines",
+            line: {
+                color: gliShowConstantFx ? "#10b981" : "#6366f1",
+                width: 3,
+                shape: "spline",
+            },
+        },
+    ];
+    $: gliData = filterPlotlyData(gliDataRaw, $dashboardData.dates, gliRange);
+
+    // Net Liquidity Chart Data
+    $: netLiqDataRaw = [
+        {
+            x: $dashboardData.dates,
+            y: $dashboardData.us_net_liq,
+            name: "US Net Liquidity",
+            type: "scatter",
+            mode: "lines",
+            line: { color: "#10b981", width: 3, shape: "spline" },
+        },
+    ];
+    $: netLiqData = filterPlotlyData(
+        netLiqDataRaw,
+        $dashboardData.dates,
+        netLiqRange,
+    );
+
+    // CLI Chart Data
+    $: cliDataRaw = [
+        {
+            x: $dashboardData.dates,
+            y: $dashboardData.cli?.total,
+            name: "CLI",
+            type: "scatter",
+            mode: "lines",
+            line: { color: "#f59e0b", width: 3, shape: "spline" },
+        },
+    ];
+    $: cliData = filterPlotlyData(cliDataRaw, $dashboardData.dates, cliRange);
+
+    // CLI Component Data
+    $: cliComponentDataRaw = $dashboardData.cli_components
+        ? [
+              {
+                  x: $dashboardData.dates,
+                  y: $dashboardData.cli_components.hy_z?.map((v) => v * 0.25),
+                  name: "HY Spread",
+                  type: "scatter",
+                  mode: "lines",
+                  line: { color: "#ef4444", width: 2, shape: "spline" },
+                  stackgroup: "cli",
+              },
+              {
+                  x: $dashboardData.dates,
+                  y: $dashboardData.cli_components.ig_z?.map((v) => v * 0.15),
+                  name: "IG Spread",
+                  type: "scatter",
+                  mode: "lines",
+                  line: { color: "#f59e0b", width: 2, shape: "spline" },
+                  stackgroup: "cli",
+              },
+              {
+                  x: $dashboardData.dates,
+                  y: $dashboardData.cli_components.nfci_credit_z?.map(
+                      (v) => v * 0.2,
+                  ),
+                  name: "NFCI Credit",
+                  type: "scatter",
+                  mode: "lines",
+                  line: { color: "#3b82f6", width: 2, shape: "spline" },
+                  stackgroup: "cli",
+              },
+              {
+                  x: $dashboardData.dates,
+                  y: $dashboardData.cli_components.nfci_risk_z?.map(
+                      (v) => v * 0.2,
+                  ),
+                  name: "NFCI Risk",
+                  type: "scatter",
+                  mode: "lines",
+                  line: { color: "#8b5cf6", width: 2, shape: "spline" },
+                  stackgroup: "cli",
+              },
+              {
+                  x: $dashboardData.dates,
+                  y: $dashboardData.cli_components.lending_z?.map(
+                      (v) => v * 0.1,
+                  ),
+                  name: "Lending",
+                  type: "scatter",
+                  mode: "lines",
+                  line: { color: "#10b981", width: 2, shape: "spline" },
+                  stackgroup: "cli",
+              },
+              {
+                  x: $dashboardData.dates,
+                  y: $dashboardData.cli_components.vix_z?.map((v) => v * 0.1),
+                  name: "VIX",
+                  type: "scatter",
+                  mode: "lines",
+                  line: { color: "#64748b", width: 2, shape: "spline" },
+                  stackgroup: "cli",
+              },
+          ]
+        : [];
+    $: cliComponentData = filterPlotlyData(
+        cliComponentDataRaw,
+        $dashboardData.dates,
+        cliCompRange,
+    );
+
+    // ========================================================================
+    // REGIME CHART DATA
+    // ========================================================================
+    $: regimeLCData = (() => {
+        const currentOffset = regimeLag;
+        if (!$dashboardData.dates || !$dashboardData.btc?.price) return [];
+
+        const dates = $dashboardData.dates;
+        const prices = $dashboardData.btc.price;
+        const regimeScore = $dashboardData.macro_regime?.score || [];
+        const lastDate = dates[dates.length - 1];
+
+        const bgData = [];
+        const btcData = [];
+
+        const addDays = (dateStr, days) => {
+            const d = new Date(dateStr);
+            d.setDate(d.getDate() + days);
+            return d.toISOString().split("T")[0];
+        };
+
+        const scoreToColor = (score) => {
+            const s = Number(score);
+            if (isNaN(s)) return "rgba(148, 163, 184, 0.05)";
+            const deviation = (s - 50) / 50;
+            const absDeviation = Math.abs(deviation);
+            const alpha = 0.08 + absDeviation * 0.18;
+            if (deviation > 0.02)
+                return `rgba(16, 185, 129, ${alpha.toFixed(2)})`;
+            else if (deviation < -0.02)
+                return `rgba(239, 68, 68, ${alpha.toFixed(2)})`;
+            else return `rgba(148, 163, 184, 0.08)`;
+        };
+
+        for (let i = 0; i < dates.length; i++) {
+            if (prices[i] !== undefined && prices[i] !== null) {
+                btcData.push({ time: dates[i], value: prices[i] });
+            }
+        }
+
+        const totalDates = dates.length + currentOffset;
+        for (let targetIdx = 0; targetIdx < totalDates; targetIdx++) {
+            let targetDate;
+            if (targetIdx < dates.length) {
+                targetDate = dates[targetIdx];
+            } else if (lastDate) {
+                const daysToAdd = targetIdx - (dates.length - 1);
+                targetDate = addDays(lastDate, daysToAdd);
+            }
+            const sourceIdx = targetIdx - currentOffset;
+            if (sourceIdx >= 0 && sourceIdx < regimeScore.length) {
+                const score = regimeScore[sourceIdx];
+                const color = scoreToColor(score);
+                if (color && targetDate) {
+                    bgData.push({ time: targetDate, value: 1, color });
+                }
+            }
+        }
+
+        return [
+            {
+                name: "Regime",
+                type: "histogram",
+                data: bgData,
+                color: "transparent",
+                options: {
+                    priceScaleId: "left",
+                    priceFormat: { type: "custom", formatter: () => "" },
+                    scaleMargins: { top: 0, bottom: 0 },
+                },
+            },
+            {
+                name: "BTC Price",
+                type: "area",
+                data: btcData,
+                color: "#94a3b8",
+                topColor: "rgba(148, 163, 184, 0.4)",
+                bottomColor: "rgba(148, 163, 184, 0.01)",
+                width: 2,
+            },
+        ];
+    })();
+
+    // ========================================================================
+    // IMPULSE CHART DATA
+    // ========================================================================
+    $: btcRocTrace = (() => {
+        if (!$dashboardData.btc || !$dashboardData.btc.price) return null;
+        const prices = $dashboardData.btc.price || [];
+        const dates = $dashboardData.dates;
+        if (!prices.length) return null;
+
+        const computed = calculateBtcRoc(prices, dates, btcRocPeriod, 0);
+        const yRaw = computed.map((p) => p.y);
+        const useZ = normalizeImpulse || showComposite;
+        const yFinal = useZ ? calculateZScore(yRaw) : yRaw;
+
+        return {
+            x: computed.map((p) => p.x),
+            y: yFinal,
+            name: `BTC ROC (${btcRocPeriod}d)${useZ ? " [Z]" : ""}`,
+            type: "scatter",
+            mode: "lines",
+            line: { color: "#94a3b8", width: 2, dash: "solid" },
+            yaxis: useZ ? "y" : "y2",
+            opacity: 0.8,
+        };
+    })();
+
+    $: compositeData = (() => {
+        if (!showComposite || !$dashboardData.flow_metrics) return null;
+        const g = calculateZScore(
+            $dashboardData.flow_metrics.gli_impulse_13w || [],
+        );
+        const n = calculateZScore(
+            $dashboardData.flow_metrics.net_liquidity_impulse_13w || [],
+        );
+        const c = calculateZScore(
+            $dashboardData.flow_metrics.cli_momentum_4w || [],
+        );
+        if (!g.length) return null;
+
+        const comp = g.map((val, i) => {
+            if (val == null || n[i] == null || c[i] == null) return null;
+            return (val + n[i] + c[i]) / 3;
+        });
+
+        const prices = $dashboardData.btc?.price || [];
+        const fullRoc = prices.map((curr, i) => {
+            if (i < btcRocPeriod) return null;
+            const past = prices[i - btcRocPeriod];
+            if (!past) return null;
+            return ((curr - past) / past) * 100;
+        });
+
+        const best = findOptimalLag(
+            $dashboardData.dates,
+            comp,
+            fullRoc,
+            0,
+            120,
+        );
+        optimalLagLabel = `Best Offset: +${best.lag}d (Corr: ${best.corr !== null && best.corr !== undefined ? best.corr.toFixed(2) : "0.00"})`;
+
+        return comp;
+    })();
+
+    $: compositeShifted = showComposite
+        ? shiftData($dashboardData.dates, compositeData, btcLag)
+        : null;
+    $: gliImpulseShifted = shiftData(
+        $dashboardData.dates,
+        $dashboardData.flow_metrics?.gli_impulse_13w,
+        btcLag,
+    );
+    $: netLiqImpulseShifted = shiftData(
+        $dashboardData.dates,
+        $dashboardData.flow_metrics?.net_liquidity_impulse_13w,
+        btcLag,
+    );
+    $: cliMomentumShifted = shiftData(
+        $dashboardData.dates,
+        $dashboardData.flow_metrics?.cli_momentum_4w,
+        btcLag,
+    );
+
+    $: gliY = normalizeImpulse
+        ? calculateZScore(gliImpulseShifted.y)
+        : gliImpulseShifted.y;
+    $: netLiqY = normalizeImpulse
+        ? calculateZScore(netLiqImpulseShifted.y)
+        : netLiqImpulseShifted.y;
+    $: cliY = normalizeImpulse
+        ? calculateZScore(cliMomentumShifted.y)
+        : cliMomentumShifted.y;
+
+    $: impulseDataRaw = showComposite
+        ? [
+              {
+                  x: compositeShifted?.x || [],
+                  y: compositeShifted?.y || [],
+                  name:
+                      "Composite Liquidity (Z)" +
+                      (btcLag !== 0 ? ` [${btcLag}d]` : ""),
+                  type: "scatter",
+                  mode: "lines",
+                  line: { color: "#8b5cf6", width: 3, shape: "spline" },
+              },
+              ...(btcRocTrace ? [btcRocTrace] : []),
+          ]
+        : [
+              {
+                  x: gliImpulseShifted.x,
+                  y: gliY,
+                  name:
+                      "GLI Impulse (13W)" +
+                      (btcLag !== 0
+                          ? ` [${btcLag > 0 ? "+" : ""}${btcLag}d]`
+                          : ""),
+                  type: "scatter",
+                  mode: "lines",
+                  line: { color: "#3b82f6", width: 2, shape: "spline" },
+              },
+              {
+                  x: netLiqImpulseShifted.x,
+                  y: netLiqY,
+                  name: "NetLiq Impulse (13W)",
+                  type: "scatter",
+                  mode: "lines",
+                  line: { color: "#10b981", width: 2, shape: "spline" },
+              },
+              {
+                  x: cliMomentumShifted.x,
+                  y: cliY,
+                  name: "CLI Momentum (4W)",
+                  type: "scatter",
+                  mode: "lines",
+                  line: { color: "#f59e0b", width: 2, shape: "spline" },
+              },
+              ...(btcRocTrace ? [btcRocTrace] : []),
+          ];
+
+    $: impulseData = filterPlotlyData(
+        impulseDataRaw,
+        $dashboardData.dates,
+        impulseRange,
+    );
+
+    $: impulseLayout = {
+        yaxis: {
+            title:
+                normalizeImpulse || showComposite
+                    ? "Z-Score (σ)"
+                    : "Impulse ($ Trillion)",
+            gridcolor: $darkMode ? "#334155" : "#e2e8f0",
+        },
+        yaxis2: {
+            title: "BTC ROC (%)",
+            overlaying: "y",
+            side: "right",
+            showgrid: false,
+            visible: !(normalizeImpulse || showComposite),
+        },
+        margin: { t: 30, b: 30, l: 50, r: 50 },
+        legend: { orientation: "h", y: 1.1 },
     };
-    export let liquidityScore = 50;
-    export let regimeDiagnostics = {
-        liquidity_z: 0,
-        credit_z: 0,
-        brakes_z: 0,
-        total_z: 0,
-    };
 
-    // State bindings
-    export let regimeLag = 42;
-    export let btcRocPeriod = 21;
-    export let btcLag = 0;
-    export let showComposite = false;
-    export let optimalLagLabel = "";
+    // ========================================================================
+    // METRICS COMPUTATIONS
+    // ========================================================================
+    $: gliWeights = Object.entries($dashboardData.gli_weights || {})
+        .map(([id, weight]) => {
+            const rocs = $dashboardData.bank_rocs?.[id] || {};
+            return {
+                id,
+                name: id.toUpperCase(),
+                weight,
+                isLiability: false,
+                m1: rocs["1M"]?.[rocs["1M"].length - 1] || 0,
+                m3: rocs["3M"]?.[rocs["3M"].length - 1] || 0,
+                m6: rocs["6M"]?.[rocs["6M"].length - 1] || 0,
+                y1: rocs["1Y"]?.[rocs["1Y"].length - 1] || 0,
+                imp1: rocs["impact_1m"]?.[rocs["impact_1m"].length - 1] || 0,
+                imp3: rocs["impact_3m"]?.[rocs["impact_3m"].length - 1] || 0,
+                imp1y: rocs["impact_1y"]?.[rocs["impact_1y"].length - 1] || 0,
+            };
+        })
+        .sort((a, b) => b.weight - a.weight);
 
-    // Helper functions
-    export let getLastDate = (key) => "N/A";
-    export let getLatestValue = (arr) => arr?.[arr?.length - 1] ?? 0;
+    $: usSystemMetrics = $dashboardData.us_system_rocs
+        ? Object.entries($dashboardData.us_system_rocs).map(([id, data]) => {
+              const labels = {
+                  fed: "Fed Assets",
+                  rrp: "Fed RRP",
+                  tga: "Treasury TGA",
+              };
+              return {
+                  id,
+                  name: labels[id] || id.toUpperCase(),
+                  isLiability: id !== "fed",
+                  m1: data["1M"]?.[data["1M"].length - 1] || 0,
+                  m3: data["3M"]?.[data["3M"].length - 1] || 0,
+                  y1: data["1Y"]?.[data["1Y"].length - 1] || 0,
+                  imp1: data["impact_1m"]?.[data["impact_1m"].length - 1] || 0,
+                  imp3: data["impact_3m"]?.[data["impact_3m"].length - 1] || 0,
+                  imp1y: data["impact_1y"]?.[data["impact_1y"].length - 1] || 0,
+                  delta1: data["delta_1m"]?.[data["delta_1m"].length - 1] || 0,
+              };
+          })
+        : [];
 
-    // Local time range states
-    export let gliRange = "ALL";
-    export let gliShowConstantFx = false;
-    export let netLiqRange = "ALL";
-    export let cliRange = "ALL";
-    export let cliCompRange = "ALL";
-    export let impulseRange = "ALL";
+    $: usSystemTotal = usSystemMetrics.reduce(
+        (acc, item) => ({
+            delta1: acc.delta1 + item.delta1,
+            imp1: acc.imp1 + item.imp1,
+            imp3: acc.imp3 + item.imp3,
+            imp1y: acc.imp1y + item.imp1y,
+        }),
+        { delta1: 0, imp1: 0, imp3: 0, imp1y: 0 },
+    );
+
+    // ========================================================================
+    // SIGNAL AND REGIME COMPUTATIONS
+    // ========================================================================
+    $: gliSignal = (() => {
+        const gliRocs =
+            $dashboardData.bank_rocs?.total || $dashboardData.gli?.rocs;
+        if (!gliRocs) return "neutral";
+        const m1 = getLatestValue(gliRocs["1M"]);
+        if (m1 > 0.5) return "bullish";
+        if (m1 < -0.5) return "bearish";
+        return "neutral";
+    })();
+
+    $: liqSignal = (() => {
+        const flow = $dashboardData.flow_metrics;
+        if (!flow) return "neutral";
+        const impulse = getLatestValue(flow.net_liquidity_impulse_13w);
+        if (impulse > 0.1) return "bullish";
+        if (impulse < -0.1) return "bearish";
+        return "neutral";
+    })();
+
+    $: liquidityScore = (() => {
+        const macroRegime = $dashboardData.macro_regime;
+        if (
+            !macroRegime ||
+            !macroRegime.score ||
+            macroRegime.score.length === 0
+        )
+            return 50;
+        const latest = macroRegime.score[macroRegime.score.length - 1];
+        return latest !== null && latest !== undefined ? latest : 50;
+    })();
+
+    $: regimeDiagnostics = (() => {
+        const mr = $dashboardData.macro_regime;
+        if (!mr)
+            return { liquidity_z: 0, credit_z: 0, brakes_z: 0, total_z: 0 };
+        const getLatest = (arr) => {
+            if (!arr || arr.length === 0) return 0;
+            const val = arr[arr.length - 1];
+            return val !== null && val !== undefined ? val : 0;
+        };
+        return {
+            liquidity_z: getLatest(mr.liquidity_z),
+            credit_z: getLatest(mr.credit_z),
+            brakes_z: getLatest(mr.brakes_z),
+            total_z: getLatest(mr.total_z),
+        };
+    })();
+
+    $: currentRegimeId = (() => {
+        const macroRegime = $dashboardData.macro_regime;
+        if (
+            !macroRegime ||
+            !macroRegime.regime_code ||
+            macroRegime.regime_code.length === 0
+        )
+            return "neutral";
+        const lastCode =
+            macroRegime.regime_code[macroRegime.regime_code.length - 1];
+        if (lastCode === 1) return "bullish";
+        if (lastCode === -1) return "bearish";
+        return "neutral";
+    })();
+
+    $: currentRegime = (() => {
+        const isEs = $language === "es";
+        switch (currentRegimeId) {
+            case "bullish":
+                return {
+                    name: $currentTranslations.regime_bullish || "Bullish",
+                    emoji: "🐂",
+                    color: "bullish",
+                    desc: isEs
+                        ? "Expansión Sincronizada: Tanto la liquidez Global como la de EE.UU. están expandiéndose."
+                        : "Synchronized Expansion: Both Global and US liquidity are expanding.",
+                    details: isEs
+                        ? "Entorno favorable para activos de riesgo."
+                        : "Favorable environment for risk assets.",
+                };
+            case "bearish":
+                return {
+                    name: $currentTranslations.regime_bearish || "Bearish",
+                    emoji: "🐻",
+                    color: "bearish",
+                    desc: isEs
+                        ? "Contracción Sincronizada: Tanto la liquidez Global como la de EE.UU. se están contrayendo."
+                        : "Synchronized Contraction: Both Global and US liquidity are contracting.",
+                    details: isEs
+                        ? "Entorno defensivo/adverso para activos de riesgo."
+                        : "Defensive/Headwind environment for risk assets.",
+                };
+            default:
+                return {
+                    name: $currentTranslations.regime_neutral || "Neutral",
+                    emoji: "⚖️",
+                    color: "neutral",
+                    desc: isEs
+                        ? "Régimen Mixto/Divergente: Señales contradictorias entre liquidez Global y doméstica."
+                        : "Mixed/Divergent Regime: Conflicting signals between Global and domestic liquidity.",
+                    details: isEs
+                        ? "Comportamiento lateral o errático esperado."
+                        : "Choppy or sideways price action expected.",
+                };
+        }
+    })();
 </script>
 
 <!-- Stats Cards -->
