@@ -317,48 +317,43 @@
         { id: "bnm", name: "Bank Negara Malaysia (BNM)", bank: "BNM" },
     ];
 
-    // Lookup functions to get current data for a bank
-    function getDataForBank(id) {
-        const dataMap = {
-            fed: fedData,
-            ecb: ecbData,
-            boj: bojData,
-            boe: boeData,
-            pboc: pbocData,
-            boc: bocData,
-            rba: rbaData,
-            snb: snbData,
-            bok: bokData,
-            rbi: rbiData,
-            cbr: cbrData,
-            bcb: bcbData,
-            rbnz: rbnzData,
-            sr: srData,
-            bnm: bnmData,
-        };
-        return dataMap[id] || [];
-    }
+    // REACTIVE data and ranges map - Svelte tracks these objects for reactivity
+    // When a range changes, the corresponding data is recomputed
+    $: bankRanges = {
+        fed: fedRange,
+        ecb: ecbRange,
+        boj: bojRange,
+        boe: boeRange,
+        pboc: pbocRange,
+        boc: bocRange,
+        rba: rbaRange,
+        snb: snbRange,
+        bok: bokRange,
+        rbi: rbiRange,
+        cbr: cbrRange,
+        bcb: bcbRange,
+        rbnz: rbnzRange,
+        sr: srRange,
+        bnm: bnmRange,
+    };
 
-    function getRangeForBank(id) {
-        const rangeMap = {
-            fed: fedRange,
-            ecb: ecbRange,
-            boj: bojRange,
-            boe: boeRange,
-            pboc: pbocRange,
-            boc: bocRange,
-            rba: rbaRange,
-            snb: snbRange,
-            bok: bokRange,
-            rbi: rbiRange,
-            cbr: cbrRange,
-            bcb: bcbRange,
-            rbnz: rbnzRange,
-            sr: srRange,
-            bnm: bnmRange,
-        };
-        return rangeMap[id] || "ALL";
-    }
+    $: bankChartData = {
+        fed: fedData,
+        ecb: ecbData,
+        boj: bojData,
+        boe: boeData,
+        pboc: pbocData,
+        boc: bocData,
+        rba: rbaData,
+        snb: snbData,
+        bok: bokData,
+        rbi: rbiData,
+        cbr: cbrData,
+        bcb: bcbData,
+        rbnz: rbnzData,
+        sr: srData,
+        bnm: bnmData,
+    };
 
     function setRangeForBank(id, r) {
         if (id === "fed") fedRange = r;
@@ -386,7 +381,7 @@
                 <h3>{item.name}</h3>
                 <div class="header-controls">
                     <TimeRangeSelector
-                        selectedRange={getRangeForBank(item.id)}
+                        selectedRange={bankRanges[item.id]}
                         onRangeChange={(r) => setRangeForBank(item.id, r)}
                     />
                     <span class="last-date"
@@ -400,7 +395,7 @@
                     "Individual central bank assets in USD."}
             </p>
             <div class="chart-content">
-                <Chart {darkMode} data={getDataForBank(item.id)} />
+                <Chart {darkMode} data={bankChartData[item.id]} />
             </div>
         </div>
 

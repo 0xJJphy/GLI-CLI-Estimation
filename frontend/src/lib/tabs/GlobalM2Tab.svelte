@@ -296,46 +296,41 @@
         { id: "my", name: "Malaysia M2", color: "#6366f1", bank: "BNM" },
     ];
 
-    // Lookup functions to get current data for a country
-    function getDataForCountry(id) {
-        const dataMap = {
-            us: usM2Data,
-            eu: euM2Data,
-            cn: cnM2Data,
-            jp: jpM2Data,
-            uk: ukM2Data,
-            ca: caM2Data,
-            au: auM2Data,
-            in: inM2Data,
-            ch: chM2Data,
-            ru: ruM2Data,
-            br: brM2Data,
-            kr: krM2Data,
-            mx: mxM2Data,
-            my: myM2Data,
-        };
-        return dataMap[id] || [];
-    }
+    // REACTIVE data and ranges map - Svelte tracks these objects for reactivity
+    // When a range changes, the corresponding data is recomputed
+    $: countryRanges = {
+        us: usM2DataRange,
+        eu: euM2DataRange,
+        cn: cnM2DataRange,
+        jp: jpM2DataRange,
+        uk: ukM2DataRange,
+        ca: caM2DataRange,
+        au: auM2DataRange,
+        in: inM2DataRange,
+        ch: chM2DataRange,
+        ru: ruM2DataRange,
+        br: brM2DataRange,
+        kr: krM2DataRange,
+        mx: mxM2DataRange,
+        my: myM2DataRange,
+    };
 
-    function getRangeForCountry(id) {
-        const rangeMap = {
-            us: usM2DataRange,
-            eu: euM2DataRange,
-            cn: cnM2DataRange,
-            jp: jpM2DataRange,
-            uk: ukM2DataRange,
-            ca: caM2DataRange,
-            au: auM2DataRange,
-            in: inM2DataRange,
-            ch: chM2DataRange,
-            ru: ruM2DataRange,
-            br: brM2DataRange,
-            kr: krM2DataRange,
-            mx: mxM2DataRange,
-            my: myM2DataRange,
-        };
-        return rangeMap[id] || "ALL";
-    }
+    $: countryChartData = {
+        us: usM2Data,
+        eu: euM2Data,
+        cn: cnM2Data,
+        jp: jpM2Data,
+        uk: ukM2Data,
+        ca: caM2Data,
+        au: auM2Data,
+        in: inM2Data,
+        ch: chM2Data,
+        ru: ruM2Data,
+        br: brM2Data,
+        kr: krM2Data,
+        mx: mxM2Data,
+        my: myM2Data,
+    };
 
     function setRangeForCountry(id, r) {
         if (id === "us") usM2DataRange = r;
@@ -495,7 +490,7 @@
                 <h3>{item.name}</h3>
                 <div class="header-controls">
                     <TimeRangeSelector
-                        selectedRange={getRangeForCountry(item.id)}
+                        selectedRange={countryRanges[item.id]}
                         onRangeChange={(r) => setRangeForCountry(item.id, r)}
                     />
                     <span class="last-date">Last: {getLastDate(item.bank)}</span
@@ -506,7 +501,7 @@
                 {translations.m2_country || "Country M2 money supply in USD."}
             </p>
             <div class="chart-content">
-                <Chart {darkMode} data={getDataForCountry(item.id)} />
+                <Chart {darkMode} data={countryChartData[item.id]} />
             </div>
         </div>
     {/each}
