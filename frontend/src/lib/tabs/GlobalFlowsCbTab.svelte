@@ -603,13 +603,13 @@
     }
 
     .chart-content {
-        height: 280px;
-        min-height: 280px;
+        height: 350px;
+        min-height: 350px;
     }
 
     .chart-content.short {
-        height: 200px;
-        min-height: 200px;
+        height: 280px;
+        min-height: 280px;
     }
 
     /* ROC Indicator Bar */
