@@ -360,6 +360,18 @@
             m6: getLatest(rocs["6M"]),
         };
     }
+
+    // M2 Total ROC helper for aggregate indicator
+    function getM2TotalRocs() {
+        const rocs = dashboardData.m2?.rocs || {};
+        const getLatest = (arr) => arr?.[arr?.length - 1] ?? null;
+        return {
+            m1: getLatest(rocs["1M"]),
+            m3: getLatest(rocs["3M"]),
+            m6: getLatest(rocs["6M"]),
+            y1: getLatest(rocs["1Y"]),
+        };
+    }
 </script>
 
 <div class="main-charts">
@@ -389,6 +401,61 @@
                 <div class="chart-content">
                     <Chart {darkMode} data={m2TotalData} />
                 </div>
+
+                <!-- Aggregate ROC Indicators -->
+                {#if dashboardData.m2?.rocs}
+                    {@const totalRocs = getM2TotalRocs()}
+                    <div class="roc-bar">
+                        <div
+                            class="roc-item"
+                            class:positive={totalRocs.m1 > 0}
+                            class:negative={totalRocs.m1 < 0}
+                        >
+                            <span class="roc-label">1M</span>
+                            <span class="roc-value"
+                                >{totalRocs.m1 !== null
+                                    ? totalRocs.m1.toFixed(1) + "%"
+                                    : "N/A"}</span
+                            >
+                        </div>
+                        <div
+                            class="roc-item"
+                            class:positive={totalRocs.m3 > 0}
+                            class:negative={totalRocs.m3 < 0}
+                        >
+                            <span class="roc-label">3M</span>
+                            <span class="roc-value"
+                                >{totalRocs.m3 !== null
+                                    ? totalRocs.m3.toFixed(1) + "%"
+                                    : "N/A"}</span
+                            >
+                        </div>
+                        <div
+                            class="roc-item"
+                            class:positive={totalRocs.m6 > 0}
+                            class:negative={totalRocs.m6 < 0}
+                        >
+                            <span class="roc-label">6M</span>
+                            <span class="roc-value"
+                                >{totalRocs.m6 !== null
+                                    ? totalRocs.m6.toFixed(1) + "%"
+                                    : "N/A"}</span
+                            >
+                        </div>
+                        <div
+                            class="roc-item"
+                            class:positive={totalRocs.y1 > 0}
+                            class:negative={totalRocs.y1 < 0}
+                        >
+                            <span class="roc-label">1Y</span>
+                            <span class="roc-value"
+                                >{totalRocs.y1 !== null
+                                    ? totalRocs.y1.toFixed(1) + "%"
+                                    : "N/A"}</span
+                            >
+                        </div>
+                    </div>
+                {/if}
             </div>
 
             <div class="metrics-sidebar">
