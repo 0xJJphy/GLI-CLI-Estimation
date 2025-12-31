@@ -1319,7 +1319,7 @@
                     <p
                         style="margin: 0 0 4px 0; font-size: 10px; color: var(--text-muted);"
                     >
-                        {language === "es"
+                        {$language === "es"
                             ? "Valores Actuales:"
                             : "Current Values:"}
                     </p>
