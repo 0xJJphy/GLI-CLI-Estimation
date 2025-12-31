@@ -6,7 +6,7 @@
     import Chart from "../components/Chart.svelte";
     import LightweightChart from "../components/LightweightChart.svelte";
     import TimeRangeSelector from "../components/TimeRangeSelector.svelte";
-    import { filterPlotlyData } from "../utils/helpers.js";
+    import { filterPlotlyData, getCutoffDate } from "../utils/helpers.js";
 
     // Core props only
     export let darkMode = false;
@@ -258,22 +258,31 @@
     );
 
     // CB Breadth and Concentration data (for LightweightChart format)
-    // Correct paths: macro_regime.cb_diffusion_13w and macro_regime.cb_hhi_13w
-    // LightweightChart expects: [{name, type, color, data: [{time, value}...]}]
+    // Now with time range filtering
     $: cbBreadthData = [
         {
             name: "CB Breadth (% Expanding)",
             type: "line",
             color: "#10b981",
             width: 2,
-            data: (dashboardData.macro_regime?.cb_diffusion_13w || [])
-                .map((v, i) => ({
-                    time: dashboardData.dates?.[i],
-                    value: v,
-                }))
-                .filter(
-                    (d) => d.time && d.value !== null && d.value !== undefined,
-                ),
+            data: (() => {
+                const cutoff = getCutoffDate(cbBreadthRange);
+                return (dashboardData.macro_regime?.cb_diffusion_13w || [])
+                    .map((v, i) => ({
+                        time: dashboardData.dates?.[i],
+                        value: v,
+                    }))
+                    .filter((d) => {
+                        if (
+                            !d.time ||
+                            d.value === null ||
+                            d.value === undefined
+                        )
+                            return false;
+                        if (!cutoff) return true;
+                        return new Date(d.time) >= cutoff;
+                    });
+            })(),
         },
     ];
 
@@ -283,16 +292,38 @@
             type: "line",
             color: "#f59e0b",
             width: 2,
-            data: (dashboardData.macro_regime?.cb_hhi_13w || [])
-                .map((v, i) => ({
-                    time: dashboardData.dates?.[i],
-                    value: v,
-                }))
-                .filter(
-                    (d) => d.time && d.value !== null && d.value !== undefined,
-                ),
+            data: (() => {
+                const cutoff = getCutoffDate(cbConcentrationRange);
+                return (dashboardData.macro_regime?.cb_hhi_13w || [])
+                    .map((v, i) => ({
+                        time: dashboardData.dates?.[i],
+                        value: v,
+                    }))
+                    .filter((d) => {
+                        if (
+                            !d.time ||
+                            d.value === null ||
+                            d.value === undefined
+                        )
+                            return false;
+                        if (!cutoff) return true;
+                        return new Date(d.time) >= cutoff;
+                    });
+            })(),
         },
     ];
+
+    // Bank ROC lookup for indicators
+    function getBankRocs(bankId) {
+        const rocs = dashboardData.bank_rocs?.[bankId] || {};
+        const getLatest = (arr) => arr?.[arr?.length - 1] ?? null;
+        return {
+            w1: getLatest(rocs["1W"]),
+            m1: getLatest(rocs["1M"]),
+            m3: getLatest(rocs["3M"]),
+            m6: getLatest(rocs["6M"]),
+        };
+    }
 
     // Bank configuration - STATIC to avoid cyclical dependencies
     const bankConfigs = [
@@ -374,73 +405,291 @@
     }
 </script>
 
-<div class="dashboard-grid no-margin">
-    {#each bankConfigs as item}
-        <div class="chart-card">
+<div class="flows-container">
+    <!-- First Row: Aggregate GLI Chart (Full Width) -->
+    <div class="chart-card full-width">
+        <div class="chart-header">
+            <h3>{translations.chart_gli || "Global Liquidity Index (GLI)"}</h3>
+            <div class="header-controls">
+                <TimeRangeSelector
+                    selectedRange={fedRange}
+                    onRangeChange={(r) => setRangeForBank("fed", r)}
+                />
+                <span class="last-date"
+                    >{translations.last_data || "Last:"}
+                    {getLastDate("GLI")}</span
+                >
+            </div>
+        </div>
+        <p class="chart-description">
+            {translations.gli_desc ||
+                "Aggregate central bank balance sheets in USD. Larger = more weight in global liquidity."}
+        </p>
+        <div class="chart-content">
+            <Chart {darkMode} data={bankChartData.fed} />
+        </div>
+    </div>
+
+    <!-- CB Breadth and Concentration (Full Width after aggregate) -->
+    <div class="chart-row">
+        <div class="chart-card half">
             <div class="chart-header">
-                <h3>{item.name}</h3>
+                <h3>Central Bank Breadth (% Expanding)</h3>
                 <div class="header-controls">
                     <TimeRangeSelector
-                        selectedRange={bankRanges[item.id]}
-                        onRangeChange={(r) => setRangeForBank(item.id, r)}
+                        selectedRange={cbBreadthRange}
+                        onRangeChange={(r) => (cbBreadthRange = r)}
                     />
-                    <span class="last-date"
-                        >{translations.last_data || "Last Data:"}
-                        {getLastDate(item.bank)}</span
-                    >
                 </div>
             </div>
             <p class="chart-description">
-                {translations.gli_cb ||
-                    "Individual central bank assets in USD."}
+                {language === "es"
+                    ? "% de bancos centrales en expansión (13 semanas). ↑ Alcista."
+                    : "Percentage of CBs expanding (13-week basis). ↑ Bullish."}
             </p>
             <div class="chart-content">
-                <Chart {darkMode} data={bankChartData[item.id]} />
+                <LightweightChart {darkMode} data={cbBreadthData} />
             </div>
         </div>
 
-        {#if item.bank === "FED"}
-            <!-- CB Breadth Chart -->
-            <div class="chart-card">
-                <div class="chart-header">
-                    <h3>Central Bank Breadth (% Expanding)</h3>
-                    <div class="header-controls">
-                        <TimeRangeSelector
-                            selectedRange={cbBreadthRange}
-                            onRangeChange={(r) => (cbBreadthRange = r)}
-                        />
-                    </div>
-                </div>
-                <p class="chart-description">
-                    {language === "es"
-                        ? "Porcentaje de bancos centrales con balance en expansión (13 semanas). ↑ Alcista."
-                        : "Percentage of central banks with expanding balance sheets (13-week basis). ↑ Bullish."}
-                </p>
-                <div class="chart-content">
-                    <LightweightChart {darkMode} data={cbBreadthData} />
+        <div class="chart-card half">
+            <div class="chart-header">
+                <h3>Central Bank Concentration (HHI)</h3>
+                <div class="header-controls">
+                    <TimeRangeSelector
+                        selectedRange={cbConcentrationRange}
+                        onRangeChange={(r) => (cbConcentrationRange = r)}
+                    />
                 </div>
             </div>
+            <p class="chart-description">
+                {language === "es"
+                    ? "Índice HHI. Alto = pocos bancos dominan flujos."
+                    : "HHI Index. High = few banks drive liquidity."}
+            </p>
+            <div class="chart-content">
+                <LightweightChart {darkMode} data={cbConcentrationData} />
+            </div>
+        </div>
+    </div>
 
-            <!-- CB Concentration Chart -->
+    <!-- Individual Banks: 2 per row with ROC indicators -->
+    <div class="chart-grid">
+        {#each bankConfigs as item}
+            {@const rocs = getBankRocs(item.id)}
             <div class="chart-card">
                 <div class="chart-header">
-                    <h3>Central Bank Concentration (HHI)</h3>
+                    <h3>{item.name}</h3>
                     <div class="header-controls">
                         <TimeRangeSelector
-                            selectedRange={cbConcentrationRange}
-                            onRangeChange={(r) => (cbConcentrationRange = r)}
+                            selectedRange={bankRanges[item.id]}
+                            onRangeChange={(r) => setRangeForBank(item.id, r)}
                         />
+                        <span class="last-date">{getLastDate(item.bank)}</span>
                     </div>
                 </div>
-                <p class="chart-description">
-                    {language === "es"
-                        ? "Concentración de flujos (Indice HHI). Valores altos indican que pocos bancos mueven la liquidez global."
-                        : "Concentration of flows (HHI Index). High values indicate few banks are driving global liquidity."}
-                </p>
-                <div class="chart-content">
-                    <LightweightChart {darkMode} data={cbConcentrationData} />
+                <div class="chart-content short">
+                    <Chart {darkMode} data={bankChartData[item.id]} />
+                </div>
+                <!-- ROC Indicators -->
+                <div class="roc-bar">
+                    <div
+                        class="roc-item"
+                        class:positive={rocs.w1 > 0}
+                        class:negative={rocs.w1 < 0}
+                    >
+                        <span class="roc-label">1W</span>
+                        <span class="roc-value"
+                            >{rocs.w1 !== null
+                                ? rocs.w1.toFixed(1) + "%"
+                                : "N/A"}</span
+                        >
+                    </div>
+                    <div
+                        class="roc-item"
+                        class:positive={rocs.m1 > 0}
+                        class:negative={rocs.m1 < 0}
+                    >
+                        <span class="roc-label">1M</span>
+                        <span class="roc-value"
+                            >{rocs.m1 !== null
+                                ? rocs.m1.toFixed(1) + "%"
+                                : "N/A"}</span
+                        >
+                    </div>
+                    <div
+                        class="roc-item"
+                        class:positive={rocs.m3 > 0}
+                        class:negative={rocs.m3 < 0}
+                    >
+                        <span class="roc-label">3M</span>
+                        <span class="roc-value"
+                            >{rocs.m3 !== null
+                                ? rocs.m3.toFixed(1) + "%"
+                                : "N/A"}</span
+                        >
+                    </div>
+                    <div
+                        class="roc-item"
+                        class:positive={rocs.m6 > 0}
+                        class:negative={rocs.m6 < 0}
+                    >
+                        <span class="roc-label">6M</span>
+                        <span class="roc-value"
+                            >{rocs.m6 !== null
+                                ? rocs.m6.toFixed(1) + "%"
+                                : "N/A"}</span
+                        >
+                    </div>
                 </div>
             </div>
-        {/if}
-    {/each}
+        {/each}
+    </div>
 </div>
+
+<style>
+    .flows-container {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        padding: 24px;
+    }
+
+    .chart-card {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: var(--card-shadow);
+    }
+
+    .chart-card.full-width {
+        width: 100%;
+    }
+
+    .chart-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+
+    .chart-card.half {
+        width: 100%;
+    }
+
+    .chart-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+    }
+
+    .chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .chart-header h3 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .header-controls {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .last-date {
+        font-size: 0.7rem;
+        color: var(--text-muted);
+        background: var(--bg-tertiary);
+        padding: 3px 6px;
+        border-radius: 4px;
+    }
+
+    .chart-description {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        margin: 0 0 12px 0;
+        padding: 8px 10px;
+        background: var(--chart-description-bg);
+        border-radius: 6px;
+        border-left: 3px solid var(--accent-primary);
+    }
+
+    .chart-content {
+        min-height: 300px;
+    }
+
+    .chart-content.short {
+        min-height: 220px;
+    }
+
+    /* ROC Indicator Bar */
+    .roc-bar {
+        display: flex;
+        justify-content: space-around;
+        margin-top: 12px;
+        padding: 10px;
+        background: var(--bg-tertiary);
+        border-radius: 8px;
+        gap: 8px;
+    }
+
+    .roc-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 6px 12px;
+        background: var(--bg-secondary);
+        border-radius: 6px;
+        min-width: 50px;
+        border: 1px solid var(--border-color);
+    }
+
+    .roc-item.positive {
+        border-color: #10b981;
+        background: rgba(16, 185, 129, 0.1);
+    }
+
+    .roc-item.negative {
+        border-color: #ef4444;
+        background: rgba(239, 68, 68, 0.1);
+    }
+
+    .roc-label {
+        font-size: 0.65rem;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+    }
+
+    .roc-value {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .roc-item.positive .roc-value {
+        color: #10b981;
+    }
+
+    .roc-item.negative .roc-value {
+        color: #ef4444;
+    }
+
+    @media (max-width: 1200px) {
+        .chart-grid {
+            grid-template-columns: 1fr;
+        }
+        .chart-row {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>

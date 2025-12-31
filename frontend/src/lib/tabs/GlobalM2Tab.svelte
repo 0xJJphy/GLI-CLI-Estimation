@@ -348,6 +348,18 @@
         else if (id === "mx") mxM2DataRange = r;
         else if (id === "my") myM2DataRange = r;
     }
+
+    // M2 ROC helper for indicators
+    function getM2Rocs(countryId) {
+        const rocs = dashboardData.m2_bank_rocs?.[countryId] || {};
+        const getLatest = (arr) => arr?.[arr?.length - 1] ?? null;
+        return {
+            w1: getLatest(rocs["1W"]),
+            m1: getLatest(rocs["1M"]),
+            m3: getLatest(rocs["3M"]),
+            m6: getLatest(rocs["6M"]),
+        };
+    }
 </script>
 
 <div class="main-charts">
@@ -483,26 +495,289 @@
         </div>
     </div>
 
-    <!-- Individual Country M2 Charts -->
-    {#each countryConfigs as item}
-        <div class="chart-card">
-            <div class="chart-header">
-                <h3>{item.name}</h3>
-                <div class="header-controls">
-                    <TimeRangeSelector
-                        selectedRange={countryRanges[item.id]}
-                        onRangeChange={(r) => setRangeForCountry(item.id, r)}
-                    />
-                    <span class="last-date">Last: {getLastDate(item.bank)}</span
+    <!-- Individual Country M2 Charts in 2-column grid -->
+    <div class="country-grid">
+        {#each countryConfigs as item}
+            {@const rocs = getM2Rocs(item.id)}
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3>{item.name}</h3>
+                    <div class="header-controls">
+                        <TimeRangeSelector
+                            selectedRange={countryRanges[item.id]}
+                            onRangeChange={(r) =>
+                                setRangeForCountry(item.id, r)}
+                        />
+                        <span class="last-date">{getLastDate(item.bank)}</span>
+                    </div>
+                </div>
+                <div class="chart-content short">
+                    <Chart {darkMode} data={countryChartData[item.id]} />
+                </div>
+                <!-- ROC Indicators -->
+                <div class="roc-bar">
+                    <div
+                        class="roc-item"
+                        class:positive={rocs.w1 > 0}
+                        class:negative={rocs.w1 < 0}
                     >
+                        <span class="roc-label">1W</span>
+                        <span class="roc-value"
+                            >{rocs.w1 !== null
+                                ? rocs.w1.toFixed(1) + "%"
+                                : "N/A"}</span
+                        >
+                    </div>
+                    <div
+                        class="roc-item"
+                        class:positive={rocs.m1 > 0}
+                        class:negative={rocs.m1 < 0}
+                    >
+                        <span class="roc-label">1M</span>
+                        <span class="roc-value"
+                            >{rocs.m1 !== null
+                                ? rocs.m1.toFixed(1) + "%"
+                                : "N/A"}</span
+                        >
+                    </div>
+                    <div
+                        class="roc-item"
+                        class:positive={rocs.m3 > 0}
+                        class:negative={rocs.m3 < 0}
+                    >
+                        <span class="roc-label">3M</span>
+                        <span class="roc-value"
+                            >{rocs.m3 !== null
+                                ? rocs.m3.toFixed(1) + "%"
+                                : "N/A"}</span
+                        >
+                    </div>
+                    <div
+                        class="roc-item"
+                        class:positive={rocs.m6 > 0}
+                        class:negative={rocs.m6 < 0}
+                    >
+                        <span class="roc-label">6M</span>
+                        <span class="roc-value"
+                            >{rocs.m6 !== null
+                                ? rocs.m6.toFixed(1) + "%"
+                                : "N/A"}</span
+                        >
+                    </div>
                 </div>
             </div>
-            <p class="chart-description">
-                {translations.m2_country || "Country M2 money supply in USD."}
-            </p>
-            <div class="chart-content">
-                <Chart {darkMode} data={countryChartData[item.id]} />
-            </div>
-        </div>
-    {/each}
+        {/each}
+    </div>
 </div>
+
+<style>
+    .main-charts {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        padding: 24px;
+    }
+
+    .country-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+    }
+
+    .chart-card {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: var(--card-shadow);
+    }
+
+    .chart-card.wide {
+        width: 100%;
+    }
+
+    .chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .chart-header h3 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .header-controls {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .last-date {
+        font-size: 0.7rem;
+        color: var(--text-muted);
+        background: var(--bg-tertiary);
+        padding: 3px 6px;
+        border-radius: 4px;
+    }
+
+    .chart-description {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        margin: 0 0 12px 0;
+        padding: 8px 10px;
+        background: var(--chart-description-bg);
+        border-radius: 6px;
+        border-left: 3px solid var(--accent-primary);
+    }
+
+    .chart-content {
+        min-height: 300px;
+    }
+
+    .chart-content.short {
+        min-height: 220px;
+    }
+
+    .gli-layout {
+        display: flex;
+        gap: 24px;
+    }
+
+    .chart-main {
+        flex: 2;
+        min-width: 0;
+    }
+
+    .metrics-sidebar {
+        flex: 1;
+        min-width: 300px;
+        max-width: 400px;
+    }
+
+    .metrics-section {
+        background: var(--bg-tertiary);
+        border-radius: 12px;
+        padding: 16px;
+    }
+
+    .metrics-section h4 {
+        margin: 0 0 12px 0;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .metrics-table-container {
+        max-height: 350px;
+        overflow-y: auto;
+    }
+
+    .metrics-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.75rem;
+    }
+
+    .metrics-table th,
+    .metrics-table td {
+        padding: 6px 8px;
+        text-align: right;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .metrics-table th:first-child,
+    .metrics-table td:first-child {
+        text-align: left;
+    }
+
+    .metrics-table th {
+        font-weight: 600;
+        color: var(--text-secondary);
+        background: var(--bg-secondary);
+        position: sticky;
+        top: 0;
+    }
+
+    .impact-cell {
+        font-size: 0.65rem;
+        opacity: 0.8;
+    }
+
+    .roc-val.positive {
+        color: #10b981;
+    }
+    .roc-val.negative {
+        color: #ef4444;
+    }
+
+    /* ROC Indicator Bar */
+    .roc-bar {
+        display: flex;
+        justify-content: space-around;
+        margin-top: 12px;
+        padding: 10px;
+        background: var(--bg-tertiary);
+        border-radius: 8px;
+        gap: 8px;
+    }
+
+    .roc-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 6px 12px;
+        background: var(--bg-secondary);
+        border-radius: 6px;
+        min-width: 50px;
+        border: 1px solid var(--border-color);
+    }
+
+    .roc-item.positive {
+        border-color: #10b981;
+        background: rgba(16, 185, 129, 0.1);
+    }
+
+    .roc-item.negative {
+        border-color: #ef4444;
+        background: rgba(239, 68, 68, 0.1);
+    }
+
+    .roc-label {
+        font-size: 0.65rem;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+    }
+
+    .roc-value {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .roc-item.positive .roc-value {
+        color: #10b981;
+    }
+
+    .roc-item.negative .roc-value {
+        color: #ef4444;
+    }
+
+    @media (max-width: 1200px) {
+        .gli-layout {
+            flex-direction: column;
+        }
+        .metrics-sidebar {
+            max-width: 100%;
+        }
+        .country-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
