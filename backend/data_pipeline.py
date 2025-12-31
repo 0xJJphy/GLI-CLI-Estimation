@@ -186,8 +186,11 @@ def fetch_fed_funds_futures(meetings: List[Dict] = None) -> Dict[str, Dict]:
     results = {}
     
     try:
-        from tvDatafeed import TvDatafeed, Interval
-        tv_client = TvDatafeed()
+        if not tv:
+            return results
+            
+        from tvDatafeed import Interval
+        tv_client = tv
         
         today = datetime.now()
         month_codes = {
@@ -1304,6 +1307,8 @@ FRED_CONFIG = {
     # Treasury Yields for stress analysis
     'DGS10': 'TREASURY_10Y_YIELD',         # 10-Year Treasury Constant Maturity Yield
     'DGS2': 'TREASURY_2Y_YIELD',           # 2-Year Treasury Constant Maturity Yield
+    'PAYEMS': 'NFP',                       # All Employees, Total Nonfarm
+    'JTSJOL': 'JOLTS',                     # Job Openings: Total Nonfarm
 }
 
 # Mapping: Symbol -> Internal Name (TradingView ECONOMICS)
@@ -2072,7 +2077,75 @@ def compute_signal_metrics(df: pd.DataFrame, cli_df: pd.DataFrame, window: int =
             'bullish_pct': 30,
             'bearish_pct': 85,
         },
+        'nfp': {
+            'source': df,
+            'col': 'NFP_CHANGE', # We'll create this helper in-loop
+            'invert': False,
+            'bullish_pct': 70,
+            'bearish_pct': 30,
+        },
+        'jolts': {
+            'source': df,
+            'col': 'JOLTS',
+            'invert': False,
+            'bullish_pct': 70,
+            'bearish_pct': 30,
+        },
+        'cli_gli_divergence': {
+            'source': df,
+            'col': 'CLI_GLI_DIVERGENCE',
+            'invert': False,
+            'bullish_pct': 60,
+            'bearish_pct': 40,
+        },
+        'treasury_10y': {
+            'source': df,
+            'col': 'TREASURY_10Y_YIELD',
+            'invert': True,  # Lower yields = easier conditions = bullish
+            'bullish_pct': 30,
+            'bearish_pct': 80,
+        },
+        'treasury_2y': {
+            'source': df,
+            'col': 'TREASURY_2Y_YIELD',
+            'invert': True,  # Lower yields = easier conditions = bullish
+            'bullish_pct': 30,
+            'bearish_pct': 80,
+        },
+        'yield_curve': {
+            'source': df,
+            'col': 'YIELD_CURVE',
+            'invert': False, # Stealth indicator: usually flattening = late cycle
+            'bullish_pct': 60,
+            'bearish_pct': 40,
+        },
+        'nfci_credit': {
+            'source': df,
+            'col': 'NFCI_CREDIT',
+            'invert': True,  # Negative = loose = bullish
+            'bullish_pct': 30,
+            'bearish_pct': 70,
+        },
+        'nfci_risk': {
+            'source': df,
+            'col': 'NFCI_RISK',
+            'invert': True,  # Negative = lower risk = bullish
+            'bullish_pct': 30,
+            'bearish_pct': 70,
+        },
+        'lending': {
+            'source': df,
+            'col': 'LENDING_STD',
+            'invert': True,  # Negative = loosening = bullish
+            'bullish_pct': 30,
+            'bearish_pct': 70,
+        }
     }
+
+    # Preparation: Add computed columns to source df if needed
+    if 'NFP' in df.columns:
+        df['NFP_CHANGE'] = df['NFP'].diff(22) # 1 month change
+
     
     for key, config in series_config.items():
         source = config['source']
@@ -2112,6 +2185,7 @@ def compute_signal_metrics(df: pd.DataFrame, cli_df: pd.DataFrame, window: int =
                 else: signals.append('neutral')
         
         metrics[key] = {
+            'raw': clean_for_json_series(series),
             'percentile': clean_for_json_series(pct),
             'zscore': clean_for_json_series(zscore),
             'momentum_pct': clean_for_json_series(momentum_pct),
@@ -2146,6 +2220,8 @@ def compute_signal_metrics(df: pd.DataFrame, cli_df: pd.DataFrame, window: int =
             'latest': {
                 'value': float(rr.iloc[-1]),
                 'valueBE': float(be.iloc[-1]),
+                'percentile': float(rolling_percentile(rr, window=window).iloc[-1]),
+                'zscore': float(rr_z.iloc[-1]),
                 'state': state
             }
         }
@@ -2406,6 +2482,10 @@ def calculate_macro_regime(
             axis=0
         )
     transition = pd.Series((accel_strength > 1.5).astype(float), index=idx)
+
+    # ---------- CLI-GLI Divergence ----------
+    # Normalized difference to highlight decoupling (Positive = Credit leads Liquidity)
+    out["cli_gli_divergence"] = (credit_z - liquidity_z)
 
     # ---------- Output ----------
     out["score"] = score
@@ -2854,6 +2934,8 @@ def run_pipeline():
     # Treasury Yields for stress analysis
     df_fred_t['TREASURY_10Y_YIELD'] = df_fred.get('TREASURY_10Y_YIELD', pd.Series(dtype=float))
     df_fred_t['TREASURY_2Y_YIELD'] = df_fred.get('TREASURY_2Y_YIELD', pd.Series(dtype=float))
+    df_fred_t['NFP'] = df_fred.get('NFP', pd.Series(dtype=float))
+    df_fred_t['JOLTS'] = df_fred.get('JOLTS', pd.Series(dtype=float))
 
     # 2. Fetch TV and Normalize to Trillions
     print("Fetching TradingView Update Data (Trillions)...")
@@ -2990,7 +3072,7 @@ def run_pipeline():
                              'BANK_RESERVES', 'SOFR', 'IORB', 'FX_VOL',
                              'CPI', 'CORE_CPI', 'PCE', 'CORE_PCE', 'UNEMPLOYMENT', 'FED_FUNDS_RATE',
                              'INFLATION_EXPECT_1Y', 'INFLATION_EXPECT_5Y', 'INFLATION_EXPECT_10Y',
-                             'TREASURY_10Y_YIELD', 'TREASURY_2Y_YIELD']
+                             'TREASURY_10Y_YIELD', 'TREASURY_2Y_YIELD', 'NFP', 'JOLTS']
         # Only select columns that actually exist in df_fred_t
         fred_cols_available = [col for col in fred_cols_to_sync if col in df_fred_t.columns]
         res_tv_t = res_tv_t.combine_first(df_fred_t[fred_cols_available]).ffill()
@@ -3013,6 +3095,10 @@ def run_pipeline():
         all_dates = pd.date_range(start=df_t.index.min(), end=df_t.index.max(), freq='D')
         df_t = df_t.reindex(all_dates).ffill()
 
+        # Units Logic and derived columns for Risk Model
+        if 'TREASURY_10Y_YIELD' in df_t.columns and 'TREASURY_2Y_YIELD' in df_t.columns:
+            df_t['YIELD_CURVE'] = df_t['TREASURY_10Y_YIELD'] - df_t['TREASURY_2Y_YIELD']
+        
         gli = calculate_gli_from_trillions(df_t)
         us_net_liq = calculate_us_net_liq_from_trillions(df_t)
         cli_df = calculate_cli(df_t)
@@ -3121,6 +3207,9 @@ def run_pipeline():
 
         # --- Macro Regime (multi-factor) ---
         regime_metrics = calculate_macro_regime(df_t)
+        if 'cli_gli_divergence' in regime_metrics:
+            df_t['CLI_GLI_DIVERGENCE'] = regime_metrics['cli_gli_divergence']
+
 
         # Helper for Series Metadata (Last Real Date & Coverage)
         def get_series_info(series, df_ref):
@@ -3265,6 +3354,7 @@ def run_pipeline():
                 'cb_hhi_13w': clean_for_json(regime_metrics.get('cb_hhi_13w', pd.Series(dtype=float))),
                 'repo_stress': clean_for_json(regime_metrics.get('repo_stress', pd.Series(dtype=float))),
                 'real_rate_shock_4w': clean_for_json(regime_metrics.get('real_rate_shock_4w', pd.Series(dtype=float))),
+                'cli_gli_divergence': clean_for_json(regime_metrics.get('cli_gli_divergence', pd.Series(dtype=float))),
                 'reserves_spread_z': clean_for_json(regime_metrics.get('reserves_spread_z', pd.Series(dtype=float))),
             },
             'us_system_rocs': (lambda total_nl: {
@@ -3320,6 +3410,9 @@ def run_pipeline():
                 'weights': {'HY': 0.25, 'IG': 0.15, 'NFCI_CREDIT': 0.20, 'NFCI_RISK': 0.20, 'LENDING': 0.10, 'VIX': 0.10}
             },
             'signals': signals,
+            'nfci_credit': clean_for_json(df_t.get('NFCI_CREDIT', pd.Series(dtype=float))),
+            'nfci_risk': clean_for_json(df_t.get('NFCI_RISK', pd.Series(dtype=float))),
+            'lending': clean_for_json(df_t.get('LENDING_STD', pd.Series(dtype=float))),
             'vix': {
                 'total': clean_for_json(df_t['VIX']),
                 'rocs': {k: clean_for_json(v) for k, v in vix_rocs.items()}
@@ -3394,6 +3487,9 @@ def run_pipeline():
                 'ism_svc': clean_for_json(df_t.get('ISM_SVC', pd.Series(dtype=float))),
                 # Labor & Rates
                 'unemployment': clean_for_json(df_t.get('UNEMPLOYMENT', pd.Series(dtype=float))),
+                'nfp': clean_for_json(df_t.get('NFP', pd.Series(dtype=float))),
+                'nfp_change': clean_for_json(df_t.get('NFP', pd.Series(dtype=float)).diff(22)), # Approx 1 month
+                'jolts': clean_for_json(df_t.get('JOLTS', pd.Series(dtype=float))),
                 'fed_funds_rate': clean_for_json(df_t.get('FED_FUNDS_RATE', pd.Series(dtype=float))),
                 # Market-based Inflation Expectations (TIPS Breakeven + Cleveland Fed)
                 'inflation_expect_1y': clean_for_json(df_t.get('INFLATION_EXPECT_1Y', pd.Series(dtype=float))),

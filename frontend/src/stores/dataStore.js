@@ -138,6 +138,7 @@ export const dashboardData = writable({
         cb_hhi_13w: [],
         repo_stress: [],
         real_rate_shock_4w: [],
+        cli_gli_divergence: [],
         reserves_spread_z: []
     },
     signals: {},
@@ -157,7 +158,7 @@ export const dashboardData = writable({
     },
     fed_forecasts: {
         cpi_yoy: [], core_cpi_yoy: [], pce_yoy: [], core_pce_yoy: [],
-        ism_mfg: [], ism_svc: [], unemployment: [], fed_funds_rate: [],
+        ism_mfg: [], ism_svc: [], unemployment: [], nfp: [], nfp_change: [], jolts: [], fed_funds_rate: [],
         inflation_expect_1y: [], inflation_expect_5y: [], inflation_expect_10y: [],
         inflation_swaps: {
             cleveland_1y: [], cleveland_2y: [], cleveland_5y: [], cleveland_10y: [],

@@ -113,6 +113,7 @@
     treasury10yRange = "ALL",
     treasury2yRange = "ALL",
     yieldCurveRange = "ALL",
+    divergenceRange = "ALL",
     creditSpreadsRange = "ALL";
 
   // Individual M2 time ranges
@@ -138,6 +139,8 @@
   let unemploymentRange = "5Y";
   let fedFundsRange = "5Y";
   let inflationExpectationsRange = "5Y";
+  let nfpRange = "5Y";
+  let joltsRange = "5Y";
 
   // GLI FX mode: false = Spot USD, true = Constant FX (2019-12-31)
 
@@ -1553,484 +1556,6 @@
     cliCompRangeDashboard,
   );
 
-  $: vixDataRaw = [
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.vix?.total,
-      name: "VIX",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#dc2626", width: 3, shape: "spline" },
-    },
-  ];
-  $: vixData = filterPlotlyData(vixDataRaw, $dashboardData.dates, vixRange);
-
-  $: spreadDataRaw = [
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.hy_spread,
-      name: "HY Spread",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#7c3aed", width: 3, shape: "spline" },
-    },
-  ];
-  $: spreadData = filterPlotlyData(
-    spreadDataRaw,
-    $dashboardData.dates,
-    spreadRange,
-  );
-
-  // --- Individual CLI Components (Z-Scores) ---
-  $: hyZDataRaw = [
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.cli_components.hy_z,
-      name: "HY Spread (Z-Score)",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#ef4444", width: 2 },
-    },
-  ];
-  $: hyZData = filterPlotlyData(hyZDataRaw, $dashboardData.dates, hyRange);
-  $: hyPctDataRaw = [
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.signal_metrics?.hy_spread?.percentile || [],
-      name: "HY Spread (Percentile)",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#ef4444", width: 2 },
-    },
-  ];
-  $: hyPctData = filterPlotlyData(hyPctDataRaw, $dashboardData.dates, hyRange);
-
-  $: igZDataRaw = [
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.cli_components.ig_z,
-      name: "IG Spread (Z-Score)",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#f97316", width: 2 },
-    },
-  ];
-  $: igZData = filterPlotlyData(igZDataRaw, $dashboardData.dates, igRange);
-  $: igPctDataRaw = [
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.signal_metrics?.ig_spread?.percentile || [],
-      name: "IG Spread (Percentile)",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#f97316", width: 2 },
-    },
-  ];
-  $: igPctData = filterPlotlyData(igPctDataRaw, $dashboardData.dates, igRange);
-
-  // Raw data (original values) for Risk Model
-  $: hyRawDataRaw = [
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.hy_spread || [],
-      name: "HY Spread (bps)",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#ef4444", width: 2 },
-    },
-  ];
-  $: hyRawData = filterPlotlyData(hyRawDataRaw, $dashboardData.dates, hyRange);
-
-  $: igRawDataRaw = [
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.ig_spread || [],
-      name: "IG Spread (bps)",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#f97316", width: 2 },
-    },
-  ];
-  $: igRawData = filterPlotlyData(igRawDataRaw, $dashboardData.dates, igRange);
-
-  // Treasury 10Y Yield for stress analysis
-  $: treasury10yDataRaw = [
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.treasury_10y || [],
-      name: "10Y UST Yield (%)",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#3b82f6", width: 2 },
-    },
-  ];
-  $: treasury10yData = filterPlotlyData(
-    treasury10yDataRaw,
-    $dashboardData.dates,
-    treasury10yRange,
-  );
-
-  // Treasury 2Y Yield
-  $: treasury2yDataRaw = [
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.treasury_2y || [],
-      name: "2Y UST Yield (%)",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#60a5fa", width: 2 },
-    },
-  ];
-  $: treasury2yData = filterPlotlyData(
-    treasury2yDataRaw,
-    $dashboardData.dates,
-    treasury2yRange,
-  );
-
-  // Yield Curve (10Y - 2Y)
-  $: yieldCurveDataRaw = [
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.yield_curve || [],
-      name: "10Y-2Y Spread (%)",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#8b5cf6", width: 2.5 },
-      fill: "tozeroy",
-      fillcolor: "rgba(139, 92, 246, 0.1)",
-    },
-  ];
-  $: yieldCurveData = filterPlotlyData(
-    yieldCurveDataRaw,
-    $dashboardData.dates,
-    yieldCurveRange,
-  );
-
-  // Combined Credit Spreads (HY + IG on same chart)
-  $: creditSpreadsDataRaw = [
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.hy_spread || [],
-      name: "HY Spread (bps)",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#ef4444", width: 2 },
-      yaxis: "y",
-    },
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.ig_spread || [],
-      name: "IG Spread (bps)",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#22c55e", width: 2 },
-      yaxis: "y2",
-    },
-  ];
-  $: creditSpreadsData = filterPlotlyData(
-    creditSpreadsDataRaw,
-    $dashboardData.dates,
-    creditSpreadsRange,
-  );
-
-  $: nfciCreditZDataRaw = [
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.cli_components.nfci_credit_z,
-      name: "NFCI Credit (Z-Score)",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#eab308", width: 2 },
-    },
-  ];
-  $: nfciCreditZData = filterPlotlyData(
-    nfciCreditZDataRaw,
-    $dashboardData.dates,
-    nfciCreditRange,
-  );
-  $: nfciCreditPctDataRaw = [
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.signal_metrics?.nfci_credit?.percentile || [],
-      name: "NFCI Credit (Percentile)",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#eab308", width: 2 },
-    },
-  ];
-  $: nfciCreditPctData = filterPlotlyData(
-    nfciCreditPctDataRaw,
-    $dashboardData.dates,
-    nfciCreditRange,
-  );
-
-  $: nfciRiskZDataRaw = [
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.cli_components.nfci_risk_z,
-      name: "NFCI Risk (Z-Score)",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#a855f7", width: 2 },
-    },
-  ];
-  $: nfciRiskZData = filterPlotlyData(
-    nfciRiskZDataRaw,
-    $dashboardData.dates,
-    nfciRiskRange,
-  );
-  $: nfciRiskPctDataRaw = [
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.signal_metrics?.nfci_risk?.percentile || [],
-      name: "NFCI Risk (Percentile)",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#a855f7", width: 2 },
-    },
-  ];
-  $: nfciRiskPctData = filterPlotlyData(
-    nfciRiskPctDataRaw,
-    $dashboardData.dates,
-    nfciRiskRange,
-  );
-
-  $: lendingZDataRaw = [
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.cli_components.lending_z,
-      name: "Lending Standards (Z-Score)",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#3b82f6", width: 2 },
-    },
-  ];
-  $: lendingZData = filterPlotlyData(
-    lendingZDataRaw,
-    $dashboardData.dates,
-    lendingRange,
-  );
-  $: lendingPctDataRaw = [
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.signal_metrics?.lending?.percentile || [],
-      name: "Lending Standards (Percentile)",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#3b82f6", width: 2 },
-    },
-  ];
-  $: lendingPctData = filterPlotlyData(
-    lendingPctDataRaw,
-    $dashboardData.dates,
-    lendingRange,
-  );
-
-  $: vixZDataRaw = [
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.cli_components.vix_z,
-      name: "VIX (Z-Score)",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#6b7280", width: 2 },
-    },
-  ];
-  $: vixZData = filterPlotlyData(vixZDataRaw, $dashboardData.dates, vixRange);
-  $: vixPctDataRaw = [
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.signal_metrics?.vix?.percentile || [],
-      name: "VIX (Percentile)",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#6b7280", width: 2 },
-    },
-  ];
-  $: vixPctData = filterPlotlyData(
-    vixPctDataRaw,
-    $dashboardData.dates,
-    vixRange,
-  );
-
-  $: cliPercentileDataRaw = [
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.cli?.percentile || [],
-      name: "CLI (Percentile)",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#f59e0b", width: 3, shape: "spline" },
-    },
-  ];
-  $: cliPercentileData = filterPlotlyData(
-    cliPercentileDataRaw,
-    $dashboardData.dates,
-    cliRange,
-  );
-
-  // --- New Risk Model Factors (MOVE & FX Vol) ---
-  $: moveZDataRaw = [
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.signal_metrics?.move?.zscore || [],
-      name: "MOVE Index (Z-Score)",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#ec4899", width: 2 },
-    },
-  ];
-  $: moveZData = filterPlotlyData(
-    moveZDataRaw,
-    $dashboardData.dates,
-    moveRange || "ALL",
-  );
-
-  $: movePctDataRaw = [
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.signal_metrics?.move?.percentile || [],
-      name: "MOVE Index (Percentile)",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#ec4899", width: 2 },
-    },
-  ];
-  $: movePctData = filterPlotlyData(
-    movePctDataRaw,
-    $dashboardData.dates,
-    moveRange || "ALL",
-  );
-
-  $: fxVolZDataRaw = [
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.signal_metrics?.fx_vol?.zscore || [],
-      name: "FX Volatility (Z-Score)",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#06b6d4", width: 2 },
-    },
-  ];
-  $: fxVolZData = filterPlotlyData(
-    fxVolZDataRaw,
-    $dashboardData.dates,
-    fxVolRange || "ALL",
-  );
-
-  $: fxVolPctDataRaw = [
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.signal_metrics?.fx_vol?.percentile || [],
-      name: "FX Volatility (Percentile)",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#06b6d4", width: 2 },
-    },
-  ];
-  $: fxVolPctData = filterPlotlyData(
-    fxVolPctDataRaw,
-    $dashboardData.dates,
-    fxVolRange || "ALL",
-  );
-
-  // Raw data series for remaining Risk Model indicators
-  $: nfciCreditRawDataRaw = [
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.signal_metrics?.nfci_credit?.values || [],
-      name: "NFCI Credit",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#22c55e", width: 2 },
-    },
-  ];
-  $: nfciCreditRawData = filterPlotlyData(
-    nfciCreditRawDataRaw,
-    $dashboardData.dates,
-    nfciCreditRange,
-  );
-
-  $: nfciRiskRawDataRaw = [
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.signal_metrics?.nfci_risk?.values || [],
-      name: "NFCI Risk",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#a855f7", width: 2 },
-    },
-  ];
-  $: nfciRiskRawData = filterPlotlyData(
-    nfciRiskRawDataRaw,
-    $dashboardData.dates,
-    nfciRiskRange,
-  );
-
-  $: lendingRawDataRaw = [
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.signal_metrics?.lending?.values || [],
-      name: "Lending Standards (Net %)",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#3b82f6", width: 2 },
-    },
-  ];
-  $: lendingRawData = filterPlotlyData(
-    lendingRawDataRaw,
-    $dashboardData.dates,
-    lendingRange,
-  );
-
-  $: vixRawDataRaw = [
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.vix?.total || [],
-      name: "VIX Level",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#6b7280", width: 2 },
-    },
-  ];
-  $: vixRawData = filterPlotlyData(
-    vixRawDataRaw,
-    $dashboardData.dates,
-    vixRange,
-  );
-
-  $: moveRawDataRaw = [
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.move?.total || [],
-      name: "MOVE Index",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#ec4899", width: 2 },
-    },
-  ];
-  $: moveRawData = filterPlotlyData(
-    moveRawDataRaw,
-    $dashboardData.dates,
-    moveRange || "ALL",
-  );
-
-  $: fxVolRawDataRaw = [
-    {
-      x: $dashboardData.dates,
-      y: $dashboardData.fx_vol?.total || [],
-      name: "DXY Realized Vol (%)",
-      type: "scatter",
-      mode: "lines",
-      line: { color: "#06b6d4", width: 2 },
-    },
-  ];
-  $: fxVolRawData = filterPlotlyData(
-    fxVolRawDataRaw,
-    $dashboardData.dates,
-    fxVolRange || "ALL",
-  );
-
   // --- Fed Forecasts Tab Chart Data ---
   $: cpiChartDataRaw = [
     {
@@ -2138,6 +1663,104 @@
     fedFundsChartDataRaw,
     $dashboardData.dates,
     fedFundsRange,
+  );
+
+  // NFP
+  $: nfpChartDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.fed_forecasts?.nfp_change || [],
+      name: "NFP Change (Raw)",
+      type: "bar",
+      marker: {
+        color: ($dashboardData.fed_forecasts?.nfp_change || []).map((v) => {
+          if (v === null || v === undefined) return "rgba(0,0,0,0)";
+          return v >= 0 ? "#10b981" : "#ef4444";
+        }),
+      },
+    },
+  ];
+  $: nfpChartData = filterPlotlyData(
+    nfpChartDataRaw,
+    $dashboardData.dates,
+    nfpRange,
+  );
+
+  $: nfpZDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.signal_metrics?.nfp?.zscore || [],
+      name: "NFP Change (Z-Score)",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#3b82f6", width: 2 },
+    },
+  ];
+  $: nfpZData = filterPlotlyData(nfpZDataRaw, $dashboardData.dates, nfpRange);
+
+  $: nfpPctDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.signal_metrics?.nfp?.percentile || [],
+      name: "NFP Change (Percentile)",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#3b82f6", width: 2 },
+    },
+  ];
+  $: nfpPctData = filterPlotlyData(
+    nfpPctDataRaw,
+    $dashboardData.dates,
+    nfpRange,
+  );
+
+  // JOLTS
+  $: joltsChartDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.fed_forecasts?.jolts || [],
+      name: "JOLTS (Raw)",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#10b981", width: 2 },
+    },
+  ];
+  $: joltsChartData = filterPlotlyData(
+    joltsChartDataRaw,
+    $dashboardData.dates,
+    joltsRange,
+  );
+
+  $: joltsZDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.signal_metrics?.jolts?.zscore || [],
+      name: "JOLTS (Z-Score)",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#10b981", width: 2 },
+    },
+  ];
+  $: joltsZData = filterPlotlyData(
+    joltsZDataRaw,
+    $dashboardData.dates,
+    joltsRange,
+  );
+
+  $: joltsPctDataRaw = [
+    {
+      x: $dashboardData.dates,
+      y: $dashboardData.signal_metrics?.jolts?.percentile || [],
+      name: "JOLTS (Percentile)",
+      type: "scatter",
+      mode: "lines",
+      line: { color: "#10b981", width: 2 },
+    },
+  ];
+  $: joltsPctData = filterPlotlyData(
+    joltsPctDataRaw,
+    $dashboardData.dates,
+    joltsRange,
   );
 
   // Inflation Expectations Chart (TIPS Breakeven vs Actual)
@@ -3005,26 +2628,6 @@
           language={$language}
           translations={$currentTranslations}
           dashboardData={$dashboardData}
-          {cliData}
-          {cliPercentileData}
-          {hyZData}
-          {hyPctData}
-          {igZData}
-          {igPctData}
-          {nfciCreditZData}
-          {nfciCreditPctData}
-          {nfciRiskZData}
-          {nfciRiskPctData}
-          {lendingZData}
-          {lendingPctData}
-          {vixZData}
-          {vixPctData}
-          {tipsData}
-          {tipsLayout}
-          {repoStressData}
-          {getLastDate}
-          {getLatestValue}
-          {getLatestROC}
           bind:cliRange
           bind:hyRange
           bind:igRange
@@ -3034,28 +2637,15 @@
           bind:vixRange
           bind:tipsRange
           bind:repoStressRange
-          {treasury10yData}
-          {treasury2yData}
-          {yieldCurveData}
-          {creditSpreadsData}
           bind:treasury10yRange
           bind:treasury2yRange
           bind:yieldCurveRange
-          bind:creditSpreadsRange
-          {moveZData}
-          {movePctData}
-          {fxVolZData}
-          {fxVolPctData}
-          {hyRawData}
-          {igRawData}
-          {nfciCreditRawData}
-          {nfciRiskRawData}
-          {lendingRawData}
-          {vixRawData}
-          {moveRawData}
-          {fxVolRawData}
+          bind:divergenceRange
           bind:moveRange
           bind:fxVolRange
+          {getLastDate}
+          {getLatestValue}
+          {getLatestROC}
         />
       {:else if currentTab === "BTC Analysis"}
         <BtcAnalysisTab
@@ -3091,12 +2681,20 @@
           pmiData={pmiChartData}
           unemploymentData={unemploymentChartData}
           fedFundsData={fedFundsChartData}
+          nfpData={nfpChartData}
+          {nfpZData}
+          {nfpPctData}
+          joltsData={joltsChartData}
+          {joltsZData}
+          {joltsPctData}
           inflationExpectationsData={inflationExpectationsChartData}
           bind:cpiRange
           bind:pceRange
           bind:pmiRange
           bind:unemploymentRange
           bind:fedFundsRange
+          bind:nfpRange
+          bind:joltsRange
           bind:inflationExpectationsRange
         />
       {/if}

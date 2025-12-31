@@ -23,6 +23,13 @@
         };
         return colors[level] || "#6b7280";
     }
+
+    // Translate the stress level
+    function getTranslatedLevel(level) {
+        if (!level) return translations.status_neutral || "N/A";
+        const key = `stress_${level.toLowerCase()}`;
+        return translations[key] || level;
+    }
 </script>
 
 <div class="stress-panel" class:dark={darkMode}>
@@ -50,7 +57,7 @@
                 class="score-level"
                 style="background-color: {globalStress.color || '#6b7280'}"
             >
-                {globalStress.level || "N/A"}
+                {getTranslatedLevel(globalStress.level)}
             </span>
         </div>
     </div>

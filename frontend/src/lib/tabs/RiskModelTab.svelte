@@ -7,15 +7,6 @@
     import TimeRangeSelector from "../components/TimeRangeSelector.svelte";
     import StressPanel from "../components/StressPanel.svelte";
 
-    // Props
-    export let darkMode = false;
-    export let language = "en";
-    export let translations = {};
-    export let dashboardData = {};
-
-    // Satisfy lint for unused language prop
-    $: _lang = language;
-
     // --- Background Shading Helpers ---
 
     function createZScoreBands(
@@ -91,9 +82,10 @@
             return [];
 
         // Find the start and end indices of the filtered range in the original data
-        const startIdx = allDates.findIndex((d) => d === filteredDates[0]);
-        const endIdx = allDates.findIndex(
-            (d) => d === filteredDates[filteredDates.length - 1],
+        // Optimized: searching for strings is fast, but we can do better if we know they are sorted
+        const startIdx = allDates.indexOf(filteredDates[0]);
+        const endIdx = allDates.indexOf(
+            filteredDates[filteredDates.length - 1],
         );
 
         if (startIdx === -1 || endIdx === -1) return [];
@@ -112,6 +104,7 @@
         let currentRegime = null;
         let blockStartIdx = 0;
 
+        // Iterate once and merge identical adjacent regimes
         for (let i = 0; i <= dates.length; i++) {
             const regime = i < dates.length ? signals[i] : null;
             if (regime !== currentRegime || i === dates.length) {
@@ -219,44 +212,35 @@
         tips_real: { bullishPct: 30, bearishPct: 75, invert: true },
     };
 
-    // Chart data - Z-Score
-    export let cliData = [];
-    export let cliPercentileData = [];
-    export let hyZData = [];
-    export let hyPctData = [];
-    export let igZData = [];
-    export let igPctData = [];
-    export let nfciCreditZData = [];
-    export let nfciCreditPctData = [];
-    export let nfciRiskZData = [];
-    export let nfciRiskPctData = [];
-    export let lendingZData = [];
-    export let lendingPctData = [];
-    export let vixZData = [];
-    export let vixPctData = [];
-    export let moveZData = [];
-    export let movePctData = [];
-    export let fxVolZData = [];
-    export let fxVolPctData = [];
-    export let tipsData = [];
-    export let tipsLayout = {};
-    export let repoStressData = [];
+    // Unified Props
+    export let dashboardData = {};
+    export let darkMode = false;
+    export let language = "en";
+    export let translations = {};
 
-    // Raw data props (original values without transformation)
-    export let vixRawData = [];
-    export let moveRawData = [];
-    export let fxVolRawData = [];
-    export let hyRawData = [];
-    export let igRawData = [];
-    export let nfciCreditRawData = [];
-    export let nfciRiskRawData = [];
-    export let lendingRawData = [];
+    // Range props
+    export let cliRange = "ALL";
+    export let hyRange = "ALL";
+    export let igRange = "ALL";
+    export let nfciCreditRange = "ALL";
+    export let nfciRiskRange = "ALL";
+    export let lendingRange = "ALL";
+    export let vixRange = "ALL";
+    export let moveRange = "ALL";
+    export let fxVolRange = "ALL";
+    export let treasury10yRange = "ALL";
+    export let treasury2yRange = "ALL";
+    export let yieldCurveRange = "ALL";
+    export let divergenceRange = "ALL";
+    export let repoStressRange = "ALL";
+    export let tipsRange = "ALL";
+    export let creditSpreadsRange = "ALL";
 
-    // Treasury Stress Indicators
-    export let treasury10yData = [];
-    export let treasury2yData = [];
-    export let yieldCurveData = [];
-    export let creditSpreadsData = [];
+    // Imports
+    import { filterPlotlyData } from "../utils/helpers.js";
+
+    // Satisfy lint for unused language prop
+    $: _lang = language;
 
     // View mode per chart: 'zscore', 'percentile', or 'raw'
     let cliViewMode = "zscore";
@@ -268,6 +252,778 @@
     let vixViewMode = "zscore";
     let moveViewMode = "zscore";
     let fxVolViewMode = "zscore";
+    let treasury10yViewMode = "raw";
+    let treasury2yViewMode = "raw";
+    let yieldCurveViewMode = "raw";
+    let divergenceViewMode = "raw";
+
+    // --- Performance Optimization: Cached Indices ---
+    import { getCutoffDate } from "../utils/helpers.js";
+
+    $: rangeIndicesCache = (() => {
+        const d = dashboardData.dates;
+        if (!d || !Array.isArray(d)) return {};
+        const ranges = ["1M", "3M", "6M", "1Y", "3Y", "5Y"];
+
+        // Fix: Ignore dates before 1990 to prevent the "1970" x-axis issue
+        const minDate = new Date("1990-01-01");
+        const allValidIndices = d
+            .map((dateStr, i) => ({ date: new Date(dateStr), index: i }))
+            .filter((item) => item.date >= minDate)
+            .map((item) => item.index);
+
+        const cache = { ALL: allValidIndices };
+
+        ranges.forEach((r) => {
+            const cutoff = getCutoffDate(r);
+            if (!cutoff) {
+                cache[r] = cache.ALL;
+                return;
+            }
+            const indices = [];
+            for (let i = 0; i < d.length; i++) {
+                const dateObj = new Date(d[i]);
+                if (dateObj >= cutoff && dateObj >= minDate) indices.push(i);
+            }
+            cache[r] = indices;
+        });
+        return cache;
+    })();
+
+    // Optimized filter function using the cache
+    function filterWithCache(traceArray, range, autoTrim = true) {
+        if (!traceArray || !dashboardData.dates) return traceArray;
+        let indices =
+            rangeIndicesCache[range] || rangeIndicesCache["ALL"] || [];
+
+        if (range === "ALL" && autoTrim) {
+            let firstValidIdx = -1;
+            const fullDates = dashboardData.dates;
+            for (let i = 0; i < fullDates.length; i++) {
+                const hasData = traceArray.some((t) => {
+                    const val = t.y ? t.y[i] : undefined;
+                    return val !== null && val !== undefined && val !== 0;
+                });
+                if (hasData) {
+                    firstValidIdx = i;
+                    break;
+                }
+            }
+            if (firstValidIdx !== -1) {
+                indices = indices.filter((idx) => idx >= firstValidIdx);
+            }
+        }
+
+        if (indices.length === 0) return traceArray;
+
+        return traceArray.map((trace) => ({
+            ...trace,
+            x: indices.map((i) => dashboardData.dates[i]),
+            y: indices.map((i) => (trace.y ? trace.y[i] : undefined)),
+        }));
+    }
+
+    // --- Internal Reactive Data Processing ---
+
+    let cliPercentileData = [];
+    let hyZData = [],
+        hyPctData = [],
+        hyRawData = [];
+    let igZData = [],
+        igPctData = [],
+        igRawData = [];
+    let nfciCreditZData = [],
+        nfciCreditPctData = [],
+        nfciCreditRawData = [];
+    let nfciRiskZData = [],
+        nfciRiskPctData = [],
+        nfciRiskRawData = [];
+    let lendingZData = [],
+        lendingPctData = [],
+        lendingRawData = [];
+    let vixZData = [],
+        vixPctData = [],
+        vixRawData = [];
+    let moveZData = [],
+        movePctData = [],
+        moveRawData = [];
+    let fxVolZData = [],
+        fxVolPctData = [],
+        fxVolRawData = [];
+    let treasury10yData = [],
+        treasury10yZData = [],
+        treasury10yPctData = [];
+    let treasury2yData = [],
+        treasury2yZData = [],
+        treasury2yPctData = [];
+    let divergenceData = [],
+        divergenceZData = [],
+        divergencePctData = [];
+    let repoStressData = [];
+    let creditSpreadsData = [];
+    let creditIndicators = [];
+    let cliChartData = [];
+    let cliLayout = {};
+    let tipsLayout = {};
+    let tipsLayoutWithBands = {};
+    let repoStressLayout = {};
+    let creditSpreadsLayout = {};
+    let tipsRegimeSignals = [];
+    let repoRegimeSignals = [];
+    let signalsFromMetrics = {};
+    let computedTipsSignal = null;
+    let tipsData = [];
+
+    // CLI Aggregate
+    $: cliData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.cli?.total || [],
+                name: "CLI Aggregate (Z-Score)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#10b981", width: 3 },
+                fill: "tozeroy",
+                fillcolor: "rgba(16, 185, 129, 0.1)",
+            },
+        ],
+        cliRange,
+    );
+
+    $: cliPercentileData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.signal_metrics?.cli?.percentile || [],
+                name: "CLI (Percentile)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#10b981", width: 3 },
+            },
+        ],
+        cliRange,
+    );
+
+    // HY Spread
+    $: hyZData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.cli_components?.hy_z || [],
+                name: "HY Spread (Z-Score)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#ef4444", width: 2 },
+            },
+        ],
+        hyRange,
+    );
+
+    $: hyPctData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.signal_metrics?.hy_spread?.percentile || [],
+                name: "HY Spread (Percentile)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#ef4444", width: 2 },
+            },
+        ],
+        hyRange,
+    );
+
+    $: hyRawData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.hy_spread || [],
+                name: "HY Spread (bps)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#ef4444", width: 2 },
+            },
+        ],
+        hyRange,
+    );
+
+    // IG Spread
+    $: igZData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.cli_components?.ig_z || [],
+                name: "IG Spread (Z-Score)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#38bdf8", width: 2 },
+            },
+        ],
+        igRange,
+    );
+
+    $: igPctData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.signal_metrics?.ig_spread?.percentile || [],
+                name: "IG Spread (Percentile)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#38bdf8", width: 2 },
+            },
+        ],
+        igRange,
+    );
+
+    $: igRawData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.ig_spread || [],
+                name: "IG Spread (bps)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#38bdf8", width: 2 },
+            },
+        ],
+        igRange,
+    );
+
+    // NFCI Credit
+    $: nfciCreditZData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.signal_metrics?.nfci_credit?.zscore || [],
+                name: "NFCI Credit (Z-Score)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#3b82f6", width: 2 },
+            },
+        ],
+        nfciCreditRange,
+    );
+
+    $: nfciCreditPctData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.signal_metrics?.nfci_credit?.percentile || [],
+                name: "NFCI Credit (Percentile)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#3b82f6", width: 2 },
+            },
+        ],
+        nfciCreditRange,
+    );
+
+    $: nfciCreditRawData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y:
+                    dashboardData.signal_metrics?.nfci_credit?.raw ||
+                    dashboardData.nfci_credit ||
+                    [],
+                name: "NFCI Credit (Raw)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#3b82f6", width: 2 },
+            },
+        ],
+        nfciCreditRange,
+    );
+
+    // NFCI Risk
+    $: nfciRiskZData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.signal_metrics?.nfci_risk?.zscore || [],
+                name: "NFCI Risk (Z-Score)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#a855f7", width: 2 },
+            },
+        ],
+        nfciRiskRange,
+    );
+
+    $: nfciRiskPctData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.signal_metrics?.nfci_risk?.percentile || [],
+                name: "NFCI Risk (Percentile)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#a855f7", width: 2 },
+            },
+        ],
+        nfciRiskRange,
+    );
+
+    $: nfciRiskRawData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y:
+                    dashboardData.signal_metrics?.nfci_risk?.raw ||
+                    dashboardData.nfci_risk ||
+                    [],
+                name: "NFCI Risk (Raw)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#a855f7", width: 2 },
+            },
+        ],
+        nfciRiskRange,
+    );
+
+    // Lending
+    $: lendingZData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.signal_metrics?.lending?.zscore || [],
+                name: "Lending Standards (Z-Score)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#3b82f6", width: 2 },
+            },
+        ],
+        lendingRange,
+    );
+
+    $: lendingPctData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.signal_metrics?.lending?.percentile || [],
+                name: "Lending Standards (Percentile)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#3b82f6", width: 2 },
+            },
+        ],
+        lendingRange,
+    );
+
+    $: lendingRawData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y:
+                    dashboardData.signal_metrics?.lending?.raw ||
+                    dashboardData.lending ||
+                    [],
+                name: "Lending Standards (% Net Tightening)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#3b82f6", width: 2 },
+            },
+        ],
+        lendingRange,
+    );
+
+    // VIX
+    $: vixZData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.signal_metrics?.vix?.zscore || [],
+                name: "VIX (Z-Score)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#dc2626", width: 2 },
+            },
+        ],
+        vixRange,
+    );
+
+    $: vixPctData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.signal_metrics?.vix?.percentile || [],
+                name: "VIX (Percentile)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#dc2626", width: 2 },
+            },
+        ],
+        vixRange,
+    );
+
+    $: vixRawData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.vix?.total || [],
+                name: "VIX (Raw)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#dc2626", width: 2 },
+            },
+        ],
+        vixRange,
+    );
+
+    // MOVE
+    $: moveZData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.signal_metrics?.move?.zscore || [],
+                name: "MOVE (Z-Score)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#3b82f6", width: 2 },
+            },
+        ],
+        moveRange,
+    );
+
+    $: movePctData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.signal_metrics?.move?.percentile || [],
+                name: "MOVE (Percentile)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#3b82f6", width: 2 },
+            },
+        ],
+        moveRange,
+    );
+
+    $: moveRawData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.move?.total || [],
+                name: "MOVE Index",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#3b82f6", width: 2 },
+            },
+        ],
+        moveRange,
+    );
+
+    // FX Vol
+    $: fxVolZData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.signal_metrics?.fx_vol?.zscore || [],
+                name: "DXY Realized Vol (Z-Score)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#06b6d4", width: 2 },
+            },
+        ],
+        fxVolRange,
+    );
+
+    $: fxVolPctData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.signal_metrics?.fx_vol?.percentile || [],
+                name: "DXY Realized Vol (Percentile)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#06b6d4", width: 2 },
+            },
+        ],
+        fxVolRange,
+    );
+
+    $: fxVolRawData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.fx_vol?.total || [],
+                name: "DXY Realized Vol (%)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#06b6d4", width: 2 },
+            },
+        ],
+        fxVolRange,
+    );
+
+    // Treasuries
+    $: treasury10yData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y:
+                    dashboardData.signal_metrics?.treasury_10y?.raw ||
+                    dashboardData.treasury_10y ||
+                    [],
+                name: "10Y UST Yield (%)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#3b82f6", width: 2 },
+            },
+        ],
+        treasury10yRange,
+    );
+
+    $: treasury10yZData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.signal_metrics?.treasury_10y?.zscore || [],
+                name: "10Y Yield (Z-Score)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#3b82f6", width: 2 },
+            },
+        ],
+        treasury10yRange,
+    );
+
+    $: treasury10yPctData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.signal_metrics?.treasury_10y?.percentile || [],
+                name: "10Y Yield (Percentile)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#3b82f6", width: 2 },
+            },
+        ],
+        treasury10yRange,
+    );
+
+    $: treasury2yData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y:
+                    dashboardData.signal_metrics?.treasury_2y?.raw ||
+                    dashboardData.treasury_2y ||
+                    [],
+                name: "2Y UST Yield (%)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#60a5fa", width: 2 },
+            },
+        ],
+        treasury2yRange,
+    );
+
+    $: treasury2yZData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.signal_metrics?.treasury_2y?.zscore || [],
+                name: "2Y Yield (Z-Score)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#60a5fa", width: 2 },
+            },
+        ],
+        treasury2yRange,
+    );
+
+    $: treasury2yPctData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.signal_metrics?.treasury_2y?.percentile || [],
+                name: "2Y Yield (Percentile)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#60a5fa", width: 2 },
+            },
+        ],
+        treasury2yRange,
+    );
+
+    $: yieldCurveRawData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.yield_curve || [],
+                name: "10Y-2Y Spread (%)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#8b5cf6", width: 2.5 },
+                fill: "tozeroy",
+                fillcolor: "rgba(139, 92, 246, 0.1)",
+            },
+        ],
+        yieldCurveRange,
+    );
+
+    $: yieldCurveZData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.signal_metrics?.yield_curve?.zscore || [],
+                name: "Yield Curve (Z-Score)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#8b5cf6", width: 2 },
+            },
+        ],
+        yieldCurveRange,
+    );
+
+    $: yieldCurvePctData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.signal_metrics?.yield_curve?.percentile || [],
+                name: "Yield Curve (Percentile)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#8b5cf6", width: 2 },
+            },
+        ],
+        yieldCurveRange,
+    );
+
+    $: divergenceData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.macro_regime?.cli_gli_divergence || [],
+                name: "CLI-GLI Divergence",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#f43f5e", width: 2.5 },
+            },
+        ],
+        divergenceRange,
+    );
+
+    $: divergenceZData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y:
+                    dashboardData.signal_metrics?.cli_gli_divergence?.zscore ||
+                    [],
+                name: "CLI-GLI Divergence (Z-Score)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#f43f5e", width: 2 },
+            },
+        ],
+        divergenceRange,
+    );
+
+    $: divergencePctData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y:
+                    dashboardData.signal_metrics?.cli_gli_divergence
+                        ?.percentile || [],
+                name: "CLI-GLI Divergence (Percentile)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#f43f5e", width: 2 },
+            },
+        ],
+        divergenceRange,
+    );
+
+    $: repoStressData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.repo_stress?.sofr || [],
+                name: "SOFR",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#f59e0b", width: 2 },
+            },
+            {
+                x: dashboardData.dates,
+                y: dashboardData.repo_stress?.iorb || [],
+                name: "IORB",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#8b5cf6", width: 2, dash: "dash" },
+            },
+        ],
+        repoStressRange,
+        true,
+    );
+
+    $: tipsData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.tips?.breakeven || [],
+                name: "10Y Breakeven (%)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#f59e0b", width: 2.5 },
+                yaxis: "y",
+            },
+            {
+                x: dashboardData.dates,
+                y: dashboardData.tips?.real_rate || [],
+                name: "10Y Real Rate (%)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#3b82f6", width: 2, dash: "dash" },
+                yaxis: "y",
+            },
+            {
+                x: dashboardData.dates,
+                y: dashboardData.tips?.fwd_5y5y || [],
+                name: "5Y5Y Forward (%)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#10b981", width: 2 },
+                yaxis: "y",
+            },
+        ],
+        tipsRange,
+    );
+
+    $: tipsLayout = {
+        title: translations.chart_tips_title || "TIPS Real Yield",
+        yaxis: { title: "Breakeven (%)", side: "left" },
+        yaxis2: { title: "Real Rate (%)", overlaying: "y", side: "right" },
+    };
+
+    $: creditSpreadsData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.hy_spread || [],
+                name: "HY Spread (bps)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#ef4444", width: 2 },
+                yaxis: "y",
+            },
+            {
+                x: dashboardData.dates,
+                y: dashboardData.ig_spread || [],
+                name: "IG Spread (bps)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#38bdf8", width: 2 },
+                yaxis: "y2",
+            },
+        ],
+        creditSpreadsRange,
+    );
 
     // Last date lookup function
     export let getLastDate = (bank) => "N/A";
@@ -297,23 +1053,6 @@
             "—"
         );
     }
-
-    // Time range states - managed locally
-    export let cliRange = "ALL";
-    export let hyRange = "ALL";
-    export let igRange = "ALL";
-    export let nfciCreditRange = "ALL";
-    export let nfciRiskRange = "ALL";
-    export let lendingRange = "ALL";
-    export let vixRange = "ALL";
-    export let moveRange = "ALL";
-    export let fxVolRange = "ALL";
-    export let tipsRange = "ALL";
-    export let repoStressRange = "ALL";
-    export let treasury10yRange = "ALL";
-    export let treasury2yRange = "ALL";
-    export let yieldCurveRange = "ALL";
-    export let creditSpreadsRange = "ALL";
 
     // Z-Score Layouts (using original createZScoreBands from line 20)
     $: hyZLayout = {
@@ -349,6 +1088,23 @@
         yaxis: { title: "Z-Score", dtick: 2.5, autorange: true },
     };
 
+    $: creditSpreadsLayout = {
+        title: translations.chart_credit_spreads_title || "Credit Spreads",
+        yaxis: {
+            title: "HY Spread (bps)",
+            titlefont: { color: "#ef4444" },
+            tickfont: { color: "#ef4444" },
+        },
+        yaxis2: {
+            title: "IG Spread (bps)",
+            titlefont: { color: "#38bdf8" },
+            tickfont: { color: "#38bdf8" },
+            overlaying: "y",
+            side: "right",
+            autorange: true,
+        },
+    };
+
     // Percentile Layouts (when viewMode is 'percentile')
     $: hyLayout = {
         shapes: createPercentileBands(darkMode, PERCENTILE_CONFIG.hy_spread),
@@ -370,6 +1126,56 @@
         },
         margin: { l: 50, r: 20, t: 20, b: 40 },
     };
+    $: yieldCurveLayout = {
+        title: translations.chart_yield_curve || "Yield Curve (10Y-2Y Spread)",
+        xaxis: {
+            title: "Date",
+            gridcolor: darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
+            zeroline: false,
+        },
+        yaxis: {
+            title: translations.yield_curve_y || "Spread (%)",
+            gridcolor: darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
+            zeroline: true,
+            zerolinecolor: "rgba(255,255,255,0.2)",
+        },
+        margin: { t: 30, r: 40, b: 40, l: 50 },
+        paper_bgcolor: "transparent",
+        plot_bgcolor: "transparent",
+        font: { color: darkMode ? "#fff" : "#000" },
+        showlegend: false,
+        shapes: [],
+    };
+
+    $: tipsLayout = {
+        title:
+            translations.chart_inflation_exp ||
+            "Inflation Expectations (TIPS Market)",
+        xaxis: {
+            title: "Date",
+            gridcolor: darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
+            zeroline: false,
+        },
+        yaxis: {
+            title: "Yield / Rate (%)",
+            gridcolor: darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
+            zeroline: true,
+            side: "left",
+        },
+        margin: { t: 30, r: 50, b: 40, l: 50 },
+        paper_bgcolor: "transparent",
+        plot_bgcolor: "transparent",
+        font: { color: darkMode ? "#fff" : "#000" },
+        showlegend: true,
+        legend: {
+            orientation: "h",
+            yanchor: "bottom",
+            y: 1.02,
+            xanchor: "right",
+            x: 1,
+        },
+    };
+
     $: nfciCreditLayout = {
         shapes: createPercentileBands(darkMode, PERCENTILE_CONFIG.nfci_credit),
         yaxis: {
@@ -530,19 +1336,10 @@
         ),
         yaxis: {
             ...tipsLayout.yaxis,
-            title: "Breakeven & 5Y5Y (%)",
+            title: "Yield / Rate (%)",
             dtick: 0.5,
             autorange: true,
         },
-        yaxis2: {
-            ...tipsLayout.yaxis2,
-            title: "Real Rate (%)",
-            dtick: 0.5,
-            autorange: true,
-            side: "right",
-            overlaying: "y",
-        },
-        showlegend: false,
         margin: { l: 60, r: 60, t: 20, b: 40 },
     };
 
@@ -598,19 +1395,40 @@
             const spread = (s - (iorb[i] || 0)) * 100; // Convert to bps
             if (!Number.isFinite(spread)) return "neutral";
             if (spread > 10) return "bearish"; // SOFR >> IORB = liquidity stress
-            if (spread < -5) return "warning"; // SOFR << IORB = excess liquidity (unusual)
-            if (Math.abs(spread) <= 5) return "bullish"; // Normal range = healthy
+            if (spread < -5) return "neutral"; // Excess liquidity
+            if (Math.abs(spread) <= 5) return "bullish"; // Normal range
             return "neutral";
         });
     })();
+
     $: repoStressLayout = {
+        title: "Repo Stress (SOFR vs IORB)",
+        xaxis: {
+            title: "Date",
+            gridcolor: darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
+        },
+        yaxis: {
+            title: "Rate (%)",
+            gridcolor: darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
+        },
+        margin: { t: 30, r: 20, b: 40, l: 50 },
+        paper_bgcolor: "transparent",
+        plot_bgcolor: "transparent",
+        font: { color: darkMode ? "#fff" : "#000" },
+        showlegend: true,
+        legend: {
+            orientation: "h",
+            yanchor: "bottom",
+            y: 1.02,
+            xanchor: "right",
+            x: 1,
+        },
         shapes: createRegimeShapes(
             repoStressData[0]?.x || [],
             dashboardData.dates,
             repoRegimeSignals,
             darkMode,
         ),
-        yaxis: { title: "Percent (%)", dtick: 1.0, autorange: true },
     };
 
     // Credit indicators configuration - each chart has independent viewMode
@@ -629,7 +1447,6 @@
                       ? hyPctData
                       : hyZData,
             range: hyRange,
-            setRange: (r) => (hyRange = r),
             bank: "HY_SPREAD",
             layout:
                 hyViewMode === "raw"
@@ -654,7 +1471,6 @@
                       ? igPctData
                       : igZData,
             range: igRange,
-            setRange: (r) => (igRange = r),
             bank: "IG_SPREAD",
             layout:
                 igViewMode === "raw"
@@ -680,7 +1496,6 @@
                       ? nfciCreditPctData
                       : nfciCreditZData,
             range: nfciCreditRange,
-            setRange: (r) => (nfciCreditRange = r),
             bank: "NFCI_CREDIT",
             layout:
                 nfciCreditViewMode === "raw"
@@ -705,7 +1520,6 @@
                       ? nfciRiskPctData
                       : nfciRiskZData,
             range: nfciRiskRange,
-            setRange: (r) => (nfciRiskRange = r),
             bank: "NFCI_RISK",
             layout:
                 nfciRiskViewMode === "raw"
@@ -732,7 +1546,6 @@
                       ? lendingPctData
                       : lendingZData,
             range: lendingRange,
-            setRange: (r) => (lendingRange = r),
             bank: "LENDING_STD",
             layout:
                 lendingViewMode === "raw"
@@ -757,7 +1570,6 @@
                       ? vixPctData
                       : vixZData,
             range: vixRange,
-            setRange: (r) => (vixRange = r),
             bank: "VIX",
             layout:
                 vixViewMode === "raw"
@@ -782,7 +1594,6 @@
                       ? movePctData
                       : moveZData,
             range: moveRange,
-            setRange: (r) => (moveRange = r),
             bank: "MOVE",
             layout:
                 moveViewMode === "raw"
@@ -808,7 +1619,6 @@
                       ? fxVolPctData
                       : fxVolZData,
             range: fxVolRange,
-            setRange: (r) => (fxVolRange = r),
             bank: "FX_VOL",
             layout:
                 fxVolViewMode === "raw"
@@ -820,6 +1630,17 @@
             setViewMode: (m) => (fxVolViewMode = m),
         },
     ];
+
+    function handleRangeChange(id, range) {
+        if (id === "hy") hyRange = range;
+        else if (id === "ig") igRange = range;
+        else if (id === "nfci_credit") nfciCreditRange = range;
+        else if (id === "nfci_risk") nfciRiskRange = range;
+        else if (id === "lending") lendingRange = range;
+        else if (id === "vix") vixRange = range;
+        else if (id === "move") moveRange = range;
+        else if (id === "fx_vol") fxVolRange = range;
+    }
 
     // Unified signal derived from signal_metrics
     $: signalsFromMetrics = dashboardData.signal_metrics || {};
@@ -1033,7 +1854,10 @@
         <!-- CLI Aggregate Chart -->
         <div class="chart-card">
             <div class="chart-header">
-                <h3>Credit Liquidity Index (CLI Aggregate)</h3>
+                <h3>
+                    {translations.chart_cli_title ||
+                        "Credit Liquidity Index (CLI Aggregate)"}
+                </h3>
                 <div class="header-controls">
                     <div class="view-mode-toggle">
                         <button
@@ -1100,6 +1924,206 @@
                         style="font-size: 11px; color: rgba(255,255,255,0.55); margin-top: 6px; font-style: italic;"
                     >
                         {getSignalReason("cli", s.state)}
+                    </div>
+                </div>
+            {/if}
+        </div>
+
+        <!-- CLI-GLI Divergence Analysis (Macro Coupling) -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3>
+                    {translations.chart_divergence ||
+                        "CLI-GLI Divergence (Macro Coupling)"}
+                </h3>
+                <div class="header-controls">
+                    <div class="mode-selector">
+                        <button
+                            class:active={divergenceViewMode === "raw"}
+                            on:click={() => (divergenceViewMode = "raw")}
+                            >{translations.view_raw || "Raw"}</button
+                        >
+                        <button
+                            class:active={divergenceViewMode === "zscore"}
+                            on:click={() => (divergenceViewMode = "zscore")}
+                            >{translations.view_zscore || "Z-Score"}</button
+                        >
+                        <button
+                            class:active={divergenceViewMode === "percentile"}
+                            on:click={() => (divergenceViewMode = "percentile")}
+                            >{translations.view_percentile ||
+                                "Percentile"}</button
+                        >
+                    </div>
+                    <TimeRangeSelector
+                        selectedRange={divergenceRange}
+                        onRangeChange={(r) => (divergenceRange = r)}
+                    />
+                </div>
+            </div>
+            <p class="chart-description">
+                {@html translations.divergence_desc}
+            </p>
+            <div
+                class="divergence-guide"
+                style="font-size: 11px; margin: 10px 0 20px 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; opacity: 0.9;"
+            >
+                <div
+                    style="border-left: 3px solid #10b981; padding: 2px 0 2px 10px; line-height: 1.4;"
+                >
+                    <b style="color: #10b981;"
+                        >{translations.div_guide_eq.split(":")[0]}:</b
+                    >
+                    {translations.div_guide_eq.split(":")[1] || ""}
+                </div>
+                <div
+                    style="border-left: 3px solid #ef4444; padding: 2px 0 2px 10px; line-height: 1.4;"
+                >
+                    <b style="color: #ef4444;"
+                        >{translations.div_guide_trap.split(":")[0]}:</b
+                    >
+                    {translations.div_guide_trap.split(":")[1] || ""}
+                </div>
+                <div
+                    style="border-left: 3px solid #f59e0b; padding: 2px 0 2px 10px; line-height: 1.4;"
+                >
+                    <b style="color: #f59e0b;"
+                        >{translations.div_guide_excess.split(":")[0]}:</b
+                    >
+                    {translations.div_guide_excess.split(":")[1] || ""}
+                </div>
+            </div>
+            <div class="chart-content" style="height: 300px;">
+                <Chart
+                    {darkMode}
+                    data={divergenceViewMode === "zscore"
+                        ? divergenceZData
+                        : divergenceViewMode === "percentile"
+                          ? divergencePctData
+                          : divergenceData}
+                    layout={{
+                        yaxis: {
+                            title:
+                                divergenceViewMode === "zscore"
+                                    ? "Z-Score"
+                                    : divergenceViewMode === "percentile"
+                                      ? "Percentile (%)"
+                                      : "Divergence (Z)",
+                            zeroline: true,
+                            zerolinecolor: darkMode ? "#ffffff" : "#000000",
+                            range:
+                                divergenceViewMode === "zscore"
+                                    ? [-4, 4]
+                                    : divergenceViewMode === "percentile"
+                                      ? [0, 100]
+                                      : undefined,
+                        },
+                        shapes:
+                            divergenceViewMode === "zscore"
+                                ? [
+                                      {
+                                          type: "line",
+                                          xref: "paper",
+                                          yref: "y",
+                                          x0: 0,
+                                          x1: 1,
+                                          y0: 1.5,
+                                          y1: 1.5,
+                                          line: {
+                                              color: "rgba(16, 185, 129, 0.5)",
+                                              width: 1,
+                                              dash: "dash",
+                                          },
+                                      },
+                                      {
+                                          type: "line",
+                                          xref: "paper",
+                                          yref: "y",
+                                          x0: 0,
+                                          x1: 1,
+                                          y0: -1.5,
+                                          y1: -1.5,
+                                          line: {
+                                              color: "rgba(239, 68, 68, 0.5)",
+                                              width: 1,
+                                              dash: "dash",
+                                          },
+                                      },
+                                  ]
+                                : divergenceViewMode === "percentile"
+                                  ? [
+                                        {
+                                            type: "line",
+                                            xref: "paper",
+                                            yref: "y",
+                                            x0: 0,
+                                            x1: 1,
+                                            y0: 80,
+                                            y1: 80,
+                                            line: {
+                                                color: "rgba(16, 185, 129, 0.5)",
+                                                width: 1,
+                                                dash: "dash",
+                                            },
+                                        },
+                                        {
+                                            type: "line",
+                                            xref: "paper",
+                                            yref: "y",
+                                            x0: 0,
+                                            x1: 1,
+                                            y0: 20,
+                                            y1: 20,
+                                            line: {
+                                                color: "rgba(239, 68, 68, 0.5)",
+                                                width: 1,
+                                                dash: "dash",
+                                            },
+                                        },
+                                    ]
+                                  : [],
+                        margin: { l: 50, r: 20, t: 20, b: 40 },
+                    }}
+                />
+            </div>
+            <div class="latest-values">
+                <span
+                    >{translations.latest_value || "Latest Value"}:
+                    <b
+                        >{getLatestValue(
+                            dashboardData.macro_regime?.cli_gli_divergence,
+                        )?.toFixed(2) ?? "—"}</b
+                    ></span
+                >
+                {#if divergenceViewMode !== "raw"}
+                    <span class="view-mode-badge">
+                        {divergenceViewMode.toUpperCase()}:
+                        <b
+                            >{getLatestValue(
+                                dashboardData.signal_metrics
+                                    ?.cli_gli_divergence?.[divergenceViewMode],
+                            )?.toFixed(2) ?? "—"}{divergenceViewMode ===
+                            "percentile"
+                                ? "%"
+                                : ""}</b
+                        >
+                    </span>
+                {/if}
+            </div>
+            {#if (getLatestValue(dashboardData.macro_regime?.cli_gli_divergence) ?? 0) < -1}
+                <div
+                    class="signal-box warning"
+                    style="margin-top: 15px; border-left: 4px solid #ef4444; background: rgba(239, 68, 68, 0.1); padding: 12px;"
+                >
+                    <div
+                        style="font-weight: 700; color: #ef4444; margin-bottom: 4px;"
+                    >
+                        {translations.stat_liq_trap_title}
+                    </div>
+                    <div
+                        style="font-size: 12px; opacity: 0.9; line-height: 1.4;"
+                    >
+                        {translations.stat_liq_trap_desc}
                     </div>
                 </div>
             {/if}
@@ -1216,7 +2240,7 @@
             </div>
         </div>
 
-        <!-- Treasury Stress Indicators Section -->
+        <!-- Treasury 10Y Chart -->
         <div class="chart-card">
             <div class="chart-header">
                 <h3>
@@ -1224,6 +2248,24 @@
                         "10-Year Treasury Yield"}
                 </h3>
                 <div class="header-controls">
+                    <div class="view-mode-toggle">
+                        <button
+                            class:active={treasury10yViewMode === "zscore"}
+                            on:click={() => (treasury10yViewMode = "zscore")}
+                            title="Z-Score">Z</button
+                        >
+                        <button
+                            class:active={treasury10yViewMode === "percentile"}
+                            on:click={() =>
+                                (treasury10yViewMode = "percentile")}
+                            title="Percentile">%</button
+                        >
+                        <button
+                            class:active={treasury10yViewMode === "raw"}
+                            on:click={() => (treasury10yViewMode = "raw")}
+                            title="Raw Values">📊</button
+                        >
+                    </div>
                     <TimeRangeSelector
                         selectedRange={treasury10yRange}
                         onRangeChange={(r) => (treasury10yRange = r)}
@@ -1236,26 +2278,93 @@
             </div>
             <p class="chart-description">
                 {translations.treasury_10y_desc ||
-                    "10-Year Treasury Constant Maturity Yield. Key benchmark rate for risk-free rate and market stress."}
+                    "10-Year Treasury Constant Maturity Yield. Key benchmark rate."}
             </p>
             <div class="chart-content" style="height: 300px;">
                 <Chart
                     {darkMode}
-                    data={treasury10yData}
-                    layout={{
-                        yaxis: { title: "10Y Yield (%)", autorange: true },
-                        margin: { l: 50, r: 20, t: 20, b: 40 },
-                    }}
+                    data={treasury10yViewMode === "raw"
+                        ? treasury10yData
+                        : treasury10yViewMode === "percentile"
+                          ? treasury10yPctData
+                          : treasury10yZData}
+                    layout={treasury10yViewMode === "raw"
+                        ? {
+                              yaxis: { title: "10Y Yield (%)" },
+                              margin: { l: 50, r: 20, t: 20, b: 40 },
+                          }
+                        : treasury10yViewMode === "percentile"
+                          ? {
+                                shapes: createPercentileBands(darkMode, {
+                                    bullishPct: 30,
+                                    bearishPct: 70,
+                                    invert: true,
+                                }),
+                                yaxis: {
+                                    title: "Percentile",
+                                    range: [-5, 105],
+                                },
+                                margin: { l: 50, r: 20, t: 20, b: 40 },
+                            }
+                          : {
+                                shapes: createZScoreBands(darkMode),
+                                yaxis: { title: "Z-Score" },
+                                margin: { l: 50, r: 20, t: 20, b: 40 },
+                            }}
                 />
             </div>
+            {#if signalsFromMetrics.treasury_10y?.latest}
+                {@const s = signalsFromMetrics.treasury_10y.latest}
+                <div
+                    class="metrics-section"
+                    style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;"
+                >
+                    <div
+                        class="signal-item"
+                        style="background: rgba(0,0,0,0.15); border: none;"
+                    >
+                        <div class="signal-label">
+                            {translations.signal_status || "Signal Status"}
+                        </div>
+                        <div class="signal-status text-{s.state}">
+                            <span class="signal-dot"></span>
+                            {getStatusLabel(s.state)}
+                        </div>
+                        <div class="signal-value">
+                            {translations.current || "Current"}:
+                            <b>{s.value?.toFixed(2)}%</b>
+                            | {translations.percentile || "Percentile"}:
+                            <b>P{s.percentile?.toFixed(0)}</b>
+                        </div>
+                    </div>
+                </div>
+            {/if}
         </div>
 
+        <!-- Treasury 2Y Chart -->
         <div class="chart-card">
             <div class="chart-header">
                 <h3>
                     {translations.chart_treasury_2y || "2-Year Treasury Yield"}
                 </h3>
                 <div class="header-controls">
+                    <div class="view-mode-toggle">
+                        <button
+                            class:active={treasury2yViewMode === "zscore"}
+                            on:click={() => (treasury2yViewMode = "zscore")}
+                            title="Z-Score">Z</button
+                        >
+                        <button
+                            class:active={treasury2yViewMode === "percentile"}
+                            on:click={() => (treasury2yViewMode = "percentile")}
+                            title="Percentile">%</button
+                        >
+                        <button
+                            class:active={treasury2yViewMode === "raw"}
+                            on:click={() => (treasury2yViewMode = "raw")}
+                            title="Raw Values">📊</button
+                        >
+                    </div>
                     <TimeRangeSelector
                         selectedRange={treasury2yRange}
                         onRangeChange={(r) => (treasury2yRange = r)}
@@ -1268,18 +2377,67 @@
             </div>
             <p class="chart-description">
                 {translations.treasury_2y_desc ||
-                    "2-Year Treasury Constant Maturity Yield. Indicator of short-term interest rate expectations and liquidity."}
+                    "2-Year Treasury Constant Maturity Yield. Short-term rate."}
             </p>
             <div class="chart-content" style="height: 300px;">
                 <Chart
                     {darkMode}
-                    data={treasury2yData}
-                    layout={{
-                        yaxis: { title: "2Y Yield (%)", autorange: true },
-                        margin: { l: 50, r: 20, t: 20, b: 40 },
-                    }}
+                    data={treasury2yViewMode === "raw"
+                        ? treasury2yData
+                        : treasury2yViewMode === "percentile"
+                          ? treasury2yPctData
+                          : treasury2yZData}
+                    layout={treasury2yViewMode === "raw"
+                        ? {
+                              yaxis: { title: "2Y Yield (%)" },
+                              margin: { l: 50, r: 20, t: 20, b: 40 },
+                          }
+                        : treasury2yViewMode === "percentile"
+                          ? {
+                                shapes: createPercentileBands(darkMode, {
+                                    bullishPct: 30,
+                                    bearishPct: 70,
+                                    invert: true,
+                                }),
+                                yaxis: {
+                                    title: "Percentile",
+                                    range: [-5, 105],
+                                },
+                                margin: { l: 50, r: 20, t: 20, b: 40 },
+                            }
+                          : {
+                                shapes: createZScoreBands(darkMode),
+                                yaxis: { title: "Z-Score" },
+                                margin: { l: 50, r: 20, t: 20, b: 40 },
+                            }}
                 />
             </div>
+            {#if signalsFromMetrics.treasury_2y?.latest}
+                {@const s = signalsFromMetrics.treasury_2y.latest}
+                <div
+                    class="metrics-section"
+                    style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;"
+                >
+                    <div
+                        class="signal-item"
+                        style="background: rgba(0,0,0,0.15); border: none;"
+                    >
+                        <div class="signal-label">
+                            {translations.signal_status || "Signal Status"}
+                        </div>
+                        <div class="signal-status text-{s.state}">
+                            <span class="signal-dot"></span>
+                            {getStatusLabel(s.state)}
+                        </div>
+                        <div class="signal-value">
+                            {translations.current || "Current"}:
+                            <b>{s.value?.toFixed(2)}%</b>
+                            | {translations.percentile || "Percentile"}:
+                            <b>P{s.percentile?.toFixed(0)}</b>
+                        </div>
+                    </div>
+                </div>
+            {/if}
         </div>
 
         <!-- Yield Curve Spread (10Y - 2Y) Chart -->
@@ -1290,50 +2448,123 @@
                         "Yield Curve (10Y-2Y Spread)"}
                 </h3>
                 <div class="header-controls">
+                    <div class="mode-selector">
+                        <button
+                            class:active={yieldCurveViewMode === "raw"}
+                            on:click={() => (yieldCurveViewMode = "raw")}
+                            >{translations.view_raw || "Raw"}</button
+                        >
+                        <button
+                            class:active={yieldCurveViewMode === "zscore"}
+                            on:click={() => (yieldCurveViewMode = "zscore")}
+                            >{translations.view_zscore || "Z-Score"}</button
+                        >
+                        <button
+                            class:active={yieldCurveViewMode === "percentile"}
+                            on:click={() => (yieldCurveViewMode = "percentile")}
+                            >{translations.view_percentile ||
+                                "Percentile"}</button
+                        >
+                    </div>
                     <TimeRangeSelector
                         selectedRange={yieldCurveRange}
                         onRangeChange={(r) => (yieldCurveRange = r)}
                     />
-                    <span class="last-date"
-                        >{translations.last_data || "Last Data:"}
-                        {getLastDate("TREASURY_10Y_YIELD")}</span
-                    >
                 </div>
             </div>
-            <p class="chart-description">
-                {translations.yield_curve_desc ||
-                    "Spread between 10-year and 2-year Treasury yields. Inversion (< 0) is a major recession warning."}
-            </p>
-            <div class="chart-content" style="height: 300px;">
+            <div class="chart-container">
                 <Chart
                     {darkMode}
-                    data={yieldCurveData}
+                    data={yieldCurveViewMode === "zscore"
+                        ? yieldCurveZData
+                        : yieldCurveViewMode === "percentile"
+                          ? yieldCurvePctData
+                          : yieldCurveRawData}
                     layout={{
+                        ...yieldCurveLayout,
                         yaxis: {
-                            title: "Spread (%)",
-                            zeroline: true,
-                            zerolinecolor: darkMode ? "#ffffff" : "#000000",
+                            ...yieldCurveLayout.yaxis,
+                            title:
+                                yieldCurveViewMode === "zscore"
+                                    ? "Z-Score"
+                                    : yieldCurveViewMode === "percentile"
+                                      ? "Percentile"
+                                      : translations.yield_curve_y ||
+                                        "Spread (%)",
+                            range:
+                                yieldCurveViewMode === "percentile"
+                                    ? [0, 100]
+                                    : undefined,
                         },
-                        shapes: [
-                            {
-                                type: "rect",
-                                xref: "paper",
-                                yref: "y",
-                                x0: 0,
-                                x1: 1,
-                                y0: -2,
-                                y1: 0,
-                                fillcolor: "rgba(239, 68, 68, 0.1)",
-                                line: { width: 0 },
-                            },
-                        ],
-                        margin: { l: 50, r: 20, t: 20, b: 40 },
+                        shapes:
+                            yieldCurveViewMode === "zscore"
+                                ? [
+                                      {
+                                          type: "line",
+                                          x0: 0,
+                                          x1: 1,
+                                          xref: "paper",
+                                          y0: 1.5,
+                                          y1: 1.5,
+                                          line: {
+                                              color: "rgba(220, 38, 38, 0.4)",
+                                              width: 1,
+                                              dash: "dash",
+                                          },
+                                      },
+                                      {
+                                          type: "line",
+                                          x0: 0,
+                                          x1: 1,
+                                          xref: "paper",
+                                          y0: -1.5,
+                                          y1: -1.5,
+                                          line: {
+                                              color: "rgba(16, 185, 129, 0.4)",
+                                              width: 1,
+                                              dash: "dash",
+                                          },
+                                      },
+                                      ...(yieldCurveLayout.shapes || []),
+                                  ]
+                                : yieldCurveViewMode === "percentile"
+                                  ? [
+                                        {
+                                            type: "line",
+                                            x0: 0,
+                                            x1: 1,
+                                            xref: "paper",
+                                            y0: 80,
+                                            y1: 80,
+                                            line: {
+                                                color: "rgba(220, 38, 38, 0.4)",
+                                                width: 1,
+                                                dash: "dash",
+                                            },
+                                        },
+                                        {
+                                            type: "line",
+                                            x0: 0,
+                                            x1: 1,
+                                            xref: "paper",
+                                            y0: 20,
+                                            y1: 20,
+                                            line: {
+                                                color: "rgba(16, 185, 129, 0.4)",
+                                                width: 1,
+                                                dash: "dash",
+                                            },
+                                        },
+                                        ...(yieldCurveLayout.shapes || []),
+                                    ]
+                                  : yieldCurveLayout.shapes,
                     }}
+                    config={{ responsive: true, displayModeBar: false }}
                 />
             </div>
 
             <!-- Yield Curve Signal -->
-            {#if yieldCurveData[0]?.y}
+            {#if dashboardData.yield_curve?.length > 0}
                 {@const lastSpread = getLatestValue(dashboardData.yield_curve)}
                 {@const prevSpread =
                     dashboardData.yield_curve?.[
@@ -1348,16 +2579,47 @@
                               : 'bullish'}"
                     >
                         {#if lastSpread < 0}
-                            🔴 INVERTED
+                            🔴 {translations.yc_inverted || "INVERTED"}
                         {:else if lastSpread < 0.2 && lastSpread > prevSpread}
-                            ⚠️ DE-INVERTING (DANGER)
+                            ⚠️ {translations.yc_de_inverting ||
+                                "DE-INVERTING (DANGER)"}
                         {:else}
-                            🟢 NORMAL
+                            🟢 {translations.yc_normal || "NORMAL"}
                         {/if}
                     </div>
                     <div class="signal-details" style="font-size: 13px;">
-                        Current: <b>{lastSpread?.toFixed(2)}%</b> | 1M Change:
+                        {translations.current || "Current"}:
+                        <b>{lastSpread?.toFixed(2)}%</b>
+                        | {translations.change_1m || "1M Change"}:
                         <b>{(lastSpread - prevSpread).toFixed(2)}%</b>
+                    </div>
+                </div>
+            {/if}
+
+            {#if signalsFromMetrics.yield_curve?.latest}
+                {@const s = signalsFromMetrics.yield_curve.latest}
+                <div
+                    class="metrics-section"
+                    style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;"
+                >
+                    <div
+                        class="signal-item"
+                        style="background: rgba(0,0,0,0.15); border: none;"
+                    >
+                        <div class="signal-label">
+                            {translations.chart_yield_curve ||
+                                "Yield Curve Signal"}
+                        </div>
+                        <div class="signal-status text-{s.state}">
+                            <span class="signal-dot"></span>
+                            {getStatusLabel(s.state)}
+                        </div>
+                        <div class="signal-value">
+                            {translations.current || "Current"}:
+                            <b>{s.value?.toFixed(2)}%</b>
+                            | {translations.percentile || "Percentile"}:
+                            <b>P{s.percentile?.toFixed(0)}</b>
+                        </div>
                     </div>
                 </div>
             {/if}
@@ -1382,7 +2644,7 @@
             </div>
             <p class="chart-description">
                 {translations.credit_spreads_desc ||
-                    "High Yield (red) and Investment Grade (green) credit spreads. Higher spreads = more risk aversion."}
+                    "High Yield (red) and Investment Grade (Sky Blue) credit spreads. Higher spreads = more risk aversion."}
             </p>
             <div class="chart-content" style="height: 300px;">
                 <Chart
@@ -1456,7 +2718,7 @@
                                 </td>
                             </tr>
                             <tr>
-                                <td style="color: #22c55e; font-weight: 600;"
+                                <td style="color: #38bdf8; font-weight: 600;"
                                     >IG</td
                                 >
                                 <td
@@ -1513,7 +2775,7 @@
                         </div>
                         <TimeRangeSelector
                             selectedRange={item.range}
-                            onRangeChange={item.setRange}
+                            onRangeChange={(r) => handleRangeChange(item.id, r)}
                         />
                         <span class="last-date"
                             >{translations.last || "Last"}: {getLastDate(
@@ -1802,33 +3064,40 @@
 </div>
 
 <style>
-    /* Toggle button styling */
+    /* Unified toggle button styling for mode selectors */
+    .mode-selector,
     .view-mode-toggle {
         display: inline-flex;
         gap: 2px;
-        background: rgba(0, 0, 0, 0.3);
-        border-radius: 6px;
+        background: rgba(0, 0, 0, 0.35);
+        border-radius: 5px;
         padding: 2px;
-        margin-right: 8px;
+        margin-right: 10px;
     }
+    .mode-selector button,
     .view-mode-toggle button {
-        padding: 4px 10px;
-        font-size: 11px;
-        font-weight: 600;
+        padding: 3px 8px;
+        font-size: 10px;
+        font-weight: 700;
         border: none;
-        border-radius: 4px;
+        border-radius: 3px;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all 0.15s ease;
         background: transparent;
-        color: rgba(255, 255, 255, 0.5);
+        color: rgba(255, 255, 255, 0.45);
+        min-width: 22px;
+        text-align: center;
     }
+    .mode-selector button:hover,
     .view-mode-toggle button:hover {
-        color: rgba(255, 255, 255, 0.8);
+        color: rgba(255, 255, 255, 0.85);
+        background: rgba(255, 255, 255, 0.08);
     }
+    .mode-selector button.active,
     .view-mode-toggle button.active {
         background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
         color: white;
-        box-shadow: 0 2px 4px rgba(99, 102, 241, 0.3);
+        box-shadow: 0 2px 4px rgba(99, 102, 241, 0.35);
     }
 
     /* Signal Box for CLI */
@@ -1928,6 +3197,27 @@
         border-radius: 6px;
         border-left: 3px solid rgba(99, 102, 241, 0.5);
         margin: 8px 0;
+    }
+
+    .view-mode-badge {
+        font-size: 11px;
+        background: rgba(59, 130, 246, 0.1);
+        color: #60a5fa;
+        padding: 2px 6px;
+        border-radius: 4px;
+        margin-left: 10px;
+        font-weight: 600;
+        border: 1px solid rgba(59, 130, 246, 0.2);
+    }
+
+    .latest-values {
+        display: flex;
+        justify-content: space-around;
+        padding: 8px 12px;
+        background: rgba(0, 0, 0, 0.15);
+        border-radius: 8px;
+        margin-top: 10px;
+        font-size: 0.85rem;
     }
 
     /* Chart legend styling */

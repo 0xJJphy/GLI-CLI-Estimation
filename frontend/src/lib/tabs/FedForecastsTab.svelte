@@ -12,6 +12,12 @@
     export let pmiData = [];
     export let unemploymentData = [];
     export let fedFundsData = [];
+    export let nfpData = [];
+    export let nfpZData = [];
+    export let nfpPctData = [];
+    export let joltsData = [];
+    export let joltsZData = [];
+    export let joltsPctData = [];
 
     // Ranges
     export let cpiRange = "5Y";
@@ -19,6 +25,8 @@
     export let pmiRange = "5Y";
     export let unemploymentRange = "5Y";
     export let fedFundsRange = "5Y";
+    export let nfpRange = "5Y";
+    export let joltsRange = "5Y";
     export let inflationExpectationsData = [];
     export let inflationExpectationsRange = "5Y";
 
@@ -94,6 +102,10 @@
     let filterTermMax = ""; // Term filter max (e.g., 52 for 52-Week)
     let filterAmountMin = "";
     let filterAmountMax = "";
+
+    // View Modes
+    let nfpViewMode = "raw"; // raw, zscore, percentile
+    let joltsViewMode = "raw";
 
     // Helper to extract term weeks/years from type string (e.g., "17-Week Bill" -> 17, "10-Year Note" -> 520)
     function extractTermWeeks(typeStr) {
@@ -1151,6 +1163,312 @@
         <div class="chart-card">
             <div class="chart-header">
                 <h3>
+                    💼 {translations.nfp_change || "Non-Farm Payrolls (Change)"}
+                </h3>
+                <div class="header-controls">
+                    <div class="mode-selector">
+                        <button
+                            class:active={nfpViewMode === "raw"}
+                            on:click={() => (nfpViewMode = "raw")}
+                            >{translations.view_raw || "Raw"}</button
+                        >
+                        <button
+                            class:active={nfpViewMode === "zscore"}
+                            on:click={() => (nfpViewMode = "zscore")}
+                            >{translations.view_zscore || "Z-Score"}</button
+                        >
+                        <button
+                            class:active={nfpViewMode === "percentile"}
+                            on:click={() => (nfpViewMode = "percentile")}
+                            >{translations.view_percentile ||
+                                "Percentile"}</button
+                        >
+                    </div>
+                    <TimeRangeSelector
+                        selectedRange={nfpRange}
+                        onRangeChange={(r) => (nfpRange = r)}
+                    />
+                </div>
+            </div>
+            <p class="chart-description">
+                {@html translations.nfp_desc || translations.nfp_description}
+            </p>
+            <div class="chart-content">
+                <Chart
+                    {darkMode}
+                    data={nfpViewMode === "zscore"
+                        ? nfpZData
+                        : nfpViewMode === "percentile"
+                          ? nfpPctData
+                          : nfpData}
+                    layout={{
+                        yaxis: {
+                            title:
+                                nfpViewMode === "zscore"
+                                    ? "Z-Score"
+                                    : nfpViewMode === "percentile"
+                                      ? "Percentile (%)"
+                                      : "Jobs (k)",
+                            range:
+                                nfpViewMode === "zscore"
+                                    ? [-4, 4]
+                                    : nfpViewMode === "percentile"
+                                      ? [0, 100]
+                                      : undefined,
+                            dtick:
+                                nfpViewMode === "percentile" ? 20 : undefined,
+                        },
+                        shapes:
+                            nfpViewMode === "zscore"
+                                ? [
+                                      {
+                                          type: "line",
+                                          xref: "paper",
+                                          yref: "y",
+                                          x0: 0,
+                                          x1: 1,
+                                          y0: 2,
+                                          y1: 2,
+                                          line: {
+                                              color: "rgba(16, 185, 129, 0.5)",
+                                              width: 1,
+                                              dash: "dash",
+                                          },
+                                      },
+                                      {
+                                          type: "line",
+                                          xref: "paper",
+                                          yref: "y",
+                                          x0: 0,
+                                          x1: 1,
+                                          y0: -2,
+                                          y1: -2,
+                                          line: {
+                                              color: "rgba(239, 68, 68, 0.5)",
+                                              width: 1,
+                                              dash: "dash",
+                                          },
+                                      },
+                                  ]
+                                : nfpViewMode === "percentile"
+                                  ? [
+                                        {
+                                            type: "line",
+                                            xref: "paper",
+                                            yref: "y",
+                                            x0: 0,
+                                            x1: 1,
+                                            y0: 80,
+                                            y1: 80,
+                                            line: {
+                                                color: "rgba(16, 185, 129, 0.5)",
+                                                width: 1,
+                                                dash: "dash",
+                                            },
+                                        },
+                                        {
+                                            type: "line",
+                                            xref: "paper",
+                                            yref: "y",
+                                            x0: 0,
+                                            x1: 1,
+                                            y0: 20,
+                                            y1: 20,
+                                            line: {
+                                                color: "rgba(239, 68, 68, 0.5)",
+                                                width: 1,
+                                                dash: "dash",
+                                            },
+                                        },
+                                    ]
+                                  : [],
+                        margin: { l: 50, r: 20, t: 20, b: 40 },
+                    }}
+                />
+            </div>
+            <div class="latest-values">
+                <span
+                    >{translations.latest_change || "Latest Change"}:
+                    <b>
+                        {getLatest(
+                            dashboardData.fed_forecasts?.nfp_change,
+                        )?.toFixed(0) ?? "—"}k</b
+                    ></span
+                >
+                {#if nfpViewMode !== "raw"}
+                    <span class="view-mode-badge">
+                        {nfpViewMode.toUpperCase()}:
+                        <b
+                            >{getLatest(
+                                dashboardData.signal_metrics?.nfp?.[
+                                    nfpViewMode
+                                ],
+                            )?.toFixed(2) ?? "—"}{nfpViewMode === "percentile"
+                                ? "%"
+                                : ""}</b
+                        >
+                    </span>
+                {/if}
+            </div>
+        </div>
+
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3>
+                    🔍 {translations.jolts_openings || "Job Openings (JOLTS)"}
+                </h3>
+                <div class="header-controls">
+                    <div class="mode-selector">
+                        <button
+                            class:active={joltsViewMode === "raw"}
+                            on:click={() => (joltsViewMode = "raw")}
+                            >{translations.view_raw || "Raw"}</button
+                        >
+                        <button
+                            class:active={joltsViewMode === "zscore"}
+                            on:click={() => (joltsViewMode = "zscore")}
+                            >{translations.view_zscore || "Z-Score"}</button
+                        >
+                        <button
+                            class:active={joltsViewMode === "percentile"}
+                            on:click={() => (joltsViewMode = "percentile")}
+                            >{translations.view_percentile ||
+                                "Percentile"}</button
+                        >
+                    </div>
+                    <TimeRangeSelector
+                        selectedRange={joltsRange}
+                        onRangeChange={(r) => (joltsRange = r)}
+                    />
+                </div>
+            </div>
+            <p class="chart-description">
+                {@html translations.jolts_desc ||
+                    translations.jolts_description}
+            </p>
+            <div class="chart-content">
+                <Chart
+                    {darkMode}
+                    data={joltsViewMode === "zscore"
+                        ? joltsZData
+                        : joltsViewMode === "percentile"
+                          ? joltsPctData
+                          : joltsData}
+                    layout={{
+                        yaxis: {
+                            title:
+                                joltsViewMode === "zscore"
+                                    ? "Z-Score"
+                                    : joltsViewMode === "percentile"
+                                      ? "Percentile (%)"
+                                      : "Millions",
+                            range:
+                                joltsViewMode === "zscore"
+                                    ? [-4, 4]
+                                    : joltsViewMode === "percentile"
+                                      ? [0, 100]
+                                      : undefined,
+                            dtick:
+                                joltsViewMode === "percentile" ? 20 : undefined,
+                            autorange: joltsViewMode === "raw",
+                        },
+                        shapes:
+                            joltsViewMode === "zscore"
+                                ? [
+                                      {
+                                          type: "line",
+                                          xref: "paper",
+                                          yref: "y",
+                                          x0: 0,
+                                          x1: 1,
+                                          y0: 2,
+                                          y1: 2,
+                                          line: {
+                                              color: "rgba(16, 185, 129, 0.5)",
+                                              width: 1,
+                                              dash: "dash",
+                                          },
+                                      },
+                                      {
+                                          type: "line",
+                                          xref: "paper",
+                                          yref: "y",
+                                          x0: 0,
+                                          x1: 1,
+                                          y0: -2,
+                                          y1: -2,
+                                          line: {
+                                              color: "rgba(239, 68, 68, 0.5)",
+                                              width: 1,
+                                              dash: "dash",
+                                          },
+                                      },
+                                  ]
+                                : joltsViewMode === "percentile"
+                                  ? [
+                                        {
+                                            type: "line",
+                                            xref: "paper",
+                                            yref: "y",
+                                            x0: 0,
+                                            x1: 1,
+                                            y0: 80,
+                                            y1: 80,
+                                            line: {
+                                                color: "rgba(16, 185, 129, 0.5)",
+                                                width: 1,
+                                                dash: "dash",
+                                            },
+                                        },
+                                        {
+                                            type: "line",
+                                            xref: "paper",
+                                            yref: "y",
+                                            x0: 0,
+                                            x1: 1,
+                                            y0: 20,
+                                            y1: 20,
+                                            line: {
+                                                color: "rgba(239, 68, 68, 0.5)",
+                                                width: 1,
+                                                dash: "dash",
+                                            },
+                                        },
+                                    ]
+                                  : [],
+                        margin: { l: 50, r: 20, t: 20, b: 40 },
+                    }}
+                />
+            </div>
+            <div class="latest-values">
+                <span
+                    >{translations.total_openings || "Total Openings"}:
+                    <b
+                        >{(
+                            getLatest(dashboardData.fed_forecasts?.jolts) / 1000
+                        )?.toFixed(2) ?? "—"}M</b
+                    ></span
+                >
+                {#if joltsViewMode !== "raw"}
+                    <span class="view-mode-badge">
+                        {joltsViewMode.toUpperCase()}:
+                        <b
+                            >{getLatest(
+                                dashboardData.signal_metrics?.jolts?.[
+                                    joltsViewMode
+                                ],
+                            )?.toFixed(2) ?? "—"}{joltsViewMode === "percentile"
+                                ? "%"
+                                : ""}</b
+                        >
+                    </span>
+                {/if}
+            </div>
+        </div>
+
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3>
                     🏦 {translations.fed_funds_rate || "Federal Funds Rate"}
                 </h3>
                 <div class="header-controls">
@@ -1980,5 +2298,51 @@
         .filter-group input[type="date"] {
             width: 110px;
         }
+    }
+    /* Mode selector styling */
+    .mode-selector {
+        display: inline-flex;
+        gap: 2px;
+        background: rgba(0, 0, 0, 0.05);
+        border-radius: 6px;
+        padding: 2px;
+        margin-right: 12px;
+    }
+    :global([data-theme="dark"]) .mode-selector {
+        background: rgba(255, 255, 255, 0.05);
+    }
+    .mode-selector button {
+        padding: 4px 10px;
+        font-size: 11px;
+        font-weight: 600;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        background: transparent;
+        color: var(--text-muted);
+    }
+    .mode-selector button:hover {
+        color: var(--text-primary);
+    }
+    .mode-selector button.active {
+        background: linear-gradient(
+            135deg,
+            var(--accent-primary) 0%,
+            var(--accent-secondary) 100%
+        );
+        color: white;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .view-mode-badge {
+        font-size: 11px;
+        background: rgba(59, 130, 246, 0.1);
+        color: var(--accent-secondary);
+        padding: 2px 6px;
+        border-radius: 4px;
+        margin-left: 10px;
+        font-weight: 600;
+        border: 1px solid rgba(59, 130, 246, 0.2);
     }
 </style>
