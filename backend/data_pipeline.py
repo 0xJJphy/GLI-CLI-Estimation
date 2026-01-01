@@ -280,9 +280,47 @@ def fetch_treasury_settlements() -> List[Dict]:
     Fetch Treasury auction settlements from US Treasury Fiscal Data API.
     Returns a list of settlements with date, type, amount, and RRP coverage.
     Includes both past and future settlements with historical RRP data.
+    Uses 24-hour cache to reduce API calls and improve resilience.
     """
     settlements = []
     today = datetime.now().strftime('%Y-%m-%d')
+    
+    # Cache configuration
+    cache_file = os.path.join(OUTPUT_DIR, 'treasury_settlements_cache.json')
+    cache_hours = 24  # Refresh cache every 24 hours
+    
+    # Check if cache is fresh
+    def is_cache_fresh():
+        if not os.path.exists(cache_file):
+            return False
+        try:
+            file_mtime = datetime.fromtimestamp(os.path.getmtime(cache_file))
+            hours_elapsed = (datetime.now() - file_mtime).total_seconds() / 3600
+            return hours_elapsed < cache_hours
+        except Exception:
+            return False
+    
+    # Load from cache
+    def load_cache():
+        try:
+            with open(cache_file, 'r') as f:
+                return json.load(f)
+        except Exception:
+            return None
+    
+    # Save to cache
+    def save_cache(data):
+        try:
+            with open(cache_file, 'w') as f:
+                json.dump(data, f)
+        except Exception as e:
+            print(f"Warning: Could not save treasury cache: {e}")
+    
+    # If cache is fresh, return cached data
+    if is_cache_fresh():
+        cached = load_cache()
+        if cached:
+            return cached
     
     try:
         # Get current RRP balance and historical data
@@ -439,14 +477,23 @@ def fetch_treasury_settlements() -> List[Dict]:
         grouped_result = sorted(grouped_result, key=lambda x: x['date'], reverse=True)
         
         # Return both individual and grouped data
-        return {
+        result = {
             'individual': individual,
             'grouped': grouped_result,
             'current_rrp': rrp_balance_current
         }
         
+        # Save to cache for future use
+        save_cache(result)
+        return result
+        
     except Exception as e:
         print(f"Error fetching treasury settlements: {e}")
+        # Try to use cached data as fallback
+        cached = load_cache()
+        if cached:
+            print("  -> Using cached treasury settlements data")
+            return cached
         return {'individual': [], 'grouped': [], 'current_rrp': 300.0}
 
 def get_rrp_balance() -> float:
