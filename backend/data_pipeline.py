@@ -1288,7 +1288,9 @@ FRED_CONFIG = {
     'T5YIFR': 'TIPS_5Y5Y_FORWARD',        # 5-Year, 5-Year Forward Inflation Expectation
     'RESBALNS': 'BANK_RESERVES',          # Bank Reserves
     'SOFR': 'SOFR',                       # Secured Overnight Financing Rate
-    'IORB': 'IORB',                       # Interest on Reserve Balances
+    'IORB': 'IORB',                        # Interest on Reserve Balances
+    'SOFRVOL': 'SOFR_VOLUME',              # SOFR Transaction Volume ($ Billions)
+    'RPONAGYD': 'RRP_COUNTERPARTIES',      # ON RRP: Number of Counterparties
     # Note: EVZCLS removed - EVZ discontinued Jan 2025. Using DXY realized vol instead.
     # Fed Forecasts tab - Macro Indicators
     'CPIAUCSL': 'CPI',                     # Consumer Price Index (All Urban)
@@ -3105,6 +3107,8 @@ def run_pipeline():
     df_fred_t['BANK_RESERVES'] = df_fred.get('BANK_RESERVES', pd.Series(dtype=float)) / 1e6 # Trillions
     df_fred_t['SOFR'] = df_fred.get('SOFR', pd.Series(dtype=float))
     df_fred_t['IORB'] = df_fred.get('IORB', pd.Series(dtype=float))
+    df_fred_t['SOFR_VOLUME'] = df_fred.get('SOFR_VOLUME', pd.Series(dtype=float))
+    df_fred_t['RRP_COUNTERPARTIES'] = df_fred.get('RRP_COUNTERPARTIES', pd.Series(dtype=float))
     df_fred_t['MOVE'] = df_fred.get('MOVE', pd.Series(dtype=float))
     df_fred_t['FX_VOL'] = df_fred.get('FX_VOL', pd.Series(dtype=float))
     df_fred_t['CLI'] = calculate_cli(df_fred)['CLI']
@@ -3268,7 +3272,7 @@ def run_pipeline():
         fred_cols_to_sync = ['TGA_USD', 'RRP_USD', 'VIX', 'HY_SPREAD', 'IG_SPREAD', 
                              'NFCI', 'NFCI_CREDIT', 'NFCI_RISK', 'LENDING_STD', 'CLI',
                              'TIPS_BREAKEVEN', 'TIPS_REAL_RATE', 'TIPS_5Y5Y_FORWARD',
-                             'BANK_RESERVES', 'SOFR', 'IORB', 'FX_VOL',
+                             'BANK_RESERVES', 'SOFR', 'IORB', 'SOFR_VOLUME', 'RRP_COUNTERPARTIES', 'FX_VOL',
                              'CPI', 'CORE_CPI', 'PCE', 'CORE_PCE', 'UNEMPLOYMENT', 'FED_FUNDS_RATE',
                              'INFLATION_EXPECT_1Y', 'INFLATION_EXPECT_5Y', 'INFLATION_EXPECT_10Y',
                              'TREASURY_10Y_YIELD', 'TREASURY_2Y_YIELD', 'NFP', 'JOLTS']
@@ -3672,6 +3676,8 @@ def run_pipeline():
             'repo_stress': {
                 'sofr': clean_for_json(df_t.get('SOFR', pd.Series(dtype=float))),
                 'iorb': clean_for_json(df_t.get('IORB', pd.Series(dtype=float))),
+                'sofr_volume': clean_for_json(df_t.get('SOFR_VOLUME', pd.Series(dtype=float))),
+                'rrp_counterparties': clean_for_json(df_t.get('RRP_COUNTERPARTIES', pd.Series(dtype=float))),
             },
             'btc': {
                 'price': clean_for_json(btc_analysis.get('BTC_ACTUAL', pd.Series(dtype=float))),

@@ -237,6 +237,7 @@
     let yieldCurve30y2yRange = "ALL";
     let divergenceRange = "ALL";
     let repoStressRange = "ALL";
+    let sofrVolumeRange = "ALL";
     let tipsRange = "ALL";
     let creditSpreadsRange = "ALL";
     let inflationExpectRange = "5Y";
@@ -1350,6 +1351,41 @@
             },
         ],
         repoStressRange,
+        true,
+    );
+
+    // SOFR Volume Chart Data (repo market depth indicator)
+    $: sofrVolumeData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.repo_stress?.sofr_volume || [],
+                name: "SOFR Volume ($B)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#06b6d4", width: 2 },
+                fill: "tozeroy",
+                fillcolor: "rgba(6, 182, 212, 0.1)",
+            },
+        ],
+        sofrVolumeRange,
+        true,
+    );
+
+    // RRP Counterparties (concentration metric)
+    $: rrpCounterpartiesData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.repo_stress?.rrp_counterparties || [],
+                name: "RRP Counterparties",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#a855f7", width: 2 },
+                yaxis: "y2",
+            },
+        ],
+        sofrVolumeRange,
         true,
     );
 
@@ -2836,6 +2872,112 @@
                                         ) ?? 0
                                     ).toFixed(2)}%</td
                                 >
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- SOFR Volume & RRP Counterparties Chart -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3>
+                    {translations.chart_sofr_volume ||
+                        "Repo Market Depth (SOFR Volume)"}
+                </h3>
+                <div class="header-controls">
+                    <TimeRangeSelector
+                        selectedRange={sofrVolumeRange}
+                        onRangeChange={(r) => (sofrVolumeRange = r)}
+                    />
+                    <span class="last-date"
+                        >{translations.last_data || "Last Data:"}
+                        {getLastDate("SOFR_VOLUME")}</span
+                    >
+                </div>
+            </div>
+            <p class="chart-description">
+                {translations.sofr_volume_desc ||
+                    "SOFR transaction volume measures repo market depth. Falling volume = early warning of disfuncction. RRP counterparties shows participation concentration."}
+            </p>
+            <div class="chart-content" style="height: 300px;">
+                <Chart
+                    {darkMode}
+                    data={[...sofrVolumeData, ...rrpCounterpartiesData]}
+                    layout={{
+                        yaxis: { title: "SOFR Volume ($B)", side: "left" },
+                        yaxis2: {
+                            title: "RRP Counterparties",
+                            overlaying: "y",
+                            side: "right",
+                            showgrid: false,
+                        },
+                    }}
+                />
+            </div>
+
+            <!-- SOFR Volume Metrics -->
+            <div
+                class="metrics-section"
+                style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px;"
+            >
+                <div class="metrics-table-container">
+                    <table class="metrics-table compact">
+                        <thead>
+                            <tr>
+                                <th>{translations.indicator || "Indicator"}</th>
+                                <th>{translations.repo_value || "Value"}</th>
+                                <th>{translations.signal_status || "Status"}</th
+                                >
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="color: #06b6d4; font-weight: 600;"
+                                    >SOFR Volume</td
+                                >
+                                <td
+                                    >${(
+                                        getLatestValue(
+                                            dashboardData.repo_stress
+                                                ?.sofr_volume,
+                                        ) ?? 0
+                                    ).toFixed(1)}B</td
+                                >
+                                <td>
+                                    {#if getLatestValue(dashboardData.repo_stress?.sofr_volume) > 1000}
+                                        ✅ {translations.status_ok || "DEEP"}
+                                    {:else if getLatestValue(dashboardData.repo_stress?.sofr_volume) > 500}
+                                        🔶 {translations.status_neutral ||
+                                            "MODERATE"}
+                                    {:else}
+                                        ⚠️ {translations.status_stress ||
+                                            "THIN"}
+                                    {/if}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="color: #a855f7; font-weight: 600;"
+                                    >RRP Counterparties</td
+                                >
+                                <td
+                                    >{Math.round(
+                                        getLatestValue(
+                                            dashboardData.repo_stress
+                                                ?.rrp_counterparties,
+                                        ) ?? 0,
+                                    )}</td
+                                >
+                                <td>
+                                    {#if getLatestValue(dashboardData.repo_stress?.rrp_counterparties) > 80}
+                                        ✅ Wide Participation
+                                    {:else if getLatestValue(dashboardData.repo_stress?.rrp_counterparties) > 40}
+                                        🔶 Normal
+                                    {:else}
+                                        ⚠️ Concentrated
+                                    {/if}
+                                </td>
                             </tr>
                         </tbody>
                     </table>
