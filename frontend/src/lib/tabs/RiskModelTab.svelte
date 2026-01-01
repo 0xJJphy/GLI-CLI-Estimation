@@ -3173,28 +3173,89 @@
                     dashboardData.yield_curve?.[
                         dashboardData.yield_curve?.length - 22
                     ] ?? lastSpread}
+                {@const spreadChange = lastSpread - prevSpread}
+                {@const last10y = getLatestValue(dashboardData.treasury_10y)}
+                {@const prev10y =
+                    dashboardData.treasury_10y?.[
+                        dashboardData.treasury_10y?.length - 22
+                    ] ?? last10y}
+                {@const rateChange = last10y - prev10y}
+                {@const curveRegime = (() => {
+                    if (spreadChange > 0.05 && rateChange < 0)
+                        return {
+                            label: "BULL STEEPENING",
+                            class: "bullish",
+                            emoji: "🟢",
+                            desc: "Rates down, curve steepening - Risk-on for growth",
+                        };
+                    if (spreadChange > 0.05 && rateChange >= 0)
+                        return {
+                            label: "BEAR STEEPENING",
+                            class: "warning",
+                            emoji: "⚠️",
+                            desc: "Rates up, curve steepening - Inflation concerns",
+                        };
+                    if (spreadChange < -0.05 && rateChange < 0)
+                        return {
+                            label: "BULL FLATTENING",
+                            class: "neutral",
+                            emoji: "🔵",
+                            desc: "Rates down, curve flattening - Flight to safety",
+                        };
+                    if (spreadChange < -0.05 && rateChange >= 0)
+                        return {
+                            label: "BEAR FLATTENING",
+                            class: "bearish",
+                            emoji: "🔴",
+                            desc: "Rates up, curve flattening - Policy tightening",
+                        };
+                    return {
+                        label: "NEUTRAL",
+                        class: "neutral",
+                        emoji: "●",
+                        desc: "Minimal curve movement",
+                    };
+                })()}
                 <div class="signal-box" style="margin-top: 15px;">
                     <div
                         class="signal-badge {lastSpread < 0
                             ? 'bearish'
-                            : lastSpread < 0.2 && lastSpread > prevSpread
-                              ? 'warning'
-                              : 'bullish'}"
+                            : curveRegime.class}"
                     >
                         {#if lastSpread < 0}
                             🔴 {translations.yc_inverted || "INVERTED"}
-                        {:else if lastSpread < 0.2 && lastSpread > prevSpread}
-                            ⚠️ {translations.yc_de_inverting ||
-                                "DE-INVERTING (DANGER)"}
                         {:else}
-                            🟢 {translations.yc_normal || "NORMAL"}
+                            {curveRegime.emoji} {curveRegime.label}
                         {/if}
                     </div>
-                    <div class="signal-details" style="font-size: 13px;">
-                        {translations.current || "Current"}:
-                        <b>{lastSpread?.toFixed(2)}%</b>
-                        | {translations.change_1m || "1M Change"}:
-                        <b>{(lastSpread - prevSpread).toFixed(2)}%</b>
+                    <div
+                        class="signal-details"
+                        style="font-size: 12px; margin-top: 6px;"
+                    >
+                        <div style="margin-bottom: 4px;">
+                            <b>Spread:</b>
+                            {lastSpread?.toFixed(2)}% |
+                            <b>Δ1M:</b>
+                            <span
+                                class:text-bullish={spreadChange > 0}
+                                class:text-bearish={spreadChange < 0}
+                                >{spreadChange > 0
+                                    ? "+"
+                                    : ""}{spreadChange.toFixed(2)}%</span
+                            >
+                            |
+                            <b>10Y Δ:</b>
+                            <span
+                                class:text-bearish={rateChange > 0}
+                                class:text-bullish={rateChange < 0}
+                                >{rateChange > 0 ? "+" : ""}{rateChange.toFixed(
+                                    2,
+                                )}%</span
+                            >
+                        </div>
+                        <div style="color: var(--text-muted); font-size: 11px;">
+                            {curveRegime.desc}
+                        </div>
                     </div>
                 </div>
             {/if}
@@ -3846,8 +3907,47 @@
                     }}
                 />
             </div>
-            {#if signalsFromMetrics.yield_curve_30y_10y?.latest}
+            {#if signalsFromMetrics.yield_curve_30y_10y?.latest && dashboardData.yield_curve_30y_10y?.length > 0}
                 {@const s = signalsFromMetrics.yield_curve_30y_10y.latest}
+                {@const lastSpread = s.value}
+                {@const prevSpread =
+                    dashboardData.yield_curve_30y_10y?.[
+                        dashboardData.yield_curve_30y_10y?.length - 22
+                    ] ?? lastSpread}
+                {@const spreadChange = lastSpread - prevSpread}
+                {@const last30y = getLatestValue(dashboardData.treasury_30y)}
+                {@const prev30y =
+                    dashboardData.treasury_30y?.[
+                        dashboardData.treasury_30y?.length - 22
+                    ] ?? last30y}
+                {@const rateChange = (last30y ?? 0) - (prev30y ?? 0)}
+                {@const curveRegime = (() => {
+                    if (spreadChange > 0.03 && rateChange < 0)
+                        return {
+                            label: "BULL STEEP",
+                            class: "bullish",
+                            emoji: "🟢",
+                        };
+                    if (spreadChange > 0.03 && rateChange >= 0)
+                        return {
+                            label: "BEAR STEEP",
+                            class: "warning",
+                            emoji: "⚠️",
+                        };
+                    if (spreadChange < -0.03 && rateChange < 0)
+                        return {
+                            label: "BULL FLAT",
+                            class: "neutral",
+                            emoji: "🔵",
+                        };
+                    if (spreadChange < -0.03 && rateChange >= 0)
+                        return {
+                            label: "BEAR FLAT",
+                            class: "bearish",
+                            emoji: "🔴",
+                        };
+                    return { label: "HOLD", class: "neutral", emoji: "●" };
+                })()}
                 <div
                     class="metrics-section"
                     style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px;"
@@ -3856,15 +3956,30 @@
                         class="signal-item"
                         style="background: rgba(0,0,0,0.15); border: none;"
                     >
-                        <div class="signal-label">Curve Signal</div>
-                        <div class="signal-status text-{s.state}">
+                        <div class="signal-label">
+                            Curve Signal | {curveRegime.emoji}
+                            {curveRegime.label}
+                        </div>
+                        <div
+                            class="signal-status text-{lastSpread < 0
+                                ? 'bearish'
+                                : curveRegime.class}"
+                        >
                             <span class="signal-dot"></span>
-                            {getStatusLabel(s.state)}
-                            {s.value < 0 ? "(INVERTED)" : ""}
+                            {lastSpread < 0
+                                ? "INVERTED"
+                                : getStatusLabel(s.state)}
                         </div>
                         <div class="signal-value">
-                            Spread: <b>{s.value?.toFixed(2)}%</b> | Percentile:
-                            <b>P{s.percentile?.toFixed(0)}</b>
+                            Spread: <b>{s.value?.toFixed(2)}%</b> | Δ1M:
+                            <span
+                                class:text-bullish={spreadChange > 0}
+                                class:text-bearish={spreadChange < 0}
+                                >{spreadChange >= 0
+                                    ? "+"
+                                    : ""}{spreadChange.toFixed(2)}%</span
+                            >
+                            | P{s.percentile?.toFixed(0)}
                         </div>
                     </div>
                 </div>
@@ -3930,8 +4045,47 @@
                     }}
                 />
             </div>
-            {#if signalsFromMetrics.yield_curve_30y_2y?.latest}
+            {#if signalsFromMetrics.yield_curve_30y_2y?.latest && dashboardData.yield_curve_30y_2y?.length > 0}
                 {@const s = signalsFromMetrics.yield_curve_30y_2y.latest}
+                {@const lastSpread = s.value}
+                {@const prevSpread =
+                    dashboardData.yield_curve_30y_2y?.[
+                        dashboardData.yield_curve_30y_2y?.length - 22
+                    ] ?? lastSpread}
+                {@const spreadChange = lastSpread - prevSpread}
+                {@const last30y = getLatestValue(dashboardData.treasury_30y)}
+                {@const prev30y =
+                    dashboardData.treasury_30y?.[
+                        dashboardData.treasury_30y?.length - 22
+                    ] ?? last30y}
+                {@const rateChange = (last30y ?? 0) - (prev30y ?? 0)}
+                {@const curveRegime = (() => {
+                    if (spreadChange > 0.05 && rateChange < 0)
+                        return {
+                            label: "BULL STEEP",
+                            class: "bullish",
+                            emoji: "🟢",
+                        };
+                    if (spreadChange > 0.05 && rateChange >= 0)
+                        return {
+                            label: "BEAR STEEP",
+                            class: "warning",
+                            emoji: "⚠️",
+                        };
+                    if (spreadChange < -0.05 && rateChange < 0)
+                        return {
+                            label: "BULL FLAT",
+                            class: "neutral",
+                            emoji: "🔵",
+                        };
+                    if (spreadChange < -0.05 && rateChange >= 0)
+                        return {
+                            label: "BEAR FLAT",
+                            class: "bearish",
+                            emoji: "🔴",
+                        };
+                    return { label: "HOLD", class: "neutral", emoji: "●" };
+                })()}
                 <div
                     class="metrics-section"
                     style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px;"
@@ -3940,15 +4094,30 @@
                         class="signal-item"
                         style="background: rgba(0,0,0,0.15); border: none;"
                     >
-                        <div class="signal-label">Full Curve Signal</div>
-                        <div class="signal-status text-{s.state}">
+                        <div class="signal-label">
+                            Full Curve | {curveRegime.emoji}
+                            {curveRegime.label}
+                        </div>
+                        <div
+                            class="signal-status text-{lastSpread < 0
+                                ? 'bearish'
+                                : curveRegime.class}"
+                        >
                             <span class="signal-dot"></span>
-                            {getStatusLabel(s.state)}
-                            {s.value < 0 ? "(INVERTED)" : ""}
+                            {lastSpread < 0
+                                ? "INVERTED"
+                                : getStatusLabel(s.state)}
                         </div>
                         <div class="signal-value">
-                            Spread: <b>{s.value?.toFixed(2)}%</b> | Percentile:
-                            <b>P{s.percentile?.toFixed(0)}</b>
+                            Spread: <b>{s.value?.toFixed(2)}%</b> | Δ1M:
+                            <span
+                                class:text-bullish={spreadChange > 0}
+                                class:text-bearish={spreadChange < 0}
+                                >{spreadChange >= 0
+                                    ? "+"
+                                    : ""}{spreadChange.toFixed(2)}%</span
+                            >
+                            | P{s.percentile?.toFixed(0)}
                         </div>
                     </div>
                 </div>
