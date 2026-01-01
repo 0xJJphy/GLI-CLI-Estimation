@@ -1372,23 +1372,6 @@
         true,
     );
 
-    // RRP Counterparties (concentration metric)
-    $: rrpCounterpartiesData = filterWithCache(
-        [
-            {
-                x: dashboardData.dates,
-                y: dashboardData.repo_stress?.rrp_counterparties || [],
-                name: "RRP Counterparties",
-                type: "scatter",
-                mode: "lines",
-                line: { color: "#a855f7", width: 2 },
-                yaxis: "y2",
-            },
-        ],
-        sofrVolumeRange,
-        true,
-    );
-
     $: tipsData = filterWithCache(
         [
             {
@@ -2879,7 +2862,7 @@
             </div>
         </div>
 
-        <!-- SOFR Volume & RRP Counterparties Chart -->
+        <!-- SOFR Volume Chart -->
         <div class="chart-card">
             <div class="chart-header">
                 <h3>
@@ -2899,20 +2882,14 @@
             </div>
             <p class="chart-description">
                 {translations.sofr_volume_desc ||
-                    "SOFR transaction volume measures repo market depth. Falling volume = early warning of disfuncction. RRP counterparties shows participation concentration."}
+                    "SOFR transaction volume measures repo market depth. Falling volume = early warning of dysfunction."}
             </p>
             <div class="chart-content" style="height: 300px;">
                 <Chart
                     {darkMode}
-                    data={[...sofrVolumeData, ...rrpCounterpartiesData]}
+                    data={sofrVolumeData}
                     layout={{
-                        yaxis: { title: "SOFR Volume ($B)", side: "left" },
-                        yaxis2: {
-                            title: "RRP Counterparties",
-                            overlaying: "y",
-                            side: "right",
-                            showgrid: false,
-                        },
+                        yaxis: { title: "SOFR Volume ($B)" },
                     }}
                 />
             </div>
@@ -2954,28 +2931,6 @@
                                     {:else}
                                         ⚠️ {translations.status_stress ||
                                             "THIN"}
-                                    {/if}
-                                </td>
-                            </tr>
-                            <tr>
-                                <td style="color: #a855f7; font-weight: 600;"
-                                    >RRP Counterparties</td
-                                >
-                                <td
-                                    >{Math.round(
-                                        getLatestValue(
-                                            dashboardData.repo_stress
-                                                ?.rrp_counterparties,
-                                        ) ?? 0,
-                                    )}</td
-                                >
-                                <td>
-                                    {#if getLatestValue(dashboardData.repo_stress?.rrp_counterparties) > 80}
-                                        ✅ Wide Participation
-                                    {:else if getLatestValue(dashboardData.repo_stress?.rrp_counterparties) > 40}
-                                        🔶 Normal
-                                    {:else}
-                                        ⚠️ Concentrated
                                     {/if}
                                 </td>
                             </tr>
