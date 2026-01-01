@@ -3521,6 +3521,281 @@
             {/if}
         </div>
 
+        <!-- 30Y-10Y Yield Curve -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3>Yield Curve (30Y-10Y Spread)</h3>
+                <div class="header-controls">
+                    <div class="mode-selector">
+                        <button
+                            class:active={yieldCurve30y10yViewMode === "raw"}
+                            on:click={() => (yieldCurve30y10yViewMode = "raw")}
+                            >Raw</button
+                        >
+                        <button
+                            class:active={yieldCurve30y10yViewMode === "zscore"}
+                            on:click={() =>
+                                (yieldCurve30y10yViewMode = "zscore")}>Z</button
+                        >
+                        <button
+                            class:active={yieldCurve30y10yViewMode ===
+                                "percentile"}
+                            on:click={() =>
+                                (yieldCurve30y10yViewMode = "percentile")}
+                            >%</button
+                        >
+                    </div>
+                    <TimeRangeSelector
+                        selectedRange={yieldCurve30y10yRange}
+                        onRangeChange={(r) => (yieldCurve30y10yRange = r)}
+                    />
+                </div>
+            </div>
+            <p class="chart-description">
+                Long-term curve steepness. Inversion = severe stress.
+            </p>
+            <div class="chart-content" style="height: 280px;">
+                <Chart
+                    {darkMode}
+                    data={yieldCurve30y10yViewMode === "zscore"
+                        ? yieldCurve30y10yZData
+                        : yieldCurve30y10yViewMode === "percentile"
+                          ? yieldCurve30y10yPctData
+                          : yieldCurve30y10yRawData}
+                    layout={{
+                        yaxis: {
+                            title:
+                                yieldCurve30y10yViewMode === "zscore"
+                                    ? "Z-Score"
+                                    : yieldCurve30y10yViewMode === "percentile"
+                                      ? "Percentile"
+                                      : "Spread (%)",
+                            range:
+                                yieldCurve30y10yViewMode === "percentile"
+                                    ? [0, 100]
+                                    : undefined,
+                        },
+                        margin: { l: 50, r: 20, t: 20, b: 40 },
+                    }}
+                />
+            </div>
+            {#if signalsFromMetrics.yield_curve_30y_10y?.latest && dashboardData.yield_curve_30y_10y?.length > 0}
+                {@const s = signalsFromMetrics.yield_curve_30y_10y.latest}
+                {@const lastSpread = s.value}
+                {@const prevSpread =
+                    dashboardData.yield_curve_30y_10y?.[
+                        dashboardData.yield_curve_30y_10y?.length - 22
+                    ] ?? lastSpread}
+                {@const spreadChange = lastSpread - prevSpread}
+                {@const last30y = getLatestValue(dashboardData.treasury_30y)}
+                {@const prev30y =
+                    dashboardData.treasury_30y?.[
+                        dashboardData.treasury_30y?.length - 22
+                    ] ?? last30y}
+                {@const rateChange = (last30y ?? 0) - (prev30y ?? 0)}
+                {@const curveRegime = (() => {
+                    if (spreadChange > 0.03 && rateChange < 0)
+                        return {
+                            label: "BULL STEEP",
+                            class: "bullish",
+                            emoji: "🟢",
+                        };
+                    if (spreadChange > 0.03 && rateChange >= 0)
+                        return {
+                            label: "BEAR STEEP",
+                            class: "warning",
+                            emoji: "⚠️",
+                        };
+                    if (spreadChange < -0.03 && rateChange < 0)
+                        return {
+                            label: "BULL FLAT",
+                            class: "neutral",
+                            emoji: "🔵",
+                        };
+                    if (spreadChange < -0.03 && rateChange >= 0)
+                        return {
+                            label: "BEAR FLAT",
+                            class: "bearish",
+                            emoji: "🔴",
+                        };
+                    return { label: "HOLD", class: "neutral", emoji: "●" };
+                })()}
+                <div
+                    class="metrics-section"
+                    style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px;"
+                >
+                    <div
+                        class="signal-item"
+                        style="background: rgba(0,0,0,0.15); border: none;"
+                    >
+                        <div class="signal-label">
+                            Curve Signal | {curveRegime.emoji}
+                            {curveRegime.label}
+                        </div>
+                        <div
+                            class="signal-status text-{lastSpread < 0
+                                ? 'bearish'
+                                : curveRegime.class}"
+                        >
+                            <span class="signal-dot"></span>
+                            {lastSpread < 0
+                                ? "INVERTED"
+                                : getStatusLabel(s.state)}
+                        </div>
+                        <div class="signal-value">
+                            Spread: <b>{s.value?.toFixed(2)}%</b> | Δ1M:
+                            <span
+                                class:text-bullish={spreadChange > 0}
+                                class:text-bearish={spreadChange < 0}
+                                >{spreadChange >= 0
+                                    ? "+"
+                                    : ""}{spreadChange.toFixed(2)}%</span
+                            >
+                            | P{s.percentile?.toFixed(0)}
+                        </div>
+                    </div>
+                </div>
+            {/if}
+        </div>
+
+        <!-- 30Y-2Y Yield Curve (Full Spread) -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3>Yield Curve (30Y-2Y Full Spread)</h3>
+                <div class="header-controls">
+                    <div class="mode-selector">
+                        <button
+                            class:active={yieldCurve30y2yViewMode === "raw"}
+                            on:click={() => (yieldCurve30y2yViewMode = "raw")}
+                            >Raw</button
+                        >
+                        <button
+                            class:active={yieldCurve30y2yViewMode === "zscore"}
+                            on:click={() =>
+                                (yieldCurve30y2yViewMode = "zscore")}>Z</button
+                        >
+                        <button
+                            class:active={yieldCurve30y2yViewMode ===
+                                "percentile"}
+                            on:click={() =>
+                                (yieldCurve30y2yViewMode = "percentile")}
+                            >%</button
+                        >
+                    </div>
+                    <TimeRangeSelector
+                        selectedRange={yieldCurve30y2yRange}
+                        onRangeChange={(r) => (yieldCurve30y2yRange = r)}
+                    />
+                </div>
+            </div>
+            <p class="chart-description">
+                Full yield curve slope (2Y to 30Y). Deep inversion = severe
+                recession signal.
+            </p>
+            <div class="chart-content" style="height: 280px;">
+                <Chart
+                    {darkMode}
+                    data={yieldCurve30y2yViewMode === "zscore"
+                        ? yieldCurve30y2yZData
+                        : yieldCurve30y2yViewMode === "percentile"
+                          ? yieldCurve30y2yPctData
+                          : yieldCurve30y2yRawData}
+                    layout={{
+                        yaxis: {
+                            title:
+                                yieldCurve30y2yViewMode === "zscore"
+                                    ? "Z-Score"
+                                    : yieldCurve30y2yViewMode === "percentile"
+                                      ? "Percentile"
+                                      : "Spread (%)",
+                            range:
+                                yieldCurve30y2yViewMode === "percentile"
+                                    ? [0, 100]
+                                    : undefined,
+                        },
+                        margin: { l: 50, r: 20, t: 20, b: 40 },
+                    }}
+                />
+            </div>
+            {#if signalsFromMetrics.yield_curve_30y_2y?.latest && dashboardData.yield_curve_30y_2y?.length > 0}
+                {@const s = signalsFromMetrics.yield_curve_30y_2y.latest}
+                {@const lastSpread = s.value}
+                {@const prevSpread =
+                    dashboardData.yield_curve_30y_2y?.[
+                        dashboardData.yield_curve_30y_2y?.length - 22
+                    ] ?? lastSpread}
+                {@const spreadChange = lastSpread - prevSpread}
+                {@const last30y = getLatestValue(dashboardData.treasury_30y)}
+                {@const prev30y =
+                    dashboardData.treasury_30y?.[
+                        dashboardData.treasury_30y?.length - 22
+                    ] ?? last30y}
+                {@const rateChange = (last30y ?? 0) - (prev30y ?? 0)}
+                {@const curveRegime = (() => {
+                    if (spreadChange > 0.05 && rateChange < 0)
+                        return {
+                            label: "BULL STEEP",
+                            class: "bullish",
+                            emoji: "🟢",
+                        };
+                    if (spreadChange > 0.05 && rateChange >= 0)
+                        return {
+                            label: "BEAR STEEP",
+                            class: "warning",
+                            emoji: "⚠️",
+                        };
+                    if (spreadChange < -0.05 && rateChange < 0)
+                        return {
+                            label: "BULL FLAT",
+                            class: "neutral",
+                            emoji: "🔵",
+                        };
+                    if (spreadChange < -0.05 && rateChange >= 0)
+                        return {
+                            label: "BEAR FLAT",
+                            class: "bearish",
+                            emoji: "🔴",
+                        };
+                    return { label: "HOLD", class: "neutral", emoji: "●" };
+                })()}
+                <div
+                    class="metrics-section"
+                    style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px;"
+                >
+                    <div
+                        class="signal-item"
+                        style="background: rgba(0,0,0,0.15); border: none;"
+                    >
+                        <div class="signal-label">
+                            Full Curve | {curveRegime.emoji}
+                            {curveRegime.label}
+                        </div>
+                        <div
+                            class="signal-status text-{lastSpread < 0
+                                ? 'bearish'
+                                : curveRegime.class}"
+                        >
+                            <span class="signal-dot"></span>
+                            {lastSpread < 0
+                                ? "INVERTED"
+                                : getStatusLabel(s.state)}
+                        </div>
+                        <div class="signal-value">
+                            Spread: <b>{s.value?.toFixed(2)}%</b> | Δ1M:
+                            <span
+                                class:text-bullish={spreadChange > 0}
+                                class:text-bearish={spreadChange < 0}
+                                >{spreadChange >= 0
+                                    ? "+"
+                                    : ""}{spreadChange.toFixed(2)}%</span
+                            >
+                            | P{s.percentile?.toFixed(0)}
+                        </div>
+                    </div>
+                </div>
+            {/if}
+        </div>
+
         <div class="chart-card">
             <div class="chart-header">
                 <h3>
@@ -4124,281 +4399,6 @@
                         <div class="signal-value">
                             BAA-AAA Spread: <b>{s.value?.toFixed(2)}%</b> |
                             Percentile: <b>P{s.percentile?.toFixed(0)}</b>
-                        </div>
-                    </div>
-                </div>
-            {/if}
-        </div>
-
-        <!-- NEW: 30Y-10Y Yield Curve -->
-        <div class="chart-card">
-            <div class="chart-header">
-                <h3>Yield Curve (30Y-10Y Spread)</h3>
-                <div class="header-controls">
-                    <div class="mode-selector">
-                        <button
-                            class:active={yieldCurve30y10yViewMode === "raw"}
-                            on:click={() => (yieldCurve30y10yViewMode = "raw")}
-                            >Raw</button
-                        >
-                        <button
-                            class:active={yieldCurve30y10yViewMode === "zscore"}
-                            on:click={() =>
-                                (yieldCurve30y10yViewMode = "zscore")}>Z</button
-                        >
-                        <button
-                            class:active={yieldCurve30y10yViewMode ===
-                                "percentile"}
-                            on:click={() =>
-                                (yieldCurve30y10yViewMode = "percentile")}
-                            >%</button
-                        >
-                    </div>
-                    <TimeRangeSelector
-                        selectedRange={yieldCurve30y10yRange}
-                        onRangeChange={(r) => (yieldCurve30y10yRange = r)}
-                    />
-                </div>
-            </div>
-            <p class="chart-description">
-                Long-term curve steepness. Inversion = severe stress.
-            </p>
-            <div class="chart-content" style="height: 280px;">
-                <Chart
-                    {darkMode}
-                    data={yieldCurve30y10yViewMode === "zscore"
-                        ? yieldCurve30y10yZData
-                        : yieldCurve30y10yViewMode === "percentile"
-                          ? yieldCurve30y10yPctData
-                          : yieldCurve30y10yRawData}
-                    layout={{
-                        yaxis: {
-                            title:
-                                yieldCurve30y10yViewMode === "zscore"
-                                    ? "Z-Score"
-                                    : yieldCurve30y10yViewMode === "percentile"
-                                      ? "Percentile"
-                                      : "Spread (%)",
-                            range:
-                                yieldCurve30y10yViewMode === "percentile"
-                                    ? [0, 100]
-                                    : undefined,
-                        },
-                        margin: { l: 50, r: 20, t: 20, b: 40 },
-                    }}
-                />
-            </div>
-            {#if signalsFromMetrics.yield_curve_30y_10y?.latest && dashboardData.yield_curve_30y_10y?.length > 0}
-                {@const s = signalsFromMetrics.yield_curve_30y_10y.latest}
-                {@const lastSpread = s.value}
-                {@const prevSpread =
-                    dashboardData.yield_curve_30y_10y?.[
-                        dashboardData.yield_curve_30y_10y?.length - 22
-                    ] ?? lastSpread}
-                {@const spreadChange = lastSpread - prevSpread}
-                {@const last30y = getLatestValue(dashboardData.treasury_30y)}
-                {@const prev30y =
-                    dashboardData.treasury_30y?.[
-                        dashboardData.treasury_30y?.length - 22
-                    ] ?? last30y}
-                {@const rateChange = (last30y ?? 0) - (prev30y ?? 0)}
-                {@const curveRegime = (() => {
-                    if (spreadChange > 0.03 && rateChange < 0)
-                        return {
-                            label: "BULL STEEP",
-                            class: "bullish",
-                            emoji: "🟢",
-                        };
-                    if (spreadChange > 0.03 && rateChange >= 0)
-                        return {
-                            label: "BEAR STEEP",
-                            class: "warning",
-                            emoji: "⚠️",
-                        };
-                    if (spreadChange < -0.03 && rateChange < 0)
-                        return {
-                            label: "BULL FLAT",
-                            class: "neutral",
-                            emoji: "🔵",
-                        };
-                    if (spreadChange < -0.03 && rateChange >= 0)
-                        return {
-                            label: "BEAR FLAT",
-                            class: "bearish",
-                            emoji: "🔴",
-                        };
-                    return { label: "HOLD", class: "neutral", emoji: "●" };
-                })()}
-                <div
-                    class="metrics-section"
-                    style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px;"
-                >
-                    <div
-                        class="signal-item"
-                        style="background: rgba(0,0,0,0.15); border: none;"
-                    >
-                        <div class="signal-label">
-                            Curve Signal | {curveRegime.emoji}
-                            {curveRegime.label}
-                        </div>
-                        <div
-                            class="signal-status text-{lastSpread < 0
-                                ? 'bearish'
-                                : curveRegime.class}"
-                        >
-                            <span class="signal-dot"></span>
-                            {lastSpread < 0
-                                ? "INVERTED"
-                                : getStatusLabel(s.state)}
-                        </div>
-                        <div class="signal-value">
-                            Spread: <b>{s.value?.toFixed(2)}%</b> | Δ1M:
-                            <span
-                                class:text-bullish={spreadChange > 0}
-                                class:text-bearish={spreadChange < 0}
-                                >{spreadChange >= 0
-                                    ? "+"
-                                    : ""}{spreadChange.toFixed(2)}%</span
-                            >
-                            | P{s.percentile?.toFixed(0)}
-                        </div>
-                    </div>
-                </div>
-            {/if}
-        </div>
-
-        <!-- NEW: 30Y-2Y Yield Curve (Full Spread) -->
-        <div class="chart-card">
-            <div class="chart-header">
-                <h3>Yield Curve (30Y-2Y Full Spread)</h3>
-                <div class="header-controls">
-                    <div class="mode-selector">
-                        <button
-                            class:active={yieldCurve30y2yViewMode === "raw"}
-                            on:click={() => (yieldCurve30y2yViewMode = "raw")}
-                            >Raw</button
-                        >
-                        <button
-                            class:active={yieldCurve30y2yViewMode === "zscore"}
-                            on:click={() =>
-                                (yieldCurve30y2yViewMode = "zscore")}>Z</button
-                        >
-                        <button
-                            class:active={yieldCurve30y2yViewMode ===
-                                "percentile"}
-                            on:click={() =>
-                                (yieldCurve30y2yViewMode = "percentile")}
-                            >%</button
-                        >
-                    </div>
-                    <TimeRangeSelector
-                        selectedRange={yieldCurve30y2yRange}
-                        onRangeChange={(r) => (yieldCurve30y2yRange = r)}
-                    />
-                </div>
-            </div>
-            <p class="chart-description">
-                Full yield curve slope (2Y to 30Y). Deep inversion = severe
-                recession signal.
-            </p>
-            <div class="chart-content" style="height: 280px;">
-                <Chart
-                    {darkMode}
-                    data={yieldCurve30y2yViewMode === "zscore"
-                        ? yieldCurve30y2yZData
-                        : yieldCurve30y2yViewMode === "percentile"
-                          ? yieldCurve30y2yPctData
-                          : yieldCurve30y2yRawData}
-                    layout={{
-                        yaxis: {
-                            title:
-                                yieldCurve30y2yViewMode === "zscore"
-                                    ? "Z-Score"
-                                    : yieldCurve30y2yViewMode === "percentile"
-                                      ? "Percentile"
-                                      : "Spread (%)",
-                            range:
-                                yieldCurve30y2yViewMode === "percentile"
-                                    ? [0, 100]
-                                    : undefined,
-                        },
-                        margin: { l: 50, r: 20, t: 20, b: 40 },
-                    }}
-                />
-            </div>
-            {#if signalsFromMetrics.yield_curve_30y_2y?.latest && dashboardData.yield_curve_30y_2y?.length > 0}
-                {@const s = signalsFromMetrics.yield_curve_30y_2y.latest}
-                {@const lastSpread = s.value}
-                {@const prevSpread =
-                    dashboardData.yield_curve_30y_2y?.[
-                        dashboardData.yield_curve_30y_2y?.length - 22
-                    ] ?? lastSpread}
-                {@const spreadChange = lastSpread - prevSpread}
-                {@const last30y = getLatestValue(dashboardData.treasury_30y)}
-                {@const prev30y =
-                    dashboardData.treasury_30y?.[
-                        dashboardData.treasury_30y?.length - 22
-                    ] ?? last30y}
-                {@const rateChange = (last30y ?? 0) - (prev30y ?? 0)}
-                {@const curveRegime = (() => {
-                    if (spreadChange > 0.05 && rateChange < 0)
-                        return {
-                            label: "BULL STEEP",
-                            class: "bullish",
-                            emoji: "🟢",
-                        };
-                    if (spreadChange > 0.05 && rateChange >= 0)
-                        return {
-                            label: "BEAR STEEP",
-                            class: "warning",
-                            emoji: "⚠️",
-                        };
-                    if (spreadChange < -0.05 && rateChange < 0)
-                        return {
-                            label: "BULL FLAT",
-                            class: "neutral",
-                            emoji: "🔵",
-                        };
-                    if (spreadChange < -0.05 && rateChange >= 0)
-                        return {
-                            label: "BEAR FLAT",
-                            class: "bearish",
-                            emoji: "🔴",
-                        };
-                    return { label: "HOLD", class: "neutral", emoji: "●" };
-                })()}
-                <div
-                    class="metrics-section"
-                    style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px;"
-                >
-                    <div
-                        class="signal-item"
-                        style="background: rgba(0,0,0,0.15); border: none;"
-                    >
-                        <div class="signal-label">
-                            Full Curve | {curveRegime.emoji}
-                            {curveRegime.label}
-                        </div>
-                        <div
-                            class="signal-status text-{lastSpread < 0
-                                ? 'bearish'
-                                : curveRegime.class}"
-                        >
-                            <span class="signal-dot"></span>
-                            {lastSpread < 0
-                                ? "INVERTED"
-                                : getStatusLabel(s.state)}
-                        </div>
-                        <div class="signal-value">
-                            Spread: <b>{s.value?.toFixed(2)}%</b> | Δ1M:
-                            <span
-                                class:text-bullish={spreadChange > 0}
-                                class:text-bearish={spreadChange < 0}
-                                >{spreadChange >= 0
-                                    ? "+"
-                                    : ""}{spreadChange.toFixed(2)}%</span
-                            >
-                            | P{s.percentile?.toFixed(0)}
                         </div>
                     </div>
                 </div>
