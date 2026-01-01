@@ -316,10 +316,18 @@ def fetch_treasury_settlements() -> List[Dict]:
         except Exception as e:
             print(f"Warning: Could not save treasury cache: {e}")
     
-    # If cache is fresh, return cached data
+    # Check if cached data has actual settlements (not empty)
+    def is_cache_valid(data):
+        if not data:
+            return False
+        individual = data.get('individual', [])
+        grouped = data.get('grouped', [])
+        return len(individual) > 0 or len(grouped) > 0
+    
+    # If cache is fresh AND has valid data, return cached data
     if is_cache_fresh():
         cached = load_cache()
-        if cached:
+        if cached and is_cache_valid(cached):
             return cached
     
     try:
@@ -489,9 +497,9 @@ def fetch_treasury_settlements() -> List[Dict]:
         
     except Exception as e:
         print(f"Error fetching treasury settlements: {e}")
-        # Try to use cached data as fallback
+        # Try to use cached data as fallback (only if it has valid data)
         cached = load_cache()
-        if cached:
+        if cached and is_cache_valid(cached):
             print("  -> Using cached treasury settlements data")
             return cached
         return {'individual': [], 'grouped': [], 'current_rrp': 300.0}
