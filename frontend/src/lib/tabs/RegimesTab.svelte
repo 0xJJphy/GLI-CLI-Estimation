@@ -349,13 +349,28 @@
         font: { color: darkMode ? "#e2e8f0" : "#1e293b" },
     };
 
-    // BTC + Regime Charts - reactive to darkMode and offset
+    // BTC + Regime V2A with Score Subplot - reactive to darkMode and offset
     $: btcRegimeV2aData = (() => {
         const btcPrice = dashboardData.btc?.price;
+        const score = dashboardData.regime_v2a?.score;
         if (!btcPrice) return [];
         const dates = getFilteredDates(btcRegimeV2aRange);
         const btc = filterByRange(btcPrice, btcRegimeV2aRange);
+        const scoreFiltered = filterByRange(score, btcRegimeV2aRange);
+
+        // Extend dates for future projection when offset is applied
+        let extendedDates = [...dates];
+        if (btcOffsetDays > 0 && dates.length > 0) {
+            const lastDate = new Date(dates[dates.length - 1]);
+            for (let i = 1; i <= btcOffsetDays; i++) {
+                const futureDate = new Date(lastDate);
+                futureDate.setDate(futureDate.getDate() + i);
+                extendedDates.push(futureDate.toISOString().split("T")[0]);
+            }
+        }
+
         return [
+            // BTC Price trace (on y2)
             {
                 x: dates,
                 y: btc,
@@ -365,12 +380,41 @@
                 line: { color: "#f59e0b", width: 2 },
                 yaxis: "y2",
             },
+            // Score trace (on y3 - bottom subplot)
+            {
+                x: dates,
+                y: scoreFiltered,
+                name: "Regime Score",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#3b82f6", width: 1.5 },
+                yaxis: "y3",
+                fill: "tozeroy",
+                fillcolor: "rgba(59, 130, 246, 0.12)",
+            },
         ];
     })();
 
+    // Calculate extended range for x-axis
+    $: btcV2aXRange = (() => {
+        const dates = getFilteredDates(btcRegimeV2aRange);
+        if (!dates || dates.length === 0) return undefined;
+        const startDate = dates[0];
+        const lastDate = new Date(dates[dates.length - 1]);
+        if (btcOffsetDays > 0) {
+            lastDate.setDate(lastDate.getDate() + btcOffsetDays);
+        }
+        return [startDate, lastDate.toISOString().split("T")[0]];
+    })();
+
     $: btcRegimeV2aLayout = {
-        xaxis: { showgrid: false, color: darkMode ? "#94a3b8" : "#475569" },
-        yaxis: { visible: false },
+        xaxis: {
+            showgrid: false,
+            color: darkMode ? "#94a3b8" : "#475569",
+            range: btcV2aXRange,
+            domain: [0, 1],
+        },
+        yaxis: { visible: false, domain: [0.25, 1] }, // Hidden main y
         yaxis2: {
             title: "BTC Price (log)",
             type: "log",
@@ -378,25 +422,61 @@
             overlaying: "y",
             showgrid: false,
             color: darkMode ? "#94a3b8" : "#475569",
+            domain: [0.25, 1],
         },
-        shapes: createRegimeShapes(
-            dashboardData.regime_v2a?.score,
-            btcRegimeV2aRange,
-            darkMode,
-            btcOffsetDays,
-        ),
-        margin: { t: 20, b: 40, l: 20, r: 60 },
+        yaxis3: {
+            title: "Score",
+            range: [0, 100],
+            side: "left",
+            anchor: "x",
+            domain: [0, 0.22],
+            color: darkMode ? "#94a3b8" : "#475569",
+            tickvals: [25, 50, 75],
+            gridcolor: darkMode
+                ? "rgba(148,163,184,0.1)"
+                : "rgba(71,85,105,0.1)",
+        },
+        shapes: [
+            ...createRegimeShapes(
+                dashboardData.regime_v2a?.score,
+                btcRegimeV2aRange,
+                darkMode,
+                btcOffsetDays,
+            ),
+            // 50 line on score subplot
+            {
+                type: "line",
+                xref: "paper",
+                yref: "y3",
+                x0: 0,
+                x1: 1,
+                y0: 50,
+                y1: 50,
+                line: {
+                    color: darkMode
+                        ? "rgba(148,163,184,0.4)"
+                        : "rgba(100,116,139,0.4)",
+                    width: 1,
+                    dash: "dot",
+                },
+            },
+        ],
+        margin: { t: 20, b: 40, l: 50, r: 60 },
         paper_bgcolor: "transparent",
         plot_bgcolor: "transparent",
         showlegend: false,
         font: { color: darkMode ? "#e2e8f0" : "#1e293b" },
     };
 
+    // BTC + Regime V2B with Score Subplot
     $: btcRegimeV2bData = (() => {
         const btcPrice = dashboardData.btc?.price;
+        const score = dashboardData.regime_v2b?.score;
         if (!btcPrice) return [];
         const dates = getFilteredDates(btcRegimeV2bRange);
         const btc = filterByRange(btcPrice, btcRegimeV2bRange);
+        const scoreFiltered = filterByRange(score, btcRegimeV2bRange);
+
         return [
             {
                 x: dates,
@@ -407,12 +487,38 @@
                 line: { color: "#f59e0b", width: 2 },
                 yaxis: "y2",
             },
+            {
+                x: dates,
+                y: scoreFiltered,
+                name: "Regime Score",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#a855f7", width: 1.5 },
+                yaxis: "y3",
+                fill: "tozeroy",
+                fillcolor: "rgba(168, 85, 247, 0.12)",
+            },
         ];
     })();
 
+    $: btcV2bXRange = (() => {
+        const dates = getFilteredDates(btcRegimeV2bRange);
+        if (!dates || dates.length === 0) return undefined;
+        const startDate = dates[0];
+        const lastDate = new Date(dates[dates.length - 1]);
+        if (btcOffsetDays > 0)
+            lastDate.setDate(lastDate.getDate() + btcOffsetDays);
+        return [startDate, lastDate.toISOString().split("T")[0]];
+    })();
+
     $: btcRegimeV2bLayout = {
-        xaxis: { showgrid: false, color: darkMode ? "#94a3b8" : "#475569" },
-        yaxis: { visible: false },
+        xaxis: {
+            showgrid: false,
+            color: darkMode ? "#94a3b8" : "#475569",
+            range: btcV2bXRange,
+            domain: [0, 1],
+        },
+        yaxis: { visible: false, domain: [0.25, 1] },
         yaxis2: {
             title: "BTC Price (log)",
             type: "log",
@@ -420,14 +526,45 @@
             overlaying: "y",
             showgrid: false,
             color: darkMode ? "#94a3b8" : "#475569",
+            domain: [0.25, 1],
         },
-        shapes: createRegimeShapes(
-            dashboardData.regime_v2b?.score,
-            btcRegimeV2bRange,
-            darkMode,
-            btcOffsetDays,
-        ),
-        margin: { t: 20, b: 40, l: 20, r: 60 },
+        yaxis3: {
+            title: "Score",
+            range: [0, 100],
+            side: "left",
+            anchor: "x",
+            domain: [0, 0.22],
+            color: darkMode ? "#94a3b8" : "#475569",
+            tickvals: [25, 50, 75],
+            gridcolor: darkMode
+                ? "rgba(148,163,184,0.1)"
+                : "rgba(71,85,105,0.1)",
+        },
+        shapes: [
+            ...createRegimeShapes(
+                dashboardData.regime_v2b?.score,
+                btcRegimeV2bRange,
+                darkMode,
+                btcOffsetDays,
+            ),
+            {
+                type: "line",
+                xref: "paper",
+                yref: "y3",
+                x0: 0,
+                x1: 1,
+                y0: 50,
+                y1: 50,
+                line: {
+                    color: darkMode
+                        ? "rgba(148,163,184,0.4)"
+                        : "rgba(100,116,139,0.4)",
+                    width: 1,
+                    dash: "dot",
+                },
+            },
+        ],
+        margin: { t: 20, b: 40, l: 50, r: 60 },
         paper_bgcolor: "transparent",
         plot_bgcolor: "transparent",
         showlegend: false,

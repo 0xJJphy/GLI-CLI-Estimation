@@ -613,6 +613,27 @@
         return null;
     }
 
+    // Get value N periods ago (for ROC calculation)
+    function getValueAgo(arr, periods = 22) {
+        if (!arr || arr.length < periods + 1) return null;
+        let count = 0;
+        for (let i = arr.length - 1; i >= 0; i--) {
+            if (arr[i] !== null && arr[i] !== undefined && !isNaN(arr[i])) {
+                if (count === periods) return arr[i];
+                count++;
+            }
+        }
+        return null;
+    }
+
+    // Calculate ROC (change from N periods ago)
+    function calcRoc(arr, periods = 22) {
+        const latest = getLatest(arr);
+        const previous = getValueAgo(arr, periods);
+        if (latest === null || previous === null) return null;
+        return latest - previous;
+    }
+
     // Latest values
     $: latestCPI = getLatest(dashboardData.fed_forecasts?.cpi_yoy);
     $: latestCoreCPI = getLatest(dashboardData.fed_forecasts?.core_cpi_yoy);
@@ -630,6 +651,12 @@
     $: latestInflationExpect10Y = getLatest(
         dashboardData.fed_forecasts?.inflation_expect_10y,
     );
+
+    // ROC calculations (1 month = ~22 trading days for monthly data, use 1 for monthly)
+    $: rocFedFunds = calcRoc(dashboardData.fed_forecasts?.fed_funds_rate, 1);
+    $: rocCorePCE = calcRoc(dashboardData.fed_forecasts?.core_pce_yoy, 1);
+    $: rocUnemployment = calcRoc(dashboardData.fed_forecasts?.unemployment, 1);
+    $: rocISMMfg = calcRoc(dashboardData.fed_forecasts?.ism_mfg, 1);
 </script>
 
 <div class="fed-forecasts-tab">
@@ -637,38 +664,143 @@
     <div class="metrics-section">
         <div class="metrics-row">
             <div class="metric-card">
-                <span class="metric-label"
-                    >{translations.fed_funds_rate || "Fed Funds Rate"}</span
-                >
+                <div class="metric-header">
+                    <span class="metric-label"
+                        >{translations.fed_funds_rate || "Fed Funds Rate"}</span
+                    >
+                    {#if rocFedFunds !== null}
+                        <span
+                            class="roc-badge"
+                            class:positive={rocFedFunds > 0}
+                            class:negative={rocFedFunds < 0}
+                            class:neutral={rocFedFunds === 0}
+                        >
+                            {rocFedFunds > 0
+                                ? "▲"
+                                : rocFedFunds < 0
+                                  ? "▼"
+                                  : "●"}
+                            {Math.abs(rocFedFunds).toFixed(2)}% (1M)
+                        </span>
+                    {/if}
+                </div>
                 <span class="metric-value"
                     >{latestFedFunds?.toFixed(2) ?? "—"}%</span
                 >
+                <div class="metric-bar">
+                    <div
+                        class="bar-fill bar-neutral"
+                        style="width: {Math.min(
+                            ((latestFedFunds ?? 0) / 6) * 100,
+                            100,
+                        )}%"
+                    ></div>
+                </div>
             </div>
             <div class="metric-card">
-                <span class="metric-label"
-                    >{translations.core_pce_yoy || "Core PCE YoY"}</span
-                >
+                <div class="metric-header">
+                    <span class="metric-label"
+                        >{translations.core_pce_yoy || "Core PCE YoY"}</span
+                    >
+                    {#if rocCorePCE !== null}
+                        <span
+                            class="roc-badge"
+                            class:positive={rocCorePCE < 0}
+                            class:negative={rocCorePCE > 0}
+                            class:neutral={rocCorePCE === 0}
+                        >
+                            {rocCorePCE > 0 ? "▲" : rocCorePCE < 0 ? "▼" : "●"}
+                            {Math.abs(rocCorePCE).toFixed(2)}% (1M)
+                        </span>
+                    {/if}
+                </div>
                 <span
                     class="metric-value"
                     class:above-target={latestCorePCE > 2}
                     >{latestCorePCE?.toFixed(2) ?? "—"}%</span
                 >
+                <div class="metric-bar">
+                    <div
+                        class="bar-fill"
+                        class:bar-bullish={latestCorePCE <= 2.5}
+                        class:bar-bearish={latestCorePCE > 2.5}
+                        style="width: {Math.min(
+                            ((latestCorePCE ?? 0) / 5) * 100,
+                            100,
+                        )}%"
+                    ></div>
+                </div>
             </div>
             <div class="metric-card">
-                <span class="metric-label"
-                    >{translations.unemployment_rate || "Unemployment"}</span
-                >
+                <div class="metric-header">
+                    <span class="metric-label"
+                        >{translations.unemployment_rate ||
+                            "Unemployment"}</span
+                    >
+                    {#if rocUnemployment !== null}
+                        <span
+                            class="roc-badge"
+                            class:positive={rocUnemployment < 0}
+                            class:negative={rocUnemployment > 0}
+                            class:neutral={rocUnemployment === 0}
+                        >
+                            {rocUnemployment > 0
+                                ? "▲"
+                                : rocUnemployment < 0
+                                  ? "▼"
+                                  : "●"}
+                            {Math.abs(rocUnemployment).toFixed(1)}% (1M)
+                        </span>
+                    {/if}
+                </div>
                 <span class="metric-value"
                     >{latestUnemployment?.toFixed(1) ?? "—"}%</span
                 >
+                <div class="metric-bar">
+                    <div
+                        class="bar-fill"
+                        class:bar-bullish={latestUnemployment <= 4.5}
+                        class:bar-neutral={latestUnemployment > 4.5 &&
+                            latestUnemployment <= 5.5}
+                        class:bar-bearish={latestUnemployment > 5.5}
+                        style="width: {Math.min(
+                            ((latestUnemployment ?? 0) / 10) * 100,
+                            100,
+                        )}%"
+                    ></div>
+                </div>
             </div>
             <div class="metric-card">
-                <span class="metric-label"
-                    >{translations.ism_mfg_pmi || "ISM Mfg PMI"}</span
-                >
+                <div class="metric-header">
+                    <span class="metric-label"
+                        >{translations.ism_mfg_pmi || "ISM Mfg PMI"}</span
+                    >
+                    {#if rocISMMfg !== null}
+                        <span
+                            class="roc-badge"
+                            class:positive={rocISMMfg > 0}
+                            class:negative={rocISMMfg < 0}
+                            class:neutral={rocISMMfg === 0}
+                        >
+                            {rocISMMfg > 0 ? "▲" : rocISMMfg < 0 ? "▼" : "●"}
+                            {Math.abs(rocISMMfg).toFixed(1)} (1M)
+                        </span>
+                    {/if}
+                </div>
                 <span class="metric-value" class:below-50={latestISMMfg < 50}
                     >{latestISMMfg?.toFixed(1) ?? "—"}</span
                 >
+                <div class="metric-bar">
+                    <div
+                        class="bar-fill"
+                        class:bar-bullish={latestISMMfg >= 50}
+                        class:bar-bearish={latestISMMfg < 50}
+                        style="width: {Math.min(
+                            ((latestISMMfg ?? 0) / 70) * 100,
+                            100,
+                        )}%"
+                    ></div>
+                </div>
             </div>
         </div>
     </div>
@@ -1804,6 +1936,66 @@
 
     .metric-value.below-50 {
         color: #f59e0b;
+    }
+
+    /* ROC Badge Styles */
+    .metric-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        margin-bottom: 4px;
+    }
+
+    .roc-badge {
+        font-size: 0.68rem;
+        font-weight: 600;
+        padding: 2px 6px;
+        border-radius: 4px;
+        white-space: nowrap;
+    }
+
+    .roc-badge.positive {
+        background: rgba(16, 185, 129, 0.15);
+        color: #10b981;
+    }
+
+    .roc-badge.negative {
+        background: rgba(239, 68, 68, 0.15);
+        color: #ef4444;
+    }
+
+    .roc-badge.neutral {
+        background: rgba(156, 163, 175, 0.15);
+        color: #9ca3af;
+    }
+
+    /* Metric Bar */
+    .metric-bar {
+        width: 100%;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 2px;
+        margin-top: 8px;
+        overflow: hidden;
+    }
+
+    .bar-fill {
+        height: 100%;
+        border-radius: 2px;
+        transition: width 0.5s ease;
+    }
+
+    .bar-fill.bar-bullish {
+        background: linear-gradient(90deg, #10b981, #34d399);
+    }
+
+    .bar-fill.bar-bearish {
+        background: linear-gradient(90deg, #ef4444, #f87171);
+    }
+
+    .bar-fill.bar-neutral {
+        background: linear-gradient(90deg, #3b82f6, #60a5fa);
     }
 
     /* Dot Plot Section - Two Column Layout */

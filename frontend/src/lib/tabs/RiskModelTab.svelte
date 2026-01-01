@@ -230,12 +230,20 @@
     let fxVolRange = "ALL";
     let treasury10yRange = "ALL";
     let treasury2yRange = "ALL";
+    let treasury30yRange = "ALL";
+    let treasury5yRange = "ALL";
     let yieldCurveRange = "ALL";
+    let yieldCurve30y10yRange = "ALL";
+    let yieldCurve30y2yRange = "ALL";
     let divergenceRange = "ALL";
     let repoStressRange = "ALL";
     let tipsRange = "ALL";
     let creditSpreadsRange = "ALL";
     let inflationExpectRange = "5Y";
+    // New: Stress Indices and Corporate Yields
+    let stLouisStressRange = "ALL";
+    let kansasCityStressRange = "ALL";
+    let baaAaaRange = "ALL";
 
     // Imports
     import { filterPlotlyData } from "../utils/helpers.js";
@@ -255,8 +263,21 @@
     let fxVolViewMode = "zscore";
     let treasury10yViewMode = "raw";
     let treasury2yViewMode = "raw";
+    let treasury30yViewMode = "raw";
+    let treasury5yViewMode = "raw";
     let yieldCurveViewMode = "raw";
+    let yieldCurve30y10yViewMode = "raw";
+    let yieldCurve30y2yViewMode = "raw";
     let divergenceViewMode = "raw";
+    // New: Stress Indices
+    let stLouisStressViewMode = "zscore";
+    let kansasCityStressViewMode = "zscore";
+    let baaAaaViewMode = "raw";
+    // New: NFP and JOLTS
+    let nfpRange = "5Y";
+    let nfpViewMode = "raw";
+    let joltsRange = "5Y";
+    let joltsViewMode = "raw";
 
     // --- Performance Optimization: Cached Indices ---
     import { getCutoffDate } from "../utils/helpers.js";
@@ -892,6 +913,375 @@
             },
         ],
         yieldCurveRange,
+    );
+
+    // === NEW: 30Y Treasury ===
+    $: treasury30yData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.treasury_30y || [],
+                name: "30Y UST Yield (%)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#dc2626", width: 2 },
+            },
+        ],
+        treasury30yRange,
+    );
+
+    $: treasury30yZData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.signal_metrics?.treasury_30y?.zscore || [],
+                name: "30Y Yield (Z-Score)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#dc2626", width: 2 },
+            },
+        ],
+        treasury30yRange,
+    );
+
+    $: treasury30yPctData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.signal_metrics?.treasury_30y?.percentile || [],
+                name: "30Y Yield (Percentile)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#dc2626", width: 2 },
+            },
+        ],
+        treasury30yRange,
+    );
+
+    // === NEW: 30Y-10Y Yield Curve ===
+    $: yieldCurve30y10yRawData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.yield_curve_30y_10y || [],
+                name: "30Y-10Y Spread (%)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#ea580c", width: 2.5 },
+                fill: "tozeroy",
+                fillcolor: "rgba(234, 88, 12, 0.1)",
+            },
+        ],
+        yieldCurve30y10yRange,
+    );
+
+    $: yieldCurve30y10yZData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y:
+                    dashboardData.signal_metrics?.yield_curve_30y_10y?.zscore ||
+                    [],
+                name: "30Y-10Y (Z-Score)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#ea580c", width: 2 },
+            },
+        ],
+        yieldCurve30y10yRange,
+    );
+
+    $: yieldCurve30y10yPctData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y:
+                    dashboardData.signal_metrics?.yield_curve_30y_10y
+                        ?.percentile || [],
+                name: "30Y-10Y (Percentile)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#ea580c", width: 2 },
+            },
+        ],
+        yieldCurve30y10yRange,
+    );
+
+    // === NEW: 30Y-2Y Yield Curve (Full Curve) ===
+    $: yieldCurve30y2yRawData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.yield_curve_30y_2y || [],
+                name: "30Y-2Y Spread (%)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#0891b2", width: 2.5 },
+                fill: "tozeroy",
+                fillcolor: "rgba(8, 145, 178, 0.1)",
+            },
+        ],
+        yieldCurve30y2yRange,
+    );
+
+    $: yieldCurve30y2yZData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y:
+                    dashboardData.signal_metrics?.yield_curve_30y_2y?.zscore ||
+                    [],
+                name: "30Y-2Y (Z-Score)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#0891b2", width: 2 },
+            },
+        ],
+        yieldCurve30y2yRange,
+    );
+
+    $: yieldCurve30y2yPctData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y:
+                    dashboardData.signal_metrics?.yield_curve_30y_2y
+                        ?.percentile || [],
+                name: "30Y-2Y (Percentile)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#0891b2", width: 2 },
+            },
+        ],
+        yieldCurve30y2yRange,
+    );
+
+    // === NEW: St. Louis Financial Stress Index ===
+    $: stLouisStressRawData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.st_louis_stress || [],
+                name: "STLFSI4 (Raw)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#7c3aed", width: 2 },
+            },
+        ],
+        stLouisStressRange,
+    );
+
+    $: stLouisStressZData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.signal_metrics?.st_louis_stress?.zscore || [],
+                name: "STLFSI4 (Z-Score)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#7c3aed", width: 2 },
+            },
+        ],
+        stLouisStressRange,
+    );
+
+    $: stLouisStressPctData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y:
+                    dashboardData.signal_metrics?.st_louis_stress?.percentile ||
+                    [],
+                name: "STLFSI4 (Percentile)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#7c3aed", width: 2 },
+            },
+        ],
+        stLouisStressRange,
+    );
+
+    // === NEW: Kansas City Financial Stress Index ===
+    $: kansasCityStressRawData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.kansas_city_stress || [],
+                name: "KCFSI (Raw)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#c026d3", width: 2 },
+            },
+        ],
+        kansasCityStressRange,
+    );
+
+    $: kansasCityStressZData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y:
+                    dashboardData.signal_metrics?.kansas_city_stress?.zscore ||
+                    [],
+                name: "KCFSI (Z-Score)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#c026d3", width: 2 },
+            },
+        ],
+        kansasCityStressRange,
+    );
+
+    $: kansasCityStressPctData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y:
+                    dashboardData.signal_metrics?.kansas_city_stress
+                        ?.percentile || [],
+                name: "KCFSI (Percentile)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#c026d3", width: 2 },
+            },
+        ],
+        kansasCityStressRange,
+    );
+
+    // === NEW: BAA/AAA Corporate Yields ===
+    $: baaAaaData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.baa_yield || [],
+                name: "BAA Yield (%)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#ef4444", width: 2 },
+            },
+            {
+                x: dashboardData.dates,
+                y: dashboardData.aaa_yield || [],
+                name: "AAA Yield (%)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#22c55e", width: 2 },
+                yaxis: "y2",
+            },
+        ],
+        baaAaaRange,
+    );
+
+    $: baaAaaSpreadData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.baa_aaa_spread || [],
+                name: "BAA-AAA Spread (%)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#f59e0b", width: 2.5 },
+                fill: "tozeroy",
+                fillcolor: "rgba(245, 158, 11, 0.1)",
+            },
+        ],
+        baaAaaRange,
+    );
+
+    // === NEW: NFP Charts ===
+    $: nfpRawData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.fed_forecasts?.nfp_change || [],
+                name: "NFP MoM Change (k)",
+                type: "bar",
+                marker: {
+                    color: (dashboardData.fed_forecasts?.nfp_change || []).map(
+                        (v) =>
+                            v === null || v === undefined
+                                ? "rgba(0,0,0,0)"
+                                : v >= 0
+                                  ? "#10b981"
+                                  : "#ef4444",
+                    ),
+                },
+            },
+        ],
+        nfpRange,
+    );
+
+    $: nfpZData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.signal_metrics?.nfp?.zscore || [],
+                name: "NFP (Z-Score)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#3b82f6", width: 2 },
+            },
+        ],
+        nfpRange,
+    );
+
+    $: nfpPctData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.signal_metrics?.nfp?.percentile || [],
+                name: "NFP (Percentile)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#3b82f6", width: 2 },
+            },
+        ],
+        nfpRange,
+    );
+
+    // === NEW: JOLTS Charts ===
+    $: joltsRawData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.fed_forecasts?.jolts || [],
+                name: "JOLTS (M)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#10b981", width: 2 },
+                fill: "tozeroy",
+                fillcolor: "rgba(16, 185, 129, 0.1)",
+            },
+        ],
+        joltsRange,
+    );
+
+    $: joltsZData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.signal_metrics?.jolts?.zscore || [],
+                name: "JOLTS (Z-Score)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#10b981", width: 2 },
+            },
+        ],
+        joltsRange,
+    );
+
+    $: joltsPctData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.signal_metrics?.jolts?.percentile || [],
+                name: "JOLTS (Percentile)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#10b981", width: 2 },
+            },
+        ],
+        joltsRange,
     );
 
     $: divergenceData = filterWithCache(
@@ -2961,6 +3351,608 @@
                     </table>
                 </div>
             </div>
+        </div>
+
+        <!-- NEW: NFP (Non-Farm Payrolls) Chart -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3>Non-Farm Payrolls (NFP)</h3>
+                <div class="header-controls">
+                    <div class="view-mode-toggle">
+                        <button
+                            class:active={nfpViewMode === "raw"}
+                            on:click={() => (nfpViewMode = "raw")}
+                            title="Raw">📊</button
+                        >
+                        <button
+                            class:active={nfpViewMode === "zscore"}
+                            on:click={() => (nfpViewMode = "zscore")}
+                            title="Z-Score">Z</button
+                        >
+                        <button
+                            class:active={nfpViewMode === "percentile"}
+                            on:click={() => (nfpViewMode = "percentile")}
+                            title="Percentile">%</button
+                        >
+                    </div>
+                    <TimeRangeSelector
+                        selectedRange={nfpRange}
+                        onRangeChange={(r) => (nfpRange = r)}
+                    />
+                </div>
+            </div>
+            <p class="chart-description">
+                Monthly change in non-farm payrolls (thousands). Key labor
+                market indicator. Above 150k = healthy, below 0 = contraction.
+            </p>
+            <div class="chart-content" style="height: 280px;">
+                <Chart
+                    {darkMode}
+                    data={nfpViewMode === "raw"
+                        ? nfpRawData
+                        : nfpViewMode === "zscore"
+                          ? nfpZData
+                          : nfpPctData}
+                    layout={nfpViewMode === "percentile"
+                        ? {
+                              shapes: createPercentileBands(darkMode, {
+                                  bullishPct: 70,
+                                  bearishPct: 30,
+                                  invert: false,
+                              }),
+                              yaxis: { title: "Percentile", range: [-5, 105] },
+                              margin: { l: 50, r: 20, t: 20, b: 40 },
+                          }
+                        : nfpViewMode === "zscore"
+                          ? {
+                                shapes: createZScoreBands(darkMode, {
+                                    invertColors: false,
+                                }),
+                                yaxis: { title: "Z-Score" },
+                                margin: { l: 50, r: 20, t: 20, b: 40 },
+                            }
+                          : {
+                                yaxis: { title: "Change (k)" },
+                                margin: { l: 50, r: 20, t: 20, b: 40 },
+                            }}
+                />
+            </div>
+            {#if signalsFromMetrics.nfp?.latest}
+                {@const s = signalsFromMetrics.nfp.latest}
+                <div
+                    class="metrics-section"
+                    style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px;"
+                >
+                    <div
+                        class="signal-item"
+                        style="background: rgba(0,0,0,0.15); border: none;"
+                    >
+                        <div class="signal-label">Labor Market Signal</div>
+                        <div class="signal-status text-{s.state}">
+                            <span class="signal-dot"></span>
+                            {getStatusLabel(s.state)}
+                        </div>
+                        <div class="signal-value">
+                            Change: <b>{s.value?.toFixed(0)}k</b> | Percentile:
+                            <b>P{s.percentile?.toFixed(0)}</b>
+                        </div>
+                    </div>
+                </div>
+            {/if}
+        </div>
+
+        <!-- NEW: JOLTS Chart -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3>Job Openings (JOLTS)</h3>
+                <div class="header-controls">
+                    <div class="view-mode-toggle">
+                        <button
+                            class:active={joltsViewMode === "raw"}
+                            on:click={() => (joltsViewMode = "raw")}
+                            title="Raw">📊</button
+                        >
+                        <button
+                            class:active={joltsViewMode === "zscore"}
+                            on:click={() => (joltsViewMode = "zscore")}
+                            title="Z-Score">Z</button
+                        >
+                        <button
+                            class:active={joltsViewMode === "percentile"}
+                            on:click={() => (joltsViewMode = "percentile")}
+                            title="Percentile">%</button
+                        >
+                    </div>
+                    <TimeRangeSelector
+                        selectedRange={joltsRange}
+                        onRangeChange={(r) => (joltsRange = r)}
+                    />
+                </div>
+            </div>
+            <p class="chart-description">
+                Job openings in millions. Higher = tighter labor market. Watch
+                for JOLTS/Unemployed ratio trends.
+            </p>
+            <div class="chart-content" style="height: 280px;">
+                <Chart
+                    {darkMode}
+                    data={joltsViewMode === "raw"
+                        ? joltsRawData
+                        : joltsViewMode === "zscore"
+                          ? joltsZData
+                          : joltsPctData}
+                    layout={joltsViewMode === "percentile"
+                        ? {
+                              shapes: createPercentileBands(darkMode, {
+                                  bullishPct: 70,
+                                  bearishPct: 30,
+                                  invert: false,
+                              }),
+                              yaxis: { title: "Percentile", range: [-5, 105] },
+                              margin: { l: 50, r: 20, t: 20, b: 40 },
+                          }
+                        : joltsViewMode === "zscore"
+                          ? {
+                                shapes: createZScoreBands(darkMode, {
+                                    invertColors: false,
+                                }),
+                                yaxis: { title: "Z-Score" },
+                                margin: { l: 50, r: 20, t: 20, b: 40 },
+                            }
+                          : {
+                                yaxis: { title: "Openings (M)" },
+                                margin: { l: 50, r: 20, t: 20, b: 40 },
+                            }}
+                />
+            </div>
+            {#if signalsFromMetrics.jolts?.latest}
+                {@const s = signalsFromMetrics.jolts.latest}
+                <div
+                    class="metrics-section"
+                    style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px;"
+                >
+                    <div
+                        class="signal-item"
+                        style="background: rgba(0,0,0,0.15); border: none;"
+                    >
+                        <div class="signal-label">Labor Demand Signal</div>
+                        <div class="signal-status text-{s.state}">
+                            <span class="signal-dot"></span>
+                            {getStatusLabel(s.state)}
+                        </div>
+                        <div class="signal-value">
+                            Openings: <b>{s.value?.toFixed(1)}M</b> |
+                            Percentile: <b>P{s.percentile?.toFixed(0)}</b>
+                        </div>
+                    </div>
+                </div>
+            {/if}
+        </div>
+
+        <!-- NEW: Financial Stress Indices Section -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3>St. Louis Financial Stress Index (STLFSI4)</h3>
+                <div class="header-controls">
+                    <div class="view-mode-toggle">
+                        <button
+                            class:active={stLouisStressViewMode === "zscore"}
+                            on:click={() => (stLouisStressViewMode = "zscore")}
+                            title="Z-Score">Z</button
+                        >
+                        <button
+                            class:active={stLouisStressViewMode ===
+                                "percentile"}
+                            on:click={() =>
+                                (stLouisStressViewMode = "percentile")}
+                            title="Percentile">%</button
+                        >
+                        <button
+                            class:active={stLouisStressViewMode === "raw"}
+                            on:click={() => (stLouisStressViewMode = "raw")}
+                            title="Raw Values">📊</button
+                        >
+                    </div>
+                    <TimeRangeSelector
+                        selectedRange={stLouisStressRange}
+                        onRangeChange={(r) => (stLouisStressRange = r)}
+                    />
+                </div>
+            </div>
+            <p class="chart-description">
+                Weekly index measuring financial stress. Values above 0 =
+                above-average stress.
+            </p>
+            <div class="chart-content" style="height: 280px;">
+                <Chart
+                    {darkMode}
+                    data={stLouisStressViewMode === "raw"
+                        ? stLouisStressRawData
+                        : stLouisStressViewMode === "percentile"
+                          ? stLouisStressPctData
+                          : stLouisStressZData}
+                    layout={stLouisStressViewMode === "percentile"
+                        ? {
+                              shapes: createPercentileBands(darkMode, {
+                                  bullishPct: 30,
+                                  bearishPct: 70,
+                                  invert: true,
+                              }),
+                              yaxis: { title: "Percentile", range: [-5, 105] },
+                              margin: { l: 50, r: 20, t: 20, b: 40 },
+                          }
+                        : {
+                              shapes: createZScoreBands(darkMode, {
+                                  invertColors: true,
+                              }),
+                              yaxis: {
+                                  title:
+                                      stLouisStressViewMode === "raw"
+                                          ? "Index"
+                                          : "Z-Score",
+                              },
+                              margin: { l: 50, r: 20, t: 20, b: 40 },
+                          }}
+                />
+            </div>
+            {#if signalsFromMetrics.st_louis_stress?.latest}
+                {@const s = signalsFromMetrics.st_louis_stress.latest}
+                <div
+                    class="metrics-section"
+                    style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px;"
+                >
+                    <div
+                        class="signal-item"
+                        style="background: rgba(0,0,0,0.15); border: none;"
+                    >
+                        <div class="signal-label">Signal Status</div>
+                        <div class="signal-status text-{s.state}">
+                            <span class="signal-dot"></span>
+                            {getStatusLabel(s.state)}
+                        </div>
+                        <div class="signal-value">
+                            Index: <b>{s.value?.toFixed(2)}</b> | Percentile:
+                            <b>P{s.percentile?.toFixed(0)}</b>
+                        </div>
+                    </div>
+                </div>
+            {/if}
+        </div>
+
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3>Kansas City Financial Stress Index (KCFSI)</h3>
+                <div class="header-controls">
+                    <div class="view-mode-toggle">
+                        <button
+                            class:active={kansasCityStressViewMode === "zscore"}
+                            on:click={() =>
+                                (kansasCityStressViewMode = "zscore")}
+                            title="Z-Score">Z</button
+                        >
+                        <button
+                            class:active={kansasCityStressViewMode ===
+                                "percentile"}
+                            on:click={() =>
+                                (kansasCityStressViewMode = "percentile")}
+                            title="Percentile">%</button
+                        >
+                        <button
+                            class:active={kansasCityStressViewMode === "raw"}
+                            on:click={() => (kansasCityStressViewMode = "raw")}
+                            title="Raw Values">📊</button
+                        >
+                    </div>
+                    <TimeRangeSelector
+                        selectedRange={kansasCityStressRange}
+                        onRangeChange={(r) => (kansasCityStressRange = r)}
+                    />
+                </div>
+            </div>
+            <p class="chart-description">
+                Monthly index from Kansas City Fed. Positive = stress above
+                typical.
+            </p>
+            <div class="chart-content" style="height: 280px;">
+                <Chart
+                    {darkMode}
+                    data={kansasCityStressViewMode === "raw"
+                        ? kansasCityStressRawData
+                        : kansasCityStressViewMode === "percentile"
+                          ? kansasCityStressPctData
+                          : kansasCityStressZData}
+                    layout={kansasCityStressViewMode === "percentile"
+                        ? {
+                              shapes: createPercentileBands(darkMode, {
+                                  bullishPct: 30,
+                                  bearishPct: 70,
+                                  invert: true,
+                              }),
+                              yaxis: { title: "Percentile", range: [-5, 105] },
+                              margin: { l: 50, r: 20, t: 20, b: 40 },
+                          }
+                        : {
+                              shapes: createZScoreBands(darkMode, {
+                                  invertColors: true,
+                              }),
+                              yaxis: {
+                                  title:
+                                      kansasCityStressViewMode === "raw"
+                                          ? "Index"
+                                          : "Z-Score",
+                              },
+                              margin: { l: 50, r: 20, t: 20, b: 40 },
+                          }}
+                />
+            </div>
+            {#if signalsFromMetrics.kansas_city_stress?.latest}
+                {@const s = signalsFromMetrics.kansas_city_stress.latest}
+                <div
+                    class="metrics-section"
+                    style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px;"
+                >
+                    <div
+                        class="signal-item"
+                        style="background: rgba(0,0,0,0.15); border: none;"
+                    >
+                        <div class="signal-label">Signal Status</div>
+                        <div class="signal-status text-{s.state}">
+                            <span class="signal-dot"></span>
+                            {getStatusLabel(s.state)}
+                        </div>
+                        <div class="signal-value">
+                            Index: <b>{s.value?.toFixed(2)}</b> | Percentile:
+                            <b>P{s.percentile?.toFixed(0)}</b>
+                        </div>
+                    </div>
+                </div>
+            {/if}
+        </div>
+
+        <!-- NEW: Corporate Bond Yields (BAA/AAA) -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3>Corporate Yields (BAA/AAA) & Credit Quality Spread</h3>
+                <div class="header-controls">
+                    <div class="view-mode-toggle">
+                        <button
+                            class:active={baaAaaViewMode === "raw"}
+                            on:click={() => (baaAaaViewMode = "raw")}
+                            title="Yields">📊</button
+                        >
+                        <button
+                            class:active={baaAaaViewMode === "spread"}
+                            on:click={() => (baaAaaViewMode = "spread")}
+                            title="Spread">Δ</button
+                        >
+                    </div>
+                    <TimeRangeSelector
+                        selectedRange={baaAaaRange}
+                        onRangeChange={(r) => (baaAaaRange = r)}
+                    />
+                </div>
+            </div>
+            <p class="chart-description">
+                {baaAaaViewMode === "spread"
+                    ? "BAA-AAA spread = credit quality premium. Wider = more risk aversion."
+                    : "BAA (red, lower quality IG) vs AAA (green, highest quality)."}
+            </p>
+            <div class="chart-content" style="height: 280px;">
+                <Chart
+                    {darkMode}
+                    data={baaAaaViewMode === "spread"
+                        ? baaAaaSpreadData
+                        : baaAaaData}
+                    layout={baaAaaViewMode === "spread"
+                        ? {
+                              yaxis: { title: "Spread (%)" },
+                              margin: { l: 50, r: 20, t: 20, b: 40 },
+                          }
+                        : {
+                              yaxis: { title: "BAA Yield (%)", side: "left" },
+                              yaxis2: {
+                                  title: "AAA Yield (%)",
+                                  side: "right",
+                                  overlaying: "y",
+                              },
+                              legend: {
+                                  x: 0.01,
+                                  y: 0.99,
+                                  bgcolor: "rgba(0,0,0,0.0)",
+                              },
+                              margin: { l: 60, r: 60, t: 20, b: 40 },
+                          }}
+                />
+            </div>
+            {#if signalsFromMetrics.baa_aaa_spread?.latest}
+                {@const s = signalsFromMetrics.baa_aaa_spread.latest}
+                <div
+                    class="metrics-section"
+                    style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px;"
+                >
+                    <div
+                        class="signal-item"
+                        style="background: rgba(0,0,0,0.15); border: none;"
+                    >
+                        <div class="signal-label">Credit Quality Signal</div>
+                        <div class="signal-status text-{s.state}">
+                            <span class="signal-dot"></span>
+                            {getStatusLabel(s.state)}
+                        </div>
+                        <div class="signal-value">
+                            BAA-AAA Spread: <b>{s.value?.toFixed(2)}%</b> |
+                            Percentile: <b>P{s.percentile?.toFixed(0)}</b>
+                        </div>
+                    </div>
+                </div>
+            {/if}
+        </div>
+
+        <!-- NEW: 30Y-10Y Yield Curve -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3>Yield Curve (30Y-10Y Spread)</h3>
+                <div class="header-controls">
+                    <div class="mode-selector">
+                        <button
+                            class:active={yieldCurve30y10yViewMode === "raw"}
+                            on:click={() => (yieldCurve30y10yViewMode = "raw")}
+                            >Raw</button
+                        >
+                        <button
+                            class:active={yieldCurve30y10yViewMode === "zscore"}
+                            on:click={() =>
+                                (yieldCurve30y10yViewMode = "zscore")}>Z</button
+                        >
+                        <button
+                            class:active={yieldCurve30y10yViewMode ===
+                                "percentile"}
+                            on:click={() =>
+                                (yieldCurve30y10yViewMode = "percentile")}
+                            >%</button
+                        >
+                    </div>
+                    <TimeRangeSelector
+                        selectedRange={yieldCurve30y10yRange}
+                        onRangeChange={(r) => (yieldCurve30y10yRange = r)}
+                    />
+                </div>
+            </div>
+            <p class="chart-description">
+                Long-term curve steepness. Inversion = severe stress.
+            </p>
+            <div class="chart-content" style="height: 280px;">
+                <Chart
+                    {darkMode}
+                    data={yieldCurve30y10yViewMode === "zscore"
+                        ? yieldCurve30y10yZData
+                        : yieldCurve30y10yViewMode === "percentile"
+                          ? yieldCurve30y10yPctData
+                          : yieldCurve30y10yRawData}
+                    layout={{
+                        yaxis: {
+                            title:
+                                yieldCurve30y10yViewMode === "zscore"
+                                    ? "Z-Score"
+                                    : yieldCurve30y10yViewMode === "percentile"
+                                      ? "Percentile"
+                                      : "Spread (%)",
+                            range:
+                                yieldCurve30y10yViewMode === "percentile"
+                                    ? [0, 100]
+                                    : undefined,
+                        },
+                        margin: { l: 50, r: 20, t: 20, b: 40 },
+                    }}
+                />
+            </div>
+            {#if signalsFromMetrics.yield_curve_30y_10y?.latest}
+                {@const s = signalsFromMetrics.yield_curve_30y_10y.latest}
+                <div
+                    class="metrics-section"
+                    style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px;"
+                >
+                    <div
+                        class="signal-item"
+                        style="background: rgba(0,0,0,0.15); border: none;"
+                    >
+                        <div class="signal-label">Curve Signal</div>
+                        <div class="signal-status text-{s.state}">
+                            <span class="signal-dot"></span>
+                            {getStatusLabel(s.state)}
+                            {s.value < 0 ? "(INVERTED)" : ""}
+                        </div>
+                        <div class="signal-value">
+                            Spread: <b>{s.value?.toFixed(2)}%</b> | Percentile:
+                            <b>P{s.percentile?.toFixed(0)}</b>
+                        </div>
+                    </div>
+                </div>
+            {/if}
+        </div>
+
+        <!-- NEW: 30Y-2Y Yield Curve (Full Spread) -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3>Yield Curve (30Y-2Y Full Spread)</h3>
+                <div class="header-controls">
+                    <div class="mode-selector">
+                        <button
+                            class:active={yieldCurve30y2yViewMode === "raw"}
+                            on:click={() => (yieldCurve30y2yViewMode = "raw")}
+                            >Raw</button
+                        >
+                        <button
+                            class:active={yieldCurve30y2yViewMode === "zscore"}
+                            on:click={() =>
+                                (yieldCurve30y2yViewMode = "zscore")}>Z</button
+                        >
+                        <button
+                            class:active={yieldCurve30y2yViewMode ===
+                                "percentile"}
+                            on:click={() =>
+                                (yieldCurve30y2yViewMode = "percentile")}
+                            >%</button
+                        >
+                    </div>
+                    <TimeRangeSelector
+                        selectedRange={yieldCurve30y2yRange}
+                        onRangeChange={(r) => (yieldCurve30y2yRange = r)}
+                    />
+                </div>
+            </div>
+            <p class="chart-description">
+                Full yield curve slope (2Y to 30Y). Deep inversion = severe
+                recession signal.
+            </p>
+            <div class="chart-content" style="height: 280px;">
+                <Chart
+                    {darkMode}
+                    data={yieldCurve30y2yViewMode === "zscore"
+                        ? yieldCurve30y2yZData
+                        : yieldCurve30y2yViewMode === "percentile"
+                          ? yieldCurve30y2yPctData
+                          : yieldCurve30y2yRawData}
+                    layout={{
+                        yaxis: {
+                            title:
+                                yieldCurve30y2yViewMode === "zscore"
+                                    ? "Z-Score"
+                                    : yieldCurve30y2yViewMode === "percentile"
+                                      ? "Percentile"
+                                      : "Spread (%)",
+                            range:
+                                yieldCurve30y2yViewMode === "percentile"
+                                    ? [0, 100]
+                                    : undefined,
+                        },
+                        margin: { l: 50, r: 20, t: 20, b: 40 },
+                    }}
+                />
+            </div>
+            {#if signalsFromMetrics.yield_curve_30y_2y?.latest}
+                {@const s = signalsFromMetrics.yield_curve_30y_2y.latest}
+                <div
+                    class="metrics-section"
+                    style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px;"
+                >
+                    <div
+                        class="signal-item"
+                        style="background: rgba(0,0,0,0.15); border: none;"
+                    >
+                        <div class="signal-label">Full Curve Signal</div>
+                        <div class="signal-status text-{s.state}">
+                            <span class="signal-dot"></span>
+                            {getStatusLabel(s.state)}
+                            {s.value < 0 ? "(INVERTED)" : ""}
+                        </div>
+                        <div class="signal-value">
+                            Spread: <b>{s.value?.toFixed(2)}%</b> | Percentile:
+                            <b>P{s.percentile?.toFixed(0)}</b>
+                        </div>
+                    </div>
+                </div>
+            {/if}
         </div>
 
         <!-- Individual Indicators -->

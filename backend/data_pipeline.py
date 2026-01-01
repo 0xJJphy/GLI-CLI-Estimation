@@ -1267,8 +1267,8 @@ FRED_CONFIG = {
     'WALCL': 'FED',
     'ECBASSETSW': 'ECB',
     'JPNASSETS': 'BOJ',
-    'UKASSETS': 'BOE',
-    'MABMM301CNA189S': 'PBOC',
+    # 'UKASSETS': 'BOE',  # DISCONTINUED - DO NOT USE
+    # 'MABMM301CNA189S': 'PBOC', # WRONG CONCEPT (M3 NOT ASSETS) - DO NOT USE
     'DEXUSEU': 'EURUSD',
     'DEXJPUS': 'USDJPY',
     'DEXUSUK': 'GBPUSD',
@@ -1315,10 +1315,18 @@ FRED_CONFIG = {
     # Additional TIPS Breakeven for curve construction
     'T5YIE': 'TIPS_BREAKEVEN_5Y',          # 5-Year Breakeven Inflation Rate
     # Treasury Yields for stress analysis
+    'DGS30': 'TREASURY_30Y_YIELD',         # 30-Year Treasury Constant Maturity Yield
     'DGS10': 'TREASURY_10Y_YIELD',         # 10-Year Treasury Constant Maturity Yield
+    'DGS5': 'TREASURY_5Y_YIELD',           # 5-Year Treasury Constant Maturity Yield
     'DGS2': 'TREASURY_2Y_YIELD',           # 2-Year Treasury Constant Maturity Yield
     'PAYEMS': 'NFP',                       # All Employees, Total Nonfarm
     'JTSJOL': 'JOLTS',                     # Job Openings: Total Nonfarm
+    # Additional financial stress indices (for robustness/sanity check)
+    'STLFSI4': 'ST_LOUIS_STRESS',          # St. Louis Fed Financial Stress Index
+    'KCFSI': 'KANSAS_CITY_STRESS',         # Kansas City Financial Stress Index
+    'BAA': 'BAA_YIELD',                    # Moody's Seasoned Baa Corporate Bond Yield
+    'AAA': 'AAA_YIELD',                    # Moody's Seasoned Aaa Corporate Bond Yield
+    'SWPT': 'CB_LIQ_SWAPS',                # Assets: Central Bank Liquidity Swaps
 }
 
 # Mapping: Symbol -> Internal Name (TradingView ECONOMICS)
@@ -1408,7 +1416,8 @@ def fetch_fred_series(series_id, name):
     try:
         data = fred.get_series(series_id, observation_start=START_DATE)
         data.name = name
-        return data
+        # Apply publication lag to avoid lookahead bias
+        return apply_publication_lag(data, series_id)
     except Exception as e:
         print(f"Error fetching FRED {series_id} ({name}): {e}")
         return pd.Series(dtype=float, name=name)
@@ -1462,12 +1471,56 @@ def fetch_tv_series(symbol, exchange, name, n_bars=1500, max_retries=3):
     return pd.Series(dtype=float, name=name)
 
 # ============================================================
-# CALCULATIONS
+# CALCULATIONS & HELPERS
 # ============================================================
-def normalize_zscore(series, window=504):
+
+# Publication lag (days) for slow-release series to avoid lookahead bias
+PUBLICATION_LAGS = {
+    'DRTSCILM': 45,        # SLOOS: ~6 weeks after quarter end
+    'NFCI': 3,             # Weekly, ~3 days lag
+    'M2SL': 15,            # M2: ~2 weeks after month end
+    'ISM_MFG': 22,         # ISM: ~1 month lag
+    'UNEMPLOYMENT': 5,     # BLS: ~5 days after month end
+    'CORE_PCE': 30,        # PCE: ~1 month lag
+    'NFP': 5,              # NFP: ~5 days after month end
+}
+
+def apply_publication_lag(series, fred_id):
+    """Shift series by publication lag to avoid lookahead bias."""
+    lag = PUBLICATION_LAGS.get(fred_id, 0)
+    if lag > 0:
+        return series.shift(lag)
+    return series
+def normalize_zscore(series, window=504, clip=5.0):
+    """Normalized z-score with std=0 protection and optional clipping."""
     mean = series.rolling(window=window, min_periods=100).mean()
     std = series.rolling(window=window, min_periods=100).std()
-    return (series - mean) / std
+    # Replace 0 with NaN to avoid inf values
+    std = std.replace(0, np.nan)
+    z = (series - mean) / std
+    if clip is not None:
+        z = z.clip(-clip, clip)
+    return z
+
+def weighted_sum_with_renorm(components: list, index: pd.Index):
+    """
+    Computes weighted sum of series in components list.
+    Renormalizes weights if some series are NaN at a given date.
+    components = [(series, weight), ...]
+    """
+    result = pd.Series(0.0, index=index)
+    total_weight = pd.Series(0.0, index=index)
+    
+    for series, weight in components:
+        if series is None:
+            continue
+        valid = series.notna()
+        result += series.fillna(0.0) * weight
+        total_weight += valid.astype(float) * weight
+    
+    # Avoid division by zero
+    total_weight_safe = total_weight.replace(0, np.nan)
+    return result / total_weight_safe
 
 def calculate_gli_from_trillions(df):
     """
@@ -1484,12 +1537,13 @@ def calculate_gli_from_trillions(df):
     for col in cb_cols:
         res[col] = df[col]
     
-    # Sum all available CBs dynamically
+    # Sum all available CBs dynamically with min_count=1 to avoid 0.0 when all are NaN
     if cb_cols:
-        res['GLI_TOTAL'] = res[cb_cols].sum(axis=1)
-        res['CB_COUNT'] = len(cb_cols)  # Track how many CBs contributed
+        cb_df = res[cb_cols].astype(float)
+        res['GLI_TOTAL'] = cb_df.sum(axis=1, min_count=1)
+        res['CB_COUNT'] = cb_df.notna().sum(axis=1)  # Per-date count of available CBs
     else:
-        res['GLI_TOTAL'] = 0.0
+        res['GLI_TOTAL'] = np.nan
         res['CB_COUNT'] = 0
     
     return res
@@ -1583,7 +1637,7 @@ def calculate_cli(df):
     else:
         res['VIX_Z'] = pd.Series(0.0, index=df.index)
     
-    weights = {
+    weights_map = {
         'HY_SPREAD_Z': 0.25,
         'IG_SPREAD_Z': 0.15,
         'NFCI_CREDIT_Z': 0.20,
@@ -1592,7 +1646,10 @@ def calculate_cli(df):
         'VIX_Z': 0.10
     }
     
-    res['CLI'] = sum(res[col] * weight for col, weight in weights.items() if col in res.columns)
+    # Use dynamic renormalization to handle missing components gracefully
+    components = [(res[col], weight) for col, weight in weights_map.items() if col in res.columns]
+    res['CLI'] = weighted_sum_with_renorm(components, df.index)
+    
     return res
 
 
@@ -1650,7 +1707,12 @@ def calculate_gli(df, source='FRED'):
     
     # Sum all available CBs dynamically
     cb_cols = [c for c in res.columns if c.endswith('_USD')]
-    res['GLI_TOTAL'] = res[cb_cols].sum(axis=1)
+    if cb_cols:
+        res['GLI_TOTAL'] = res[cb_cols].sum(axis=1, min_count=1)
+        res['CB_COUNT'] = res[cb_cols].notna().sum(axis=1)
+    else:
+        res['GLI_TOTAL'] = np.nan
+        res['CB_COUNT'] = 0
     return res
 
 def calculate_global_m2(df):
@@ -2149,12 +2211,92 @@ def compute_signal_metrics(df: pd.DataFrame, cli_df: pd.DataFrame, window: int =
             'invert': True,  # Negative = loosening = bullish
             'bullish_pct': 30,
             'bearish_pct': 70,
-        }
+        },
+        # NEW: Financial Stress Indices
+        'st_louis_stress': {
+            'source': df,
+            'col': 'ST_LOUIS_STRESS',
+            'invert': True,  # Lower stress = bullish
+            'bullish_pct': 30,
+            'bearish_pct': 70,
+        },
+        'kansas_city_stress': {
+            'source': df,
+            'col': 'KANSAS_CITY_STRESS',
+            'invert': True,  # Lower stress = bullish
+            'bullish_pct': 30,
+            'bearish_pct': 70,
+        },
+        # NEW: Corporate Bond Yields
+        'baa_yield': {
+            'source': df,
+            'col': 'BAA_YIELD',
+            'invert': True,  # Lower yields = easier credit = bullish
+            'bullish_pct': 30,
+            'bearish_pct': 75,
+        },
+        'aaa_yield': {
+            'source': df,
+            'col': 'AAA_YIELD',
+            'invert': True,
+            'bullish_pct': 30,
+            'bearish_pct': 75,
+        },
+        # NEW: 30Y and 5Y Treasury Yields
+        'treasury_30y': {
+            'source': df,
+            'col': 'TREASURY_30Y_YIELD',
+            'invert': True,
+            'bullish_pct': 30,
+            'bearish_pct': 80,
+        },
+        'treasury_5y': {
+            'source': df,
+            'col': 'TREASURY_5Y_YIELD',
+            'invert': True,
+            'bullish_pct': 30,
+            'bearish_pct': 80,
+        },
+        # NEW: Additional Yield Curves
+        'yield_curve_30y_10y': {
+            'source': df,
+            'col': 'YIELD_CURVE_30Y_10Y',
+            'invert': False,  # Steepening = bullish (risk-on)
+            'bullish_pct': 60,
+            'bearish_pct': 30,  # Inversion = bearish
+        },
+        'yield_curve_30y_2y': {
+            'source': df,
+            'col': 'YIELD_CURVE_30Y_2Y',
+            'invert': False,
+            'bullish_pct': 60,
+            'bearish_pct': 30,
+        },
+        # NEW: BAA-AAA Spread (Credit Quality Spread)
+        'baa_aaa_spread': {
+            'source': df,
+            'col': 'BAA_AAA_SPREAD',
+            'invert': True,  # Wider spread = more risk aversion = bearish
+            'bullish_pct': 30,
+            'bearish_pct': 75,
+        },
     }
 
     # Preparation: Add computed columns to source df if needed
     if 'NFP' in df.columns:
-        df['NFP_CHANGE'] = df['NFP'].diff(22) # 1 month change
+        df['NFP_CHANGE'] = df['NFP'].diff(22)  # 1 month change
+    
+    # Yield Curve calculations
+    if 'TREASURY_10Y_YIELD' in df.columns and 'TREASURY_2Y_YIELD' in df.columns:
+        df['YIELD_CURVE'] = df['TREASURY_10Y_YIELD'] - df['TREASURY_2Y_YIELD']
+    if 'TREASURY_30Y_YIELD' in df.columns and 'TREASURY_10Y_YIELD' in df.columns:
+        df['YIELD_CURVE_30Y_10Y'] = df['TREASURY_30Y_YIELD'] - df['TREASURY_10Y_YIELD']
+    if 'TREASURY_30Y_YIELD' in df.columns and 'TREASURY_2Y_YIELD' in df.columns:
+        df['YIELD_CURVE_30Y_2Y'] = df['TREASURY_30Y_YIELD'] - df['TREASURY_2Y_YIELD']
+    
+    # Corporate spread calculation
+    if 'BAA_YIELD' in df.columns and 'AAA_YIELD' in df.columns:
+        df['BAA_AAA_SPREAD'] = df['BAA_YIELD'] - df['AAA_YIELD']
 
     
     for key, config in series_config.items():
@@ -2450,25 +2592,32 @@ def calculate_macro_regime(
     z_real_shock = _zscore_roll(real_rate_shock_4w)   # ↑ worse
     z_repo = _zscore_roll(repo_stress)                # ↑ worse
 
-    # ---------- Component blocks ----------
+    # ---------- Component blocks (Robust) ----------
     # Liquidity: flows + breadth - concentration
-    liquidity_z = (
-        0.35 * z_gli_imp.fillna(0) +
-        0.35 * z_netliq_imp.fillna(0) +
-        0.20 * z_m2_imp.fillna(0) +
-        0.10 * z_diffusion.fillna(0) -
-        0.10 * z_hhi.fillna(0)
-    )
+    # Liquidity: GLI + Net Liq + M2 + Breadth
+    liquidity_comps = [
+        (z_gli_imp, 0.35),
+        (z_netliq_imp, 0.35),
+        (z_m2_imp, 0.20),
+        (z_diffusion, 0.10),
+        (z_hhi, -0.10)
+    ]
+    liquidity_z = weighted_sum_with_renorm(liquidity_comps, idx)
 
     # Credit: level + momentum
-    credit_z = 0.60 * z_cli.fillna(0) + 0.40 * z_cli_mom.fillna(0)
+    credit_comps = [
+        (z_cli, 0.60),
+        (z_cli_mom, 0.40)
+    ]
+    credit_z = weighted_sum_with_renorm(credit_comps, idx)
 
-    # Brakes: real rates + repo + stress reserves (note: higher spread_z = worse)
-    brakes_z = (
-        -0.35 * z_real_shock.fillna(0) +
-        -0.25 * z_repo.fillna(0) +
-        -0.25 * reserves_spread_z.fillna(0)
-    )
+    # Brakes: real rates + repo + stress reserves
+    brakes_comps = [
+        (z_real_shock, -0.35),
+        (z_repo, -0.25),
+        (reserves_spread_z, -0.25)
+    ]
+    brakes_z = weighted_sum_with_renorm(brakes_comps, idx)
 
     total_z = (liquidity_z + credit_z + brakes_z).replace([np.inf, -np.inf], np.nan)
 
@@ -2520,6 +2669,34 @@ def calculate_macro_regime(
     out["reserves_spread_z"] = reserves_spread_z
 
     return out
+
+
+def calculate_macro_regime_weekly(df: pd.DataFrame, **kwargs):
+    """
+    Calculates macro regime on weekly frequency (Friday close) 
+    to reduce micro-noise and autocorrelation artifacts.
+    Then forward-fills to daily for plotting.
+    """
+    # 1. Resample to weekly
+    df_w = df.resample('W-FRI').last()
+    
+    # 2. Adjust impulse/accel parameters for weekly units
+    # Default daily: impulse=65d (~13w), accel=65d, z_window=252d (~1y)
+    w_kwargs = kwargs.copy()
+    w_kwargs['impulse_days'] = w_kwargs.get('impulse_days', 65) // 5
+    w_kwargs['accel_days'] = w_kwargs.get('accel_days', 65) // 5
+    w_kwargs['z_window'] = w_kwargs.get('z_window', 252) // 5
+    w_kwargs['min_periods'] = w_kwargs.get('min_periods', 100) // 5
+
+    # 3. Calculate on weekly
+    reg_w = calculate_macro_regime(df_w, **w_kwargs)
+    
+    # 4. Forward-fill back to daily index for visualization
+    res = {}
+    for key, series in reg_w.items():
+        res[key] = series.reindex(df.index, method='ffill')
+        
+    return res
 
 
 def calculate_btc_fair_value(df_t):
@@ -2655,8 +2832,9 @@ def calculate_btc_fair_value_v2(df_t):
     
     if len(gli_available) >= 3:
         gli_df = df_weekly[gli_available].ffill().bfill()
-        # Calculate Δlog for each CB
-        gli_dlog = np.log(gli_df).diff()
+        # Calculate Δlog for each CB (Protected against 0 and inf)
+        gli_dlog = np.log(gli_df.replace(0, np.nan)).diff()
+        gli_dlog = gli_dlog.replace([np.inf, -np.inf], np.nan)
         gli_dlog_clean = gli_dlog.dropna()
         
         if len(gli_dlog_clean) > 50:
@@ -2906,11 +3084,11 @@ def run_pipeline():
     
     # Derived Trillion Columns
     df_fred_t = pd.DataFrame(index=df_fred.index)
-    df_fred_t['FED_USD'] = df_fred['FED'] / 1e6
-    df_fred_t['ECB_USD'] = (df_fred['ECB'] / 1e6) * df_fred.get('EURUSD', 1.0)
-    df_fred_t['BOJ_USD'] = (df_fred['BOJ'] / 1e4) / df_fred.get('USDJPY', 150)
-    df_fred_t['BOE_USD'] = (df_fred['BOE'] / 1e12) * df_fred.get('GBPUSD', 1.3) # Raw GBP -> Trillions
-    df_fred_t['PBOC_USD'] = (df_fred['PBOC'] / 1e12) / df_fred.get('USDCNY', 7.2) # Raw -> Trillions
+    df_fred_t['FED_USD'] = df_fred.get('FED', 0) / 1e6
+    df_fred_t['ECB_USD'] = (df_fred.get('ECB', 0) / 1e6) * df_fred.get('EURUSD', 1.0)
+    df_fred_t['BOJ_USD'] = (df_fred.get('BOJ', 0) / 1e4) / df_fred.get('USDJPY', 150)
+    df_fred_t['BOE_USD'] = (df_fred.get('BOE', 0) / 1e12) * df_fred.get('GBPUSD', 1.3) # Raw GBP -> Trillions
+    df_fred_t['PBOC_USD'] = (df_fred.get('PBOC', 0) / 1e12) / df_fred.get('USDCNY', 7.2) # Raw -> Trillions
     df_fred_t['TGA_USD'] = df_fred['TGA'] / 1e6
     df_fred_t['RRP_USD'] = df_fred['RRP'] / 1e3
     df_fred_t['VIX'] = df_fred['VIX']
@@ -2945,10 +3123,18 @@ def run_pipeline():
     df_fred_t['INFLATION_EXPECT_5Y'] = df_fred.get('INFLATION_EXPECT_5Y', pd.Series(dtype=float))
     df_fred_t['INFLATION_EXPECT_10Y'] = df_fred.get('INFLATION_EXPECT_10Y', pd.Series(dtype=float))
     # Treasury Yields for stress analysis
+    df_fred_t['TREASURY_30Y_YIELD'] = df_fred.get('TREASURY_30Y_YIELD', pd.Series(dtype=float))
     df_fred_t['TREASURY_10Y_YIELD'] = df_fred.get('TREASURY_10Y_YIELD', pd.Series(dtype=float))
+    df_fred_t['TREASURY_5Y_YIELD'] = df_fred.get('TREASURY_5Y_YIELD', pd.Series(dtype=float))
     df_fred_t['TREASURY_2Y_YIELD'] = df_fred.get('TREASURY_2Y_YIELD', pd.Series(dtype=float))
     df_fred_t['NFP'] = df_fred.get('NFP', pd.Series(dtype=float))
     df_fred_t['JOLTS'] = df_fred.get('JOLTS', pd.Series(dtype=float))
+    # Additional financial stress indices (New in Phase 3)
+    df_fred_t['ST_LOUIS_STRESS'] = df_fred.get('ST_LOUIS_STRESS', pd.Series(dtype=float))
+    df_fred_t['KANSAS_CITY_STRESS'] = df_fred.get('KANSAS_CITY_STRESS', pd.Series(dtype=float))
+    df_fred_t['BAA_YIELD'] = df_fred.get('BAA_YIELD', pd.Series(dtype=float))
+    df_fred_t['AAA_YIELD'] = df_fred.get('AAA_YIELD', pd.Series(dtype=float))
+    df_fred_t['CB_LIQ_SWAPS'] = df_fred.get('CB_LIQ_SWAPS', pd.Series(dtype=float))
 
     # 2. Fetch TV and Normalize to Trillions
     print("Fetching TradingView Update Data (Trillions)...")
@@ -3164,6 +3350,10 @@ def run_pipeline():
         
         # Historical Stress Dashboard
         stress_historical = calculate_stress_historical(df_t)
+
+        # Fed Forecasts: FOMC Calendar and Dot Plot
+        fomc_dates = fetch_fomc_calendar()
+        dot_plot = fetch_dot_plot_data()
 
         # Cross-Correlations (using ROC/returns for stationarity, not raw levels)
         correlations = {}
@@ -3454,9 +3644,24 @@ def run_pipeline():
             'hy_spread': clean_for_json(df_t['HY_SPREAD']),
             'ig_spread': clean_for_json(df_t['IG_SPREAD']),
             # Treasury Yields for stress analysis
+            'treasury_30y': clean_for_json(df_t.get('TREASURY_30Y_YIELD', pd.Series(dtype=float))),
             'treasury_10y': clean_for_json(df_t.get('TREASURY_10Y_YIELD', pd.Series(dtype=float))),
+            'treasury_5y': clean_for_json(df_t.get('TREASURY_5Y_YIELD', pd.Series(dtype=float))),
             'treasury_2y': clean_for_json(df_t.get('TREASURY_2Y_YIELD', pd.Series(dtype=float))),
+            # Yield Curve Spreads
             'yield_curve': clean_for_json(df_t.get('TREASURY_10Y_YIELD', 0) - df_t.get('TREASURY_2Y_YIELD', 0)),
+            'yield_curve_30y_10y': clean_for_json(df_t.get('TREASURY_30Y_YIELD', 0) - df_t.get('TREASURY_10Y_YIELD', 0)),
+            'yield_curve_30y_2y': clean_for_json(df_t.get('TREASURY_30Y_YIELD', 0) - df_t.get('TREASURY_2Y_YIELD', 0)),
+            'yield_curve_10y_5y': clean_for_json(df_t.get('TREASURY_10Y_YIELD', 0) - df_t.get('TREASURY_5Y_YIELD', 0)),
+            # Financial Stress Indices
+            'st_louis_stress': clean_for_json(df_t.get('ST_LOUIS_STRESS', pd.Series(dtype=float))),
+            'kansas_city_stress': clean_for_json(df_t.get('KANSAS_CITY_STRESS', pd.Series(dtype=float))),
+            # Corporate Bond Yields (Moody's)
+            'baa_yield': clean_for_json(df_t.get('BAA_YIELD', pd.Series(dtype=float))),
+            'aaa_yield': clean_for_json(df_t.get('AAA_YIELD', pd.Series(dtype=float))),
+            'baa_aaa_spread': clean_for_json(df_t.get('BAA_YIELD', 0) - df_t.get('AAA_YIELD', 0)),
+            # Central Bank Liquidity Swaps
+            'cb_liq_swaps': clean_for_json(df_t.get('CB_LIQ_SWAPS', pd.Series(dtype=float))),
             # TIPS / Inflation Expectations
             'tips': {
                 'breakeven': clean_for_json(df_t.get('TIPS_BREAKEVEN', pd.Series(dtype=float))),
@@ -3517,6 +3722,8 @@ def run_pipeline():
                 'nfp_change': clean_for_json(df_t.get('NFP', pd.Series(dtype=float)).diff(22)), # Approx 1 month
                 'jolts': clean_for_json(df_t.get('JOLTS', pd.Series(dtype=float))),
                 'fed_funds_rate': clean_for_json(df_t.get('FED_FUNDS_RATE', pd.Series(dtype=float))),
+                'fomc_dates': fomc_dates,
+                'dot_plot': dot_plot,
             },
             # Inflation Swaps / Cleveland Fed data (for TIPS vs Swaps comparison)
             'inflation_swaps': {

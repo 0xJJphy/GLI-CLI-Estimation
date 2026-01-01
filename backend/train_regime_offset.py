@@ -202,16 +202,36 @@ def _walk_forward_splits(n: int, train_min: int, test: int, step: int):
         yield (slice(0, train_end), slice(train_end, train_end + test))
         train_end += step
 
-def _ann_sharpe(r: pd.Series, periods_per_year: int = 52) -> float:
+def _ann_sharpe(r: pd.Series, periods_per_year: int = None) -> float:
     r = r.dropna()
-    if len(r) < 30 or r.std() == 0:
+    if len(r) < 2:
+        return np.nan
+    
+    if periods_per_year is None:
+        # Auto-detect frequency
+        if len(r) > 1:
+            avg_gap = (r.index[-1] - r.index[0]).days / (len(r) - 1)
+            periods_per_year = 52 if avg_gap >= 5 else 365
+        else:
+            periods_per_year = 365
+
+    if r.std() == 0:
         return np.nan
     return float((r.mean() / r.std()) * np.sqrt(periods_per_year))
 
-def _cagr(r: pd.Series, periods_per_year: int = 52) -> float:
+def _cagr(r: pd.Series, periods_per_year: int = None) -> float:
     r = r.dropna()
     if r.empty:
         return np.nan
+    
+    if periods_per_year is None:
+        # Auto-detect frequency
+        if len(r) > 1:
+            avg_gap = (r.index[-1] - r.index[0]).days / (len(r) - 1)
+            periods_per_year = 52 if avg_gap >= 5 else 365
+        else:
+            periods_per_year = 365
+
     eq = (1.0 + r).prod()
     years = len(r) / periods_per_year
     if years <= 0:
