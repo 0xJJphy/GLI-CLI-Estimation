@@ -3813,8 +3813,11 @@ def run_pipeline():
         with open(output_path, 'w') as f:
             json.dump(data_output, f)
 
-    process_and_save_final(df_fred_t, 'dashboard_data_fred.json', silent=True)
+    # Generate only the hybrid TV+FRED data (primary source)
+    # FRED-only generation removed to avoid duplicate API calls and reduce runtime
     process_and_save_final(df_hybrid_t, 'dashboard_data_tv.json', silent=False)
+    
+    # Copy to dashboard_data.json for backwards compatibility
     import shutil
     shutil.copyfile(os.path.join(OUTPUT_DIR, 'dashboard_data_tv.json'), os.path.join(OUTPUT_DIR, 'dashboard_data.json'))
     print("Pipeline complete.")
