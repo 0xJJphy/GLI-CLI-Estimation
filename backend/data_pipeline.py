@@ -390,6 +390,34 @@ def fetch_treasury_settlements() -> List[Dict]:
         
         base_url = "https://api.fiscaldata.treasury.gov/services/api/fiscal_service"
         
+        # Helper function for robust GET with retry on 5xx/429 errors
+        def get_json_with_retry(url: str, params: Dict, timeout: int, label: str, attempts: int = 5) -> Optional[Dict]:
+            headers = {
+                "User-Agent": "data_pipeline/treasury_settlements (requests)",
+                "Accept": "application/json",
+            }
+            backoff = 1.0
+
+            for i in range(1, attempts + 1):
+                try:
+                    r = requests.get(url, params=params, headers=headers, timeout=timeout)
+
+                    # Retry on infrastructure/throttling errors
+                    if r.status_code in (429, 500, 502, 503, 504):
+                        raise requests.HTTPError(f"{r.status_code} {r.reason}", response=r)
+
+                    r.raise_for_status()
+                    return r.json()
+
+                except Exception as e:
+                    if i == attempts:
+                        print(f"Error fetching {label} after {attempts} attempts: {e}")
+                        return None
+                    time.sleep(backoff)
+                    backoff = min(backoff * 2, 30)
+
+            return None
+        
         # 1. Fetch HISTORICAL auctions (completed) from auctions_query endpoint
         # Get last 2 years of data
         two_years_ago = (datetime.now() - timedelta(days=730)).strftime('%Y-%m-%d')
@@ -401,18 +429,12 @@ def fetch_treasury_settlements() -> List[Dict]:
             'fields': 'issue_date,security_type,security_term,offering_amt'
         }
         
-        try:
-            response = requests.get(historical_endpoint, params=historical_params, timeout=20)
-            response.raise_for_status()
-            data = response.json()
-            
-            if 'data' in data:
-                for auction in data['data']:
-                    result = process_auction(auction)
-                    if result:
-                        settlements.append(result)
-        except Exception as e:
-            print(f"Error fetching historical auctions: {e}")
+        data = get_json_with_retry(historical_endpoint, historical_params, timeout=20, label="historical auctions")
+        if data and 'data' in data:
+            for auction in data['data']:
+                result = process_auction(auction)
+                if result:
+                    settlements.append(result)
         
         # 2. Fetch UPCOMING auctions (scheduled) from upcoming_auctions endpoint
         upcoming_endpoint = f"{base_url}/v1/accounting/od/upcoming_auctions"
@@ -421,21 +443,21 @@ def fetch_treasury_settlements() -> List[Dict]:
             'page[size]': 100
         }
         
-        try:
-            response = requests.get(upcoming_endpoint, params=upcoming_params, timeout=15)
-            response.raise_for_status()
-            data = response.json()
-            
-            if 'data' in data:
-                for auction in data['data']:
-                    # Only add if it's a future date not already in settlements
-                    issue_date = auction.get('issue_date', '')
-                    if issue_date >= today:
-                        result = process_auction(auction, is_upcoming=True)
-                        if result and not any(s['date'] == result['date'] and s['type'] == result['type'] for s in settlements):
-                            settlements.append(result)
-        except Exception as e:
-            print(f"Error fetching upcoming auctions: {e}")
+        data = get_json_with_retry(upcoming_endpoint, upcoming_params, timeout=15, label="upcoming auctions")
+        if data and 'data' in data:
+            for auction in data['data']:
+                issue_date = auction.get('issue_date', '')
+                if issue_date >= today:
+                    result = process_auction(auction, is_upcoming=True)
+                    if result and not any(s['date'] == result['date'] and s['type'] == result['type'] for s in settlements):
+                        settlements.append(result)
+        
+        # If API returned nothing, try stale cache (better old data than no data)
+        if not settlements:
+            cached = load_cache()
+            if cached and is_cache_valid(cached):
+                print("  -> Using stale cached treasury settlements data (API unavailable)")
+                return cached
         
         # Sort by date (descending - most recent first)
         settlements.sort(key=lambda x: x['date'], reverse=True)
@@ -491,8 +513,9 @@ def fetch_treasury_settlements() -> List[Dict]:
             'current_rrp': rrp_balance_current
         }
         
-        # Save to cache for future use
-        save_cache(result)
+        # Save to cache for future use (only if we have valid data)
+        if is_cache_valid(result):
+            save_cache(result)
         return result
         
     except Exception as e:
