@@ -279,6 +279,9 @@
     let nfpViewMode = "raw";
     let joltsRange = "5Y";
     let joltsViewMode = "raw";
+    // New: Credit Spreads and SOFR Volume view modes
+    let creditSpreadsViewMode = "raw"; // 'raw', 'zscore', 'percentile'
+    let sofrVolumeViewMode = "raw"; // 'raw', 'roc_5d', 'roc_20d'
 
     // --- Performance Optimization: Cached Indices ---
     import { getCutoffDate } from "../utils/helpers.js";
@@ -1433,6 +1436,85 @@
             },
         ],
         creditSpreadsRange,
+    );
+
+    // Credit Spreads Z-Score variant
+    $: creditSpreadsZData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.signal_metrics?.hy_spread?.zscore || [],
+                name: "HY Spread (Z-Score)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#ef4444", width: 2 },
+            },
+            {
+                x: dashboardData.dates,
+                y: dashboardData.signal_metrics?.ig_spread?.zscore || [],
+                name: "IG Spread (Z-Score)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#38bdf8", width: 2 },
+            },
+        ],
+        creditSpreadsRange,
+    );
+
+    // Credit Spreads Percentile variant
+    $: creditSpreadsPctData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.signal_metrics?.hy_spread?.percentile || [],
+                name: "HY Spread (Percentile)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#ef4444", width: 2 },
+            },
+            {
+                x: dashboardData.dates,
+                y: dashboardData.signal_metrics?.ig_spread?.percentile || [],
+                name: "IG Spread (Percentile)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#38bdf8", width: 2 },
+            },
+        ],
+        creditSpreadsRange,
+    );
+
+    // SOFR Volume ROC variants
+    $: sofrVolumeRoc5dData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.repo_stress?.sofr_volume_roc_5d || [],
+                name: "SOFR Volume ROC 5D (%)",
+                type: "scatter",
+                mode: "lines",
+                fill: "tozeroy",
+                line: { color: "#06b6d4", width: 1.5 },
+            },
+        ],
+        sofrVolumeRange,
+        true,
+    );
+
+    $: sofrVolumeRoc20dData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.repo_stress?.sofr_volume_roc_20d || [],
+                name: "SOFR Volume ROC 20D (%)",
+                type: "scatter",
+                mode: "lines",
+                fill: "tozeroy",
+                line: { color: "#a855f7", width: 1.5 },
+            },
+        ],
+        sofrVolumeRange,
+        true,
     );
 
     // Inflation Expectations Chart (Cleveland Fed Expected Inflation)
@@ -2870,6 +2952,23 @@
                         "Repo Market Depth (SOFR Volume)"}
                 </h3>
                 <div class="header-controls">
+                    <div class="mode-selector">
+                        <button
+                            class:active={sofrVolumeViewMode === "raw"}
+                            on:click={() => (sofrVolumeViewMode = "raw")}
+                            >Raw</button
+                        >
+                        <button
+                            class:active={sofrVolumeViewMode === "roc_5d"}
+                            on:click={() => (sofrVolumeViewMode = "roc_5d")}
+                            title="5-Day Rate of Change">ROC 5d</button
+                        >
+                        <button
+                            class:active={sofrVolumeViewMode === "roc_20d"}
+                            on:click={() => (sofrVolumeViewMode = "roc_20d")}
+                            title="20-Day Rate of Change">ROC 20d</button
+                        >
+                    </div>
                     <TimeRangeSelector
                         selectedRange={sofrVolumeRange}
                         onRangeChange={(r) => (sofrVolumeRange = r)}
@@ -2881,16 +2980,52 @@
                 </div>
             </div>
             <p class="chart-description">
-                {translations.sofr_volume_desc ||
-                    "SOFR transaction volume measures repo market depth. Falling volume = early warning of dysfunction."}
+                {sofrVolumeViewMode === "raw"
+                    ? translations.sofr_volume_desc ||
+                      "SOFR transaction volume measures repo market depth. Falling volume = early warning of dysfunction."
+                    : "Rate of Change shows momentum. Sharp drops (<-10%) may signal stress."}
             </p>
             <div class="chart-content" style="height: 300px;">
                 <Chart
                     {darkMode}
-                    data={sofrVolumeData}
-                    layout={{
-                        yaxis: { title: "SOFR Volume ($B)" },
-                    }}
+                    data={sofrVolumeViewMode === "roc_5d"
+                        ? sofrVolumeRoc5dData
+                        : sofrVolumeViewMode === "roc_20d"
+                          ? sofrVolumeRoc20dData
+                          : sofrVolumeData}
+                    layout={sofrVolumeViewMode === "raw"
+                        ? { yaxis: { title: "SOFR Volume ($B)" } }
+                        : {
+                              yaxis: { title: "ROC (%)" },
+                              shapes: [
+                                  {
+                                      type: "line",
+                                      x0: 0,
+                                      x1: 1,
+                                      xref: "paper",
+                                      y0: 0,
+                                      y1: 0,
+                                      line: {
+                                          color: "rgba(255,255,255,0.3)",
+                                          width: 1,
+                                          dash: "dash",
+                                      },
+                                  },
+                                  {
+                                      type: "line",
+                                      x0: 0,
+                                      x1: 1,
+                                      xref: "paper",
+                                      y0: -10,
+                                      y1: -10,
+                                      line: {
+                                          color: "rgba(239, 68, 68, 0.5)",
+                                          width: 1,
+                                          dash: "dash",
+                                      },
+                                  },
+                              ],
+                          }}
                 />
             </div>
 
@@ -3172,7 +3307,7 @@
                     />
                 </div>
             </div>
-            <div class="chart-container">
+            <div class="chart-content" style="height: 300px;">
                 <Chart
                     {darkMode}
                     data={yieldCurveViewMode === "zscore"
@@ -3393,6 +3528,25 @@
                         "Credit Spreads (HY vs IG)"}
                 </h3>
                 <div class="header-controls">
+                    <div class="mode-selector">
+                        <button
+                            class:active={creditSpreadsViewMode === "raw"}
+                            on:click={() => (creditSpreadsViewMode = "raw")}
+                            >Raw</button
+                        >
+                        <button
+                            class:active={creditSpreadsViewMode === "zscore"}
+                            on:click={() => (creditSpreadsViewMode = "zscore")}
+                            >Z</button
+                        >
+                        <button
+                            class:active={creditSpreadsViewMode ===
+                                "percentile"}
+                            on:click={() =>
+                                (creditSpreadsViewMode = "percentile")}
+                            >%</button
+                        >
+                    </div>
                     <TimeRangeSelector
                         selectedRange={creditSpreadsRange}
                         onRangeChange={(r) => (creditSpreadsRange = r)}
@@ -3410,26 +3564,56 @@
             <div class="chart-content" style="height: 300px;">
                 <Chart
                     {darkMode}
-                    data={creditSpreadsData}
-                    layout={{
-                        yaxis: {
-                            title: "HY Spread (bps)",
-                            side: "left",
-                            autorange: true,
-                        },
-                        yaxis2: {
-                            title: "IG Spread (bps)",
-                            side: "right",
-                            overlaying: "y",
-                            autorange: true,
-                        },
-                        legend: {
-                            x: 0.01,
-                            y: 0.99,
-                            bgcolor: "rgba(0,0,0,0.0)",
-                        },
-                        margin: { l: 60, r: 60, t: 20, b: 40 },
-                    }}
+                    data={creditSpreadsViewMode === "zscore"
+                        ? creditSpreadsZData
+                        : creditSpreadsViewMode === "percentile"
+                          ? creditSpreadsPctData
+                          : creditSpreadsData}
+                    layout={creditSpreadsViewMode === "raw"
+                        ? {
+                              yaxis: {
+                                  title: "HY Spread (bps)",
+                                  side: "left",
+                                  autorange: true,
+                              },
+                              yaxis2: {
+                                  title: "IG Spread (bps)",
+                                  side: "right",
+                                  overlaying: "y",
+                                  autorange: true,
+                              },
+                              legend: {
+                                  x: 0.01,
+                                  y: 0.99,
+                                  bgcolor: "rgba(0,0,0,0.0)",
+                              },
+                              margin: { l: 60, r: 60, t: 20, b: 40 },
+                          }
+                        : creditSpreadsViewMode === "percentile"
+                          ? {
+                                shapes: createPercentileBands(darkMode, {
+                                    bullishPct: 30,
+                                    bearishPct: 70,
+                                    invert: true,
+                                }),
+                                yaxis: { title: "Percentile", range: [0, 100] },
+                                legend: {
+                                    x: 0.01,
+                                    y: 0.99,
+                                    bgcolor: "rgba(0,0,0,0.0)",
+                                },
+                                margin: { l: 60, r: 20, t: 20, b: 40 },
+                            }
+                          : {
+                                shapes: createZScoreBands(darkMode),
+                                yaxis: { title: "Z-Score" },
+                                legend: {
+                                    x: 0.01,
+                                    y: 0.99,
+                                    bgcolor: "rgba(0,0,0,0.0)",
+                                },
+                                margin: { l: 60, r: 20, t: 20, b: 40 },
+                            }}
                 />
             </div>
 

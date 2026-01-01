@@ -3754,6 +3754,8 @@ def run_pipeline():
                 'sofr': clean_for_json(df_t.get('SOFR', pd.Series(dtype=float))),
                 'iorb': clean_for_json(df_t.get('IORB', pd.Series(dtype=float))),
                 'sofr_volume': clean_for_json(df_t.get('SOFR_VOLUME', pd.Series(dtype=float))),
+                'sofr_volume_roc_5d': clean_for_json(df_t.get('SOFR_VOLUME', pd.Series(dtype=float)).pct_change(5) * 100),
+                'sofr_volume_roc_20d': clean_for_json(df_t.get('SOFR_VOLUME', pd.Series(dtype=float)).pct_change(20) * 100),
             },
             'btc': {
                 'price': clean_for_json(btc_analysis.get('BTC_ACTUAL', pd.Series(dtype=float))),
