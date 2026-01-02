@@ -1,102 +1,317 @@
 # GLI & CLI Liquidity Dashboard
 
-A premium, real-time macro liquidity monitoring dashboard that tracks the Global Liquidity Index (GLI) and Credit Liquidity Index (CLI) across **15+ central banks** and **14+ M2 money supply economies**.
+A premium, real-time macro liquidity monitoring dashboard that tracks the **Global Liquidity Index (GLI)** and **Credit Liquidity Index (CLI)** across **15+ central banks** and **14+ M2 money supply economies**.
 
-## 🚀 Features
+Built with **Svelte + Vite** frontend and **Python** data pipeline, featuring FRED and TradingView data sources for comprehensive market coverage.
 
--   **Hybrid Data Sourcing**: Combines 50+ years of FRED historical depth with TradingView's sub-weekly freshness.
--   **Dual-Source Toggle**: Switch between **FRED Baseline** (M3 money supply proxies) and **TV Hybrid** (Central Bank Balance Sheets).
--   **Regime Optimization (New)**: Automated offset (lead) optimization using walk-forward validation to identify the most predictive lead-time for Bitcoin regimes.
--   **Central Bank Breadth & Concentration**: Track "% of Central Banks expanding" (Breadth) and HHI-based concentration metrics to identify global liquidity synchronization.
--   **Quant V2 Strategy**: Enhanced Bitcoin fair value model using ElasticNet (automatic feature selection), PCA-based liquidity factors, and rolling volatility bands.
--   **Bilingual Support (EN/ES)**: Integrated English and Spanish translations with persistent language selection.
--   **Premium Dark Mode**: High-contrast, accessibility-aware dark theme for all charts and UI components.
--   **No-Scroll Density**: Extreme table compaction (10px font, micro-padding) to ensure 8+ columns fit on standard desktops without horizontal scrolling.
--   **Signal-Integrated Styling**: Dynamic top-borders and text coloring (bullish/bearish) for valuation cards and metrics.
--   **Adaptive Layouts**: Refactored Risk Model and BTC Quant v2 tabs for superior information density using grid-based statistical panels.
--   **Cleveland Fed Inflation Swaps (New)**: Integrated USD Inflation Swap Rates (1Y, 2Y, 5Y, 10Y) with automated signal detection for yield curve inversions (1Y-2Y spread), providing lead signals for disinflationary regimes.
--   **Market Stress Dashboard**: Automated scoring system in the **Risk Model** tab that evaluates 4 dimensions (Inflation, Liquidity, Credit, Volatility) to detect systemic risk.
--   **Fed Forecasts Tab**: Real-time FOMC meeting countdown, Dot Plot visualizations, and comprehensive macro indicators (**CPI, PCE, PMI, Unemployment, Fed Funds Rate, TIPS Breakeven, and Implied Rate Probabilities from Fed Funds Futures**).
--   **Aggregate ROC Momentum Indicators (New)**: Real-time 1M, 3M, 6M, and 1Y Rate-of-Change indicators for Global M2 and GLI aggregates to evaluate global liquidity velocity.
--   **Synchronized Responsive Layouts**: Unified premium design across all tabs with optimized Plotly chart margins, ensuring 100% axis visibility and independent time-range controls for aggregate vs. individual bank views.
--   **Corrected GLI Aggregation**: Accurate global liquidity summing across all 15+ central banks for the primary GLI Total indicator.
+---
 
-## 📊 Data & Formulas
+## 🚀 Key Features
 
-### 1. Global Liquidity Index (GLI)
-Measures the aggregated balance sheets of **15 central banks** converted to USD.
+### Core Analytics
+- **Hybrid Data Sourcing**: Combines 50+ years of FRED historical depth with TradingView's sub-weekly freshness
+- **Dual-Source Toggle**: Switch between **FRED Baseline** (M3 money supply proxies) and **TV Hybrid** (Central Bank Balance Sheets)
+- **Regime Optimization**: Automated offset (lead) optimization using walk-forward validation for Bitcoin regime prediction
+- **Central Bank Breadth & Concentration**: Track "% of Central Banks expanding" (Breadth) and HHI-based concentration metrics
 
-**Advanced Metrics**:
--   **Breadth (Diffusion)**: Percentage of central banks whose balance sheets are expanding over a 13-week period.
--   **Concentration (HHI)**: Herfindahl-Hirschman Index applied to liquidity contributions to detect "Liquidity Fragility" (over-reliance on one CB).
--   **Impulse & Acceleration**: 13-week velocity and change in velocity of liquidity flows.
+### Market Stress Analysis (Risk Model Tab)
+- **Multi-Dimensional Stress Scoring**: Automated scoring across 27 indicators in 4 dimensions:
+  - **Inflation Stress** (5 indicators): CPI, PCE, TIPS Breakeven, Inflation Expectations
+  - **Liquidity Stress** (7 indicators): RRP, TGA, Bank Reserves, Net Liquidity, Fed Momentum
+  - **Credit Stress** (8 indicators): HY/IG Spreads, BAA-AAA Spread, NFCI components, Lending Standards
+  - **Volatility Stress** (7 indicators): VIX, MOVE, FX Vol, Treasury Yield Volatility, Swap Spreads
 
-### 2. Macro Regime Score
-The "Heart" of the dashboard, centered at 50 (Neutral):
-$$Score = 50 + 15 \times Total\_Z$$
--   **Liquidity (70%)**: GLI, US Net Liquidity, M2, Breadth, and HHI.
--   **Credit (30%)**: CLI Level and Momentum.
--   **Brakes (Negative)**: Real Rate Shocks, Repo Stress, and Reserves Scarcity.
+- **Fed Rate Corridor (NEW)**:
+  - Standing Repo Facility (SRF) Rate as the lending ceiling
+  - Interest on Reserve Balances (IORB) as the primary floor
+  - Overnight RRP Award Rate as the absolute floor
+  - **SRF Usage Indicator Panel**: Separate bar chart showing Fed backstop operations volume
+  - Real-time spread calculations (SOFR-IORB, Gap to Ceiling)
+  - Stress level detection: NORMAL / ELEVATED / HIGH
 
-### 3. US Net Liquidity Matrix
-The "Real" liquidity available to the US market:
-$$Net Liquidity = Fed Assets - TGA (Treasury General Account) - RRP (Reverse Repo)$$
+- **Credit Spreads Dashboard**: HY Spread, IG Spread, BAA-AAA Yield Spread with Z-Score normalization
+- **Yield Curve Analysis**: 10Y-2Y, 30Y-10Y, 30Y-2Y spreads with inversion detection
+- **TIPS Analysis**: Real rates, breakeven inflation, 5Y5Y forward expectations
 
-### 4. Bitcoin Quant V2 Model
-Advanced predictive model for BTC valuation:
--   **ElasticNet CV**: Automatic selection of lags (1-8 weeks) for Macro features.
--   **PCA Liquidity Factor**: Reduces dimensionality and collinearity between different central banks.
--   **Adaptive Bands**: 1σ and 2σ bands based on 52-week rolling volatility instead of fixed history.
--   **Quarterly Reset**: Fair value rebalanced every 13 weeks to avoid cumulative drift while remaining tradeable.
+### Fed Forecasts Tab
+- **FOMC Calendar**: Scraped from Federal Reserve with live countdown to next meeting
+- **Dot Plot Visualization**: Fed rate projections from palewire/fed-dot-plot-scraper
+- **Macro Indicators**: CPI, Core CPI, PCE, Core PCE, ISM PMI (Mfg/Svc), Unemployment, Fed Funds Rate
+- **Rate of Change (ROC) Badges**: 1-month momentum indicators on key metrics
+- **Treasury Bond Settlements Table**: Upcoming Treasury issuance with RRP coverage ratios and risk levels
 
-### 5. Fed Forecasts Tab
-Real-time FOMC meeting data with automated scraping:
--   **FOMC Calendar**: Scraped from [federalreserve.gov/monetarypolicy/fomccalendars.htm](https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm) with countdown to next meeting.
--   **Dot Plot**: Fed rate projections scraped from [palewire/fed-dot-plot-scraper](https://github.com/palewire/fed-dot-plot-scraper) open-source project.
--   **Macro Indicators**: CPI, Core CPI, PCE, Core PCE, ISM PMI (Mfg/Svc), Unemployment Rate, Fed Funds Rate.
--   **Inflation Expectations**: TIPS Breakeven (5Y/10Y) and Cleveland Fed 1Y Expected Inflation.
+### US System Tab (NEW)
+- **Current Value Labels**: Each chart now displays current balance in **$T (Trillions)**:
+  - Net Liquidity: Green badge
+  - Bank Reserves: Green badge
+  - Fed Assets: Blue badge
+  - Fed RRP: Red badge
+  - Treasury TGA: Amber badge
+- **Component Impact Table**: 1M/3M/1Y ROC with liquidity impact percentages
+- **Liquidity Score**: Composite metric for regime detection
 
-## 🛠️ Setup & Usage
+### Bitcoin Analysis
+- **Quant V2 Model**: ElasticNet with automatic feature selection, PCA liquidity factors, 52-week rolling volatility bands
+- **Fair Value Estimation**: Quarterly reset to avoid cumulative drift
+- **Correlation Analysis**: Optimal lag detection between liquidity signals and BTC returns
+
+### UI/UX
+- **Bilingual Support**: English and Spanish with persistent language selection
+- **Premium Dark Mode**: High-contrast, accessibility-aware theme
+- **Responsive Design**: Optimized for standard desktops without horizontal scrolling
+- **Signal-Integrated Styling**: Dynamic color-coding for bullish/bearish indicators
+
+---
+
+## 📊 Data Architecture
+
+### Data Sources
+
+| Source | Coverage | Frequency | Use Case |
+|--------|----------|-----------|----------|
+| **FRED API** | 50+ years history | Daily | Baseline economic data |
+| **TradingView** | Real-time | Sub-weekly | Central bank balance sheets |
+| **Fed Calendar** | Scraped | Daily | FOMC meeting dates |
+| **Dot Plot Scraper** | palewire | Per-meeting | Fed rate projections |
+| **Treasury Fiscal Data** | API | Daily | Treasury settlements |
+
+### FRED Series Configuration
+
+```python
+# Key Series (sample)
+'SOFR': 'SOFR',                      # Secured Overnight Financing Rate
+'IORB': 'IORB',                      # Interest on Reserve Balances
+'SRFTSYD': 'SRF_RATE',               # Standing Repo Facility Rate (Ceiling)
+'RRPONTSYAWARD': 'RRP_AWARD',        # ON RRP Award Rate (Floor)
+'RPONTSYD': 'SRF_USAGE',             # SRF Operations Volume ($B)
+'SOFRVOL': 'SOFR_VOLUME',            # SOFR Transaction Volume
+# ... 50+ additional series
+```
+
+### Key Formulas
+
+#### Global Liquidity Index (GLI)
+Aggregated balance sheets of 15 central banks converted to USD:
+- **Breadth (Diffusion)**: % of CBs expanding over 13 weeks
+- **Concentration (HHI)**: Herfindahl-Hirschman Index for fragility detection
+- **Impulse & Acceleration**: 13-week velocity and momentum
+
+#### Macro Regime Score
+Centered at 50 (Neutral):
+```
+Score = 50 + 15 × Total_Z
+```
+- **Liquidity (70%)**: GLI, US Net Liquidity, M2, Breadth, HHI
+- **Credit (30%)**: CLI Level and Momentum
+- **Brakes**: Real Rate Shocks, Repo Stress, Reserves Scarcity
+
+#### US Net Liquidity
+```
+Net Liquidity = Fed Assets - TGA - RRP
+```
+
+#### Fed Rate Corridor
+```
+SRF Rate (Ceiling) ─── Fed lending rate
+       │
+   SOFR ─────────── Market rate (should stay in corridor)
+       │
+   IORB ─────────── Fed deposit rate (primary floor)
+       │
+RRP Award ────────── Absolute floor
+```
+
+**Stress Detection Logic:**
+- Gap to ceiling < 5 bps → HIGH stress
+- SOFR-IORB spread > 10 bps → ELEVATED stress
+- SRF Usage > 0 → Immediate stress signal
+
+---
+
+## 🛠️ Setup & Installation
 
 ### Prerequisites
--   Python 3.10+
--   Node.js & npm
+- Python 3.10+
+- Node.js 18+ & npm
+- FRED API Key (free at [fred.stlouisfed.org](https://fred.stlouisfed.org/docs/api/api_key.html))
 
 ### Installation
-1.  **Clone the Repo**:
-    ```bash
-    git clone https://github.com/0xJJphy/GLI-CLI-Estimation.git
-    cd GLI-CLI-Estimation
-    ```
-2.  **Backend Setup**:
-    ```bash
-    cd backend
-    pip install -r requirements.txt
-    # Configure .env with FRED_API_KEY, TV_USERNAME, TV_PASSWORD
-    ```
-3.  **Frontend Setup**:
-    ```bash
-    cd ../frontend
-    npm install
-    ```
+
+1. **Clone the Repository**:
+```bash
+git clone https://github.com/0xJJphy/GLI-CLI-Estimation.git
+cd GLI-CLI-Estimation
+```
+
+2. **Backend Setup**:
+```bash
+cd backend
+pip install -r requirements.txt
+
+# Create .env file with credentials
+echo "FRED_API_KEY=your_api_key_here" > .env
+echo "TV_USERNAME=optional_tradingview_username" >> .env
+echo "TV_PASSWORD=optional_tradingview_password" >> .env
+```
+
+3. **Frontend Setup**:
+```bash
+cd ../frontend
+npm install
+```
 
 ### Running the Dashboard
-1.  **Data Synchronization**:
-    ```bash
-    cd frontend
-    npm run data:sync
-    ```
-    *This runs the data pipeline AND the regime optimization script automatically.*
-2.  **Start Dev Server**:
-    ```bash
-    npm run dev
-    ```
+
+1. **Data Synchronization** (fetches all data and optimizes regime parameters):
+```bash
+cd frontend
+npm run data:sync
+```
+
+2. **Start Development Server**:
+```bash
+npm run dev
+```
+
+3. **Build for Production**:
+```bash
+npm run build
+npm run preview
+```
+
+---
+
+## 📁 Project Structure
+
+```
+GLI-CLI-Estimation/
+├── backend/
+│   ├── data_pipeline.py         # Main data processing (50+ FRED series)
+│   ├── train_regime_offset.py   # Regime walk-forward optimization
+│   ├── regime_v2.py             # Regime detection logic
+│   ├── requirements.txt         # Python dependencies
+│   └── data/                    # Generated JSON data files
+│       ├── dashboard_data.json
+│       ├── fred_cache_data.json
+│       ├── treasury_settlements_cache.json
+│       └── regime_params.json
+│
+├── frontend/
+│   ├── src/
+│   │   ├── App.svelte           # Main application with tab routing
+│   │   ├── app.css              # Global CSS variables and themes
+│   │   ├── lib/
+│   │   │   ├── components/      # Reusable UI components
+│   │   │   │   ├── Chart.svelte
+│   │   │   │   ├── LightweightChart.svelte
+│   │   │   │   ├── TimeRangeSelector.svelte
+│   │   │   │   └── StressPanel.svelte
+│   │   │   ├── tabs/            # Tab view components
+│   │   │   │   ├── DashboardTab.svelte
+│   │   │   │   ├── GlobalFlowsCbTab.svelte
+│   │   │   │   ├── GlobalM2Tab.svelte
+│   │   │   │   ├── UsSystemTab.svelte
+│   │   │   │   ├── RiskModelTab.svelte
+│   │   │   │   ├── BtcAnalysisTab.svelte
+│   │   │   │   ├── BtcQuantV2Tab.svelte
+│   │   │   │   └── FedForecastsTab.svelte
+│   │   │   ├── utils/helpers.js # Shared utility functions
+│   │   │   └── stores/          # Svelte stores
+│   │   └── main.js              # Application entry point
+│   ├── public/                  # Static assets
+│   │   └── dashboard_data.json  # Copied from backend
+│   ├── vite.config.js           # Vite build configuration
+│   └── package.json             # NPM dependencies
+│
+├── docs/
+│   └── PROJECT_STRUCTURE.md     # Detailed file documentation
+│
+└── README.md                    # This file
+```
+
+---
 
 ## 📦 Pipeline Automation
-The project includes a robust automation flow:
-1.  `data_pipeline.py`: Fetches and processes cross-border liquidity data.
-2.  `train_regime_offset.py`: Optimizes the lead-time for the regime indicators.
-3.  `data:sync`: Ensures all processed data and optimization parameters are correctly positioned for the Svelte frontend.
+
+The data pipeline runs in sequence:
+
+1. **`data_pipeline.py`**: 
+   - Fetches 51 FRED series with 24-hour cache
+   - Fetches 54 TradingView symbols with 6-hour cache
+   - Scrapes FOMC calendar and Dot Plot
+   - Calculates market stress analysis (27 indicators)
+   - Generates Fed Rate Corridor metrics
+   - Outputs to `dashboard_data.json`
+
+2. **`train_regime_offset.py`**:
+   - Walk-forward validation for regime parameters
+   - Optimizes lead-time (offset) for BTC prediction
+   - Outputs to `regime_params.json`
+
+3. **`npm run data:sync`**:
+   - Runs both scripts in sequence
+   - Copies data to frontend/public/
+
+---
+
+## 🔧 Configuration
+
+### Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `FRED_API_KEY` | Yes | FRED API key for economic data |
+| `TV_USERNAME` | No | TradingView login (for additional data) |
+| `TV_PASSWORD` | No | TradingView password |
+
+### Cache Settings
+
+| Data Type | Cache Duration | File |
+|-----------|---------------|------|
+| FRED Data | 24 hours | `fred_cache_data.json` |
+| TradingView Data | 6 hours | `tv_cache_data.json` |
+| Treasury Settlements | 24 hours | `treasury_settlements_cache.json` |
+| Cache Timestamps | N/A | `data_cache_info.json` |
+
+---
+
+## 📈 Recent Updates (January 2026)
+
+### Fed Rate Corridor Enhancement
+- Added **SRFTSYD** (SRF Rate), **RRPONTSYAWARD** (RRP Award), **RPONTSYD** (SRF Usage) FRED series
+- New SRF Usage indicator panel below main corridor chart
+- Color-coded stress levels based on spread analysis
+- Removed overlapping regime shading for cleaner visualization
+
+### US System Tab Improvements
+- Added current value labels ($T) to all chart headers
+- Color-coded badges matching each chart's theme
+- Reactive real-time updates
+
+### Treasury Settlements
+- Fixed data access path in FedForecastsTab
+- Pagination, filtering, and grouped/individual view modes
+
+---
 
 ## 📄 License
-MIT
+
+MIT License - See [LICENSE](LICENSE) for details.
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please:
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+---
+
+## 📧 Contact
+
+- **GitHub**: [@0xJJphy](https://github.com/0xJJphy)
+- **Project Link**: [https://github.com/0xJJphy/GLI-CLI-Estimation](https://github.com/0xJJphy/GLI-CLI-Estimation)

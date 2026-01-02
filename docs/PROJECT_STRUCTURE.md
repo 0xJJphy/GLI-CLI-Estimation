@@ -241,7 +241,7 @@ Global M2 money supply charts with aggregate and per-country views.
 
 ### `UsSystemTab.svelte`
 
-US liquidity system charts (Fed, RRP, TGA, Net Liquidity).
+US liquidity system charts (Fed, RRP, TGA, Net Liquidity) with real-time value displays.
 
 | Prop | Type | Description |
 |------|------|-------------|
@@ -250,9 +250,15 @@ US liquidity system charts (Fed, RRP, TGA, Net Liquidity).
 | `translations` | `Object` | Translation strings |
 | `dashboardData` | `Object` | Dashboard data containing US system data |
 
+**Key Features:**
+- **Current Value Labels**: Each chart header displays current balance in $T (Trillions)
+- **Color-Coded Badges**: Green (Net Liq, Reserves), Blue (Fed), Red (RRP), Amber (TGA)
+- **Component Impact Table**: 1M/3M/1Y ROC with Net Liquidity impact percentages
+- **Liquidity Score & Momentum**: Composite metrics for regime detection
+
 ### `RiskModelTab.svelte`
 
-Comprehensive risk model with credit spreads, volatility indices, yield curves, and TIPS.
+Comprehensive risk model with credit spreads, volatility indices, yield curves, TIPS, and Fed Rate Corridor.
 
 | Prop | Type | Description |
 |------|------|-------------|
@@ -260,6 +266,14 @@ Comprehensive risk model with credit spreads, volatility indices, yield curves, 
 | `language` | `string` | Current language |
 | `translations` | `Object` | Translation strings |
 | `dashboardData` | `Object` | Dashboard data containing risk metrics |
+
+**Key Features:**
+- **Fed Rate Corridor Chart**: SRF Rate (ceiling), SOFR, IORB (floor), RRP Award (lower floor)
+- **SRF Usage Indicator Panel**: Separate bar chart showing Fed backstop operations ($B)
+- **Corridor Stress Detection**: NORMAL / ELEVATED / HIGH based on spreads and SRF usage
+- **27 Market Stress Indicators**: Across Inflation, Liquidity, Credit, and Volatility dimensions
+- **Credit Spreads**: HY, IG, BAA-AAA with Z-Score normalization
+- **Yield Curves**: 10Y-2Y, 30Y-10Y, 30Y-2Y with inversion detection
 
 ### `BtcAnalysisTab.svelte`
 

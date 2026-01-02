@@ -350,7 +350,8 @@
         return null;
     }
 
-    $: settlementData = dashboardData.fed_forecasts?.treasury_settlements || {};
+    // Treasury settlements are at root level, not inside fed_forecasts
+    $: settlementData = dashboardData.treasury_settlements || {};
     $: currentRrp = settlementData.current_rrp || 0;
     $: rawSettlements = groupedView
         ? settlementData.grouped || []

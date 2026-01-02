@@ -236,7 +236,7 @@
     let yieldCurve30y10yRange = "ALL";
     let yieldCurve30y2yRange = "ALL";
     let divergenceRange = "ALL";
-    let repoStressRange = "ALL";
+    let repoStressRange = "1Y"; // Default to 1Y since SRF Rate data starts from 2021-07
     let sofrVolumeRange = "ALL";
     let tipsRange = "ALL";
     let creditSpreadsRange = "ALL";
@@ -1336,26 +1336,90 @@
 
     $: repoStressData = filterWithCache(
         [
+            // SRF Rate (Ceiling) - red dashed line at top
+            {
+                x: dashboardData.dates,
+                y: dashboardData.repo_stress?.srf_rate || [],
+                name: "SRF Rate (Ceiling)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#ef4444", width: 1.5, dash: "dash" },
+                hovertemplate: "SRF: %{y:.3f}%<extra></extra>",
+            },
+            // SOFR (main rate we track) - prominent blue line
             {
                 x: dashboardData.dates,
                 y: dashboardData.repo_stress?.sofr || [],
                 name: "SOFR",
                 type: "scatter",
                 mode: "lines",
-                line: { color: "#f59e0b", width: 2 },
+                line: { color: "#3b82f6", width: 2.5 },
+                hovertemplate: "SOFR: %{y:.3f}%<extra></extra>",
             },
+            // IORB (Floor) - green dashed line
             {
                 x: dashboardData.dates,
                 y: dashboardData.repo_stress?.iorb || [],
-                name: "IORB",
+                name: "IORB (Floor)",
                 type: "scatter",
                 mode: "lines",
-                line: { color: "#8b5cf6", width: 2, dash: "dash" },
+                line: { color: "#22c55e", width: 1.5, dash: "dash" },
+                hovertemplate: "IORB: %{y:.3f}%<extra></extra>",
+            },
+            // ON RRP Award (Lower Floor) - purple dotted
+            {
+                x: dashboardData.dates,
+                y: dashboardData.repo_stress?.rrp_award || [],
+                name: "RRP Award (Lower Floor)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#8b5cf6", width: 1, dash: "dot" },
+                hovertemplate: "RRP Award: %{y:.3f}%<extra></extra>",
             },
         ],
         repoStressRange,
         true,
     );
+
+    // SRF Usage separate panel data (indicator below main chart)
+    $: srfUsageData = filterWithCache(
+        [
+            {
+                x: dashboardData.dates,
+                y: dashboardData.repo_stress?.srf_usage || [],
+                name: "SRF Usage ($B)",
+                type: "bar",
+                marker: {
+                    color: (dashboardData.repo_stress?.srf_usage || []).map(
+                        (v) =>
+                            v > 50 ? "#dc2626" : v > 20 ? "#f59e0b" : "#ef4444",
+                    ),
+                },
+                hovertemplate: "SRF Usage: $%{y:.1f}B<extra></extra>",
+            },
+        ],
+        repoStressRange,
+        true,
+    );
+
+    $: srfUsageLayout = {
+        xaxis: {
+            gridcolor: darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
+            showticklabels: false,
+        },
+        yaxis: {
+            title: "$B",
+            gridcolor: darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
+            rangemode: "tozero",
+            fixedrange: true,
+        },
+        margin: { t: 5, r: 20, b: 20, l: 50 },
+        paper_bgcolor: "transparent",
+        plot_bgcolor: "transparent",
+        font: { color: darkMode ? "#fff" : "#000" },
+        showlegend: false,
+        height: 80,
+    };
 
     // SOFR Volume Chart Data (repo market depth indicator)
     $: sofrVolumeData = filterWithCache(
@@ -1977,35 +2041,70 @@
         return { state, value: latestRR, valueBE: latestBE, reasonKey };
     })();
 
-    // Repo Regime - corrected logic
+    // Repo Regime - enhanced with corridor bounds
     // SOFR ≈ IORB (within 5bps) = Normal/Bullish (adequate liquidity)
     // SOFR >> IORB (>10bps above) = Bearish (liquidity stress, like Sept 2019)
-    // SOFR << IORB (significantly below) = Warning (excess liquidity, unusual)
+    // SOFR approaching SRF ceiling (<5bps) = High stress
+    // SRF Usage > 0 = Alert (banks using backstop)
     $: repoRegimeSignals = (() => {
         const sofr = dashboardData.repo_stress?.sofr;
         const iorb = dashboardData.repo_stress?.iorb;
+        const srfRate = dashboardData.repo_stress?.srf_rate;
+        const srfUsage = dashboardData.repo_stress?.srf_usage;
         if (!sofr || !iorb) return [];
         return sofr.map((s, i) => {
-            const spread = (s - (iorb[i] || 0)) * 100; // Convert to bps
-            if (!Number.isFinite(spread)) return "neutral";
-            if (spread > 10) return "bearish"; // SOFR >> IORB = liquidity stress
-            if (spread < -5) return "neutral"; // Excess liquidity
-            if (Math.abs(spread) <= 5) return "bullish"; // Normal range
+            const spreadToFloor = (s - (iorb[i] || 0)) * 100; // bps above IORB
+            const spreadToCeiling = srfRate
+                ? ((srfRate[i] || 0) - s) * 100
+                : 999; // bps below SRF
+            const hasUsage = srfUsage && srfUsage[i] > 0;
+            if (!Number.isFinite(spreadToFloor)) return "neutral";
+            // High stress: approaching ceiling or SRF usage
+            if (spreadToCeiling < 5 || hasUsage) return "bearish";
+            if (spreadToFloor > 10) return "bearish"; // SOFR >> IORB = liquidity stress
+            if (spreadToFloor < -5) return "neutral"; // Excess liquidity
+            if (Math.abs(spreadToFloor) <= 5) return "bullish"; // Normal range
             return "neutral";
         });
     })();
 
+    // Latest corridor metrics for display
+    $: latestSofrToFloor = (() => {
+        const arr = dashboardData.repo_stress?.sofr_to_floor;
+        return arr && arr.length > 0 ? arr[arr.length - 1] || 0 : 0;
+    })();
+    $: latestSofrToCeiling = (() => {
+        const arr = dashboardData.repo_stress?.sofr_to_ceiling;
+        return arr && arr.length > 0 ? arr[arr.length - 1] || 0 : 0;
+    })();
+    $: latestSrfUsage = (() => {
+        const arr = dashboardData.repo_stress?.srf_usage;
+        return arr && arr.length > 0 ? arr[arr.length - 1] || 0 : 0;
+    })();
+    $: corridorStressLevel = (() => {
+        if (latestSrfUsage > 0 || latestSofrToCeiling < 5) return "HIGH";
+        if (latestSofrToFloor > 10 || latestSofrToCeiling < 10)
+            return "ELEVATED";
+        return "NORMAL";
+    })();
+    $: corridorStressColor =
+        corridorStressLevel === "HIGH"
+            ? "#ef4444"
+            : corridorStressLevel === "ELEVATED"
+              ? "#f59e0b"
+              : "#22c55e";
+
     $: repoStressLayout = {
-        title: "Repo Stress (SOFR vs IORB)",
+        title: "",
         xaxis: {
-            title: "Date",
             gridcolor: darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
         },
         yaxis: {
             title: "Rate (%)",
             gridcolor: darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
+            tickformat: ".2f",
         },
-        margin: { t: 30, r: 20, b: 40, l: 50 },
+        margin: { t: 10, r: 20, b: 30, l: 50 },
         paper_bgcolor: "transparent",
         plot_bgcolor: "transparent",
         font: { color: darkMode ? "#fff" : "#000" },
@@ -2014,15 +2113,10 @@
             orientation: "h",
             yanchor: "bottom",
             y: 1.02,
-            xanchor: "right",
-            x: 1,
+            xanchor: "center",
+            x: 0.5,
         },
-        shapes: createRegimeShapes(
-            repoStressData[0]?.x || [],
-            dashboardData.dates,
-            repoRegimeSignals,
-            darkMode,
-        ),
+        shapes: [],
     };
 
     // Credit indicators configuration - each chart has independent viewMode
@@ -2833,12 +2927,12 @@
             {/if}
         </div>
 
-        <!-- Repo Stress Chart -->
+        <!-- Repo Stress Chart (Fed Rate Corridor) -->
         <div class="chart-card">
             <div class="chart-header">
                 <h3>
-                    {translations.chart_repo_stress ||
-                        "Repo Market Stress (SOFR vs IORB)"}
+                    {translations.chart_repo_corridor ||
+                        "Fed Rate Corridor (SOFR vs Bounds)"}
                 </h3>
                 <div class="header-controls">
                     <TimeRangeSelector
@@ -2851,11 +2945,75 @@
                     >
                 </div>
             </div>
+
+            <!-- Corridor Metrics Header -->
+            <div
+                class="corridor-metrics"
+                style="display: flex; gap: 15px; margin-bottom: 12px; flex-wrap: wrap;"
+            >
+                <div
+                    class="metric-box"
+                    style="background: {darkMode
+                        ? 'rgba(255,255,255,0.05)'
+                        : 'rgba(0,0,0,0.03)'}; padding: 8px 12px; border-radius: 6px;"
+                >
+                    <span style="font-size: 11px; opacity: 0.7;"
+                        >SOFR-IORB Spread</span
+                    >
+                    <div
+                        style="font-size: 16px; font-weight: 600; color: {corridorStressColor};"
+                    >
+                        {latestSofrToFloor.toFixed(1)} bps
+                    </div>
+                </div>
+                <div
+                    class="metric-box"
+                    style="background: {darkMode
+                        ? 'rgba(255,255,255,0.05)'
+                        : 'rgba(0,0,0,0.03)'}; padding: 8px 12px; border-radius: 6px;"
+                >
+                    <span style="font-size: 11px; opacity: 0.7;"
+                        >Gap to Ceiling</span
+                    >
+                    <div style="font-size: 16px; font-weight: 600;">
+                        {latestSofrToCeiling.toFixed(1)} bps
+                    </div>
+                </div>
+                <div
+                    class="metric-box"
+                    style="background: {darkMode
+                        ? 'rgba(255,255,255,0.05)'
+                        : 'rgba(0,0,0,0.03)'}; padding: 8px 12px; border-radius: 6px;"
+                >
+                    <span style="font-size: 11px; opacity: 0.7;">Status</span>
+                    <div
+                        style="font-size: 14px; font-weight: 600; color: {corridorStressColor};"
+                    >
+                        {corridorStressLevel}
+                    </div>
+                </div>
+                {#if latestSrfUsage > 0}
+                    <div
+                        class="metric-box"
+                        style="background: rgba(239, 68, 68, 0.1); padding: 8px 12px; border-radius: 6px; border-left: 3px solid #ef4444;"
+                    >
+                        <span style="font-size: 11px; opacity: 0.7;"
+                            >⚠️ SRF Usage</span
+                        >
+                        <div
+                            style="font-size: 16px; font-weight: 600; color: #ef4444;"
+                        >
+                            ${latestSrfUsage.toFixed(1)}B
+                        </div>
+                    </div>
+                {/if}
+            </div>
+
             <p class="chart-description">
-                {translations.repo_stress ||
-                    "SOFR vs IORB spread indicates funding stress."}
+                {translations.repo_corridor_desc ||
+                    "SOFR should trade between IORB (floor) and SRF Rate (ceiling). Approaching ceiling or SRF usage signals funding stress."}
             </p>
-            <div class="chart-content" style="height: 300px;">
+            <div class="chart-content" style="height: 280px;">
                 <Chart
                     {darkMode}
                     data={repoStressData}
@@ -2863,7 +3021,52 @@
                 />
             </div>
 
-            <!-- Compact Metrics Sidebar Replacement -->
+            <!-- SRF Usage Indicator Panel (separate from main chart) -->
+            <div
+                class="srf-usage-panel"
+                style="margin-top: 0; border-top: 1px solid {darkMode
+                    ? 'rgba(255,255,255,0.1)'
+                    : 'rgba(0,0,0,0.1)'};"
+            >
+                <div
+                    style="display: flex; align-items: center; gap: 8px; padding: 4px 0;"
+                >
+                    <span
+                        style="font-size: 11px; font-weight: 600; color: #ef4444;"
+                        >SRF Usage ($B)</span
+                    >
+                    <span style="font-size: 10px; opacity: 0.6;"
+                        >Fed backstop operations</span
+                    >
+                </div>
+                <div style="height: 60px;">
+                    <Chart
+                        {darkMode}
+                        data={srfUsageData}
+                        layout={srfUsageLayout}
+                    />
+                </div>
+            </div>
+
+            <!-- Corridor Legend -->
+            <div
+                class="corridor-legend"
+                style="display: flex; gap: 15px; margin-top: 10px; font-size: 11px; opacity: 0.8; flex-wrap: wrap;"
+            >
+                <span
+                    ><span style="color: #ef4444;">━━</span> SRF Rate: Fed lending
+                    ceiling</span
+                >
+                <span
+                    ><span style="color: #3b82f6; font-weight: bold;">━━</span> SOFR:
+                    Market rate</span
+                >
+                <span
+                    ><span style="color: #22c55e;">━━</span> IORB: Fed deposit floor</span
+                >
+            </div>
+
+            <!-- Compact Metrics Table -->
             <div
                 class="metrics-section"
                 style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px;"
@@ -2882,7 +3085,43 @@
                         </thead>
                         <tbody>
                             <tr>
-                                <td style="color: #f59e0b; font-weight: 600;"
+                                <td style="color: #ef4444; font-weight: 600;"
+                                    >SRF (Ceiling)</td
+                                >
+                                <td
+                                    >{(
+                                        getLatestValue(
+                                            dashboardData.repo_stress?.srf_rate,
+                                        ) ?? 0
+                                    ).toFixed(2)}%</td
+                                >
+                                <td
+                                    rowspan="4"
+                                    style="vertical-align: middle; text-align: center; background: rgba(0,0,0,0.1); border-radius: 8px;"
+                                >
+                                    <div
+                                        style="font-weight: 800; font-size: 1.1rem; color: {corridorStressColor};"
+                                    >
+                                        {latestSofrToFloor.toFixed(1)} bps
+                                    </div>
+                                    <div style="font-size: 12px; opacity: 0.7;">
+                                        SOFR-IORB
+                                    </div>
+                                    <div
+                                        style="font-size: 14px; margin-top: 4px; color: {corridorStressColor};"
+                                    >
+                                        {#if corridorStressLevel === "NORMAL"}
+                                            ✅ OK
+                                        {:else if corridorStressLevel === "ELEVATED"}
+                                            ⚠️ ELEVATED
+                                        {:else}
+                                            🚨 STRESS
+                                        {/if}
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="color: #3b82f6; font-weight: 600;"
                                     >SOFR</td
                                 >
                                 <td
@@ -2892,48 +3131,28 @@
                                         ) ?? 0
                                     ).toFixed(2)}%</td
                                 >
-                                <td
-                                    rowspan="2"
-                                    style="vertical-align: middle; text-align: center; background: rgba(0,0,0,0.1); border-radius: 8px;"
-                                >
-                                    <div
-                                        class:text-bullish={signalsFromMetrics
-                                            .repo?.latest?.state === "bullish"}
-                                        class:text-bearish={signalsFromMetrics
-                                            .repo?.latest?.state === "bearish"}
-                                        style="font-weight: 800; font-size: 1.1rem;"
-                                    >
-                                        {(
-                                            (getLatestValue(
-                                                dashboardData.repo_stress?.sofr,
-                                            ) -
-                                                getLatestValue(
-                                                    dashboardData.repo_stress
-                                                        ?.iorb,
-                                                )) *
-                                            100
-                                        ).toFixed(1)} bps
-                                    </div>
-                                    <div
-                                        style="font-size: 14px; margin-top: 4px;"
-                                    >
-                                        {#if signalsFromMetrics.repo?.latest?.state === "bullish" || signalsFromMetrics.repo?.latest?.state === "neutral"}
-                                            ✅ {translations.status_ok || "OK"}
-                                        {:else}
-                                            ⚠️ {translations.status_stress ||
-                                                "STRESS"}
-                                        {/if}
-                                    </div>
-                                </td>
                             </tr>
                             <tr>
-                                <td style="color: #8b5cf6; font-weight: 600;"
-                                    >IORB</td
+                                <td style="color: #22c55e; font-weight: 600;"
+                                    >IORB (Floor)</td
                                 >
                                 <td
                                     >{(
                                         getLatestValue(
                                             dashboardData.repo_stress?.iorb,
+                                        ) ?? 0
+                                    ).toFixed(2)}%</td
+                                >
+                            </tr>
+                            <tr>
+                                <td style="color: #8b5cf6; font-weight: 600;"
+                                    >RRP Award</td
+                                >
+                                <td
+                                    >{(
+                                        getLatestValue(
+                                            dashboardData.repo_stress
+                                                ?.rrp_award,
                                         ) ?? 0
                                     ).toFixed(2)}%</td
                                 >

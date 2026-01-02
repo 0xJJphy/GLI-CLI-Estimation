@@ -191,6 +191,13 @@
         },
         { delta1: 0, imp1: 0, delta3: 0, imp3: 0, delta1y: 0, imp1y: 0 },
     );
+
+    // Current values in Trillions for chart labels
+    $: latestNetLiq = getLatestValue(dashboardData.us_net_liq);
+    $: latestFedAssets = getLatestValue(dashboardData.gli?.fed);
+    $: latestRRP = getLatestValue(dashboardData.us_net_liq_rrp);
+    $: latestTGA = getLatestValue(dashboardData.us_net_liq_tga);
+    $: latestReserves = getLatestValue(dashboardData.us_net_liq_reserves);
 </script>
 
 <div class="main-charts">
@@ -202,6 +209,12 @@
                     <h3>
                         {translations.chart_us_net_liq ||
                             "US Net Liquidity Trends"}
+                        <span
+                            class="current-value-badge"
+                            style="margin-left: 12px; background: rgba(16, 185, 129, 0.15); color: #10b981; padding: 3px 8px; border-radius: 4px; font-size: 13px; font-weight: 600;"
+                        >
+                            ${latestNetLiq.toFixed(2)}T
+                        </span>
                     </h3>
                     <div class="header-controls">
                         <TimeRangeSelector
@@ -587,6 +600,12 @@
                     <h3>
                         {translations.chart_bank_reserves ||
                             "Bank Reserves vs Net Liquidity"}
+                        <span
+                            class="current-value-badge"
+                            style="margin-left: 12px; background: rgba(34, 197, 94, 0.15); color: #22c55e; padding: 3px 8px; border-radius: 4px; font-size: 13px; font-weight: 600;"
+                        >
+                            ${latestReserves.toFixed(2)}T
+                        </span>
                     </h3>
                     <div class="header-controls">
                         <TimeRangeSelector
@@ -788,6 +807,12 @@
         <div class="chart-header">
             <h3>
                 {translations.chart_fed_assets || "Fed Assets (USD Trillion)"}
+                <span
+                    class="current-value-badge"
+                    style="margin-left: 12px; background: rgba(59, 130, 246, 0.15); color: #3b82f6; padding: 3px 8px; border-radius: 4px; font-size: 13px; font-weight: 600;"
+                >
+                    ${latestFedAssets.toFixed(2)}T
+                </span>
             </h3>
             <div class="header-controls">
                 <TimeRangeSelector
@@ -853,7 +878,15 @@
     <!-- RRP Chart -->
     <div class="chart-card">
         <div class="chart-header">
-            <h3>{translations.chart_rrp || "Fed RRP Facility"}</h3>
+            <h3>
+                {translations.chart_rrp || "Fed RRP Facility"}
+                <span
+                    class="current-value-badge"
+                    style="margin-left: 12px; background: rgba(239, 68, 68, 0.15); color: #ef4444; padding: 3px 8px; border-radius: 4px; font-size: 13px; font-weight: 600;"
+                >
+                    ${latestRRP.toFixed(2)}T
+                </span>
+            </h3>
             <div class="header-controls">
                 <TimeRangeSelector
                     selectedRange={rrpRange}
@@ -929,6 +962,12 @@
         <div class="chart-header">
             <h3>
                 {translations.chart_tga || "Treasury General Account (TGA)"}
+                <span
+                    class="current-value-badge"
+                    style="margin-left: 12px; background: rgba(245, 158, 11, 0.15); color: #f59e0b; padding: 3px 8px; border-radius: 4px; font-size: 13px; font-weight: 600;"
+                >
+                    ${latestTGA.toFixed(2)}T
+                </span>
             </h3>
             <div class="header-controls">
                 <TimeRangeSelector

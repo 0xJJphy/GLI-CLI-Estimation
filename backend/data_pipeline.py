@@ -1368,6 +1368,10 @@ FRED_CONFIG = {
     'SOFR': 'SOFR',                       # Secured Overnight Financing Rate
     'IORB': 'IORB',                        # Interest on Reserve Balances
     'SOFRVOL': 'SOFR_VOLUME',              # SOFR Transaction Volume ($ Billions)
+    # Repo Corridor Rates (Fed Rate Corridor Bounds)
+    'SRFTSYD': 'SRF_RATE',                 # Standing Repo Facility Rate (ceiling, since 2021-07-29)
+    'RRPONTSYAWARD': 'RRP_AWARD',          # ON RRP Award Rate (lower floor)
+    'RPONTSYD': 'SRF_USAGE',               # SRF/Repo Operations Volume ($B) - usage signals stress
     # Note: RPONAGYD removed - not a counterparty count series, only amounts available in FRED
     # Note: EVZCLS removed - EVZ discontinued Jan 2025. Using DXY realized vol instead.
     # Fed Forecasts tab - Macro Indicators
@@ -3186,6 +3190,10 @@ def run_pipeline():
     df_fred_t['SOFR'] = df_fred.get('SOFR', pd.Series(dtype=float))
     df_fred_t['IORB'] = df_fred.get('IORB', pd.Series(dtype=float))
     df_fred_t['SOFR_VOLUME'] = df_fred.get('SOFR_VOLUME', pd.Series(dtype=float))
+    # Repo Corridor Rates (Fed Rate Corridor Bounds)
+    df_fred_t['SRF_RATE'] = df_fred.get('SRF_RATE', pd.Series(dtype=float))
+    df_fred_t['RRP_AWARD'] = df_fred.get('RRP_AWARD', pd.Series(dtype=float))
+    df_fred_t['SRF_USAGE'] = df_fred.get('SRF_USAGE', pd.Series(dtype=float))
     df_fred_t['MOVE'] = df_fred.get('MOVE', pd.Series(dtype=float))
     df_fred_t['FX_VOL'] = df_fred.get('FX_VOL', pd.Series(dtype=float))
     df_fred_t['CLI'] = calculate_cli(df_fred)['CLI']
@@ -3751,11 +3759,20 @@ def run_pipeline():
                 'rocs': {k: clean_for_json(v) for k, v in tips_real_rocs.items()}
             },
             'repo_stress': {
+                # Core rates
                 'sofr': clean_for_json(df_t.get('SOFR', pd.Series(dtype=float))),
                 'iorb': clean_for_json(df_t.get('IORB', pd.Series(dtype=float))),
                 'sofr_volume': clean_for_json(df_t.get('SOFR_VOLUME', pd.Series(dtype=float))),
                 'sofr_volume_roc_5d': clean_for_json(df_t.get('SOFR_VOLUME', pd.Series(dtype=float)).pct_change(5) * 100),
                 'sofr_volume_roc_20d': clean_for_json(df_t.get('SOFR_VOLUME', pd.Series(dtype=float)).pct_change(20) * 100),
+                # Corridor bounds
+                'srf_rate': clean_for_json(df_t.get('SRF_RATE', pd.Series(dtype=float))),      # Ceiling
+                'rrp_award': clean_for_json(df_t.get('RRP_AWARD', pd.Series(dtype=float))),    # Floor (lower)
+                'srf_usage': clean_for_json(df_t.get('SRF_USAGE', pd.Series(dtype=float))),    # SRF Usage ($B)
+                # Derived metrics (in basis points)
+                'sofr_to_ceiling': clean_for_json((df_t.get('SRF_RATE', pd.Series(dtype=float)) - df_t.get('SOFR', pd.Series(dtype=float))) * 100),
+                'sofr_to_floor': clean_for_json((df_t.get('SOFR', pd.Series(dtype=float)) - df_t.get('IORB', pd.Series(dtype=float))) * 100),
+                'corridor_width': clean_for_json((df_t.get('SRF_RATE', pd.Series(dtype=float)) - df_t.get('RRP_AWARD', pd.Series(dtype=float))) * 100),
             },
             'btc': {
                 'price': clean_for_json(btc_analysis.get('BTC_ACTUAL', pd.Series(dtype=float))),
