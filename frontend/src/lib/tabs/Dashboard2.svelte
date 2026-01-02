@@ -228,12 +228,22 @@
         { id: "yield_curve", label: "Yield Curve", icon: "📐" },
     ].map((signal) => {
         const data = signalMetrics[signal.id]?.latest || {};
+        const percentileSeries = signalMetrics[signal.id]?.percentile || [];
+        // Calculate 1M ROC from percentile series if not provided
+        let delta = data.delta_1m ?? data.roc_1m ?? null;
+        if (delta === null && percentileSeries.length > 22) {
+            const current = percentileSeries[percentileSeries.length - 1];
+            const past = percentileSeries[percentileSeries.length - 1 - 22];
+            if (current !== null && past !== null) {
+                delta = current - past;
+            }
+        }
         return {
             ...signal,
             state: data.state || "neutral",
             value: data.value ?? data.z_score ?? null,
             percentile: data.percentile ?? null,
-            delta: data.delta_1m ?? data.roc_1m ?? null,
+            delta,
         };
     });
 
@@ -1420,20 +1430,30 @@
         color: #ef4444;
     }
 
+    /* Fed Rates & Probabilities Section - Redesigned */
+    .fomc-section {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 8px 12px;
+        background: var(--bg-tertiary, #334155);
+        border-radius: 10px;
+        border: 1px solid var(--border-color, #475569);
+    }
+
     .fomc-countdown {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 4px;
-        padding: 8px 16px;
-        background: var(--bg-tertiary, #334155);
-        border-radius: 10px;
+        padding: 4px 12px;
+        border-right: 1px solid var(--border-color, #475569);
     }
 
     .fomc-label {
-        font-size: 0.7rem;
+        font-size: 0.6rem;
         color: var(--text-muted, #94a3b8);
         text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 
     .fomc-time {
@@ -1451,9 +1471,10 @@
     }
 
     .fomc-sep {
-        font-size: 0.7rem;
+        font-size: 0.6rem;
         color: #f59e0b;
         font-weight: 600;
+        margin-top: 2px;
     }
 
     @keyframes pulse {
@@ -1466,87 +1487,76 @@
         }
     }
 
-    /* Fed Rates & Probabilities Section */
-    .fomc-section {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .fed-rates-probs {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        flex-wrap: wrap;
-        justify-content: center;
-    }
-
     .fed-rate {
         display: flex;
         flex-direction: column;
         align-items: center;
-        padding: 4px 10px;
-        background: var(--bg-tertiary, #334155);
-        border-radius: 6px;
+        padding: 4px 12px;
+        border-right: 1px solid var(--border-color, #475569);
     }
 
     .fed-rate .rate-label {
         font-size: 0.6rem;
         color: var(--text-muted, #94a3b8);
         text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 
     .fed-rate .rate-value {
-        font-size: 0.95rem;
+        font-size: 1.1rem;
         font-weight: 700;
-        color: var(--text-primary, #f1f5f9);
+        color: #60a5fa;
         font-family: monospace;
     }
 
     .probs-group {
         display: flex;
-        gap: 6px;
+        gap: 2px;
+        margin-left: 4px;
     }
 
     .prob-item {
         display: flex;
         flex-direction: column;
         align-items: center;
-        padding: 4px 8px;
+        padding: 4px 10px;
         border-radius: 6px;
-        background: var(--bg-tertiary, #334155);
-        min-width: 42px;
+        min-width: 48px;
+        transition: all 0.2s ease;
     }
 
     .prob-item.cut {
-        border-left: 2px solid #22c55e;
+        background: rgba(34, 197, 94, 0.08);
+        border-bottom: 2px solid #22c55e;
     }
 
     .prob-item.cut.high {
-        background: rgba(34, 197, 94, 0.15);
+        background: rgba(34, 197, 94, 0.2);
     }
 
     .prob-item.hold {
-        border-left: 2px solid #64748b;
+        background: rgba(100, 116, 139, 0.08);
+        border-bottom: 2px solid #64748b;
     }
 
     .prob-item.hold.high {
-        background: rgba(100, 116, 139, 0.15);
+        background: rgba(100, 116, 139, 0.2);
     }
 
     .prob-item.hike {
-        border-left: 2px solid #ef4444;
+        background: rgba(239, 68, 68, 0.08);
+        border-bottom: 2px solid #ef4444;
     }
 
     .prob-label {
         font-size: 0.55rem;
         color: var(--text-muted, #94a3b8);
         text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 
     .prob-value {
-        font-size: 0.85rem;
+        font-size: 0.95rem;
         font-weight: 700;
         color: var(--text-primary, #f1f5f9);
         font-family: monospace;
@@ -1555,18 +1565,19 @@
     .prob-change {
         font-size: 0.55rem;
         font-weight: 600;
-        padding: 1px 3px;
+        padding: 1px 4px;
         border-radius: 3px;
+        margin-top: 1px;
     }
 
     .prob-change.up {
         color: #22c55e;
-        background: rgba(34, 197, 94, 0.15);
+        background: rgba(34, 197, 94, 0.2);
     }
 
     .prob-change.down {
         color: #ef4444;
-        background: rgba(239, 68, 68, 0.15);
+        background: rgba(239, 68, 68, 0.2);
     }
 
     .signal-summary {
