@@ -102,18 +102,46 @@ export const dashboardData = writable({
     treasury_10y: [],
     treasury_2y: [],
     yield_curve: [],
-    // TIPS / Inflation Expectations
     tips: {
         breakeven: [],
         real_rate: [],
         fwd_5y5y: [],
         rocs: {}
     },
+    // Top-level inflation expectations (also in fed_forecasts.inflation_swaps)
+    inflation_swaps: {
+        cleveland_1y: [],
+        cleveland_2y: [],
+        cleveland_5y: [],
+        cleveland_10y: [],
+        umich_expectations: []
+    },
+    inflation_expect_5y: [],
+    inflation_expect_10y: [],
+    // Stress Analysis (used by Dashboard2)
+    stress_analysis: {
+        inflation_stress: { score: 0, level: 'LOW', signals: [], metrics: {} },
+        liquidity_stress: { score: 0, level: 'LOW', signals: [], metrics: {} },
+        credit_stress: { score: 0, level: 'LOW', signals: [], metrics: {} },
+        volatility_stress: { score: 0, level: 'LOW', signals: [], metrics: {} }
+    },
     repo_stress: {
         sofr: [],
-        iorb: []
+        iorb: [],
+        srf_usage: [],
+        srf_rate: [],
+        rrp_award: [],
+        sofr_volume: []
+    },
+    repo_operations: {
+        srf_usage: [],
+        rrp_usage: [],
+        net_repo: [],
+        net_repo_zscore: [],
+        cumulative_30d: []
     },
     btc: {
+
         price: [], fair_value: [], upper_2sd: [], upper_1sd: [],
         lower_1sd: [], lower_2sd: [], deviation_zscore: [], rocs: {}
     },

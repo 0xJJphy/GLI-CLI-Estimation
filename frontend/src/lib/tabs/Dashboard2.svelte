@@ -133,36 +133,42 @@
     // ========================================================================
     // STRESS ANALYSIS
     // ========================================================================
-    $: stressAnalysis = $dashboardData.stress_analysis || {};
-
     $: stressDimensions = [
         {
             id: "inflation",
             label: "🔥 Inflation",
-            score: stressAnalysis.inflation_stress?.score ?? 0,
+            score: $dashboardData.stress_analysis?.inflation_stress?.score ?? 0,
             max: 7,
-            level: stressAnalysis.inflation_stress?.level ?? "LOW",
+            level:
+                $dashboardData.stress_analysis?.inflation_stress?.level ??
+                "LOW",
         },
         {
             id: "liquidity",
             label: "💧 Liquidity",
-            score: stressAnalysis.liquidity_stress?.score ?? 0,
+            score: $dashboardData.stress_analysis?.liquidity_stress?.score ?? 0,
             max: 7,
-            level: stressAnalysis.liquidity_stress?.level ?? "LOW",
+            level:
+                $dashboardData.stress_analysis?.liquidity_stress?.level ??
+                "LOW",
         },
         {
             id: "credit",
             label: "💳 Credit",
-            score: stressAnalysis.credit_stress?.score ?? 0,
+            score: $dashboardData.stress_analysis?.credit_stress?.score ?? 0,
             max: 7,
-            level: stressAnalysis.credit_stress?.level ?? "LOW",
+            level:
+                $dashboardData.stress_analysis?.credit_stress?.level ?? "LOW",
         },
         {
             id: "volatility",
             label: "🌪️ Volatility",
-            score: stressAnalysis.volatility_stress?.score ?? 0,
+            score:
+                $dashboardData.stress_analysis?.volatility_stress?.score ?? 0,
             max: 6,
-            level: stressAnalysis.volatility_stress?.level ?? "LOW",
+            level:
+                $dashboardData.stress_analysis?.volatility_stress?.level ??
+                "LOW",
         },
     ];
 
@@ -229,22 +235,32 @@
     // ========================================================================
     // FLOW MOMENTUM
     // ========================================================================
-    $: flowMetrics = $dashboardData.flow_metrics || {};
-
     $: flowData = [
         {
             name: "Global Liquidity (GLI)",
-            impulse4w: getLatestValue(flowMetrics.gli_impulse_4w),
-            impulse13w: getLatestValue(flowMetrics.gli_impulse_13w),
-            accel: getLatestValue(flowMetrics.gli_accel),
-            zscore: getLatestValue(flowMetrics.gli_impulse_zscore),
+            impulse4w: getLatestValue(
+                $dashboardData.flow_metrics?.gli_impulse_4w,
+            ),
+            impulse13w: getLatestValue(
+                $dashboardData.flow_metrics?.gli_impulse_13w,
+            ),
+            accel: getLatestValue($dashboardData.flow_metrics?.gli_accel),
+            zscore: getLatestValue(
+                $dashboardData.flow_metrics?.gli_impulse_zscore,
+            ),
         },
         {
             name: "Global M2",
-            impulse4w: getLatestValue(flowMetrics.m2_impulse_4w),
-            impulse13w: getLatestValue(flowMetrics.m2_impulse_13w),
-            accel: getLatestValue(flowMetrics.m2_accel),
-            zscore: getLatestValue(flowMetrics.m2_impulse_zscore),
+            impulse4w: getLatestValue(
+                $dashboardData.flow_metrics?.m2_impulse_4w,
+            ),
+            impulse13w: getLatestValue(
+                $dashboardData.flow_metrics?.m2_impulse_13w,
+            ),
+            accel: getLatestValue($dashboardData.flow_metrics?.m2_accel),
+            zscore: getLatestValue(
+                $dashboardData.flow_metrics?.m2_impulse_zscore,
+            ),
         },
         {
             name: "US Net Liquidity",
@@ -262,41 +278,42 @@
     ];
 
     $: cbContributions = [
-        { name: "FED", key: "fed" },
-        { name: "PBOC", key: "pboc" },
-        { name: "ECB", key: "ecb" },
-        { name: "BOJ", key: "boj" },
-        { name: "BOE", key: "boe" },
+        { name: "FED", key: "fed_contrib_13w" },
+        { name: "PBOC", key: "pboc_contrib_13w" },
+        { name: "ECB", key: "ecb_contrib_13w" },
+        { name: "BOJ", key: "boj_contrib_13w" },
+        { name: "BOE", key: "boe_contrib_13w" },
     ]
         .map((cb) => ({
-            ...cb,
-            contrib: getLatestValue(flowMetrics[`${cb.key}_contrib_13w`]),
+            name: cb.name,
+            contrib: getLatestValue($dashboardData.flow_metrics?.[cb.key]),
         }))
         .sort((a, b) => Math.abs(b.contrib || 0) - Math.abs(a.contrib || 0));
 
     // ========================================================================
     // REPO USAGE & FED CORRIDOR
     // ========================================================================
-    $: repoOperations = $dashboardData.repo_operations || {};
-    $: repoStress = $dashboardData.repo_stress || {};
-
     $: repoMetrics = {
         srfUsage:
-            getLatestValue(repoOperations.srf_usage) ??
-            getLatestValue(repoStress.srf_usage) ??
+            getLatestValue($dashboardData.repo_operations?.srf_usage) ??
+            getLatestValue($dashboardData.repo_stress?.srf_usage) ??
             0,
         rrpUsage:
-            getLatestValue(repoOperations.rrp_usage) ??
+            getLatestValue($dashboardData.repo_operations?.rrp_usage) ??
             getLatestValue($dashboardData.us_net_liq_rrp) ??
             0,
-        netRepo: getLatestValue(repoOperations.net_repo) ?? 0,
-        netRepoZscore: getLatestValue(repoOperations.net_repo_zscore) ?? 0,
-        cumulative30d: getLatestValue(repoOperations.cumulative_30d) ?? 0,
-        sofr: getLatestValue(repoStress.sofr) ?? 0,
-        iorb: getLatestValue(repoStress.iorb) ?? 0,
-        srfRate: getLatestValue(repoStress.srf_rate) ?? 0,
-        rrpAward: getLatestValue(repoStress.rrp_award) ?? 0,
-        sofrVolume: getLatestValue(repoStress.sofr_volume) ?? 0,
+        netRepo: getLatestValue($dashboardData.repo_operations?.net_repo) ?? 0,
+        netRepoZscore:
+            getLatestValue($dashboardData.repo_operations?.net_repo_zscore) ??
+            0,
+        cumulative30d:
+            getLatestValue($dashboardData.repo_operations?.cumulative_30d) ?? 0,
+        sofr: getLatestValue($dashboardData.repo_stress?.sofr) ?? 0,
+        iorb: getLatestValue($dashboardData.repo_stress?.iorb) ?? 0,
+        srfRate: getLatestValue($dashboardData.repo_stress?.srf_rate) ?? 0,
+        rrpAward: getLatestValue($dashboardData.repo_stress?.rrp_award) ?? 0,
+        sofrVolume:
+            getLatestValue($dashboardData.repo_stress?.sofr_volume) ?? 0,
     };
 
     $: sofrIorbSpread =
@@ -511,8 +528,12 @@
         }
 
         // 2. CLI-GLI Divergence
-        const cliMom = getLatestValue(flowMetrics.cli_momentum_4w);
-        const gliImp = getLatestValue(flowMetrics.gli_impulse_13w);
+        const cliMom = getLatestValue(
+            $dashboardData.flow_metrics?.cli_momentum_4w,
+        );
+        const gliImp = getLatestValue(
+            $dashboardData.flow_metrics?.gli_impulse_13w,
+        );
         if (cliMom !== null && gliImp !== null) {
             if (cliMom > 0.1 && gliImp < -0.1) {
                 alertList.push({
