@@ -2323,12 +2323,12 @@
       >
         <img
           src="logo.png"
-          alt="0xJJ Quant Terminal"
-          style="width: 100%; height: 100%; object-fit: contain; filter: invert(1);"
+          alt="JJ-Risk"
+          style="width: 100%; height: 100%; object-fit: contain; filter: invert(1); mix-blend-mode: screen;"
         />
       </div>
       <div class="brand-text">
-        <h2>RiskB</h2>
+        <h2>JJ-Risk</h2>
         <span>Dashboard</span>
       </div>
     </div>
