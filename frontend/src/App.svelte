@@ -2324,7 +2324,7 @@
         <img
           src="logo.png"
           alt="JJ-Risk"
-          style="width: 100%; height: 100%; object-fit: contain; filter: invert(1); mix-blend-mode: screen;"
+          style="width: 60px; height: 60px; object-fit: contain; filter: invert(1);"
         />
       </div>
       <div class="brand-text">
@@ -2675,8 +2675,8 @@
   }
 
   .logo-box {
-    width: 44px;
-    height: 44px;
+    width: 60px;
+    height: 60px;
     background: transparent;
     border-radius: 0;
     display: flex;
