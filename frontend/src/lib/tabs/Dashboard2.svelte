@@ -808,62 +808,50 @@
                 {/if}
             </div>
 
-            {#if currentFedRate || nextMeetingProbs}
-                <div class="fed-rates-probs">
-                    {#if currentFedRate}
-                        <div class="fed-rate">
-                            <span class="rate-label">Target</span>
-                            <span class="rate-value"
-                                >{currentFedRate.toFixed(2)}%</span
-                            >
-                        </div>
-                    {/if}
-
-                    {#if nextMeetingProbs}
-                        <div class="probs-group">
-                            <div
-                                class="prob-item cut"
-                                class:high={nextMeetingProbs.cut > 50}
-                            >
-                                <span class="prob-label">Cut</span>
-                                <span class="prob-value"
-                                    >{nextMeetingProbs.cut}%</span
-                                >
-                                {#if nextMeetingProbs.roc1m}
-                                    <span
-                                        class="prob-change"
-                                        class:up={nextMeetingProbs.roc1m > 0}
-                                        class:down={nextMeetingProbs.roc1m < 0}
-                                    >
-                                        {nextMeetingProbs.roc1m > 0
-                                            ? "+"
-                                            : ""}{nextMeetingProbs.roc1m.toFixed(
-                                            0,
-                                        )}
-                                    </span>
-                                {/if}
-                            </div>
-                            <div
-                                class="prob-item hold"
-                                class:high={nextMeetingProbs.hold > 50}
-                            >
-                                <span class="prob-label">Hold</span>
-                                <span class="prob-value"
-                                    >{nextMeetingProbs.hold}%</span
-                                >
-                            </div>
-                            {#if nextMeetingProbs.hike > 5}
-                                <div class="prob-item hike">
-                                    <span class="prob-label">Hike</span>
-                                    <span class="prob-value"
-                                        >{nextMeetingProbs.hike}%</span
-                                    >
-                                </div>
-                            {/if}
-                        </div>
-                    {/if}
+            {#if currentFedRate}
+                <div class="fed-rate">
+                    <span class="rate-label">Target</span>
+                    <span class="rate-value">{currentFedRate.toFixed(2)}%</span>
                 </div>
             {/if}
+
+            <div class="probs-group">
+                <div
+                    class="prob-item cut"
+                    class:high={nextMeetingProbs?.cut > 50}
+                >
+                    <span class="prob-label">Cut</span>
+                    <span class="prob-value"
+                        >{nextMeetingProbs?.cut ?? "—"}%</span
+                    >
+                    {#if nextMeetingProbs?.roc1m}
+                        <span
+                            class="prob-change"
+                            class:up={nextMeetingProbs.roc1m > 0}
+                            class:down={nextMeetingProbs.roc1m < 0}
+                        >
+                            {nextMeetingProbs.roc1m > 0
+                                ? "+"
+                                : ""}{nextMeetingProbs.roc1m.toFixed(0)}
+                        </span>
+                    {/if}
+                </div>
+                <div
+                    class="prob-item hold"
+                    class:high={nextMeetingProbs?.hold > 50}
+                >
+                    <span class="prob-label">Hold</span>
+                    <span class="prob-value"
+                        >{nextMeetingProbs?.hold ?? "—"}%</span
+                    >
+                </div>
+                {#if nextMeetingProbs?.hike > 5}
+                    <div class="prob-item hike">
+                        <span class="prob-label">Hike</span>
+                        <span class="prob-value">{nextMeetingProbs.hike}%</span>
+                    </div>
+                {/if}
+            </div>
         </div>
 
         <div class="signal-summary">
