@@ -43,7 +43,7 @@
             if (meetingDate > now) {
                 nextFomcDate = meeting.date;
                 nextFomcHasSEP = meeting.has_sep || false;
-                const diff = meetingDate - now;
+                const diff = meetingDate.getTime() - now.getTime();
                 fomcCountdown = {
                     days: Math.floor(diff / (1000 * 60 * 60 * 24)),
                     hours: Math.floor(
@@ -355,46 +355,56 @@
     // ========================================================================
     // INFLATION EXPECTATIONS
     // ========================================================================
-    $: inflationSwaps = $dashboardData.inflation_swaps || {};
-    $: tipsData = $dashboardData.tips || {};
-    $: fedForecasts = $dashboardData.fed_forecasts || {};
-
     $: inflationMetrics = [
         {
             id: "clev_1y",
             label: "Cleveland Fed 1Y",
             source: "Swap",
-            value: getLatestValue(inflationSwaps.cleveland_1y),
-            delta1m: calcDelta(inflationSwaps.cleveland_1y, 22),
-            roc1m: calcRoc(inflationSwaps.cleveland_1y, 22),
-            roc3m: calcRoc(inflationSwaps.cleveland_1y, 66),
+            value: getLatestValue($dashboardData.inflation_swaps?.cleveland_1y),
+            delta1m: calcDelta(
+                $dashboardData.inflation_swaps?.cleveland_1y,
+                22,
+            ),
+            roc1m: calcRoc($dashboardData.inflation_swaps?.cleveland_1y, 22),
+            roc3m: calcRoc($dashboardData.inflation_swaps?.cleveland_1y, 66),
         },
         {
             id: "clev_2y",
             label: "Cleveland Fed 2Y",
             source: "Swap",
-            value: getLatestValue(inflationSwaps.cleveland_2y),
-            delta1m: calcDelta(inflationSwaps.cleveland_2y, 22),
-            roc1m: calcRoc(inflationSwaps.cleveland_2y, 22),
-            roc3m: calcRoc(inflationSwaps.cleveland_2y, 66),
+            value: getLatestValue($dashboardData.inflation_swaps?.cleveland_2y),
+            delta1m: calcDelta(
+                $dashboardData.inflation_swaps?.cleveland_2y,
+                22,
+            ),
+            roc1m: calcRoc($dashboardData.inflation_swaps?.cleveland_2y, 22),
+            roc3m: calcRoc($dashboardData.inflation_swaps?.cleveland_2y, 66),
         },
         {
             id: "clev_5y",
             label: "Cleveland Fed 5Y",
             source: "Swap",
-            value: getLatestValue(inflationSwaps.cleveland_5y),
-            delta1m: calcDelta(inflationSwaps.cleveland_5y, 22),
-            roc1m: calcRoc(inflationSwaps.cleveland_5y, 22),
-            roc3m: calcRoc(inflationSwaps.cleveland_5y, 66),
+            value: getLatestValue($dashboardData.inflation_swaps?.cleveland_5y),
+            delta1m: calcDelta(
+                $dashboardData.inflation_swaps?.cleveland_5y,
+                22,
+            ),
+            roc1m: calcRoc($dashboardData.inflation_swaps?.cleveland_5y, 22),
+            roc3m: calcRoc($dashboardData.inflation_swaps?.cleveland_5y, 66),
         },
         {
             id: "clev_10y",
             label: "Cleveland Fed 10Y",
             source: "Swap",
-            value: getLatestValue(inflationSwaps.cleveland_10y),
-            delta1m: calcDelta(inflationSwaps.cleveland_10y, 22),
-            roc1m: calcRoc(inflationSwaps.cleveland_10y, 22),
-            roc3m: calcRoc(inflationSwaps.cleveland_10y, 66),
+            value: getLatestValue(
+                $dashboardData.inflation_swaps?.cleveland_10y,
+            ),
+            delta1m: calcDelta(
+                $dashboardData.inflation_swaps?.cleveland_10y,
+                22,
+            ),
+            roc1m: calcRoc($dashboardData.inflation_swaps?.cleveland_10y, 22),
+            roc3m: calcRoc($dashboardData.inflation_swaps?.cleveland_10y, 66),
         },
         {
             id: "tips_be_5y",
@@ -418,35 +428,50 @@
             id: "tips_5y5y",
             label: "5Y5Y Forward",
             source: "TIPS",
-            value: getLatestValue(tipsData.fwd_5y5y),
-            delta1m: calcDelta(tipsData.fwd_5y5y, 22),
-            roc1m: calcRoc(tipsData.fwd_5y5y, 22),
-            roc3m: calcRoc(tipsData.fwd_5y5y, 66),
+            value: getLatestValue($dashboardData.tips?.fwd_5y5y),
+            delta1m: calcDelta($dashboardData.tips?.fwd_5y5y, 22),
+            roc1m: calcRoc($dashboardData.tips?.fwd_5y5y, 22),
+            roc3m: calcRoc($dashboardData.tips?.fwd_5y5y, 66),
         },
         {
             id: "tips_real",
             label: "10Y Real Rate",
             source: "TIPS",
-            value: getLatestValue(tipsData.real_rate),
-            delta1m: calcDelta(tipsData.real_rate, 22),
-            roc1m: calcRoc(tipsData.real_rate, 22),
-            roc3m: calcRoc(tipsData.real_rate, 66),
+            value: getLatestValue($dashboardData.tips?.real_rate),
+            delta1m: calcDelta($dashboardData.tips?.real_rate, 22),
+            roc1m: calcRoc($dashboardData.tips?.real_rate, 22),
+            roc3m: calcRoc($dashboardData.tips?.real_rate, 66),
         },
         {
             id: "umich",
             label: "UMich 1Y Expect",
             source: "Survey",
-            value: getLatestValue(inflationSwaps.umich_expectations),
-            delta1m: calcDelta(inflationSwaps.umich_expectations, 22),
-            roc1m: calcRoc(inflationSwaps.umich_expectations, 22),
-            roc3m: calcRoc(inflationSwaps.umich_expectations, 66),
+            value: getLatestValue(
+                $dashboardData.inflation_swaps?.umich_expectations,
+            ),
+            delta1m: calcDelta(
+                $dashboardData.inflation_swaps?.umich_expectations,
+                22,
+            ),
+            roc1m: calcRoc(
+                $dashboardData.inflation_swaps?.umich_expectations,
+                22,
+            ),
+            roc3m: calcRoc(
+                $dashboardData.inflation_swaps?.umich_expectations,
+                66,
+            ),
         },
     ];
 
     // Inflation curve signal (1Y vs 2Y)
     $: inflationCurveSignal = (() => {
-        const clev1y = getLatestValue(inflationSwaps.cleveland_1y);
-        const clev2y = getLatestValue(inflationSwaps.cleveland_2y);
+        const clev1y = getLatestValue(
+            $dashboardData.inflation_swaps?.cleveland_1y,
+        );
+        const clev2y = getLatestValue(
+            $dashboardData.inflation_swaps?.cleveland_2y,
+        );
         if (!clev1y || !clev2y)
             return { label: "N/A", class: "neutral", spread: 0 };
         const spread = clev1y - clev2y;
@@ -474,25 +499,26 @@
 
     // CPI/PCE actuals
     $: actualInflation = {
-        cpi: getLatestValue(fedForecasts.cpi_yoy),
-        coreCpi: getLatestValue(fedForecasts.core_cpi_yoy),
-        pce: getLatestValue(fedForecasts.pce_yoy),
-        corePce: getLatestValue(fedForecasts.core_pce_yoy),
+        cpi: getLatestValue($dashboardData.fed_forecasts?.cpi_yoy),
+        coreCpi: getLatestValue($dashboardData.fed_forecasts?.core_cpi_yoy),
+        pce: getLatestValue($dashboardData.fed_forecasts?.pce_yoy),
+        corePce: getLatestValue($dashboardData.fed_forecasts?.core_pce_yoy),
     };
 
     // ========================================================================
-    // BTC VALUATION
+    // BTC VALUATION (for alerts)
     // ========================================================================
-    $: btcData = $dashboardData.btc || {};
-    $: btcPrice = getLatestValue(btcData.price);
+    $: btcPrice = getLatestValue($dashboardData.btc?.price);
     $: btcFairValue = getLatestValue(
-        btcData.fair_value_v2 || btcData.fair_value,
+        $dashboardData.btc?.fair_value_v2 || $dashboardData.btc?.fair_value,
     );
     $: btcDeviation =
         btcPrice && btcFairValue
             ? ((btcPrice - btcFairValue) / btcFairValue) * 100
             : null;
-    $: btcZscore = getLatestValue(btcData.zscore_v2 || btcData.zscore);
+    $: btcZscore = getLatestValue(
+        $dashboardData.btc?.zscore_v2 || $dashboardData.btc?.zscore,
+    );
 
     // ========================================================================
     // CB DIFFUSION & CONCENTRATION
