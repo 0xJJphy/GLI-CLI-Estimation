@@ -43,6 +43,8 @@
             if (meetingDate > now) {
                 nextFomcDate = meeting.date;
                 nextFomcHasSEP = meeting.has_sep || false;
+                // Capture probabilities for next meeting
+                nextMeetingProbs = meeting.probs || null;
                 const diff = meetingDate.getTime() - now.getTime();
                 fomcCountdown = {
                     days: Math.floor(diff / (1000 * 60 * 60 * 24)),
@@ -55,6 +57,9 @@
             }
         }
     }
+
+    // Next meeting probabilities
+    let nextMeetingProbs = null;
 
     // Helper to calculate simple ROC
     function calcRoc(series, periods = 22) {
@@ -130,9 +135,15 @@
         };
     })();
 
+    // Current Fed Funds Rate
+    $: currentFedRate = getLatestValue(
+        $dashboardData.fed_forecasts?.fed_funds_rate,
+    );
+
     // ========================================================================
     // STRESS ANALYSIS
     // ========================================================================
+
     $: stressDimensions = [
         {
             id: "inflation",
@@ -782,17 +793,76 @@
             </div>
         </div>
 
-        <div class="fomc-countdown">
-            <span class="fomc-label">Next FOMC</span>
-            {#if fomcCountdown.isToday}
-                <span class="fomc-today">🔴 TODAY</span>
-            {:else}
-                <span class="fomc-time"
-                    >{fomcCountdown.days}d {fomcCountdown.hours}h</span
-                >
-            {/if}
-            {#if nextFomcHasSEP}
-                <span class="fomc-sep">📊 SEP</span>
+        <div class="fomc-section">
+            <div class="fomc-countdown">
+                <span class="fomc-label">Next FOMC</span>
+                {#if fomcCountdown.isToday}
+                    <span class="fomc-today">🔴 TODAY</span>
+                {:else}
+                    <span class="fomc-time"
+                        >{fomcCountdown.days}d {fomcCountdown.hours}h</span
+                    >
+                {/if}
+                {#if nextFomcHasSEP}
+                    <span class="fomc-sep">📊 SEP</span>
+                {/if}
+            </div>
+
+            {#if currentFedRate || nextMeetingProbs}
+                <div class="fed-rates-probs">
+                    {#if currentFedRate}
+                        <div class="fed-rate">
+                            <span class="rate-label">Target</span>
+                            <span class="rate-value"
+                                >{currentFedRate.toFixed(2)}%</span
+                            >
+                        </div>
+                    {/if}
+
+                    {#if nextMeetingProbs}
+                        <div class="probs-group">
+                            <div
+                                class="prob-item cut"
+                                class:high={nextMeetingProbs.cut > 50}
+                            >
+                                <span class="prob-label">Cut</span>
+                                <span class="prob-value"
+                                    >{nextMeetingProbs.cut}%</span
+                                >
+                                {#if nextMeetingProbs.roc1m}
+                                    <span
+                                        class="prob-change"
+                                        class:up={nextMeetingProbs.roc1m > 0}
+                                        class:down={nextMeetingProbs.roc1m < 0}
+                                    >
+                                        {nextMeetingProbs.roc1m > 0
+                                            ? "+"
+                                            : ""}{nextMeetingProbs.roc1m.toFixed(
+                                            0,
+                                        )}
+                                    </span>
+                                {/if}
+                            </div>
+                            <div
+                                class="prob-item hold"
+                                class:high={nextMeetingProbs.hold > 50}
+                            >
+                                <span class="prob-label">Hold</span>
+                                <span class="prob-value"
+                                    >{nextMeetingProbs.hold}%</span
+                                >
+                            </div>
+                            {#if nextMeetingProbs.hike > 5}
+                                <div class="prob-item hike">
+                                    <span class="prob-label">Hike</span>
+                                    <span class="prob-value"
+                                        >{nextMeetingProbs.hike}%</span
+                                    >
+                                </div>
+                            {/if}
+                        </div>
+                    {/if}
+                </div>
             {/if}
         </div>
 
@@ -1406,6 +1476,109 @@
         50% {
             opacity: 0.5;
         }
+    }
+
+    /* Fed Rates & Probabilities Section */
+    .fomc-section {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .fed-rates-probs {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .fed-rate {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 4px 10px;
+        background: var(--bg-tertiary, #334155);
+        border-radius: 6px;
+    }
+
+    .fed-rate .rate-label {
+        font-size: 0.6rem;
+        color: var(--text-muted, #94a3b8);
+        text-transform: uppercase;
+    }
+
+    .fed-rate .rate-value {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--text-primary, #f1f5f9);
+        font-family: monospace;
+    }
+
+    .probs-group {
+        display: flex;
+        gap: 6px;
+    }
+
+    .prob-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 4px 8px;
+        border-radius: 6px;
+        background: var(--bg-tertiary, #334155);
+        min-width: 42px;
+    }
+
+    .prob-item.cut {
+        border-left: 2px solid #22c55e;
+    }
+
+    .prob-item.cut.high {
+        background: rgba(34, 197, 94, 0.15);
+    }
+
+    .prob-item.hold {
+        border-left: 2px solid #64748b;
+    }
+
+    .prob-item.hold.high {
+        background: rgba(100, 116, 139, 0.15);
+    }
+
+    .prob-item.hike {
+        border-left: 2px solid #ef4444;
+    }
+
+    .prob-label {
+        font-size: 0.55rem;
+        color: var(--text-muted, #94a3b8);
+        text-transform: uppercase;
+    }
+
+    .prob-value {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: var(--text-primary, #f1f5f9);
+        font-family: monospace;
+    }
+
+    .prob-change {
+        font-size: 0.55rem;
+        font-weight: 600;
+        padding: 1px 3px;
+        border-radius: 3px;
+    }
+
+    .prob-change.up {
+        color: #22c55e;
+        background: rgba(34, 197, 94, 0.15);
+    }
+
+    .prob-change.down {
+        color: #ef4444;
+        background: rgba(239, 68, 68, 0.15);
     }
 
     .signal-summary {
