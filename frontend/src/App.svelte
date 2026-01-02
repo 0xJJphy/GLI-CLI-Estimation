@@ -2322,9 +2322,9 @@
         style="background: transparent; padding: 0; overflow: visible;"
       >
         <img
-          src="logo-isometric.jpg"
-          alt="Quant Terminal"
-          style="width: 100%; height: 100%; object-fit: contain; filter: url(#remove-white);"
+          src="logo.png"
+          alt="0xJJ Quant Terminal"
+          style="width: 100%; height: 100%; object-fit: contain; filter: invert(1);"
         />
       </div>
       <div class="brand-text">
