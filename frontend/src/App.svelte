@@ -2328,8 +2328,8 @@
         />
       </div>
       <div class="brand-text">
-        <h2>Quant Terminal</h2>
-        <span>Liquidity Engine</span>
+        <h2>RiskB</h2>
+        <span>Dashboard</span>
       </div>
     </div>
 
@@ -2677,15 +2677,15 @@
   .logo-box {
     width: 44px;
     height: 44px;
-    background: #4f46e5;
-    border-radius: 12px;
+    background: transparent;
+    border-radius: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
     font-weight: 800;
     font-size: 1.25rem;
-    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
+    box-shadow: none;
   }
 
   .brand-text h2 {
