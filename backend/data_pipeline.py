@@ -2609,15 +2609,18 @@ def calculate_signals(df, cli_df):
         "fwd_delta": round(fwd_3m_delta, 3)
     }
 
-    # 9. Repo Stress
+    # 9. Repo Stress (CONVENTION: Lower spread = better/easier)
     sofr = df.get('SOFR')
     iorb = df.get('IORB')
     if sofr is not None and iorb is not None:
         spread = get_latest(sofr - iorb)
         if spread is not None:
             state = "neutral"
-            if spread >= 0: state = "bullish"
-            elif spread < -0.05: state = "bearish"
+            # SOFR below IORB (negative spread) is BULLISH (excess liquidity/loose plumbing)
+            # SOFR above IORB (positive spread) is BEARISH/WARNING (funding pressure)
+            if spread <= 0: state = "bullish"
+            elif spread > 0.05: state = "bearish"
+            elif spread > 0.01: state = "warning"
             signals['repo'] = {"state": state, "value": round(spread, 3)}
 
     return signals

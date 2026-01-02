@@ -1216,7 +1216,7 @@
                 <div class="repo-metric">
                     <span class="metric-label">SOFR Volume</span>
                     <span class="metric-value"
-                        >${formatValue(repoMetrics.sofrVolume / 1e9, 0)}B</span
+                        >${formatValue(repoMetrics.sofrVolume, 0)}B</span
                     >
                 </div>
                 <div class="repo-metric">
