@@ -1215,6 +1215,50 @@ def calculate_market_stress_analysis(df, silent=False):
     
     return analysis
 
+def calculate_net_repo_operations(df: pd.DataFrame) -> Dict[str, pd.Series]:
+    """
+    Calculates the net repo operations of the Fed.
+    Net Repo = SRF Usage (Injection) - RRP Usage (Drain)
+    
+    Returns:
+        Dict with series:
+        - net_repo: Net operations in $B
+        - srf_usage: SRF usage in $B
+        - rrp_usage: RRP usage in $B
+        - net_repo_zscore: Z-score of net repo
+        - net_repo_momentum: 4-week momentum of net repo
+        - cumulative_30d: 30-day rolling sum of net repo
+    """
+    idx = df.index
+    
+    # SRF Usage comes in $B from FRED
+    srf_usage = df.get('SRF_USAGE', pd.Series(0.0, index=idx)).fillna(0)
+    
+    # RRP - usually in Trillions in our df_t, convert to Billions
+    rrp_t = df.get('RRP_USD', df.get('RRP', pd.Series(0.0, index=idx)))
+    rrp_usage = rrp_t * 1000  # T -> B
+    rrp_usage = rrp_usage.fillna(0)
+    
+    # Net Repo: Positive = Injection, Negative = Drain
+    net_repo = srf_usage - rrp_usage
+    
+    # Derived Metrics
+    net_mean = net_repo.rolling(252, min_periods=60).mean()
+    net_std = net_repo.rolling(252, min_periods=60).std().replace(0, np.nan)
+    net_repo_zscore = (net_repo - net_mean) / net_std
+    
+    net_repo_momentum = net_repo.diff(20)  # 4 weeks
+    cumulative_30d = net_repo.rolling(30, min_periods=1).sum()
+    
+    return {
+        'srf_usage': srf_usage,
+        'rrp_usage': rrp_usage,
+        'net_repo': net_repo,
+        'net_repo_zscore': pd.Series(net_repo_zscore, index=idx),
+        'net_repo_momentum': net_repo_momentum,
+        'cumulative_30d': cumulative_30d
+    }
+
 # tvDatafeed import
 try:
     from tvDatafeed import TvDatafeed, Interval
@@ -1364,7 +1408,7 @@ FRED_CONFIG = {
     'T10YIE': 'TIPS_BREAKEVEN',           # 10-Year Breakeven Inflation Rate
     'DFII10': 'TIPS_REAL_RATE',           # 10-Year Real Interest Rate (TIPS Yield)
     'T5YIFR': 'TIPS_5Y5Y_FORWARD',        # 5-Year, 5-Year Forward Inflation Expectation
-    'RESBALNS': 'BANK_RESERVES',          # Bank Reserves
+    'WRESBAL': 'BANK_RESERVES',           # Bank Reserves (Total, Weekly, Millions $)
     'SOFR': 'SOFR',                       # Secured Overnight Financing Rate
     'IORB': 'IORB',                        # Interest on Reserve Balances
     'SOFRVOL': 'SOFR_VOLUME',              # SOFR Transaction Volume ($ Billions)
@@ -3132,7 +3176,9 @@ def run_pipeline():
     fred_cached = 0
     for sid, name in FRED_CONFIG.items():
         # FRED updates daily, use 24 hour cache
-        if not check_data_freshness(f"FRED_{name}", cache_hours=24) and name in cached_fred:
+        # Also check if the SID in cache matches the current SID to handle config changes
+        cached_sid = cached_fred.get(name, {}).get('sid')
+        if not check_data_freshness(f"FRED_{name}", cache_hours=24) and name in cached_fred and cached_sid == sid:
             # Use cached data
             raw_fred[name] = pd.Series(cached_fred[name]['values'], 
                                        index=pd.to_datetime(cached_fred[name]['dates']), 
@@ -3144,8 +3190,9 @@ def run_pipeline():
             if not s.empty:
                 raw_fred[name] = s
                 update_cache_timestamp(f"FRED_{name}")
-                # Cache the data
+                # Cache the data including the SID
                 cached_fred[name] = {
+                    'sid': sid,
                     'dates': s.index.strftime('%Y-%m-%d').tolist(),
                     'values': s.tolist()
                 }
@@ -3383,6 +3430,15 @@ def run_pipeline():
         all_dates = pd.date_range(start=df_t.index.min(), end=df_t.index.max(), freq='D')
         df_t = df_t.reindex(all_dates).ffill()
 
+        # Data Trimming: Find the first date where major US series have data
+        # Fed Assets (FED_USD) started being populated in FRED from 2002-12-18
+        # Trimming helps charts start at the first available data point
+        main_series = df_t.get('FED_USD', df_t.get('NET_LIQUIDITY', pd.Series(dtype=float)))
+        if not main_series.empty:
+            first_valid_idx = main_series.first_valid_index()
+            if first_valid_idx:
+                df_t = df_t.loc[first_valid_idx:]
+
         # Units Logic and derived columns for Risk Model
         if 'TREASURY_10Y_YIELD' in df_t.columns and 'TREASURY_2Y_YIELD' in df_t.columns:
             df_t['YIELD_CURVE'] = df_t['TREASURY_10Y_YIELD'] - df_t['TREASURY_2Y_YIELD']
@@ -3500,6 +3556,9 @@ def run_pipeline():
         }).ffill()
         us_system_metrics = calculate_us_system_metrics(us_system_df)
 
+        # Net Repo Operations
+        net_repo_data = calculate_net_repo_operations(df_t)
+
         # Flow/Impulse Metrics (more useful for trading than levels)
         flow_df = pd.DataFrame({
             'GLI_TOTAL': gli['GLI_TOTAL'],
@@ -3598,6 +3657,14 @@ def run_pipeline():
             'us_net_liq_tga': clean_for_json(df_t.get('TGA_USD', pd.Series(dtype=float))),
             'us_net_liq_reserves': clean_for_json(df_t.get('BANK_RESERVES', pd.Series(dtype=float))),
             'us_net_liq_rocs': {k: clean_for_json(v) for k, v in net_liq_rocs.items()},
+            'repo_operations': {
+                'srf_usage': clean_for_json(net_repo_data['srf_usage']),
+                'rrp_usage': clean_for_json(net_repo_data['rrp_usage']),
+                'net_repo': clean_for_json(net_repo_data['net_repo']),
+                'net_repo_zscore': clean_for_json(net_repo_data['net_repo_zscore']),
+                'net_repo_momentum': clean_for_json(net_repo_data['net_repo_momentum']),
+                'cumulative_30d': clean_for_json(net_repo_data['cumulative_30d']),
+            },
             'reserves_metrics': {
                 'reserves_roc_3m': clean_for_json(reserves_metrics.get('reserves_roc_3m', pd.Series(dtype=float))),
                 'netliq_roc_3m': clean_for_json(reserves_metrics.get('netliq_roc_3m', pd.Series(dtype=float))),

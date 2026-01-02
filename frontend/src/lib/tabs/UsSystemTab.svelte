@@ -19,6 +19,7 @@
     let fedRange = "ALL";
     let rrpRange = "ALL";
     let tgaRange = "ALL";
+    let netRepoRange = "2Y";
 
     // --- Internal Helper Functions ---
     function getLastDate(seriesKey) {
@@ -99,6 +100,58 @@
             showgrid: false,
         },
         legend: { orientation: "h", y: 1.1 },
+        shapes: [
+            {
+                type: "line",
+                xref: "paper",
+                yref: "y",
+                x0: 0,
+                x1: 1,
+                y0: 3.0,
+                y1: 3.0,
+                line: {
+                    color: "rgba(34, 197, 94, 0.4)",
+                    width: 2,
+                    dash: "dash",
+                },
+            },
+            {
+                type: "line",
+                xref: "paper",
+                yref: "y",
+                x0: 0,
+                x1: 1,
+                y0: 2.5,
+                y1: 2.5,
+                line: {
+                    color: "rgba(239, 68, 68, 0.4)",
+                    width: 2,
+                    dash: "dash",
+                },
+            },
+        ],
+        annotations: [
+            {
+                xref: "paper",
+                yref: "y",
+                x: 0.95,
+                y: 3.05,
+                text: "Ample ($3.0T)",
+                showarrow: false,
+                font: { size: 10, color: "#22c55e" },
+                bgcolor: "rgba(0,0,0,0.3)",
+            },
+            {
+                xref: "paper",
+                yref: "y",
+                x: 0.95,
+                y: 2.55,
+                text: "Scarce ($2.5T)",
+                showarrow: false,
+                font: { size: 10, color: "#ef4444" },
+                bgcolor: "rgba(0,0,0,0.3)",
+            },
+        ],
     };
 
     // Fed Assets Chart
@@ -198,6 +251,185 @@
     $: latestRRP = getLatestValue(dashboardData.us_net_liq_rrp);
     $: latestTGA = getLatestValue(dashboardData.us_net_liq_tga);
     $: latestReserves = getLatestValue(dashboardData.us_net_liq_reserves);
+
+    // Net Repo Operations Latest Values
+    $: latestNet = dashboardData.repo_operations?.net_repo?.slice(-1)[0] || 0;
+    $: latestRepoSRF =
+        dashboardData.repo_operations?.srf_usage?.slice(-1)[0] || 0;
+    $: latestRepoRRP =
+        dashboardData.repo_operations?.rrp_usage?.slice(-1)[0] || 0;
+
+    // Repo rates for spread calculation
+    $: latestSOFR = getLatestValue(dashboardData.repo_stress?.sofr);
+    $: latestIORB = getLatestValue(dashboardData.repo_stress?.iorb);
+    $: sofrIorbSpread = (latestSOFR - latestIORB) * 100; // bps
+
+    // Composite Liquidity Risk Assessment
+    $: liquidityRiskAssessment = (() => {
+        let score = 0;
+        let risks = [];
+
+        if (latestReserves < 2.5) {
+            score += 3;
+            risks.push("Critical Reserves Scarce (<$2.5T)");
+        } else if (latestReserves < 2.8) {
+            score += 1.5;
+            risks.push("Reserves approaching comfortable floor (<$2.8T)");
+        }
+
+        if (sofrIorbSpread > 5) {
+            score += 2;
+            risks.push("Severe funding stress (SOFR >> IORB)");
+        } else if (sofrIorbSpread > 0) {
+            score += 1;
+            risks.push("Market rate decoupling from Fed floor");
+        }
+
+        if (latestRepoSRF > 0) {
+            score += 2;
+            risks.push(`Active SRF Usage ($${latestRepoSRF.toFixed(1)}B)`);
+        }
+
+        let level = "LOW";
+        let color = "#22c55e";
+        let summary = "Adequate liquidity. System functioning correctly.";
+
+        if (score >= 4) {
+            level = "CRITICAL";
+            color = "#dc2626";
+            summary =
+                "High risk of funding crunch. Immediate Fed intervention likely needed.";
+        } else if (score >= 2) {
+            level = "MODERATE";
+            color = "#f59e0b";
+            summary =
+                "Evolving stress detected. Monitor rate decoupling and SRF usage.";
+        } else if (score >= 1) {
+            level = "CAUTION";
+            color = "rgba(245, 158, 11, 0.7)";
+            summary = "Liquidity buffer narrowing. Watch RRP depletion.";
+        }
+
+        return { score, level, color, summary, risks };
+    })();
+
+    // Determine regime
+    $: regime =
+        latestNet > 10
+            ? "INJECTION"
+            : latestNet < -100
+              ? "HEAVY DRAIN"
+              : latestNet < -10
+                ? "DRAIN"
+                : "NEUTRAL";
+
+    $: regimeColor =
+        regime === "INJECTION"
+            ? "#22c55e"
+            : regime === "HEAVY DRAIN"
+              ? "#dc2626"
+              : regime === "DRAIN"
+                ? "#f59e0b"
+                : "#6b7280";
+
+    // Chart data for Net Repo
+    $: netRepoChartDataRaw = [
+        // Net Repo as area chart
+        {
+            x: dashboardData.dates,
+            y: dashboardData.repo_operations?.net_repo,
+            name: "Net Repo Operations",
+            type: "scatter",
+            mode: "lines",
+            fill: "tozeroy",
+            line: { color: "#3b82f6", width: 2 },
+            fillcolor: "rgba(59, 130, 246, 0.2)",
+        },
+        // Zero line reference
+        {
+            x: dashboardData.dates,
+            y: dashboardData.dates?.map(() => 0),
+            name: "Zero (Neutral)",
+            type: "scatter",
+            mode: "lines",
+            line: { color: "#6b7280", width: 1, dash: "dash" },
+            showlegend: false,
+        },
+        // SRF Usage (secondary, legendonly)
+        {
+            x: dashboardData.dates,
+            y: dashboardData.repo_operations?.srf_usage,
+            name: "SRF Usage (Injection)",
+            type: "bar",
+            marker: { color: "#22c55e", opacity: 0.6 },
+            visible: "legendonly",
+            yaxis: "y2",
+        },
+    ];
+
+    $: netRepoChartData = filterPlotlyData(
+        netRepoChartDataRaw,
+        dashboardData.dates,
+        netRepoRange,
+    );
+
+    $: netRepoLayout = {
+        showlegend: true,
+        legend: { orientation: "h", y: 1.1 },
+        xaxis: { type: "date" },
+        yaxis: {
+            title: "Net Repo ($B)",
+            gridcolor: darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
+            zeroline: true,
+            zerolinecolor: "#6b7280",
+            zerolinewidth: 2,
+        },
+        yaxis2: {
+            title: "SRF Usage ($B)",
+            overlaying: "y",
+            side: "right",
+            showgrid: false,
+        },
+        margin: { t: 30, r: 60, b: 40, l: 60 },
+        paper_bgcolor: "transparent",
+        plot_bgcolor: "transparent",
+        font: { color: darkMode ? "#fff" : "#000" },
+        // Shade injection zone (above 0)
+        shapes: [
+            {
+                type: "rect",
+                xref: "paper",
+                yref: "y",
+                x0: 0,
+                x1: 1,
+                y0: 0,
+                y1: 100,
+                fillcolor: "rgba(34, 197, 94, 0.05)",
+                line: { width: 0 },
+                layer: "below",
+            },
+        ],
+        annotations: [
+            {
+                x: 0.02,
+                y: 50,
+                xref: "paper",
+                yref: "y",
+                text: "← Injection Zone",
+                showarrow: false,
+                font: { size: 10, color: "#22c55e" },
+            },
+            {
+                x: 0.02,
+                y: -200,
+                xref: "paper",
+                yref: "y",
+                text: "← Drain Zone",
+                showarrow: false,
+                font: { size: 10, color: "#ef4444" },
+            },
+        ],
+    };
 </script>
 
 <div class="main-charts">
@@ -614,7 +846,7 @@
                         />
                         <span class="last-date"
                             >{translations.last_data || "Last Data:"}
-                            {getLastDate("RESBALNS")}</span
+                            {getLastDate("BANK_RESERVES")}</span
                         >
                     </div>
                 </div>
@@ -794,8 +1026,87 @@
                                             : "✓"}</td
                                     >
                                 </tr>
+                                <!-- Added Liquidity Stress Signals -->
+                                <tr
+                                    style="border-top: 1px solid rgba(148, 163, 184, 0.1);"
+                                >
+                                    <td title="SOFR vs IORB Spread"
+                                        >SOFR-IORB</td
+                                    >
+                                    <td
+                                        class="roc-val"
+                                        class:negative={sofrIorbSpread > 0}
+                                    >
+                                        {sofrIorbSpread > 0
+                                            ? "+"
+                                            : ""}{sofrIorbSpread.toFixed(1)} bps
+                                    </td>
+                                    <td
+                                        class="signal-cell"
+                                        class:minus={sofrIorbSpread > 5}
+                                        class:plus={sofrIorbSpread <= 0}
+                                    >
+                                        {sofrIorbSpread > 5
+                                            ? "⚠️"
+                                            : sofrIorbSpread > 0
+                                              ? "🔶"
+                                              : "✓"}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td title="Standing Repo Facility Usage"
+                                        >SRF Usage</td
+                                    >
+                                    <td
+                                        class="roc-val"
+                                        class:negative={latestRepoSRF > 0}
+                                    >
+                                        ${latestRepoSRF.toFixed(1)}B
+                                    </td>
+                                    <td
+                                        class="signal-cell"
+                                        class:minus={latestRepoSRF > 0}
+                                    >
+                                        {latestRepoSRF > 0 ? "⚠️" : "✓"}
+                                    </td>
+                                </tr>
                             </tbody>
                         </table>
+                    </div>
+
+                    <!-- New Risk Assessment Panel -->
+                    <div
+                        class="risk-assessment-box"
+                        style="margin-top: 16px; padding: 12px; border-radius: 8px; background: rgba(0,0,0,0.2); border-left: 4px solid {liquidityRiskAssessment.color};"
+                    >
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;"
+                        >
+                            <span
+                                style="font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase;"
+                                >Overall Risk Level</span
+                            >
+                            <span
+                                style="font-size: 12px; font-weight: 800; color: {liquidityRiskAssessment.color};"
+                                >{liquidityRiskAssessment.level}</span
+                            >
+                        </div>
+                        <p
+                            style="font-size: 12px; color: #f8fafc; line-height: 1.4; margin: 0;"
+                        >
+                            {liquidityRiskAssessment.summary}
+                        </p>
+                        {#if liquidityRiskAssessment.risks.length > 0}
+                            <div
+                                style="margin-top: 8px; font-size: 10px; color: #94a3b8;"
+                            >
+                                <ul style="margin: 4px 0 0 16px; padding: 0;">
+                                    {#each liquidityRiskAssessment.risks as risk}
+                                        <li>{risk}</li>
+                                    {/each}
+                                </ul>
+                            </div>
+                        {/if}
                     </div>
                 </div>
             </div>
@@ -1036,6 +1347,114 @@
                       ? "↑ Accumulating (bearish)"
                       : "↑ Acumulando (bajista)"}</span
             >
+        </div>
+    </div>
+
+    <!-- Net Repo Operations Chart -->
+    <div class="chart-card wide">
+        <div class="chart-header">
+            <h3>
+                {translations.chart_net_repo || "Fed Net Repo Operations"}
+                <span
+                    class="current-value-badge"
+                    style="margin-left: 12px; background: {latestNet > 0
+                        ? 'rgba(34, 197, 94, 0.15)'
+                        : 'rgba(239, 68, 68, 0.15)'}; color: {latestNet > 0
+                        ? '#22c55e'
+                        : '#ef4444'}; padding: 3px 8px; border-radius: 4px; font-size: 13px; font-weight: 600;"
+                >
+                    {latestNet > 0 ? "+" : ""}{latestNet.toFixed(1)}B
+                </span>
+            </h3>
+            <div class="header-controls">
+                <TimeRangeSelector
+                    selectedRange={netRepoRange}
+                    onRangeChange={(r) => (netRepoRange = r)}
+                />
+                <span class="last-date"
+                    >{translations.last_data || "Last Data:"}
+                    {getLastDate("RRP")}</span
+                >
+            </div>
+        </div>
+
+        <!-- Key Metrics Panel -->
+        <div
+            class="net-repo-metrics"
+            style="display: flex; gap: 15px; margin-bottom: 12px; flex-wrap: wrap; margin-top: 15px;"
+        >
+            <div
+                class="metric-box"
+                style="padding: 8px 12px; border-radius: 6px; background: {darkMode
+                    ? 'rgba(255,255,255,0.05)'
+                    : 'rgba(0,0,0,0.03)'}; border: 1px solid {darkMode
+                    ? 'rgba(255,255,255,0.1)'
+                    : 'rgba(0,0,0,0.05)'}; min-width: 120px;"
+            >
+                <span
+                    style="font-size: 11px; opacity: 0.7; display: block; margin-bottom: 4px;"
+                    >Net Position</span
+                >
+                <div
+                    style="font-size: 18px; font-weight: 700; color: {latestNet >
+                    0
+                        ? '#22c55e'
+                        : '#ef4444'};"
+                >
+                    {latestNet > 0 ? "+" : ""}{latestNet.toFixed(1)}B
+                </div>
+            </div>
+            <div
+                class="metric-box"
+                style="padding: 8px 12px; border-radius: 6px; background: {darkMode
+                    ? 'rgba(255,255,255,0.05)'
+                    : 'rgba(0,0,0,0.03)'}; border: 1px solid {darkMode
+                    ? 'rgba(255,255,255,0.1)'
+                    : 'rgba(0,0,0,0.05)'}; min-width: 120px;"
+            >
+                <span
+                    style="font-size: 11px; opacity: 0.7; display: block; margin-bottom: 4px;"
+                    >Regime</span
+                >
+                <div
+                    style="font-size: 14px; font-weight: 600; color: {regimeColor};"
+                >
+                    {regime}
+                </div>
+            </div>
+            <div
+                class="metric-box"
+                style="padding: 8px 12px; border-radius: 6px; background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.2); min-width: 120px;"
+            >
+                <span
+                    style="font-size: 11px; opacity: 0.7; display: block; margin-bottom: 4px;"
+                    >SRF (Inject)</span
+                >
+                <div style="font-size: 14px; font-weight: 600; color: #22c55e;">
+                    +${latestRepoSRF.toFixed(1)}B
+                </div>
+            </div>
+            <div
+                class="metric-box"
+                style="padding: 8px 12px; border-radius: 6px; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2); min-width: 120px;"
+            >
+                <span
+                    style="font-size: 11px; opacity: 0.7; display: block; margin-bottom: 4px;"
+                    >RRP (Drain)</span
+                >
+                <div style="font-size: 14px; font-weight: 600; color: #ef4444;">
+                    -${latestRepoRRP.toFixed(1)}B
+                </div>
+            </div>
+        </div>
+
+        <p class="chart-description" style="margin-top: 5px;">
+            {translations.net_repo_desc ||
+                "Net = SRF Usage (injection) - RRP Usage (drain). Positive = Fed adding liquidity. Negative = Fed removing liquidity."}
+        </p>
+
+        <div class="chart-content">
+            <Chart {darkMode} data={netRepoChartData} layout={netRepoLayout} />
         </div>
     </div>
 </div>
