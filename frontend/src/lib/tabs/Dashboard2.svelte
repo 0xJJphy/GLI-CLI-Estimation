@@ -135,10 +135,11 @@
         };
     })();
 
-    // Current Fed Funds Rate
+    // Current Fed Funds Rate and SOFR (Effective Rate)
     $: currentFedRate = getLatestValue(
         $dashboardData.fed_forecasts?.fed_funds_rate,
     );
+    $: currentSOFR = getLatestValue($dashboardData.repo_stress?.sofr);
 
     // ========================================================================
     // STRESS ANALYSIS
@@ -818,10 +819,24 @@
                 {/if}
             </div>
 
-            {#if currentFedRate}
-                <div class="fed-rate">
-                    <span class="rate-label">Target</span>
-                    <span class="rate-value">{currentFedRate.toFixed(2)}%</span>
+            {#if currentFedRate || currentSOFR}
+                <div class="rates-container">
+                    {#if currentFedRate}
+                        <div class="fed-rate">
+                            <span class="rate-label">Target</span>
+                            <span class="rate-value target"
+                                >{currentFedRate.toFixed(2)}%</span
+                            >
+                        </div>
+                    {/if}
+                    {#if currentSOFR}
+                        <div class="fed-rate">
+                            <span class="rate-label">SOFR</span>
+                            <span class="rate-value sofr"
+                                >{currentSOFR.toFixed(2)}%</span
+                            >
+                        </div>
+                    {/if}
                 </div>
             {/if}
 
@@ -1487,26 +1502,42 @@
         }
     }
 
+    .rates-container {
+        display: flex;
+        gap: 0;
+        border-right: 1px solid var(--border-color, #475569);
+    }
+
     .fed-rate {
         display: flex;
         flex-direction: column;
         align-items: center;
-        padding: 4px 12px;
-        border-right: 1px solid var(--border-color, #475569);
+        padding: 4px 10px;
+    }
+
+    .fed-rate:first-child {
+        border-right: 1px dashed var(--border-color, #475569);
     }
 
     .fed-rate .rate-label {
-        font-size: 0.6rem;
+        font-size: 0.55rem;
         color: var(--text-muted, #94a3b8);
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
 
     .fed-rate .rate-value {
-        font-size: 1.1rem;
+        font-size: 1rem;
         font-weight: 700;
-        color: #60a5fa;
         font-family: monospace;
+    }
+
+    .fed-rate .rate-value.target {
+        color: #60a5fa;
+    }
+
+    .fed-rate .rate-value.sofr {
+        color: #f59e0b;
     }
 
     .probs-group {
