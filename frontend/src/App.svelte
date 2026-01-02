@@ -14,7 +14,7 @@
   import TimeRangeSelector from "./lib/components/TimeRangeSelector.svelte";
 
   // Tab Components - Individual imports for potential code splitting
-  import DashboardTab from "./lib/tabs/DashboardTab.svelte";
+  import DashboardTab from "./lib/tabs/Dashboard2.svelte";
   import GlobalFlowsCbTab from "./lib/tabs/GlobalFlowsCbTab.svelte";
   import GlobalM2Tab from "./lib/tabs/GlobalM2Tab.svelte";
   import UsSystemTab from "./lib/tabs/UsSystemTab.svelte";
