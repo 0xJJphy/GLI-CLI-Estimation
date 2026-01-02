@@ -2321,11 +2321,7 @@
         class="logo-box"
         style="background: transparent; padding: 0; overflow: visible;"
       >
-        <img
-          src="logo.png"
-          alt="JJ-Risk"
-          style="width: 60px; height: 60px; object-fit: contain; filter: invert(1);"
-        />
+        <img src="logo.png" alt="JJ-Risk" class="logo-img" />
       </div>
       <div class="brand-text">
         <h2>JJ-Risk</h2>
@@ -2686,6 +2682,16 @@
     font-weight: 800;
     font-size: 1.25rem;
     box-shadow: none;
+  }
+
+  .logo-img {
+    width: 60px;
+    height: 60px;
+    object-fit: contain;
+  }
+
+  :global([data-theme="dark"]) .logo-img {
+    filter: invert(1);
   }
 
   .brand-text h2 {
