@@ -199,16 +199,16 @@
 
     $: signalMatrix = [
         { id: "cli", label: "CLI Stance", icon: "💳" },
-        { id: "hy", label: "HY Spread", icon: "📊" },
-        { id: "ig", label: "IG Spread", icon: "📈" },
+        { id: "hy_spread", label: "HY Spread", icon: "📊" },
+        { id: "ig_spread", label: "IG Spread", icon: "📈" },
         { id: "nfci_credit", label: "NFCI Credit", icon: "🏦" },
         { id: "nfci_risk", label: "NFCI Risk", icon: "⚠️" },
         { id: "lending", label: "Lending (SLOOS)", icon: "🏠" },
         { id: "vix", label: "VIX", icon: "📉" },
         { id: "move", label: "MOVE Index", icon: "📊" },
         { id: "fx_vol", label: "FX Volatility", icon: "💱" },
-        { id: "tips", label: "TIPS/Real Rates", icon: "📈" },
-        { id: "repo", label: "Repo (SOFR-IORB)", icon: "🏛️" },
+        { id: "tips_real_rate", label: "Real Rates", icon: "📈" },
+        { id: "yield_curve", label: "Yield Curve", icon: "📐" },
     ].map((signal) => {
         const data = signalMetrics[signal.id]?.latest || {};
         return {
@@ -805,6 +805,28 @@
         </div>
     {/if}
 
+    <!-- ================================================================== -->
+    <!-- EARLY WARNINGS & ALERTS (TOP) -->
+    <!-- ================================================================== -->
+    {#if alerts.length > 0}
+        <div class="alerts-panel">
+            <div class="alerts-header">
+                <h3>⚠️ Alerts ({alerts.length})</h3>
+            </div>
+            <div class="alerts-grid">
+                {#each alerts as alert}
+                    <div class="alert-item {alert.type} {alert.severity}">
+                        <span class="alert-icon">{alert.icon}</span>
+                        <div class="alert-content">
+                            <span class="alert-title">{alert.title}</span>
+                            <span class="alert-msg">{alert.msg}</span>
+                        </div>
+                    </div>
+                {/each}
+            </div>
+        </div>
+    {/if}
+
     <div class="dashboard-grid">
         <!-- ================================================================== -->
         <!-- 3. STRESS DASHBOARD -->
@@ -1171,98 +1193,7 @@
                     "Inflation expectations curve analysis"}
             </p>
         </div>
-
-        <!-- ================================================================== -->
-        <!-- 8. BTC VALUATION -->
-        <!-- ================================================================== -->
-        <div class="panel btc-panel">
-            <div class="panel-header">
-                <h3>₿ BTC Valuation</h3>
-            </div>
-            <div class="btc-metrics">
-                <div class="btc-metric">
-                    <span class="btc-label">Price</span>
-                    <span class="btc-value"
-                        >${btcPrice ? btcPrice.toLocaleString() : "—"}</span
-                    >
-                </div>
-                <div class="btc-metric">
-                    <span class="btc-label">Fair Value</span>
-                    <span class="btc-value"
-                        >${btcFairValue
-                            ? btcFairValue.toLocaleString()
-                            : "—"}</span
-                    >
-                </div>
-                <div class="btc-metric">
-                    <span class="btc-label">Deviation</span>
-                    <span
-                        class="btc-value"
-                        class:positive={btcDeviation > 0}
-                        class:negative={btcDeviation < 0}
-                    >
-                        {btcDeviation !== null
-                            ? formatDelta(btcDeviation, 1) + "%"
-                            : "—"}
-                    </span>
-                </div>
-                <div class="btc-metric zscore">
-                    <span class="btc-label">Z-Score</span>
-                    <span
-                        class="btc-value"
-                        class:overbought={btcZscore > 1.5}
-                        class:oversold={btcZscore < -1.5}
-                    >
-                        {btcZscore !== null
-                            ? formatDelta(btcZscore, 2) + "σ"
-                            : "—"}
-                    </span>
-                </div>
-            </div>
-            <div class="btc-breadth">
-                <div class="breadth-item">
-                    <span class="breadth-label">CB Diffusion</span>
-                    <span class="breadth-value"
-                        >{cbDiffusion !== null
-                            ? (cbDiffusion * 100).toFixed(0) + "%"
-                            : "—"}</span
-                    >
-                    <span class="breadth-desc">% CBs expanding</span>
-                </div>
-                <div class="breadth-item">
-                    <span class="breadth-label">CB HHI</span>
-                    <span class="breadth-value" class:warning={cbHHI > 0.25}
-                        >{cbHHI !== null
-                            ? (cbHHI * 100).toFixed(0) + "%"
-                            : "—"}</span
-                    >
-                    <span class="breadth-desc">Concentration</span>
-                </div>
-            </div>
-        </div>
     </div>
-
-    <!-- ================================================================== -->
-    <!-- 9. EARLY WARNINGS & ALERTS -->
-    <!-- ================================================================== -->
-    {#if alerts.length > 0}
-        <div class="alerts-panel">
-            <div class="alerts-header">
-                <h3>⚠️ Alerts ({alerts.length})</h3>
-            </div>
-            <div class="alerts-grid">
-                {#each alerts as alert}
-                    <div class="alert-item {alert.type} {alert.severity}">
-                        <span class="alert-icon">{alert.icon}</span>
-                        <div class="alert-content">
-                            <span class="alert-title">{alert.title}</span>
-                            <span class="alert-msg">{alert.msg}</span>
-                        </div>
-                    </div>
-                {/each}
-            </div>
-        </div>
-    {/if}
 </div>
 
 <style>
