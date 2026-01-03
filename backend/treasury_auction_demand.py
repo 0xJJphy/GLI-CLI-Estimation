@@ -705,11 +705,15 @@ def fetch_treasury_auction_demand(silent: bool = False) -> Dict:
         'last_updated': datetime.now().isoformat()
     }
     
-    # Convert datetime objects in raw_auctions
+    # Convert datetime objects and clean NaN values in raw_auctions
     for auction in result['raw_auctions']:
-        for key, value in auction.items():
+        for key, value in list(auction.items()):
             if isinstance(value, (datetime, pd.Timestamp)):
                 auction[key] = value.strftime('%Y-%m-%d')
+            elif isinstance(value, float) and (pd.isna(value) or np.isnan(value)):
+                auction[key] = None
+            elif value != value:  # NaN check (NaN != NaN)
+                auction[key] = None
     
     # Save to cache
     save_cache(result)
