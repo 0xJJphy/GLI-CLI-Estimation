@@ -170,7 +170,7 @@ def categorize_security(security_type: str) -> str:
     
     security_type = str(security_type).upper()
     
-    if 'BILL' in security_type:
+    if 'BILL' in security_type or 'CASH MANAGEMENT' in security_type:
         return 'Bills'
     elif 'NOTE' in security_type:
         return 'Notes'

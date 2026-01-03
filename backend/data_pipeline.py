@@ -26,6 +26,9 @@ from signal_config import compute_signal, SIGNAL_CONFIG, SignalState
 # Import Treasury maturity data module
 from treasury_data import get_treasury_maturity_data
 
+# Import Treasury auction demand module
+from treasury_auction_demand import fetch_treasury_auction_demand
+
 # Helper functions for JSON serialization and date handling
 def clean_for_json(obj):
     if isinstance(obj, pd.Series):
@@ -4019,7 +4022,8 @@ def run_pipeline():
                 'total_stress': clean_for_json(stress_historical['total_stress']),
                 'total_stress_pct': clean_for_json(stress_historical['total_stress_pct']),
             },
-            'treasury_maturities': get_treasury_maturity_data(24),
+            'treasury_maturities': get_treasury_maturity_data(120),
+            'treasury_auction_demand': fetch_treasury_auction_demand(silent=True),
         }
 
         output_path = os.path.join(OUTPUT_DIR, filename)

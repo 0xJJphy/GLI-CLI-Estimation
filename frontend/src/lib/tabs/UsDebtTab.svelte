@@ -5,6 +5,7 @@
      */
     import Chart from "../components/Chart.svelte";
     import TimeRangeSelector from "../components/TimeRangeSelector.svelte";
+    import TreasuryAuctionDemand from "../components/TreasuryAuctionDemand.svelte";
 
     // Props from App.svelte
     export let darkMode = false;
@@ -13,6 +14,26 @@
 
     // Chart view mode: "stacked" or "line"
     let chartViewMode = "stacked";
+
+    // Time range filter
+    let selectedTimeRange = "1Y";
+    const debtRanges = [
+        { value: "1M", label: "1M" },
+        { value: "3M", label: "3M" },
+        { value: "6M", label: "6M" },
+        { value: "1Y", label: "1Y" },
+        { value: "2Y", label: "2Y" },
+        { value: "ALL", label: "ALL" },
+    ];
+
+    const rangeToMonths = {
+        "1M": 1,
+        "3M": 3,
+        "6M": 6,
+        "1Y": 12,
+        "2Y": 24,
+        ALL: 120,
+    };
 
     // --- Computed Data ---
     $: treasuryData = dashboardData.treasury_maturities || {
@@ -29,9 +50,29 @@
         monthly_table: [],
     };
 
-    $: schedule = treasuryData.schedule || {};
+    $: rawSchedule = treasuryData.schedule || {};
     $: metrics = treasuryData.metrics || {};
-    $: monthlyTable = treasuryData.monthly_table || [];
+    $: rawMonthlyTable = treasuryData.monthly_table || [];
+
+    // Reactive filtering based on time range
+    $: currentMonths = rangeToMonths[selectedTimeRange] || 12;
+
+    $: schedule = {
+        months: (rawSchedule.months || []).slice(0, currentMonths),
+        bills: (rawSchedule.bills || []).slice(0, currentMonths),
+        notes: (rawSchedule.notes || []).slice(0, currentMonths),
+        bonds: (rawSchedule.bonds || []).slice(0, currentMonths),
+        tips: (rawSchedule.tips || []).slice(0, currentMonths),
+        frn: (rawSchedule.frn || []).slice(0, currentMonths),
+        total: (rawSchedule.total || []).slice(0, currentMonths),
+    };
+
+    $: monthlyTable = (rawMonthlyTable || []).slice(0, currentMonths);
+
+    // Re-limit table if it gets too long for the UI?
+    // Actually, ALL could be 120 rows. Svelte handles this fine, but maybe let's limit
+    // the table to show a subset if it's too huge, or just let it scroll.
+    // The previous implementation showed 12 months. Let's keep it flexible.
 
     // Format currency helper
     function formatCurrency(value, decimals = 2) {
@@ -152,6 +193,12 @@
             {/if}
         </div>
         <div class="header-right">
+            <div class="header-controls">
+                <TimeRangeSelector
+                    ranges={debtRanges}
+                    bind:selectedRange={selectedTimeRange}
+                />
+            </div>
             <span class="source-link">
                 {translations.source || "Source"}:
                 <a
@@ -335,6 +382,9 @@
             </table>
         </div>
     </div>
+
+    <!-- Treasury Auction Demand Section -->
+    <TreasuryAuctionDemand {darkMode} {translations} {dashboardData} />
 </div>
 
 <style>
@@ -561,6 +611,15 @@
 
     .table-content {
         overflow-x: auto;
+        max-height: 500px;
+        overflow-y: auto;
+    }
+
+    /* Fixed header for scrollable table */
+    .table-content thead {
+        position: sticky;
+        top: 0;
+        z-index: 10;
     }
 
     table {
