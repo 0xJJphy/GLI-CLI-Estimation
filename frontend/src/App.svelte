@@ -24,6 +24,7 @@
   import FedForecastsTab from "./lib/tabs/FedForecastsTab.svelte";
   import RegimesTab from "./lib/tabs/RegimesTab.svelte";
   import UsDebtTab from "./lib/tabs/UsDebtTab.svelte";
+  import OffshoreLiquidityTab from "./lib/tabs/OffshoreLiquidityTab.svelte";
 
   // Global Settings Store
   import {
@@ -2441,6 +2442,17 @@
         <span class="nav-icon">📊</span>
         {$currentTranslations.nav_regimes || "Regimes"}
       </div>
+      <div
+        class="nav-item"
+        class:active={currentTab === "Offshore Liquidity"}
+        on:click={() => setTab("Offshore Liquidity")}
+        on:keydown={(e) => e.key === "Enter" && setTab("Offshore Liquidity")}
+        role="button"
+        tabindex="0"
+      >
+        <span class="nav-icon">🌊</span>
+        {$currentTranslations.offshore_tab || "Offshore Liquidity"}
+      </div>
     </nav>
 
     <div class="sidebar-footer"></div>
@@ -2564,6 +2576,12 @@
         <RegimesTab
           darkMode={$darkMode}
           language={$language}
+          translations={$currentTranslations}
+          dashboardData={$dashboardData}
+        />
+      {:else if currentTab === "Offshore Liquidity"}
+        <OffshoreLiquidityTab
+          darkMode={$darkMode}
           translations={$currentTranslations}
           dashboardData={$dashboardData}
         />

@@ -65,6 +65,14 @@ Built with **Svelte + Vite** frontend and **Python** data pipeline, featuring FR
 - **Fair Value Estimation**: Quarterly reset to avoid cumulative drift
 - **Correlation Analysis**: Optimal lag detection between liquidity signals and BTC returns
 
+### Offshore Liquidity Tab (NEW)
+- **Offshore Dollar Stress Monitoring**: Tracks USD funding pressure in shadow banking & Eurodollar markets
+- **FRED Proxy Indicators**:
+  - **OBFR-EFFR Spread**: Offshore vs onshore funding cost differential
+  - **Fed CB Swap Lines**: Central Bank USD liquidity swaps volume
+- **DIY XCCY Basis**: Synthetic cross-currency basis from FX spot/futures pairs (EUR/USD, USD/JPY, GBP/USD)
+- **Stress Scoring**: Composite 0-100 score with calibrated thresholds (Normal/Elevated/Stressed/Critical)
+
 ### UI/UX
 - **Bilingual Support**: English and Spanish with persistent language selection
 - **Premium Dark Mode**: High-contrast, accessibility-aware theme

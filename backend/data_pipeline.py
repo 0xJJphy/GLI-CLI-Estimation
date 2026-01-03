@@ -35,6 +35,9 @@ from treasury_auction_demand import fetch_treasury_auction_demand
 # Import Treasury refinancing signal module
 from treasury_refinancing_signal import get_treasury_refinancing_signal
 
+# Import Offshore Dollar Liquidity module
+from offshore_liquidity import get_offshore_liquidity_output
+
 # Helper functions for JSON serialization and date handling
 def clean_for_json(obj):
     if isinstance(obj, pd.Series):
@@ -4094,6 +4097,8 @@ def run_pipeline():
                 },
                 silent=True
             ),
+            # Offshore Dollar Liquidity
+            'offshore_liquidity': get_offshore_liquidity_output(df_t, None).get('offshore_liquidity', {}),
 
         }
 
