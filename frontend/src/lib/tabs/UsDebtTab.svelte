@@ -6,6 +6,7 @@
     import Chart from "../components/Chart.svelte";
     import TimeRangeSelector from "../components/TimeRangeSelector.svelte";
     import TreasuryAuctionDemand from "../components/TreasuryAuctionDemand.svelte";
+    import TreasuryRefinancingSignal from "../components/TreasuryRefinancingSignal.svelte";
 
     // Props from App.svelte
     export let darkMode = false;
@@ -445,6 +446,13 @@
             </table>
         </div>
     </div>
+
+    <!-- Treasury Refinancing Impact Signal -->
+    <TreasuryRefinancingSignal
+        {darkMode}
+        {translations}
+        signalData={dashboardData.treasury_refinancing_signal || {}}
+    />
 
     <!-- Treasury Auction Demand Section -->
     <TreasuryAuctionDemand {darkMode} {translations} {dashboardData} />

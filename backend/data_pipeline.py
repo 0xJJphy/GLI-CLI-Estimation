@@ -29,6 +29,9 @@ from treasury_data import get_treasury_maturity_data
 # Import Treasury auction demand module
 from treasury_auction_demand import fetch_treasury_auction_demand
 
+# Import Treasury refinancing signal module
+from treasury_refinancing_signal import get_treasury_refinancing_signal
+
 # Helper functions for JSON serialization and date handling
 def clean_for_json(obj):
     if isinstance(obj, pd.Series):
@@ -4024,6 +4027,19 @@ def run_pipeline():
             },
             'treasury_maturities': get_treasury_maturity_data(120),
             'treasury_auction_demand': fetch_treasury_auction_demand(silent=True),
+            'treasury_refinancing_signal': get_treasury_refinancing_signal(
+                auction_data=fetch_treasury_auction_demand(silent=True),
+                fred_data={
+                    'WALCL': {'values': clean_for_json(df_t['WALCL'].dropna().tolist()) if 'WALCL' in df_t.columns else []},
+                    'WTREGEN': {'values': clean_for_json(df_t['WTREGEN'].dropna().tolist()) if 'WTREGEN' in df_t.columns else []},
+                    'RRPONTSYD': {'values': clean_for_json(df_t['RRPONTSYD'].dropna().tolist()) if 'RRPONTSYD' in df_t.columns else []},
+                },
+                sofr_data={
+                    'SOFR': {'values': clean_for_json(df_t['SOFR'].dropna().tolist()) if 'SOFR' in df_t.columns else []},
+                    'IORB': {'values': clean_for_json(df_t['IORB'].dropna().tolist()) if 'IORB' in df_t.columns else []},
+                },
+                silent=True
+            ),
         }
 
         output_path = os.path.join(OUTPUT_DIR, filename)
