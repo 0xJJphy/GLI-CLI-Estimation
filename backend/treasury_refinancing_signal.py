@@ -118,10 +118,21 @@ def calculate_auction_demand_component(auction_data: Dict) -> SignalComponent:
     - score: Overall demand score (-100 to +100)
     - by_type: Per-security-type breakdown
     - alerts: Alert summary
+    
+    Note: fetch_treasury_auction_demand() returns nested structure:
+      {demand_score: {overall_score: X}, alerts: {...}}
+    So we need to extract from both possible locations.
     """
-    score = auction_data.get('score', 0)
+    # Handle both direct {score: X} and nested {demand_score: {overall_score: X}} formats
+    if 'demand_score' in auction_data:
+        demand_score = auction_data.get('demand_score', {})
+        score = demand_score.get('overall_score', 0)
+    else:
+        score = auction_data.get('score', 0)
+    
     alerts = auction_data.get('alerts', {})
     alert_status = alerts.get('status', 'HEALTHY')
+
     
     # Determine alert level
     if alert_status == 'CRITICAL':

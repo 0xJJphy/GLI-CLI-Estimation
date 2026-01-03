@@ -4030,9 +4030,10 @@ def run_pipeline():
             'treasury_refinancing_signal': get_treasury_refinancing_signal(
                 auction_data=fetch_treasury_auction_demand(silent=True),
                 fred_data={
-                    'WALCL': {'values': clean_for_json(df_t['WALCL'].dropna().tolist()) if 'WALCL' in df_t.columns else []},
-                    'WTREGEN': {'values': clean_for_json(df_t['WTREGEN'].dropna().tolist()) if 'WTREGEN' in df_t.columns else []},
-                    'RRPONTSYD': {'values': clean_for_json(df_t['RRPONTSYD'].dropna().tolist()) if 'RRPONTSYD' in df_t.columns else []},
+                    # Note: _USD columns are already in Trillions. Convert back to billions for legacy wrapper
+                    'WALCL': {'values': clean_for_json((df_t['FED_USD'] * 1000).dropna().tolist()) if 'FED_USD' in df_t.columns else []},
+                    'WTREGEN': {'values': clean_for_json((df_t['TGA_USD'] * 1000).dropna().tolist()) if 'TGA_USD' in df_t.columns else []},
+                    'RRPONTSYD': {'values': clean_for_json((df_t['RRP_USD'] * 1000).dropna().tolist()) if 'RRP_USD' in df_t.columns else []},
                 },
                 sofr_data={
                     'SOFR': {'values': clean_for_json(df_t['SOFR'].dropna().tolist()) if 'SOFR' in df_t.columns else []},
@@ -4040,6 +4041,7 @@ def run_pipeline():
                 },
                 silent=True
             ),
+
         }
 
         output_path = os.path.join(OUTPUT_DIR, filename)
