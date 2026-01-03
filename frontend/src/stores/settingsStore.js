@@ -704,6 +704,11 @@ const translations = {
         total_maturing: "Total Maturing",
         refinancing_in_range: "Refinancing in Range",
         in_selected_range: "In selected range",
+        notes_maturing: "Notes Maturing",
+        coupon_debt: "Coupon Debt",
+        max_1_year: "Max 1-year term",
+        notes_plus_bonds: "Notes + Bonds",
+        all_securities: "All securities",
     },
     es: {
         gli: "Suma de los balances de 15 bancos centrales en USD. ↑ Expansión = Inyección de liquidez (alcista) | ↓ Contracción = QT (bajista)",
@@ -1499,6 +1504,11 @@ const translations = {
         total_maturing: "Total por Vencer",
         refinancing_in_range: "Refinanciamiento en Rango",
         in_selected_range: "En rango seleccionado",
+        notes_maturing: "Notas por Vencer",
+        coupon_debt: "Deuda con Cupón",
+        max_1_year: "Plazo máx. 1 año",
+        notes_plus_bonds: "Notas + Bonos",
+        all_securities: "Todos los valores",
     },
 };
 

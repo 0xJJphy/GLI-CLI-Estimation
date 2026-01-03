@@ -86,18 +86,22 @@
             return months[maxIdx] || null;
         })(),
         peak_amount: Math.max(...(schedule.total || [0])),
-        // Bills outstanding in selected range
-        bills_outstanding: (schedule.bills || []).reduce(
+        // Bills maturing in selected range (T-Bills are max 1 year)
+        bills_maturing: (schedule.bills || []).reduce(
             (a, b) => a + (b || 0),
             0,
         ),
-        // Total outstanding in selected range
-        total_outstanding: (schedule.total || []).reduce(
+        // Notes maturing in selected range
+        notes_maturing: (schedule.notes || []).reduce(
             (a, b) => a + (b || 0),
             0,
         ),
-        // Next N months refinancing (sum of all maturities in filtered range)
-        refinancing_in_range: (schedule.total || []).reduce(
+        // Coupon debt (Notes + Bonds) maturing in range
+        coupon_debt:
+            (schedule.notes || []).reduce((a, b) => a + (b || 0), 0) +
+            (schedule.bonds || []).reduce((a, b) => a + (b || 0), 0),
+        // Total maturing in selected range
+        total_maturing: (schedule.total || []).reduce(
             (a, b) => a + (b || 0),
             0,
         ),
@@ -272,10 +276,32 @@
                 >{translations.bills_maturing || "Bills Maturing"}</span
             >
             <span class="metric-value green"
-                >{formatCurrency(filteredMetrics.bills_outstanding)}</span
+                >{formatCurrency(filteredMetrics.bills_maturing)}</span
+            >
+            <span class="metric-sub"
+                >{translations.max_1_year || "Max 1-year term"}</span
+            >
+        </div>
+        <div class="metric-card">
+            <span class="metric-label"
+                >{translations.notes_maturing || "Notes Maturing"}</span
+            >
+            <span class="metric-value blue"
+                >{formatCurrency(filteredMetrics.notes_maturing)}</span
             >
             <span class="metric-sub"
                 >{translations.in_selected_range || "In selected range"}</span
+            >
+        </div>
+        <div class="metric-card">
+            <span class="metric-label"
+                >{translations.coupon_debt || "Coupon Debt"}</span
+            >
+            <span class="metric-value orange"
+                >{formatCurrency(filteredMetrics.coupon_debt)}</span
+            >
+            <span class="metric-sub"
+                >{translations.notes_plus_bonds || "Notes + Bonds"}</span
             >
         </div>
         <div class="metric-card">
@@ -283,22 +309,10 @@
                 >{translations.total_maturing || "Total Maturing"}</span
             >
             <span class="metric-value white"
-                >{formatCurrency(filteredMetrics.total_outstanding)}</span
+                >{formatCurrency(filteredMetrics.total_maturing)}</span
             >
             <span class="metric-sub"
-                >{translations.in_selected_range || "In selected range"}</span
-            >
-        </div>
-        <div class="metric-card">
-            <span class="metric-label"
-                >{translations.refinancing_in_range ||
-                    "Refinancing in Range"}</span
-            >
-            <span class="metric-value orange"
-                >{formatCurrency(filteredMetrics.refinancing_in_range)}</span
-            >
-            <span class="metric-sub"
-                >{translations.must_be_rolled || "Must be rolled over"}</span
+                >{translations.all_securities || "All securities"}</span
             >
         </div>
         <div class="metric-card">
@@ -523,6 +537,9 @@
     }
     .metric-value.green {
         color: #4ade80;
+    }
+    .metric-value.blue {
+        color: #3b82f6;
     }
     .metric-value.orange {
         color: #fb923c;
