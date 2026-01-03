@@ -1,601 +1,896 @@
 """
 Treasury Refinancing Impact Signal
-===================================
-A composite signal combining auction demand, TGA dynamics, net liquidity,
-and funding stress to assess Treasury market refinancing conditions.
+==================================
+Comprehensive signal combining:
+1. Auction Demand (Bid-to-Cover, Indirect %, Dealer %)
+2. Net Issuance Impact (TGA dynamics, Net Liquidity drain)
+3. Funding Stress (SOFR-IORB spread, SRF usage, Repo stress)
+4. Forward Calendar (Upcoming settlement pressure)
 
-Signal Range: -100 (CRISIS) to +100 (SURPLUS)
-
-Components:
-- Auction Demand (35%): Bid-to-cover, indirect %, dealer strain
-- TGA Dynamics (25%): Treasury General Account levels and flows
-- Net Liquidity (20%): Fed balance sheet minus TGA minus RRP
-- Funding Stress (20%): SOFR-IORB spread and SRF usage
+Output: Single score from -100 (very bearish) to +100 (very bullish)
+        with regime classification and trading implications.
 
 Author: Quantitative Analysis Assistant
 Date: January 2026
 """
 
+import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional, Tuple
+from dataclasses import dataclass
+from enum import Enum
+import json
+import os
 
 # ==============================================================================
-# CONFIGURATION
+# CONFIGURATION & ENUMS
 # ==============================================================================
 
-# Component weights (must sum to 1.0)
-COMPONENT_WEIGHTS = {
-    'auction_demand': 0.35,
-    'tga_dynamics': 0.25,
-    'net_liquidity': 0.20,
-    'funding_stress': 0.20,
+class RefinancingRegime(Enum):
+    """Treasury refinancing market regime classification."""
+    LIQUIDITY_SURPLUS = "liquidity_surplus"      # TGA draining, strong demand, yields falling
+    HEALTHY_ABSORPTION = "healthy_absorption"     # Normal rollover, stable yields
+    MILD_PRESSURE = "mild_pressure"              # Some strain, yields drifting higher
+    SUPPLY_STRESS = "supply_stress"              # Weak demand, dealers absorbing, yields rising
+    FUNDING_CRISIS = "funding_crisis"            # Severe stress, Fed intervention likely
+
+class SignalDirection(Enum):
+    """Trading signal direction."""
+    STRONG_BULLISH = "strong_bullish"    # Long duration, expect yields to fall
+    BULLISH = "bullish"                   # Mild long bias
+    NEUTRAL = "neutral"                   # No directional bias
+    BEARISH = "bearish"                   # Mild short bias
+    STRONG_BEARISH = "strong_bearish"    # Short duration, expect yields to rise
+
+@dataclass
+class SignalComponent:
+    """Individual signal component with score and metadata."""
+    name: str
+    score: float              # -100 to +100
+    weight: float             # Component weight (0 to 1)
+    raw_value: Optional[float]
+    threshold_breached: Optional[str]
+    description: str
+    alert_level: str          # normal, caution, warning, critical
+
+# ==============================================================================
+# SIGNAL THRESHOLDS
+# ==============================================================================
+
+# TGA Thresholds (in Trillions USD)
+TGA_THRESHOLDS = {
+    'very_high': 0.9,      # >$900B - Treasury has huge cash buffer, will drain
+    'high': 0.7,           # >$700B - Elevated, expect some drainage
+    'normal_high': 0.5,    # $500-700B - Normal operating range
+    'normal_low': 0.3,     # $300-500B - Normal operating range  
+    'low': 0.15,           # <$150B - Low, may need to rebuild (issuance coming)
+    'critical_low': 0.05   # <$50B - Debt ceiling territory
 }
 
-# Regime thresholds
-REGIME_THRESHOLDS = {
-    'LIQUIDITY_SURPLUS': 40,      # >= 40: Excess liquidity, yields falling
-    'HEALTHY_ABSORPTION': 10,     # 10 to 40: Normal market functioning
-    'MILD_PRESSURE': -20,         # -20 to 10: Some yield pressure
-    'SUPPLY_STRESS': -50,         # -50 to -20: Significant stress
-    # < -50: FUNDING_CRISIS
+# TGA Delta Thresholds (13-week change in Trillions)
+TGA_DELTA_THRESHOLDS = {
+    'large_drain': -0.15,   # Draining >$150B = Liquidity injection = Bullish
+    'mild_drain': -0.05,    # Draining $50-150B = Mild bullish
+    'neutral_low': -0.05,
+    'neutral_high': 0.05,
+    'mild_build': 0.10,     # Building $50-100B = Mild bearish
+    'large_build': 0.15     # Building >$150B = Liquidity drain = Bearish
 }
 
-# Alert thresholds
-ALERT_THRESHOLDS = {
-    'dealer_bills_critical': 45,      # Bills dealer % above this = red flag
-    'dealer_notes_critical': 35,      # Notes dealer % above this = red flag
-    'indirect_bills_weak': 50,        # Bills indirect % below this = weak
-    'indirect_notes_weak': 60,        # Notes indirect % below this = weak
-    'tga_building_threshold': 150,    # TGA 13w delta > $150B = draining
-    'net_liq_contracting': -200,      # Net liq 13w delta < -$200B = bad
-    'sofr_stress_spread': 15,         # SOFR-IORB > 15bp = stress
+# Net Liquidity Delta Thresholds (13-week change in Trillions)
+NETLIQ_DELTA_THRESHOLDS = {
+    'large_injection': 0.3,   # >$300B injection = Very bullish
+    'mild_injection': 0.1,    # $100-300B injection = Bullish
+    'neutral_low': -0.1,
+    'neutral_high': 0.1,
+    'mild_drain': -0.2,       # $100-200B drain = Bearish
+    'large_drain': -0.3       # >$300B drain = Very bearish
 }
 
+# SOFR-IORB Spread Thresholds (basis points)
+SOFR_IORB_THRESHOLDS = {
+    'very_tight': -5,      # SOFR well below IORB = Excess liquidity = Bullish
+    'tight': 0,            # At or below IORB = Normal/healthy
+    'elevated': 5,         # 5bp above = Mild funding pressure
+    'stressed': 10,        # 10bp above = Significant stress
+    'critical': 15         # 15bp+ = Crisis territory, SRF activation likely
+}
+
+# Auction Demand Score Thresholds
+AUCTION_DEMAND_THRESHOLDS = {
+    'strong': 30,
+    'solid': 10,
+    'neutral_low': -10,
+    'soft': -30,
+    'weak': -50
+}
 
 # ==============================================================================
 # COMPONENT CALCULATORS
 # ==============================================================================
 
-def calculate_auction_demand_component(auction_data: Dict) -> Tuple[float, str, List[str]]:
+def calculate_auction_demand_component(auction_data: Dict) -> SignalComponent:
     """
-    Calculate the auction demand component score.
+    Calculate signal component from auction demand data.
     
-    Inputs from treasury_auction_demand.py:
-    - demand_score.overall_score: 0-100
-    - demand_score.signal: STRONG_DEMAND, SOLID_DEMAND, NEUTRAL, SOFT_DEMAND, WEAK_DEMAND
-    - raw_auctions: Recent auction details with dealer %, indirect %
-    
-    Returns:
-    - Score: -50 to +50 (will be weighted)
-    - Description: Human-readable summary
-    - Alerts: List of alert messages
+    Inputs from treasury_auction_demand module:
+    - score: Overall demand score (-100 to +100)
+    - by_type: Per-security-type breakdown
+    - alerts: Alert summary
     """
-    alerts = []
+    score = auction_data.get('score', 0)
+    alerts = auction_data.get('alerts', {})
+    alert_status = alerts.get('status', 'HEALTHY')
     
-    if not auction_data or 'demand_score' not in auction_data:
-        return 0, "No auction data available", ["⚠️ Auction data unavailable"]
-    
-    demand_score_data = auction_data.get('demand_score', {})
-    overall_score = demand_score_data.get('overall_score', 50)
-    signal = demand_score_data.get('signal', 'NEUTRAL')
-    by_type = demand_score_data.get('by_type', {})
-    
-    # Convert 0-100 score to -50 to +50
-    component_score = (overall_score - 50)
-    
-    # Analyze recent auctions for alerts
-    raw_auctions = auction_data.get('raw_auctions', [])
-    
-    # Check for critical dealer takedown
-    for auction in raw_auctions[:10]:  # Last 10 auctions
-        sec_type = auction.get('security_type', '').upper()
-        dealer_pct = auction.get('dealer_percentage', 0) or 0
-        indirect_pct = auction.get('indirect_percentage', 0) or 0
-        
-        if 'BILL' in sec_type and dealer_pct > ALERT_THRESHOLDS['dealer_bills_critical']:
-            alerts.append(f"🔴 Critical dealer takedown in Bills: {dealer_pct:.1f}%")
-        elif 'NOTE' in sec_type and dealer_pct > ALERT_THRESHOLDS['dealer_notes_critical']:
-            alerts.append(f"🔴 Critical dealer takedown in Notes: {dealer_pct:.1f}%")
-        
-        if 'BILL' in sec_type and indirect_pct < ALERT_THRESHOLDS['indirect_bills_weak']:
-            alerts.append(f"🟠 Weak foreign demand in Bills: {indirect_pct:.1f}%")
-        elif 'NOTE' in sec_type and indirect_pct < ALERT_THRESHOLDS['indirect_notes_weak']:
-            alerts.append(f"🟠 Weak foreign demand in Notes: {indirect_pct:.1f}%")
-    
-    # Remove duplicates
-    alerts = list(set(alerts))[:3]  # Max 3 alerts
-    
-    # Generate description
-    descriptions = {
-        'STRONG_DEMAND': "Strong auction demand. Foreign buyers active.",
-        'SOLID_DEMAND': "Solid auction absorption. Some dealer strain.",
-        'NEUTRAL': "Mixed auction signals. Watch for trend changes.",
-        'SOFT_DEMAND': "Softening demand. Dealers absorbing more.",
-        'WEAK_DEMAND': "Weak demand. Dealers forced to absorb supply.",
-    }
-    description = descriptions.get(signal, "Auction demand neutral.")
-    
-    return component_score, description, alerts
-
-
-def calculate_tga_dynamics_component(fred_data: Dict, m2_data: Dict = None) -> Tuple[float, str, List[str]]:
-    """
-    Calculate TGA (Treasury General Account) dynamics component.
-    
-    Theory:
-    - TGA rising = Treasury accumulating cash = draining liquidity
-    - TGA falling = Treasury spending = injecting liquidity
-    
-    Inputs:
-    - WTREGEN: Weekly TGA balance (from FRED)
-    - 13-week delta and z-score
-    
-    Returns:
-    - Score: -50 to +50
-    - Description: Human-readable summary
-    - Alerts: List of alert messages
-    """
-    alerts = []
-    
-    # Get TGA data from fred_data
-    tga_data = fred_data.get('WTREGEN', {})
-    tga_values = tga_data.get('values', []) if isinstance(tga_data, dict) else []
-    
-    if not tga_values or len(tga_values) < 13:
-        return 0, "Insufficient TGA data", ["⚠️ TGA data unavailable"]
-    
-    # Get current and historical values
-    current_tga = tga_values[-1] if tga_values else 0
-    tga_13w_ago = tga_values[-13] if len(tga_values) >= 13 else current_tga
-    tga_4w_ago = tga_values[-4] if len(tga_values) >= 4 else current_tga
-    
-    # Calculate deltas (in billions)
-    delta_13w = current_tga - tga_13w_ago
-    delta_4w = current_tga - tga_4w_ago
-    
-    # Calculate z-score (normalized deviation)
-    if len(tga_values) >= 52:
-        tga_mean = np.mean(tga_values[-52:])
-        tga_std = np.std(tga_values[-52:])
-        z_score = (current_tga - tga_mean) / tga_std if tga_std > 0 else 0
+    # Determine alert level
+    if alert_status == 'CRITICAL':
+        alert_level = 'critical'
+        description = "Critical auction demand weakness. Multiple stress signals."
+    elif alert_status == 'ELEVATED':
+        alert_level = 'warning'
+        description = "Elevated auction stress. Dealers absorbing excess supply."
+    elif alert_status in ['CAUTION', 'WATCH']:
+        alert_level = 'caution'
+        description = "Some auction strain. Foreign demand softening."
     else:
-        z_score = 0
+        if score >= 30:
+            alert_level = 'normal'
+            description = "Strong auction demand. Treasury financing smoothly."
+        elif score >= 10:
+            alert_level = 'normal'
+            description = "Solid auction absorption. Normal market conditions."
+        elif score >= -10:
+            alert_level = 'normal'
+            description = "Neutral auction demand. Market balanced."
+        else:
+            alert_level = 'caution'
+            description = "Soft auction demand. Monitor for deterioration."
     
-    # Score calculation:
-    # TGA building (positive delta) = negative for liquidity
-    # TGA draining (negative delta) = positive for liquidity
+    # Determine threshold breached
+    threshold_breached = None
+    if score >= AUCTION_DEMAND_THRESHOLDS['strong']:
+        threshold_breached = 'strong_demand'
+    elif score <= AUCTION_DEMAND_THRESHOLDS['weak']:
+        threshold_breached = 'weak_demand'
+    elif score <= AUCTION_DEMAND_THRESHOLDS['soft']:
+        threshold_breached = 'soft_demand'
     
-    # Normalize delta_13w to score (-50 to +50)
-    # $300B drain or injection is extreme
-    delta_normalized = -delta_13w / 6  # Every $6B = 1 point
-    delta_score = max(-50, min(50, delta_normalized))
+    return SignalComponent(
+        name="Auction Demand",
+        score=score,
+        weight=0.35,  # 35% weight
+        raw_value=score,
+        threshold_breached=threshold_breached,
+        description=description,
+        alert_level=alert_level
+    )
+
+
+def calculate_tga_component(us_metrics: Dict) -> SignalComponent:
+    """
+    Calculate signal component from TGA dynamics.
     
-    # Adjust for z-score (high TGA level is bad even if stable)
-    z_adjustment = -z_score * 5  # High z-score = penalty
+    Inputs from us_system_metrics:
+    - tga_usd: Current TGA balance (Trillions)
+    - tga_delta_4w: 4-week change
+    - tga_delta_13w: 13-week change
+    - tga_zscore: Z-score of current level
+    """
+    tga_current = us_metrics.get('tga_usd', 0.5)
+    tga_delta_13w = us_metrics.get('tga_delta_13w', 0)
+    tga_zscore = us_metrics.get('tga_zscore', 0)
     
-    component_score = delta_score + z_adjustment
-    component_score = max(-50, min(50, component_score))
+    score = 0
+    alerts = []
     
-    # Alerts
-    if delta_13w > ALERT_THRESHOLDS['tga_building_threshold']:
-        alerts.append(f"🟠 TGA building: +${delta_13w:.0f}B in 13 weeks (liquidity drain)")
+    # === TGA Level Component ===
+    # High TGA = Treasury has cash, will eventually drain (bullish for liquidity)
+    # Low TGA = Treasury needs to rebuild (issuance coming, bearish)
+    if tga_current >= TGA_THRESHOLDS['very_high']:
+        score += 25
+        alerts.append("TGA very high - expect drainage (liquidity injection)")
+    elif tga_current >= TGA_THRESHOLDS['high']:
+        score += 15
+        alerts.append("TGA elevated - some drainage likely")
+    elif tga_current <= TGA_THRESHOLDS['critical_low']:
+        score -= 30
+        alerts.append("TGA critically low - debt ceiling or heavy issuance ahead")
+    elif tga_current <= TGA_THRESHOLDS['low']:
+        score -= 15
+        alerts.append("TGA low - rebuilding phase likely (issuance)")
     
-    if z_score > 1.5:
-        alerts.append(f"🟡 TGA elevated: z-score {z_score:.1f}")
+    # === TGA Delta Component (more important than level) ===
+    # Negative delta = TGA draining = Money flowing to economy = Bullish
+    # Positive delta = TGA building = Money leaving economy = Bearish
+    if tga_delta_13w <= TGA_DELTA_THRESHOLDS['large_drain']:
+        score += 40
+        alerts.append(f"Large TGA drainage: ${abs(tga_delta_13w)*1000:.0f}B liquidity injection")
+    elif tga_delta_13w <= TGA_DELTA_THRESHOLDS['mild_drain']:
+        score += 20
+        alerts.append(f"TGA draining: ${abs(tga_delta_13w)*1000:.0f}B liquidity injection")
+    elif tga_delta_13w >= TGA_DELTA_THRESHOLDS['large_build']:
+        score -= 40
+        alerts.append(f"Large TGA build: ${tga_delta_13w*1000:.0f}B liquidity drain")
+    elif tga_delta_13w >= TGA_DELTA_THRESHOLDS['mild_build']:
+        score -= 20
+        alerts.append(f"TGA building: ${tga_delta_13w*1000:.0f}B liquidity drain")
+    
+    # === Z-Score Extreme Detection ===
+    if tga_zscore > 2.0:
+        score += 10
+        alerts.append("TGA z-score >2: Historically high, mean reversion (drain) likely")
+    elif tga_zscore < -1.5:
+        score -= 10
+        alerts.append("TGA z-score <-1.5: Historically low, rebuild likely")
+    
+    # Clamp score
+    score = max(-100, min(100, score))
+    
+    # Determine alert level
+    if abs(tga_delta_13w) >= 0.15 or tga_current <= TGA_THRESHOLDS['critical_low']:
+        alert_level = 'warning'
+    elif abs(tga_delta_13w) >= 0.08 or tga_current <= TGA_THRESHOLDS['low']:
+        alert_level = 'caution'
+    else:
+        alert_level = 'normal'
     
     # Description
-    if delta_13w > 100:
-        description = f"TGA ${current_tga:.0f}B, building ${delta_13w:.0f}B/13w. Liquidity drain."
-    elif delta_13w < -100:
-        description = f"TGA ${current_tga:.0f}B, draining ${-delta_13w:.0f}B/13w. Liquidity injection."
-    else:
-        description = f"TGA ${current_tga:.0f}B, stable. Neutral impact."
+    direction = "draining" if tga_delta_13w < 0 else "building"
+    description = f"TGA ${tga_current*1000:.0f}B, {direction} ${abs(tga_delta_13w)*1000:.0f}B/13w. " + (alerts[0] if alerts else "Normal TGA dynamics.")
     
-    return component_score, description, alerts
+    return SignalComponent(
+        name="TGA Dynamics",
+        score=score,
+        weight=0.25,  # 25% weight
+        raw_value=tga_delta_13w,
+        threshold_breached='large_build' if tga_delta_13w >= 0.15 else 'large_drain' if tga_delta_13w <= -0.15 else None,
+        description=description,
+        alert_level=alert_level
+    )
 
 
-def calculate_net_liquidity_component(fred_data: Dict) -> Tuple[float, str, List[str]]:
+def calculate_netliq_component(us_metrics: Dict) -> SignalComponent:
     """
-    Calculate net liquidity component.
+    Calculate signal component from Net Liquidity dynamics.
     
     Net Liquidity = Fed Balance Sheet - TGA - RRP
     
-    Theory:
-    - Net liquidity rising = more money in system = bullish
-    - Net liquidity falling = tightening = bearish
-    
-    Returns:
-    - Score: -50 to +50
-    - Description: Human-readable summary
-    - Alerts: List of alert messages
+    Inputs:
+    - netliq_usd: Current net liquidity
+    - netliq_delta_4w, netliq_delta_13w: Changes
     """
+    netliq_delta_13w = us_metrics.get('netliq_delta_13w', 0)
+    netliq_delta_4w = us_metrics.get('netliq_delta_4w', 0)
+    
+    score = 0
+    
+    # 13-week change is primary signal
+    if netliq_delta_13w >= NETLIQ_DELTA_THRESHOLDS['large_injection']:
+        score += 50
+        description = f"Large liquidity injection: +${netliq_delta_13w*1000:.0f}B/13w"
+        alert_level = 'normal'
+    elif netliq_delta_13w >= NETLIQ_DELTA_THRESHOLDS['mild_injection']:
+        score += 25
+        description = f"Liquidity expanding: +${netliq_delta_13w*1000:.0f}B/13w"
+        alert_level = 'normal'
+    elif netliq_delta_13w <= NETLIQ_DELTA_THRESHOLDS['large_drain']:
+        score -= 50
+        description = f"Large liquidity drain: ${netliq_delta_13w*1000:.0f}B/13w"
+        alert_level = 'warning'
+    elif netliq_delta_13w <= NETLIQ_DELTA_THRESHOLDS['mild_drain']:
+        score -= 25
+        description = f"Liquidity contracting: ${netliq_delta_13w*1000:.0f}B/13w"
+        alert_level = 'caution'
+    else:
+        score = netliq_delta_13w * 100  # Linear scale in neutral zone
+        description = f"Net liquidity stable: {'+' if netliq_delta_13w >= 0 else ''}{netliq_delta_13w*1000:.0f}B/13w"
+        alert_level = 'normal'
+    
+    # Acceleration/deceleration adjustment
+    if netliq_delta_4w * 3 > netliq_delta_13w * 1.5:
+        score += 10
+        description += " (accelerating)"
+    elif netliq_delta_4w * 3 < netliq_delta_13w * 0.5:
+        score -= 10
+        description += " (decelerating)"
+    
+    score = max(-100, min(100, score))
+    
+    return SignalComponent(
+        name="Net Liquidity",
+        score=score,
+        weight=0.20,  # 20% weight
+        raw_value=netliq_delta_13w,
+        threshold_breached='large_drain' if netliq_delta_13w <= -0.3 else 'large_injection' if netliq_delta_13w >= 0.3 else None,
+        description=description,
+        alert_level=alert_level
+    )
+
+
+def calculate_funding_stress_component(repo_data: Dict, us_metrics: Dict) -> SignalComponent:
+    """
+    Calculate signal component from funding/repo market stress.
+    
+    Inputs:
+    - sofr: Current SOFR rate
+    - iorb: Interest on Reserve Balances
+    - sofr_iorb_spread: SOFR - IORB spread (bp)
+    - srf_usage: Standing Repo Facility usage
+    - repo_stress_index: Composite repo stress
+    """
+    sofr = repo_data.get('sofr', 5.3)
+    iorb = repo_data.get('iorb', 5.4)
+    sofr_iorb_spread = (sofr - iorb) * 100  # Convert to basis points
+    srf_usage = repo_data.get('srf_usage', 0)
+    
+    score = 0
     alerts = []
+    alert_level = 'normal'
     
-    # Get Fed balance sheet (WALCL)
-    walcl = fred_data.get('WALCL', {})
-    walcl_values = walcl.get('values', []) if isinstance(walcl, dict) else []
+    # SOFR-IORB Spread Analysis
+    if sofr_iorb_spread <= SOFR_IORB_THRESHOLDS['very_tight']:
+        score += 30
+        alerts.append(f"SOFR well below IORB ({sofr_iorb_spread:.0f}bp): Excess liquidity")
+    elif sofr_iorb_spread <= SOFR_IORB_THRESHOLDS['tight']:
+        score += 15
+        alerts.append(f"SOFR at/below IORB ({sofr_iorb_spread:.0f}bp): Healthy")
+    elif sofr_iorb_spread >= SOFR_IORB_THRESHOLDS['critical']:
+        score -= 50
+        alerts.append(f"SOFR critical spread ({sofr_iorb_spread:.0f}bp): Severe funding stress")
+        alert_level = 'critical'
+    elif sofr_iorb_spread >= SOFR_IORB_THRESHOLDS['stressed']:
+        score -= 35
+        alerts.append(f"SOFR stressed ({sofr_iorb_spread:.0f}bp): Significant funding pressure")
+        alert_level = 'warning'
+    elif sofr_iorb_spread >= SOFR_IORB_THRESHOLDS['elevated']:
+        score -= 15
+        alerts.append(f"SOFR elevated ({sofr_iorb_spread:.0f}bp): Mild funding pressure")
+        alert_level = 'caution'
     
-    # Get TGA (WTREGEN)
-    tga = fred_data.get('WTREGEN', {})
-    tga_values = tga.get('values', []) if isinstance(tga, dict) else []
+    # SRF Usage (Standing Repo Facility)
+    if srf_usage > 0:
+        if srf_usage > 50:  # >$50B
+            score -= 30
+            alerts.append(f"Heavy SRF usage: ${srf_usage:.0f}B - Fed providing emergency liquidity")
+            alert_level = 'critical'
+        elif srf_usage > 10:
+            score -= 15
+            alerts.append(f"SRF active: ${srf_usage:.0f}B - Some stress relief needed")
+            alert_level = 'warning'
+        else:
+            score -= 5
+            alerts.append(f"Minor SRF usage: ${srf_usage:.0f}B")
     
-    # Get RRP (RRPONTSYD)
-    rrp = fred_data.get('RRPONTSYD', {})
-    rrp_values = rrp.get('values', []) if isinstance(rrp, dict) else []
+    score = max(-100, min(100, score))
     
-    if not walcl_values or not tga_values:
-        return 0, "Insufficient data for net liquidity", ["⚠️ Net liquidity data unavailable"]
+    description = alerts[0] if alerts else f"Funding markets normal. SOFR-IORB: {sofr_iorb_spread:.0f}bp"
     
-    # Calculate net liquidity (approximate - align dates as needed)
-    # Values are in billions
-    current_walcl = walcl_values[-1] if walcl_values else 0
-    current_tga = tga_values[-1] if tga_values else 0
-    current_rrp = rrp_values[-1] if rrp_values else 0
-    
-    net_liq_current = current_walcl - current_tga - current_rrp
-    
-    # Historical for delta
-    walcl_13w = walcl_values[-13] if len(walcl_values) >= 13 else current_walcl
-    tga_13w = tga_values[-13] if len(tga_values) >= 13 else current_tga
-    rrp_13w = rrp_values[-13] if len(rrp_values) >= 13 else current_rrp
-    
-    net_liq_13w = walcl_13w - tga_13w - rrp_13w
-    delta_13w = net_liq_current - net_liq_13w
-    
-    # 4-week delta for trend
-    walcl_4w = walcl_values[-4] if len(walcl_values) >= 4 else current_walcl
-    tga_4w = tga_values[-4] if len(tga_values) >= 4 else current_tga
-    rrp_4w = rrp_values[-4] if len(rrp_values) >= 4 else current_rrp
-    
-    net_liq_4w = walcl_4w - tga_4w - rrp_4w
-    delta_4w = net_liq_current - net_liq_4w
-    
-    # Calculate acceleration (is contraction accelerating?)
-    acceleration = delta_4w * 3.25 - delta_13w  # Annualized 4w vs 13w
-    
-    # Score: $400B swing over 13w is extreme
-    score = delta_13w / 8  # Every $8B = 1 point
-    score = max(-50, min(50, score))
-    
-    # Alerts
-    if delta_13w < ALERT_THRESHOLDS['net_liq_contracting']:
-        alerts.append(f"🔴 Net liquidity contracting: ${delta_13w:.0f}B in 13 weeks")
-    elif delta_13w < -100:
-        alerts.append(f"🟠 Net liquidity declining: ${delta_13w:.0f}B in 13 weeks")
-    
-    if acceleration < -100 and delta_4w < 0:
-        alerts.append(f"🟡 Liquidity contraction accelerating")
-    
-    # Description
-    if delta_13w > 100:
-        description = f"Liquidity expanding: +${delta_13w:.0f}B/13w. Risk-on."
-    elif delta_13w < -100:
-        description = f"Liquidity contracting: ${delta_13w:.0f}B/13w. Pressure building."
-    else:
-        description = f"Liquidity stable. Delta: ${delta_13w:.0f}B/13w."
-    
-    return score, description, alerts
-
-
-def calculate_funding_stress_component(sofr_data: Dict, rates_data: Dict = None) -> Tuple[float, str, List[str]]:
-    """
-    Calculate funding stress component.
-    
-    Indicators:
-    - SOFR vs IORB spread (SOFR should trade near IORB)
-    - SRF usage (Standing Repo Facility - emergency borrowing)
-    
-    Theory:
-    - SOFR > IORB = funding pressure
-    - SOFR < IORB = excess liquidity
-    - SRF usage = acute stress
-    
-    Returns:
-    - Score: -50 to +50
-    - Description: Human-readable summary
-    - Alerts: List of alert messages
-    """
-    alerts = []
-    
-    # Get SOFR data
-    sofr_values = sofr_data.get('SOFR', {}).get('values', []) if isinstance(sofr_data.get('SOFR'), dict) else []
-    iorb_values = sofr_data.get('IORB', {}).get('values', []) if isinstance(sofr_data.get('IORB'), dict) else []
-    
-    if not sofr_values or not iorb_values:
-        # Fallback: check if SOFR is in the main rates_data
-        if rates_data:
-            sofr_values = rates_data.get('SOFR', {}).get('values', [])
-            iorb_values = rates_data.get('IORB', {}).get('values', [])
-    
-    if not sofr_values or not iorb_values:
-        return 0, "SOFR data unavailable", ["⚠️ Funding stress data unavailable"]
-    
-    # Get current values
-    current_sofr = sofr_values[-1] if sofr_values else 0
-    current_iorb = iorb_values[-1] if iorb_values else 0
-    
-    # Calculate spread (in basis points)
-    spread_bps = (current_sofr - current_iorb) * 100
-    
-    # Historical spread for trend
-    sofr_4w = sofr_values[-4] if len(sofr_values) >= 4 else current_sofr
-    iorb_4w = iorb_values[-4] if len(iorb_values) >= 4 else current_iorb
-    spread_4w = (sofr_4w - iorb_4w) * 100
-    
-    spread_trend = spread_bps - spread_4w
-    
-    # Score calculation:
-    # Spread at 0 = score of +25 (healthy)
-    # Spread at +15bp = score of 0 (neutral)
-    # Spread at +30bp = score of -50 (crisis)
-    # Spread at -15bp = score of +50 (excess liquidity)
-    
-    score = 25 - (spread_bps / 0.6)  # 15bp = 25 point swing
-    score = max(-50, min(50, score))
-    
-    # Alerts
-    if spread_bps > ALERT_THRESHOLDS['sofr_stress_spread']:
-        alerts.append(f"🔴 SOFR stress: +{spread_bps:.0f}bp above IORB")
-    elif spread_bps > 10:
-        alerts.append(f"🟠 SOFR elevated: +{spread_bps:.0f}bp above IORB")
-    
-    if spread_trend > 5:
-        alerts.append(f"🟡 SOFR spread widening: +{spread_trend:.0f}bp in 4 weeks")
-    
-    # Description
-    if spread_bps < -5:
-        description = f"SOFR {spread_bps:.0f}bp below IORB. Excess liquidity."
-    elif spread_bps > 15:
-        description = f"SOFR +{spread_bps:.0f}bp above IORB. Funding stress."
-    else:
-        description = f"SOFR at IORB. Healthy funding conditions."
-    
-    return score, description, alerts
-
-
-# ==============================================================================
-# REGIME DETECTION
-# ==============================================================================
-
-def detect_regime(score: float) -> Dict[str, Any]:
-    """
-    Detect market regime based on composite score.
-    
-    Returns regime classification with description and implications.
-    """
-    if score >= REGIME_THRESHOLDS['LIQUIDITY_SURPLUS']:
-        regime = 'LIQUIDITY_SURPLUS'
-        emoji = '💧'
-        signal = 'BULLISH'
-        description = "Excess liquidity in the system. Yields likely to fall."
-        implications = {
-            'duration': "Overweight duration. Yields have room to fall.",
-            'curve': "Bull flattening likely. Long end leads.",
-            'credit': "Tighten credit spreads. Risk-on environment.",
-            'equity': "Bullish for equities. Liquidity supportive.",
-            'fx': "USD may weaken on looser conditions.",
-        }
-    elif score >= REGIME_THRESHOLDS['HEALTHY_ABSORPTION']:
-        regime = 'HEALTHY_ABSORPTION'
-        emoji = '✅'
-        signal = 'NEUTRAL_POSITIVE'
-        description = "Treasury supply being absorbed smoothly. Stable yields."
-        implications = {
-            'duration': "Neutral duration. Carry attractive.",
-            'curve': "Range-bound curve. Collect carry.",
-            'credit': "Neutral credit. Focus on quality.",
-            'equity': "Modestly supportive for equities.",
-            'fx': "USD neutral.",
-        }
-    elif score >= REGIME_THRESHOLDS['MILD_PRESSURE']:
-        regime = 'MILD_PRESSURE'
-        emoji = '⚡'
-        signal = 'NEUTRAL'
-        description = "Some yield pressure. Auction demand softening."
-        implications = {
-            'duration': "Neutral. Carry attractive but limited edge.",
-            'curve': "Steepening pressure. 2s10s steepener.",
-            'credit': "Neutral credit environment.",
-            'equity': "Modest headwind for equities.",
-            'fx': "USD may strengthen on higher yields.",
-        }
-    elif score >= REGIME_THRESHOLDS['SUPPLY_STRESS']:
-        regime = 'SUPPLY_STRESS'
-        emoji = '📉'
-        signal = 'BEARISH'
-        description = "Supply overwhelming demand. Yields rising."
-        implications = {
-            'duration': "Underweight duration. Yields rising.",
-            'curve': "Bear steepening. Short 2s10s.",
-            'credit': "Widen credit spreads. Risk-off.",
-            'equity': "Headwind for equities. Higher discount rates.",
-            'fx': "USD strength on higher yields and risk-off.",
-        }
-    else:
-        regime = 'FUNDING_CRISIS'
-        emoji = '🚨'
-        signal = 'CRISIS'
-        description = "Acute funding stress. Fed intervention likely."
-        implications = {
-            'duration': "Extreme caution. Volatility elevated.",
-            'curve': "Curve may invert sharply then steepen on intervention.",
-            'credit': "Flight to quality. Avoid credit risk.",
-            'equity': "Sell equities. Risk-off.",
-            'fx': "USD surge on safe-haven flows.",
-        }
-    
-    return {
-        'regime': regime,
-        'emoji': emoji,
-        'signal': signal,
-        'description': description,
-        'implications': implications,
-    }
+    return SignalComponent(
+        name="Funding Stress",
+        score=score,
+        weight=0.20,  # 20% weight
+        raw_value=sofr_iorb_spread,
+        threshold_breached='critical_spread' if sofr_iorb_spread >= 15 else 'stressed' if sofr_iorb_spread >= 10 else None,
+        description=description,
+        alert_level=alert_level
+    )
 
 
 # ==============================================================================
 # MAIN SIGNAL CALCULATOR
 # ==============================================================================
 
-def calculate_treasury_refinancing_signal(
-    auction_data: Dict,
-    fred_data: Dict,
-    sofr_data: Dict = None,
-    silent: bool = False
-) -> Dict[str, Any]:
+def calculate_refinancing_impact_signal(
+    auction_demand: Dict,
+    us_metrics: Dict,
+    repo_data: Dict,
+    treasury_settlements: Dict = None
+) -> Dict:
     """
-    Calculate the composite Treasury Refinancing Impact Signal.
+    Calculate the comprehensive Treasury Refinancing Impact Signal.
     
     Parameters:
     -----------
-    auction_data : Dict
-        Output from treasury_auction_demand.fetch_treasury_auction_demand()
-    fred_data : Dict
-        FRED data containing WALCL, WTREGEN, RRPONTSYD
-    sofr_data : Dict
-        SOFR and IORB rate data
+    auction_demand : Dict
+        Output from get_auction_demand_for_pipeline()
+    us_metrics : Dict
+        US system metrics including TGA, Net Liquidity
+    repo_data : Dict
+        Repo/funding market data including SOFR, IORB
+    treasury_settlements : Dict, optional
+        Upcoming Treasury settlement calendar
     
     Returns:
     --------
-    Dict with:
-        - overall_score: -100 to +100
-        - regime: Current regime classification
-        - components: Breakdown of each component
-        - alerts: Active alerts
-        - trading_implications: Recommended positioning
+    Dict : Complete signal with score, regime, components, and recommendations
     """
     
-    if not silent:
-        print("  [Treasury Signal] Calculating refinancing impact signal...")
+    # Calculate individual components
+    components = []
     
-    # Calculate each component
-    auction_score, auction_desc, auction_alerts = calculate_auction_demand_component(auction_data)
-    tga_score, tga_desc, tga_alerts = calculate_tga_dynamics_component(fred_data)
-    net_liq_score, net_liq_desc, net_liq_alerts = calculate_net_liquidity_component(fred_data)
-    funding_score, funding_desc, funding_alerts = calculate_funding_stress_component(sofr_data or fred_data, fred_data)
+    # 1. Auction Demand (35%)
+    auction_component = calculate_auction_demand_component(auction_demand)
+    components.append(auction_component)
     
-    # Calculate weighted composite score
-    weighted_auction = auction_score * COMPONENT_WEIGHTS['auction_demand']
-    weighted_tga = tga_score * COMPONENT_WEIGHTS['tga_dynamics']
-    weighted_net_liq = net_liq_score * COMPONENT_WEIGHTS['net_liquidity']
-    weighted_funding = funding_score * COMPONENT_WEIGHTS['funding_stress']
+    # 2. TGA Dynamics (25%)
+    tga_component = calculate_tga_component(us_metrics)
+    components.append(tga_component)
     
-    overall_score = weighted_auction + weighted_tga + weighted_net_liq + weighted_funding
+    # 3. Net Liquidity (20%)
+    netliq_component = calculate_netliq_component(us_metrics)
+    components.append(netliq_component)
     
-    # Scale to -100 to +100 range (components are -50 to +50)
-    overall_score = overall_score * 2
-    overall_score = max(-100, min(100, overall_score))
+    # 4. Funding Stress (20%)
+    funding_component = calculate_funding_stress_component(repo_data, us_metrics)
+    components.append(funding_component)
     
-    # Detect regime
-    regime_data = detect_regime(overall_score)
+    # Calculate weighted score
+    total_score = sum(c.score * c.weight for c in components)
+    total_score = round(total_score, 1)
     
-    # Aggregate alerts
-    all_alerts = auction_alerts + tga_alerts + net_liq_alerts + funding_alerts
+    # Determine regime
+    regime = determine_regime(total_score, components)
     
-    # Determine alert status
-    red_alerts = sum(1 for a in all_alerts if '🔴' in a)
-    orange_alerts = sum(1 for a in all_alerts if '🟠' in a)
+    # Determine signal direction
+    signal_direction = determine_signal_direction(total_score)
     
-    if red_alerts >= 2:
+    # Generate trading implications
+    implications = generate_trading_implications(total_score, regime, components)
+    
+    # Check for critical alerts
+    critical_components = [c for c in components if c.alert_level == 'critical']
+    warning_components = [c for c in components if c.alert_level == 'warning']
+    
+    # Overall alert status
+    if len(critical_components) >= 1:
         alert_status = 'CRITICAL'
-    elif red_alerts >= 1 or orange_alerts >= 2:
-        alert_status = 'WARNING'
-    elif orange_alerts >= 1 or len(all_alerts) > 0:
+        alert_color = '#ef4444'
+    elif len(warning_components) >= 2:
+        alert_status = 'ELEVATED'
+        alert_color = '#f97316'
+    elif len(warning_components) >= 1:
         alert_status = 'CAUTION'
+        alert_color = '#eab308'
     else:
-        alert_status = 'CLEAR'
+        alert_status = 'NORMAL'
+        alert_color = '#22c55e'
     
-    # Build component breakdown
-    components = {
-        'auction_demand': {
-            'raw_score': round(auction_score, 1),
-            'weight': COMPONENT_WEIGHTS['auction_demand'],
-            'weighted_score': round(weighted_auction, 2),
-            'description': auction_desc,
-            'status': 'positive' if auction_score > 10 else 'negative' if auction_score < -10 else 'neutral',
+    # Build response
+    return {
+        'score': total_score,
+        'score_normalized': (total_score + 100) / 200,  # 0 to 1
+        
+        'regime': {
+            'code': regime.value,
+            'name': regime.name.replace('_', ' ').title(),
+            'description': get_regime_description(regime),
+            'color': get_regime_color(regime)
         },
-        'tga_dynamics': {
-            'raw_score': round(tga_score, 1),
-            'weight': COMPONENT_WEIGHTS['tga_dynamics'],
-            'weighted_score': round(weighted_tga, 2),
-            'description': tga_desc,
-            'status': 'positive' if tga_score > 10 else 'negative' if tga_score < -10 else 'neutral',
+        
+        'signal': {
+            'direction': signal_direction.value,
+            'name': signal_direction.name.replace('_', ' ').title(),
+            'color': get_signal_color(signal_direction)
         },
-        'net_liquidity': {
-            'raw_score': round(net_liq_score, 1),
-            'weight': COMPONENT_WEIGHTS['net_liquidity'],
-            'weighted_score': round(weighted_net_liq, 2),
-            'description': net_liq_desc,
-            'status': 'positive' if net_liq_score > 10 else 'negative' if net_liq_score < -10 else 'neutral',
+        
+        'components': [
+            {
+                'name': c.name,
+                'score': round(c.score, 1),
+                'weight': c.weight,
+                'weighted_score': round(c.score * c.weight, 1),
+                'raw_value': c.raw_value,
+                'description': c.description,
+                'alert_level': c.alert_level,
+                'threshold_breached': c.threshold_breached
+            }
+            for c in components
+        ],
+        
+        'alert_status': {
+            'status': alert_status,
+            'color': alert_color,
+            'critical_count': len(critical_components),
+            'warning_count': len(warning_components),
+            'critical_components': [c.name for c in critical_components],
+            'warning_components': [c.name for c in warning_components]
         },
-        'funding_stress': {
-            'raw_score': round(funding_score, 1),
-            'weight': COMPONENT_WEIGHTS['funding_stress'],
-            'weighted_score': round(weighted_funding, 2),
-            'description': funding_desc,
-            'status': 'positive' if funding_score > 10 else 'negative' if funding_score < -10 else 'neutral',
-        },
+        
+        'implications': implications,
+        
+        'metadata': {
+            'timestamp': datetime.now().isoformat(),
+            'version': '2.0'
+        }
+    }
+
+
+def determine_regime(score: float, components: List[SignalComponent]) -> RefinancingRegime:
+    """Determine market regime based on score and component analysis."""
+    
+    # Check for crisis conditions
+    funding_stress = next((c for c in components if c.name == "Funding Stress"), None)
+    auction_demand = next((c for c in components if c.name == "Auction Demand"), None)
+    
+    if funding_stress and funding_stress.alert_level == 'critical':
+        return RefinancingRegime.FUNDING_CRISIS
+    
+    if auction_demand and auction_demand.score <= -50 and funding_stress and funding_stress.score <= -20:
+        return RefinancingRegime.SUPPLY_STRESS
+    
+    # Score-based regime
+    if score >= 40:
+        return RefinancingRegime.LIQUIDITY_SURPLUS
+    elif score >= 10:
+        return RefinancingRegime.HEALTHY_ABSORPTION
+    elif score >= -20:
+        return RefinancingRegime.MILD_PRESSURE
+    elif score >= -50:
+        return RefinancingRegime.SUPPLY_STRESS
+    else:
+        return RefinancingRegime.FUNDING_CRISIS
+
+
+def determine_signal_direction(score: float) -> SignalDirection:
+    """Determine trading signal direction."""
+    if score >= 40:
+        return SignalDirection.STRONG_BULLISH
+    elif score >= 15:
+        return SignalDirection.BULLISH
+    elif score >= -15:
+        return SignalDirection.NEUTRAL
+    elif score >= -40:
+        return SignalDirection.BEARISH
+    else:
+        return SignalDirection.STRONG_BEARISH
+
+
+def get_regime_description(regime: RefinancingRegime) -> str:
+    """Get human-readable regime description."""
+    descriptions = {
+        RefinancingRegime.LIQUIDITY_SURPLUS: 
+            "Excess liquidity in system. TGA draining, strong auction demand, yields likely to fall or stay low.",
+        RefinancingRegime.HEALTHY_ABSORPTION:
+            "Normal Treasury refinancing conditions. Auctions well-absorbed, stable yield environment.",
+        RefinancingRegime.MILD_PRESSURE:
+            "Some supply pressure. Dealers absorbing more, yields drifting higher. Monitor for escalation.",
+        RefinancingRegime.SUPPLY_STRESS:
+            "Significant supply/demand imbalance. Weak auction demand, rising yields, risk-off environment.",
+        RefinancingRegime.FUNDING_CRISIS:
+            "Severe funding stress. Fed intervention likely. Risk-off, flight to quality dynamics."
+    }
+    return descriptions.get(regime, "Unknown regime")
+
+
+def get_regime_color(regime: RefinancingRegime) -> str:
+    """Get regime color for UI."""
+    colors = {
+        RefinancingRegime.LIQUIDITY_SURPLUS: '#22c55e',
+        RefinancingRegime.HEALTHY_ABSORPTION: '#84cc16',
+        RefinancingRegime.MILD_PRESSURE: '#eab308',
+        RefinancingRegime.SUPPLY_STRESS: '#f97316',
+        RefinancingRegime.FUNDING_CRISIS: '#ef4444'
+    }
+    return colors.get(regime, '#6b7280')
+
+
+def get_signal_color(signal: SignalDirection) -> str:
+    """Get signal color for UI."""
+    colors = {
+        SignalDirection.STRONG_BULLISH: '#22c55e',
+        SignalDirection.BULLISH: '#84cc16',
+        SignalDirection.NEUTRAL: '#6b7280',
+        SignalDirection.BEARISH: '#f97316',
+        SignalDirection.STRONG_BEARISH: '#ef4444'
+    }
+    return colors.get(signal, '#6b7280')
+
+
+def generate_trading_implications(
+    score: float, 
+    regime: RefinancingRegime, 
+    components: List[SignalComponent]
+) -> Dict:
+    """Generate trading implications based on signal."""
+    
+    implications = {
+        'duration': '',
+        'curve': '',
+        'credit': '',
+        'equity': '',
+        'fx': '',
+        'key_risks': [],
+        'opportunities': []
     }
     
-    result = {
-        'overall_score': round(overall_score, 1),
-        'regime': regime_data['regime'],
-        'regime_emoji': regime_data['emoji'],
-        'regime_signal': regime_data['signal'],
-        'regime_description': regime_data['description'],
-        'components': components,
-        'alerts': all_alerts,
-        'alert_status': alert_status,
-        'trading_implications': regime_data['implications'],
-        'last_updated': datetime.now().isoformat(),
-    }
+    # Duration implications
+    if score >= 30:
+        implications['duration'] = "Long duration favored. Yields likely to fall or stay suppressed."
+        implications['opportunities'].append("Long 10Y/30Y Treasuries")
+    elif score >= 0:
+        implications['duration'] = "Neutral duration. Carry attractive but limited directional edge."
+        implications['opportunities'].append("Roll-down trades in belly of curve")
+    elif score >= -30:
+        implications['duration'] = "Short duration bias. Yields may drift higher."
+        implications['opportunities'].append("Underweight long-end duration")
+    else:
+        implications['duration'] = "Defensive positioning. Significant yield pressure risk."
+        implications['opportunities'].append("Short duration, T-bill barbell")
     
-    if not silent:
-        print(f"  [Treasury Signal] Score: {overall_score:.1f} | Regime: {regime_data['regime']} | Alerts: {len(all_alerts)}")
+    # Curve implications
+    tga_component = next((c for c in components if c.name == "TGA Dynamics"), None)
+    auction_component = next((c for c in components if c.name == "Auction Demand"), None)
     
-    return result
+    if auction_component and auction_component.score < 0 and tga_component and tga_component.score < 0:
+        implications['curve'] = "Steepening pressure. Long-end under supply pressure."
+        implications['opportunities'].append("2s10s steepener")
+    elif score >= 20:
+        implications['curve'] = "Flattening bias. Risk-on environment favors belly."
+        implications['opportunities'].append("5s30s flattener")
+    else:
+        implications['curve'] = "Neutral curve view."
+    
+    # Credit implications
+    if regime == RefinancingRegime.FUNDING_CRISIS:
+        implications['credit'] = "Risk-off. Credit spreads likely to widen. Reduce HY exposure."
+        implications['key_risks'].append("Credit spread widening")
+    elif regime == RefinancingRegime.SUPPLY_STRESS:
+        implications['credit'] = "Caution on credit. IG preferred over HY."
+        implications['key_risks'].append("Potential spread volatility")
+    elif regime == RefinancingRegime.LIQUIDITY_SURPLUS:
+        implications['credit'] = "Credit supportive. Spreads likely to compress."
+        implications['opportunities'].append("Overweight IG credit")
+    else:
+        implications['credit'] = "Neutral credit environment."
+    
+    # Equity implications
+    if score >= 30:
+        implications['equity'] = "Supportive for equities. Liquidity tailwind."
+    elif score <= -30:
+        implications['equity'] = "Headwind for equities. Liquidity drag and higher discount rates."
+        implications['key_risks'].append("Equity multiple compression")
+    else:
+        implications['equity'] = "Neutral equity impact from Treasury dynamics."
+    
+    # FX implications
+    funding_component = next((c for c in components if c.name == "Funding Stress"), None)
+    if funding_component and funding_component.score <= -30:
+        implications['fx'] = "USD strength on funding stress. Safe-haven flows."
+    elif auction_component and auction_component.score <= -30:
+        implications['fx'] = "Watch for USD weakness if foreign demand continues to fade."
+        implications['key_risks'].append("Foreign demand deterioration pressuring USD")
+    else:
+        implications['fx'] = "Neutral USD impact."
+    
+    # Key risks based on components
+    for c in components:
+        if c.alert_level == 'critical':
+            implications['key_risks'].append(f"CRITICAL: {c.description}")
+        elif c.alert_level == 'warning':
+            implications['key_risks'].append(f"WARNING: {c.description}")
+    
+    return implications
 
 
 # ==============================================================================
-# CONVENIENCE FUNCTION FOR DATA PIPELINE
+# INTEGRATION FUNCTION FOR DATA_PIPELINE.PY
 # ==============================================================================
 
+def get_refinancing_signal_for_pipeline(
+    auction_demand_data: Dict,
+    us_system_metrics: Dict,
+    repo_stress_data: Dict
+) -> Dict:
+    """
+    Simplified function for integration with data_pipeline.py.
+    
+    Call this from your main data pipeline with the required inputs.
+    
+    Example:
+    --------
+    refinancing_signal = get_refinancing_signal_for_pipeline(
+        auction_demand_data=get_auction_demand_for_pipeline(),
+        us_system_metrics=us_metrics,  # From calculate_us_system_metrics()
+        repo_stress_data=repo_stress   # From repo_stress section
+    )
+    """
+    
+    # Extract US metrics in expected format
+    us_metrics = {
+        'tga_usd': us_system_metrics.get('tga_usd', 0.5),
+        'tga_delta_4w': us_system_metrics.get('tga_delta_4w', 0),
+        'tga_delta_13w': us_system_metrics.get('tga_delta_13w', 0),
+        'tga_zscore': us_system_metrics.get('tga_zscore', 0),
+        'netliq_delta_4w': us_system_metrics.get('netliq_delta_4w', 0),
+        'netliq_delta_13w': us_system_metrics.get('netliq_delta_13w', 0),
+    }
+    
+    # Extract repo data
+    repo_data = {
+        'sofr': repo_stress_data.get('sofr', 5.3),
+        'iorb': repo_stress_data.get('iorb', 5.4),
+        'srf_usage': repo_stress_data.get('srf_usage', 0),
+    }
+    
+    try:
+        signal = calculate_refinancing_impact_signal(
+            auction_demand=auction_demand_data,
+            us_metrics=us_metrics,
+            repo_data=repo_data
+        )
+        return signal
+    except Exception as e:
+        print(f"Error calculating refinancing signal: {e}")
+        return {
+            'score': 0,
+            'regime': {'code': 'error', 'name': 'Error', 'color': '#6b7280'},
+            'signal': {'direction': 'neutral', 'name': 'Error', 'color': '#6b7280'},
+            'components': [],
+            'alert_status': {'status': 'ERROR'},
+            'implications': {},
+            'metadata': {'timestamp': datetime.now().isoformat(), 'error': str(e)}
+        }
+
+
+# Legacy wrapper for backwards compatibility
 def get_treasury_refinancing_signal(
     auction_data: Dict = None,
     fred_data: Dict = None,
     sofr_data: Dict = None,
     silent: bool = True
-) -> Dict[str, Any]:
+) -> Dict:
     """
-    Convenience wrapper for data pipeline integration.
+    Legacy wrapper for backwards compatibility with existing data_pipeline.py integration.
+    Converts old-format inputs to new format.
+    """
+    # Convert fred_data format to us_metrics format
+    us_metrics = {}
     
-    Returns empty structure if insufficient data.
-    """
-    if not auction_data and not fred_data:
+    if fred_data:
+        # Extract TGA values
+        tga_values = fred_data.get('WTREGEN', {}).get('values', [])
+        if tga_values and len(tga_values) >= 13:
+            current_tga = tga_values[-1] if tga_values[-1] else 0
+            tga_13w_ago = tga_values[-13] if len(tga_values) >= 13 and tga_values[-13] else current_tga
+            tga_4w_ago = tga_values[-4] if len(tga_values) >= 4 and tga_values[-4] else current_tga
+            
+            # Convert to trillions (values are in billions)
+            us_metrics['tga_usd'] = current_tga / 1000 if current_tga else 0.5
+            us_metrics['tga_delta_13w'] = (current_tga - tga_13w_ago) / 1000
+            us_metrics['tga_delta_4w'] = (current_tga - tga_4w_ago) / 1000
+            
+            # Calculate z-score
+            if len(tga_values) >= 52:
+                valid_values = [v for v in tga_values[-52:] if v is not None]
+                if valid_values:
+                    tga_mean = np.mean(valid_values)
+                    tga_std = np.std(valid_values)
+                    us_metrics['tga_zscore'] = (current_tga - tga_mean) / tga_std if tga_std > 0 else 0
+        
+        # Calculate net liquidity delta
+        walcl = fred_data.get('WALCL', {}).get('values', [])
+        tga = fred_data.get('WTREGEN', {}).get('values', [])
+        rrp = fred_data.get('RRPONTSYD', {}).get('values', [])
+        
+        if walcl and tga:
+            min_len = min(len(walcl), len(tga), len(rrp) if rrp else len(walcl))
+            if min_len >= 13:
+                def safe_val(arr, idx):
+                    return arr[idx] if idx < len(arr) and arr[idx] is not None else 0
+                
+                netliq_current = safe_val(walcl, -1) - safe_val(tga, -1) - safe_val(rrp, -1)
+                netliq_13w = safe_val(walcl, -13) - safe_val(tga, -13) - safe_val(rrp, -13)
+                netliq_4w = safe_val(walcl, -4) - safe_val(tga, -4) - safe_val(rrp, -4)
+                
+                us_metrics['netliq_delta_13w'] = (netliq_current - netliq_13w) / 1000
+                us_metrics['netliq_delta_4w'] = (netliq_current - netliq_4w) / 1000
+    
+    # Convert sofr_data format
+    repo_data = {}
+    if sofr_data:
+        sofr_values = sofr_data.get('SOFR', {}).get('values', [])
+        iorb_values = sofr_data.get('IORB', {}).get('values', [])
+        
+        if sofr_values:
+            repo_data['sofr'] = sofr_values[-1] if sofr_values[-1] else 5.3
+        if iorb_values:
+            repo_data['iorb'] = iorb_values[-1] if iorb_values[-1] else 5.4
+        repo_data['srf_usage'] = 0
+    
+    # Call the main calculator
+    try:
+        return calculate_refinancing_impact_signal(
+            auction_demand=auction_data or {},
+            us_metrics=us_metrics,
+            repo_data=repo_data
+        )
+    except Exception as e:
+        if not silent:
+            print(f"Error calculating refinancing signal: {e}")
         return {
-            'overall_score': 0,
-            'regime': 'UNKNOWN',
-            'regime_emoji': '❓',
-            'regime_signal': 'UNKNOWN',
-            'regime_description': 'Insufficient data to calculate signal.',
-            'components': {},
-            'alerts': ['⚠️ Insufficient data for signal calculation'],
-            'alert_status': 'UNKNOWN',
-            'trading_implications': {},
-            'last_updated': datetime.now().isoformat(),
+            'score': 0,
+            'regime': {'code': 'error', 'name': 'Error', 'description': str(e), 'color': '#6b7280'},
+            'signal': {'direction': 'neutral', 'name': 'Error', 'color': '#6b7280'},
+            'components': [],
+            'alert_status': {'status': 'ERROR', 'color': '#6b7280'},
+            'implications': {},
+            'metadata': {'timestamp': datetime.now().isoformat(), 'error': str(e)}
         }
-    
-    return calculate_treasury_refinancing_signal(
-        auction_data=auction_data or {},
-        fred_data=fred_data or {},
-        sofr_data=sofr_data,
-        silent=silent
-    )
 
+
+# ==============================================================================
+# MAIN (for testing)
+# ==============================================================================
 
 if __name__ == "__main__":
-    # Test with mock data
-    print("Treasury Refinancing Signal Module loaded successfully.")
-    print(f"Component weights: {COMPONENT_WEIGHTS}")
-    print(f"Regime thresholds: {REGIME_THRESHOLDS}")
+    print("=" * 80)
+    print("TREASURY REFINANCING IMPACT SIGNAL v2.0")
+    print("=" * 80)
+    
+    # Test with sample data
+    sample_auction_demand = {
+        'score': 10.4,
+        'signal': 'SOLID_DEMAND',
+        'alerts': {
+            'status': 'ELEVATED',
+            'counts': {'critical': 1, 'warning': 2, 'caution': 1}
+        }
+    }
+    
+    sample_us_metrics = {
+        'tga_usd': 0.72,           # $720B
+        'tga_delta_4w': 0.05,      # +$50B
+        'tga_delta_13w': 0.12,     # +$120B (building)
+        'tga_zscore': 0.8,
+        'netliq_delta_4w': -0.08,  # -$80B
+        'netliq_delta_13w': -0.18, # -$180B (draining)
+    }
+    
+    sample_repo_data = {
+        'sofr': 5.35,
+        'iorb': 5.40,
+        'srf_usage': 0,
+    }
+    
+    signal = calculate_refinancing_impact_signal(
+        auction_demand=sample_auction_demand,
+        us_metrics=sample_us_metrics,
+        repo_data=sample_repo_data
+    )
+    
+    print(f"\n📊 OVERALL SCORE: {signal['score']}")
+    print(f"📈 REGIME: {signal['regime']['name']}")
+    print(f"🎯 SIGNAL: {signal['signal']['name']}")
+    print(f"⚠️  ALERT STATUS: {signal['alert_status']['status']}")
+    
+    print("\n" + "-" * 80)
+    print("COMPONENTS:")
+    print("-" * 80)
+    for comp in signal['components']:
+        alert_icon = {'critical': '🔴', 'warning': '🟠', 'caution': '🟡', 'normal': '🟢'}
+        icon = alert_icon.get(comp['alert_level'], '⚪')
+        print(f"  {icon} {comp['name']}: {comp['score']:+.1f} (weight: {comp['weight']:.0%}) → {comp['weighted_score']:+.1f}")
+        print(f"     {comp['description']}")
+    
+    print("\n" + "-" * 80)
+    print("TRADING IMPLICATIONS:")
+    print("-" * 80)
+    impl = signal['implications']
+    print(f"  Duration: {impl['duration']}")
+    print(f"  Curve: {impl['curve']}")
+    print(f"  Credit: {impl['credit']}")
+    print(f"  Equity: {impl['equity']}")
+    print(f"  FX: {impl['fx']}")
+    
+    if impl['key_risks']:
+        print(f"\n  ⚠️ Key Risks:")
+        for risk in impl['key_risks']:
+            print(f"     - {risk}")
+    
+    if impl['opportunities']:
+        print(f"\n  💡 Opportunities:")
+        for opp in impl['opportunities']:
+            print(f"     - {opp}")
+    
+    print("\n✅ Module ready for integration")

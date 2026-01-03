@@ -1,63 +1,87 @@
 <script>
     /**
-     * Treasury Refinancing Impact Signal Component
-     * =============================================
+     * Treasury Refinancing Impact Signal Component v2.0
+     * ==================================================
      * Displays a composite signal gauge combining:
      * - Auction Demand (35%)
      * - TGA Dynamics (25%)
      * - Net Liquidity (20%)
      * - Funding Stress (20%)
      *
-     * Includes regime detection and trading implications.
+     * Enhanced to display:
+     * - Regime with description
+     * - Signal direction with color
+     * - Component breakdown with alert levels
+     * - Trading implications with opportunities and risks
      */
     export let darkMode = true;
     export let translations = {};
     export let signalData = {};
 
-    // Reactive data
-    $: score = signalData.overall_score || 0;
-    $: regime = signalData.regime || "UNKNOWN";
-    $: regimeEmoji = signalData.regime_emoji || "❓";
-    $: regimeSignal = signalData.regime_signal || "UNKNOWN";
-    $: regimeDescription = signalData.regime_description || "";
-    $: components = signalData.components || {};
-    $: alerts = signalData.alerts || [];
-    $: alertStatus = signalData.alert_status || "UNKNOWN";
-    $: tradingImplications = signalData.trading_implications || {};
+    // Reactive data - handle v2.0 nested structure
+    $: score = signalData.score || 0;
+    $: regime = signalData.regime || {};
+    $: regimeName = regime.name || "Unknown";
+    $: regimeCode = regime.code || "unknown";
+    $: regimeDescription = regime.description || "";
+    $: regimeColor = regime.color || "#6b7280";
+
+    $: signal = signalData.signal || {};
+    $: signalName = signal.name || "Unknown";
+    $: signalColor = signal.color || "#6b7280";
+
+    $: components = signalData.components || [];
+    $: alertStatus = signalData.alert_status || {};
+    $: alertStatusText = alertStatus.status || "UNKNOWN";
+    $: alertColor = alertStatus.color || "#6b7280";
+
+    $: implications = signalData.implications || {};
+    $: keyRisks = implications.key_risks || [];
+    $: opportunities = implications.opportunities || [];
 
     // Gauge calculation
     $: gaugeRotation = ((score + 100) / 200) * 180 - 90; // -90 to 90 degrees
-    $: gaugeColor = getGaugeColor(score);
 
-    function getGaugeColor(score) {
-        if (score >= 40) return "#22c55e"; // Green - Surplus
-        if (score >= 10) return "#3b82f6"; // Blue - Healthy
-        if (score >= -20) return "#eab308"; // Yellow - Mild pressure
-        if (score >= -50) return "#f97316"; // Orange - Stress
-        return "#ef4444"; // Red - Crisis
+    // Regime emoji based on code
+    $: regimeEmoji = getRegimeEmoji(regimeCode);
+
+    function getRegimeEmoji(code) {
+        const emojis = {
+            liquidity_surplus: "💧",
+            healthy_absorption: "✅",
+            mild_pressure: "⚡",
+            supply_stress: "📉",
+            funding_crisis: "🚨",
+        };
+        return emojis[code] || "❓";
     }
 
-    function getStatusColor(status) {
-        if (status === "positive") return "#22c55e";
-        if (status === "negative") return "#ef4444";
-        return "#94a3b8";
+    function getAlertLevelColor(level) {
+        const colors = {
+            critical: "#ef4444",
+            warning: "#f97316",
+            caution: "#eab308",
+            normal: "#22c55e",
+        };
+        return colors[level] || "#94a3b8";
+    }
+
+    function getAlertLevelIcon(level) {
+        const icons = {
+            critical: "🔴",
+            warning: "🟠",
+            caution: "🟡",
+            normal: "🟢",
+        };
+        return icons[level] || "⚪";
     }
 
     function getAlertStatusClass(status) {
         if (status === "CRITICAL") return "alert-critical";
-        if (status === "WARNING") return "alert-warning";
+        if (status === "ELEVATED") return "alert-elevated";
         if (status === "CAUTION") return "alert-caution";
-        return "alert-clear";
-    }
-
-    function formatComponentName(key) {
-        const names = {
-            auction_demand: "Auction Demand",
-            tga_dynamics: "TGA Dynamics",
-            net_liquidity: "Net Liquidity",
-            funding_stress: "Funding Stress",
-        };
-        return translations[key] || names[key] || key;
+        if (status === "NORMAL") return "alert-normal";
+        return "alert-unknown";
     }
 
     function formatImplicationKey(key) {
@@ -68,7 +92,7 @@
             equity: "Equity",
             fx: "FX/USD",
         };
-        return names[key] || key;
+        return translations[`impl_${key}`] || names[key] || key;
     }
 </script>
 
@@ -83,8 +107,11 @@
             </h3>
         </div>
         <div class="header-right">
-            <span class="alert-badge {getAlertStatusClass(alertStatus)}">
-                {alertStatus}
+            <span
+                class="alert-badge {getAlertStatusClass(alertStatusText)}"
+                style="background-color: {alertColor}20; border-color: {alertColor}; color: {alertColor};"
+            >
+                {alertStatusText}
             </span>
         </div>
     </div>
@@ -138,12 +165,12 @@
                     y1="100"
                     x2="100"
                     y2="35"
-                    stroke={gaugeColor}
+                    stroke={regimeColor}
                     stroke-width="3"
                     stroke-linecap="round"
                     transform="rotate({gaugeRotation}, 100, 100)"
                 />
-                <circle cx="100" cy="100" r="8" fill={gaugeColor} />
+                <circle cx="100" cy="100" r="8" fill={regimeColor} />
             </svg>
             <div class="gauge-labels">
                 <span class="gauge-min">-100</span>
@@ -152,15 +179,23 @@
             </div>
         </div>
         <div class="score-display">
-            <span class="score-value" style="color: {gaugeColor}"
-                >{score.toFixed(1)}</span
-            >
+            <span class="score-value" style="color: {regimeColor}">
+                {typeof score === "number" ? score.toFixed(1) : "0.0"}
+            </span>
             <div
                 class="regime-badge"
-                style="background-color: {gaugeColor}20; border-color: {gaugeColor}"
+                style="background-color: {regimeColor}20; border-color: {regimeColor}"
             >
                 <span class="regime-emoji">{regimeEmoji}</span>
-                <span class="regime-text">{regime.replace(/_/g, " ")}</span>
+                <span class="regime-text">{regimeName}</span>
+            </div>
+            <div
+                class="signal-badge"
+                style="background-color: {signalColor}15; border-color: {signalColor}"
+            >
+                <span class="signal-text" style="color: {signalColor}"
+                    >{signalName}</span
+                >
             </div>
             <p class="regime-description">{regimeDescription}</p>
         </div>
@@ -172,12 +207,22 @@
             {translations.component_breakdown || "Component Breakdown"}
         </h4>
         <div class="components-grid">
-            {#each Object.entries(components) as [key, comp]}
-                <div class="component-card">
+            {#each components as comp}
+                <div
+                    class="component-card"
+                    style="border-left: 3px solid {getAlertLevelColor(
+                        comp.alert_level,
+                    )}"
+                >
                     <div class="component-header">
-                        <span class="component-name"
-                            >{formatComponentName(key)}</span
-                        >
+                        <span class="component-name">
+                            <span class="alert-icon"
+                                >{getAlertLevelIcon(comp.alert_level)}</span
+                            >
+                            {translations[
+                                comp.name.toLowerCase().replace(/ /g, "_")
+                            ] || comp.name}
+                        </span>
                         <span class="component-weight"
                             >{(comp.weight * 100).toFixed(0)}%</span
                         >
@@ -185,9 +230,11 @@
                     <div class="component-scores">
                         <span
                             class="raw-score"
-                            style="color: {getStatusColor(comp.status)}"
+                            style="color: {getAlertLevelColor(
+                                comp.alert_level,
+                            )}"
                         >
-                            {comp.raw_score > 0 ? "+" : ""}{comp.raw_score}
+                            {comp.score > 0 ? "+" : ""}{comp.score}
                         </span>
                         <span class="weighted-score">
                             → {comp.weighted_score > 0
@@ -196,45 +243,64 @@
                         </span>
                     </div>
                     <p class="component-description">{comp.description}</p>
+                    {#if comp.threshold_breached}
+                        <span class="threshold-tag"
+                            >{comp.threshold_breached.replace(/_/g, " ")}</span
+                        >
+                    {/if}
                 </div>
             {/each}
         </div>
     </div>
 
-    <!-- Alerts Section -->
-    {#if alerts.length > 0}
-        <div class="alerts-section">
-            <h4 class="section-title">
-                {translations.active_alerts || "Active Alerts"}
-            </h4>
-            <div class="alerts-list">
-                {#each alerts as alert}
-                    <div class="alert-item">
-                        {alert}
-                    </div>
-                {/each}
-            </div>
-        </div>
-    {/if}
-
     <!-- Trading Implications -->
-    {#if Object.keys(tradingImplications).length > 0}
-        <div class="implications-section">
-            <h4 class="section-title">
-                {translations.trading_implications || "Trading Implications"}
-            </h4>
-            <div class="implications-grid">
-                {#each Object.entries(tradingImplications) as [key, value]}
+    <div class="implications-section">
+        <h4 class="section-title">
+            {translations.trading_implications || "Trading Implications"}
+        </h4>
+        <div class="implications-grid">
+            {#each ["duration", "curve", "credit", "equity", "fx"] as key}
+                {#if implications[key]}
                     <div class="implication-item">
                         <span class="implication-key"
                             >{formatImplicationKey(key)}</span
                         >
-                        <span class="implication-value">{value}</span>
+                        <span class="implication-value"
+                            >{implications[key]}</span
+                        >
                     </div>
-                {/each}
-            </div>
+                {/if}
+            {/each}
         </div>
-    {/if}
+
+        <!-- Opportunities -->
+        {#if opportunities.length > 0}
+            <div class="opportunities-section">
+                <h5 class="subsection-title">
+                    💡 {translations.opportunities || "Opportunities"}
+                </h5>
+                <div class="tag-list">
+                    {#each opportunities as opp}
+                        <span class="opportunity-tag">{opp}</span>
+                    {/each}
+                </div>
+            </div>
+        {/if}
+
+        <!-- Key Risks -->
+        {#if keyRisks.length > 0}
+            <div class="risks-section">
+                <h5 class="subsection-title">
+                    ⚠️ {translations.key_risks || "Key Risks"}
+                </h5>
+                <div class="risks-list">
+                    {#each keyRisks as risk}
+                        <div class="risk-item">{risk}</div>
+                    {/each}
+                </div>
+            </div>
+        {/if}
+    </div>
 </div>
 
 <style>
@@ -280,30 +346,7 @@
         font-size: 11px;
         font-weight: 600;
         text-transform: uppercase;
-    }
-
-    .alert-critical {
-        background: rgba(239, 68, 68, 0.2);
-        color: #ef4444;
-        border: 1px solid rgba(239, 68, 68, 0.3);
-    }
-
-    .alert-warning {
-        background: rgba(249, 115, 22, 0.2);
-        color: #f97316;
-        border: 1px solid rgba(249, 115, 22, 0.3);
-    }
-
-    .alert-caution {
-        background: rgba(234, 179, 8, 0.2);
-        color: #eab308;
-        border: 1px solid rgba(234, 179, 8, 0.3);
-    }
-
-    .alert-clear {
-        background: rgba(34, 197, 94, 0.2);
-        color: #22c55e;
-        border: 1px solid rgba(34, 197, 94, 0.3);
+        border: 1px solid;
     }
 
     /* Gauge Section */
@@ -347,7 +390,8 @@
         line-height: 1;
     }
 
-    .regime-badge {
+    .regime-badge,
+    .signal-badge {
         display: inline-flex;
         align-items: center;
         gap: 8px;
@@ -355,13 +399,15 @@
         border-radius: 24px;
         border: 1px solid;
         margin-top: 12px;
+        margin-right: 8px;
     }
 
     .regime-emoji {
         font-size: 18px;
     }
 
-    .regime-text {
+    .regime-text,
+    .signal-text {
         font-size: 13px;
         font-weight: 600;
         color: #f8fafc;
@@ -383,6 +429,13 @@
         text-transform: uppercase;
         letter-spacing: 0.5px;
         margin-bottom: 16px;
+    }
+
+    .subsection-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: #cbd5e1;
+        margin: 16px 0 12px 0;
     }
 
     /* Components Grid */
@@ -414,6 +467,13 @@
         font-size: 13px;
         font-weight: 600;
         color: #f8fafc;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .alert-icon {
+        font-size: 12px;
     }
 
     .component-weight {
@@ -448,27 +508,22 @@
         margin: 0;
     }
 
-    /* Alerts Section */
-    .alerts-section {
-        margin-bottom: 24px;
-    }
-
-    .alerts-list {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-    }
-
-    .alert-item {
-        background: rgba(239, 68, 68, 0.1);
-        border: 1px solid rgba(239, 68, 68, 0.2);
+    .threshold-tag {
+        display: inline-block;
+        margin-top: 8px;
+        font-size: 10px;
+        padding: 2px 8px;
+        background: rgba(239, 68, 68, 0.2);
+        color: #f87171;
         border-radius: 8px;
-        padding: 12px 16px;
-        font-size: 13px;
-        color: #f8fafc;
+        text-transform: uppercase;
     }
 
     /* Implications Section */
+    .implications-section {
+        margin-bottom: 16px;
+    }
+
     .implications-grid {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
@@ -494,6 +549,43 @@
     .implication-value {
         font-size: 12px;
         color: #f8fafc;
+        line-height: 1.4;
+    }
+
+    /* Opportunities */
+    .opportunities-section,
+    .risks-section {
+        margin-top: 16px;
+    }
+
+    .tag-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .opportunity-tag {
+        font-size: 12px;
+        padding: 6px 12px;
+        background: rgba(34, 197, 94, 0.15);
+        color: #4ade80;
+        border: 1px solid rgba(34, 197, 94, 0.3);
+        border-radius: 16px;
+    }
+
+    .risks-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .risk-item {
+        font-size: 12px;
+        padding: 10px 14px;
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.2);
+        border-radius: 8px;
+        color: #fca5a5;
         line-height: 1.4;
     }
 
