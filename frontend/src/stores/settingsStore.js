@@ -709,6 +709,11 @@ const translations = {
         max_1_year: "Max 1-year term",
         notes_plus_bonds: "Notes + Bonds",
         all_securities: "All securities",
+        bonds_maturing: "Bonds Maturing",
+        tips_frn_maturing: "Others (TIPS/FRN)",
+        notes_label: "Treasury Notes",
+        bonds_label: "Treasury Bonds",
+        tips_frn_label: "TIPS & FRNs",
     },
     es: {
         gli: "Suma de los balances de 15 bancos centrales en USD. ↑ Expansión = Inyección de liquidez (alcista) | ↓ Contracción = QT (bajista)",
@@ -1509,6 +1514,11 @@ const translations = {
         max_1_year: "Plazo máx. 1 año",
         notes_plus_bonds: "Notas + Bonos",
         all_securities: "Todos los valores",
+        bonds_maturing: "Bonos por Vencer",
+        tips_frn_maturing: "Otros (TIPS/FRN)",
+        notes_label: "Notas del Tesoro",
+        bonds_label: "Bonos del Tesoro",
+        tips_frn_label: "TIPS y FRNs",
     },
 };
 

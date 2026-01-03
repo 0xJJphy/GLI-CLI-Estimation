@@ -96,10 +96,15 @@
             (a, b) => a + (b || 0),
             0,
         ),
-        // Coupon debt (Notes + Bonds) maturing in range
-        coupon_debt:
-            (schedule.notes || []).reduce((a, b) => a + (b || 0), 0) +
-            (schedule.bonds || []).reduce((a, b) => a + (b || 0), 0),
+        // Bonds maturing in selected range
+        bonds_maturing: (schedule.bonds || []).reduce(
+            (a, b) => a + (b || 0),
+            0,
+        ),
+        // Other maturities (TIPS + FRN)
+        other_maturing:
+            (schedule.tips || []).reduce((a, b) => a + (b || 0), 0) +
+            (schedule.frn || []).reduce((a, b) => a + (b || 0), 0),
         // Total maturing in selected range
         total_maturing: (schedule.total || []).reduce(
             (a, b) => a + (b || 0),
@@ -290,18 +295,29 @@
                 >{formatCurrency(filteredMetrics.notes_maturing)}</span
             >
             <span class="metric-sub"
-                >{translations.in_selected_range || "In selected range"}</span
+                >{translations.notes_label || "Treasury Notes"}</span
             >
         </div>
         <div class="metric-card">
             <span class="metric-label"
-                >{translations.coupon_debt || "Coupon Debt"}</span
+                >{translations.bonds_maturing || "Bonds Maturing"}</span
             >
-            <span class="metric-value orange"
-                >{formatCurrency(filteredMetrics.coupon_debt)}</span
+            <span class="metric-value purple"
+                >{formatCurrency(filteredMetrics.bonds_maturing)}</span
             >
             <span class="metric-sub"
-                >{translations.notes_plus_bonds || "Notes + Bonds"}</span
+                >{translations.bonds_label || "Treasury Bonds"}</span
+            >
+        </div>
+        <div class="metric-card">
+            <span class="metric-label"
+                >{translations.tips_frn_maturing || "Others (TIPS/FRN)"}</span
+            >
+            <span class="metric-value orange"
+                >{formatCurrency(filteredMetrics.other_maturing)}</span
+            >
+            <span class="metric-sub"
+                >{translations.tips_frn_label || "TIPS & FRNs"}</span
             >
         </div>
         <div class="metric-card">
@@ -540,6 +556,9 @@
     }
     .metric-value.blue {
         color: #3b82f6;
+    }
+    .metric-value.purple {
+        color: #8b5cf6;
     }
     .metric-value.orange {
         color: #fb923c;
