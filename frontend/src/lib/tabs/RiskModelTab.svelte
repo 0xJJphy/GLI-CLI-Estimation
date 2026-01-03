@@ -6,6 +6,13 @@
     import Chart from "../components/Chart.svelte";
     import TimeRangeSelector from "../components/TimeRangeSelector.svelte";
     import StressPanel from "../components/StressPanel.svelte";
+    import {
+        STANCE_KEYS,
+        STATE_SCORES,
+        SIGNAL_CATEGORIES,
+        getSignalWithFallback,
+        calculateAggregateScore,
+    } from "../utils/signalSchema.js";
 
     // --- Background Shading Helpers ---
 
@@ -399,6 +406,45 @@
     let signalsFromMetrics = {};
     let computedTipsSignal = null;
     let tipsData = [];
+
+    // Aggregate signal score: prefer backend signal_aggregate, fallback to client-side
+    $: aggregateSignalScore = (() => {
+        // Use backend-computed aggregate if available (single source of truth)
+        if (dashboardData.signal_aggregate) {
+            return dashboardData.signal_aggregate;
+        }
+        // Fallback to client-side calculation
+        const signals = dashboardData.signals || {};
+        return calculateAggregateScore(signals);
+    })();
+
+    // Bull/Bear counts from STANCE_KEYS only
+    $: signalCounts = (() => {
+        const signals = dashboardData.signals || {};
+        let bullish = 0,
+            bearish = 0,
+            neutral = 0,
+            warning = 0;
+
+        for (const key of STANCE_KEYS) {
+            const signal = getSignalWithFallback(signals, key);
+            if (!signal || !signal.state) continue;
+
+            const state = signal.state;
+            if (state === "bullish") bullish++;
+            else if (state === "bearish" || state === "danger") bearish++;
+            else if (state === "warning") warning++;
+            else neutral++;
+        }
+
+        return {
+            bullish,
+            bearish,
+            neutral,
+            warning,
+            total: STANCE_KEYS.length,
+        };
+    })();
 
     // CLI Aggregate
     $: cliData = filterWithCache(
@@ -2392,24 +2438,63 @@
     $: stressAnalysis = dashboardData.stress_analysis || {};
 </script>
 
-<!-- Header with Aggregate Stance & View Mode Toggle -->
+<!-- Header with Aggregate Stance & Weighted Score -->
 <div class="risk-header-summary">
-    <div class="regime-badge bg-{aggregateState}">
+    <div
+        class="regime-badge bg-{aggregateSignalScore.state === 'bullish' ||
+        aggregateSignalScore.state === 'leaning_bullish'
+            ? 'bullish'
+            : aggregateSignalScore.state === 'bearish' ||
+                aggregateSignalScore.state === 'leaning_bearish'
+              ? 'bearish'
+              : 'neutral'}"
+    >
         <span style="font-size: 1.2rem;"
-            >{aggregateState === "bullish"
+            >{aggregateSignalScore.state === "bullish"
                 ? "🚀"
-                : aggregateState === "bearish"
-                  ? "⚠️"
-                  : "⚖️"}</span
+                : aggregateSignalScore.state === "leaning_bullish"
+                  ? "🐂"
+                  : aggregateSignalScore.state === "bearish"
+                    ? "⚠️"
+                    : aggregateSignalScore.state === "leaning_bearish"
+                      ? "🐻"
+                      : "⚖️"}</span
         >
-        {getStatusLabel(aggregateState)}
-        {translations.risk_stance || "STANCE"}
+        {#if aggregateSignalScore.state === "bullish"}
+            {translations.status_bullish || "BULLISH"}
+        {:else if aggregateSignalScore.state === "leaning_bullish"}
+            {translations.status_leaning_bullish || "LEANING BULLISH"}
+        {:else if aggregateSignalScore.state === "bearish"}
+            {translations.status_bearish || "BEARISH"}
+        {:else if aggregateSignalScore.state === "leaning_bearish"}
+            {translations.status_leaning_bearish || "LEANING BEARISH"}
+        {:else}
+            {translations.status_neutral || "NEUTRAL"}
+        {/if}
     </div>
     <div class="stance-details">
-        {bullCount}
-        {translations.risk_bullish || "Bullish"} | {bearCount}
-        {translations.risk_bearish || "Bearish"} | {signalConfig.length}
+        <span
+            class="weighted-score"
+            style="color: {aggregateSignalScore.score >= 0
+                ? '#10b981'
+                : '#ef4444'}; font-weight: 700; margin-right: 8px;"
+        >
+            {aggregateSignalScore.score >= 0
+                ? "+"
+                : ""}{aggregateSignalScore.score.toFixed(2)}
+        </span>
+        | {signalCounts.bullish}
+        {translations.risk_bullish || "Bullish"}
+        | {signalCounts.bearish + signalCounts.warning}
+        {translations.risk_bearish || "Bearish"}
+        | {signalCounts.total}
         {translations.risk_factors || "Factors"}
+        {#if aggregateSignalScore.coverage < 1}
+            <span style="color: #f59e0b; margin-left: 8px;"
+                >({(aggregateSignalScore.coverage * 100).toFixed(0)}% {translations.coverage ||
+                    "Coverage"})</span
+            >
+        {/if}
     </div>
 </div>
 

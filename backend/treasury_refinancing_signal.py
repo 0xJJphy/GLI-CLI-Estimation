@@ -52,6 +52,7 @@ class SignalComponent:
     raw_value: Optional[float]
     threshold_breached: Optional[str]
     description: str
+    description_key: str
     alert_level: str          # normal, caution, warning, critical
 
 # ==============================================================================
@@ -138,25 +139,32 @@ def calculate_auction_demand_component(auction_data: Dict) -> SignalComponent:
     if alert_status == 'CRITICAL':
         alert_level = 'critical'
         description = "Critical auction demand weakness. Multiple stress signals."
+        description_key = "rs_desc_auction_critical"
     elif alert_status == 'ELEVATED':
         alert_level = 'warning'
         description = "Elevated auction stress. Dealers absorbing excess supply."
+        description_key = "rs_desc_auction_warning"
     elif alert_status in ['CAUTION', 'WATCH']:
         alert_level = 'caution'
         description = "Some auction strain. Foreign demand softening."
+        description_key = "rs_desc_auction_caution"
     else:
         if score >= 30:
             alert_level = 'normal'
             description = "Strong auction demand. Treasury financing smoothly."
+            description_key = "rs_desc_auction_strong"
         elif score >= 10:
             alert_level = 'normal'
             description = "Solid auction absorption. Normal market conditions."
+            description_key = "rs_desc_auction_solid"
         elif score >= -10:
             alert_level = 'normal'
             description = "Neutral auction demand. Market balanced."
+            description_key = "rs_desc_auction_neutral"
         else:
             alert_level = 'caution'
             description = "Soft auction demand. Monitor for deterioration."
+            description_key = "rs_desc_auction_soft"
     
     # Determine threshold breached
     threshold_breached = None
@@ -174,6 +182,7 @@ def calculate_auction_demand_component(auction_data: Dict) -> SignalComponent:
         raw_value=score,
         threshold_breached=threshold_breached,
         description=description,
+        description_key=description_key,
         alert_level=alert_level
     )
 
@@ -250,6 +259,18 @@ def calculate_tga_component(us_metrics: Dict) -> SignalComponent:
     direction = "draining" if tga_delta_13w < 0 else "building"
     description = f"TGA ${tga_current*1000:.0f}B, {direction} ${abs(tga_delta_13w)*1000:.0f}B/13w. " + (alerts[0] if alerts else "Normal TGA dynamics.")
     
+    # Translation key based on state
+    if tga_current <= TGA_THRESHOLDS['critical_low']:
+        description_key = "rs_desc_tga_critical_low"
+    elif tga_current <= TGA_THRESHOLDS['low']:
+        description_key = "rs_desc_tga_low"
+    elif tga_delta_13w <= TGA_DELTA_THRESHOLDS['large_drain']:
+        description_key = "rs_desc_tga_large_drain"
+    elif tga_delta_13w >= TGA_DELTA_THRESHOLDS['large_build']:
+        description_key = "rs_desc_tga_large_build"
+    else:
+        description_key = "rs_desc_tga_normal"
+    
     return SignalComponent(
         name="TGA Dynamics",
         score=score,
@@ -257,6 +278,7 @@ def calculate_tga_component(us_metrics: Dict) -> SignalComponent:
         raw_value=tga_delta_13w,
         threshold_breached='large_build' if tga_delta_13w >= 0.15 else 'large_drain' if tga_delta_13w <= -0.15 else None,
         description=description,
+        description_key=description_key,
         alert_level=alert_level
     )
 
@@ -296,7 +318,18 @@ def calculate_netliq_component(us_metrics: Dict) -> SignalComponent:
     else:
         score = netliq_delta_13w * 100  # Linear scale in neutral zone
         description = f"Net liquidity stable: {'+' if netliq_delta_13w >= 0 else ''}{netliq_delta_13w*1000:.0f}B/13w"
+        description_key = "rs_desc_netliq_stable"
         alert_level = 'normal'
+    
+    # Refine keys for specific states
+    if netliq_delta_13w >= NETLIQ_DELTA_THRESHOLDS['large_injection']:
+        description_key = "rs_desc_netliq_large_injection"
+    elif netliq_delta_13w >= NETLIQ_DELTA_THRESHOLDS['mild_injection']:
+        description_key = "rs_desc_netliq_expanding"
+    elif netliq_delta_13w <= NETLIQ_DELTA_THRESHOLDS['large_drain']:
+        description_key = "rs_desc_netliq_large_drain"
+    elif netliq_delta_13w <= NETLIQ_DELTA_THRESHOLDS['mild_drain']:
+        description_key = "rs_desc_netliq_contracting"
     
     # Acceleration/deceleration adjustment
     if netliq_delta_4w * 3 > netliq_delta_13w * 1.5:
@@ -315,6 +348,7 @@ def calculate_netliq_component(us_metrics: Dict) -> SignalComponent:
         raw_value=netliq_delta_13w,
         threshold_breached='large_drain' if netliq_delta_13w <= -0.3 else 'large_injection' if netliq_delta_13w >= 0.3 else None,
         description=description,
+        description_key=description_key,
         alert_level=alert_level
     )
 
@@ -373,6 +407,18 @@ def calculate_funding_stress_component(repo_data: Dict, us_metrics: Dict) -> Sig
             score -= 5
             alerts.append(f"Minor SRF usage: ${srf_usage:.0f}B")
     
+    # Description key selection
+    if sofr_iorb_spread >= SOFR_IORB_THRESHOLDS['critical']:
+        description_key = "rs_desc_funding_critical"
+    elif sofr_iorb_spread >= SOFR_IORB_THRESHOLDS['stressed']:
+        description_key = "rs_desc_funding_stressed"
+    elif srf_usage > 10:
+        description_key = "rs_desc_funding_srf"
+    elif sofr_iorb_spread <= SOFR_IORB_THRESHOLDS['tight']:
+        description_key = "rs_desc_funding_healthy"
+    else:
+        description_key = "rs_desc_funding_normal"
+    
     score = max(-100, min(100, score))
     
     description = alerts[0] if alerts else f"Funding markets normal. SOFR-IORB: {sofr_iorb_spread:.0f}bp"
@@ -384,6 +430,7 @@ def calculate_funding_stress_component(repo_data: Dict, us_metrics: Dict) -> Sig
         raw_value=sofr_iorb_spread,
         threshold_breached='critical_spread' if sofr_iorb_spread >= 15 else 'stressed' if sofr_iorb_spread >= 10 else None,
         description=description,
+        description_key=description_key,
         alert_level=alert_level
     )
 
@@ -475,24 +522,29 @@ def calculate_refinancing_impact_signal(
         'regime': {
             'code': regime.value,
             'name': regime.name.replace('_', ' ').title(),
+            'name_key': f"rs_regime_{regime.value}",
             'description': get_regime_description(regime),
+            'description_key': f"rs_regime_desc_{regime.value}",
             'color': get_regime_color(regime)
         },
         
         'signal': {
             'direction': signal_direction.value,
             'name': signal_direction.name.replace('_', ' ').title(),
+            'name_key': f"rs_signal_{signal_direction.value}",
             'color': get_signal_color(signal_direction)
         },
         
         'components': [
             {
                 'name': c.name,
+                'name_key': f"rs_component_{c.name.lower().replace(' ', '_')}",
                 'score': round(c.score, 1),
                 'weight': c.weight,
                 'weighted_score': round(c.score * c.weight, 1),
                 'raw_value': c.raw_value,
                 'description': c.description,
+                'description_key': c.description_key,
                 'alert_level': c.alert_level,
                 'threshold_breached': c.threshold_breached
             }
@@ -501,6 +553,7 @@ def calculate_refinancing_impact_signal(
         
         'alert_status': {
             'status': alert_status,
+            'status_key': alert_status.lower(),
             'color': alert_color,
             'critical_count': len(critical_components),
             'warning_count': len(warning_components),
@@ -515,6 +568,7 @@ def calculate_refinancing_impact_signal(
             'version': '2.0'
         }
     }
+
 
 
 def determine_regime(score: float, components: List[SignalComponent]) -> RefinancingRegime:
@@ -606,80 +660,131 @@ def generate_trading_implications(
     """Generate trading implications based on signal."""
     
     implications = {
-        'duration': '',
-        'curve': '',
-        'credit': '',
-        'equity': '',
-        'fx': '',
+        'duration': {'text': '', 'key': ''},
+        'curve': {'text': '', 'key': ''},
+        'credit': {'text': '', 'key': ''},
+        'equity': {'text': '', 'key': ''},
+        'fx': {'text': '', 'key': ''},
         'key_risks': [],
         'opportunities': []
     }
     
     # Duration implications
     if score >= 30:
-        implications['duration'] = "Long duration favored. Yields likely to fall or stay suppressed."
-        implications['opportunities'].append("Long 10Y/30Y Treasuries")
+        implications['duration'] = {
+            'text': "Long duration favored. Yields likely to fall or stay suppressed.",
+            'key': "rs_impl_duration_long"
+        }
+        implications['opportunities'].append({'text': "Long 10Y/30Y Treasuries", 'key': "rs_opp_long_bond"})
     elif score >= 0:
-        implications['duration'] = "Neutral duration. Carry attractive but limited directional edge."
-        implications['opportunities'].append("Roll-down trades in belly of curve")
+        implications['duration'] = {
+            'text': "Neutral duration. Carry attractive but limited directional edge.",
+            'key': "rs_impl_duration_neutral"
+        }
+        implications['opportunities'].append({'text': "Roll-down trades in belly of curve", 'key': "rs_opp_belly_roll"})
     elif score >= -30:
-        implications['duration'] = "Short duration bias. Yields may drift higher."
-        implications['opportunities'].append("Underweight long-end duration")
+        implications['duration'] = {
+            'text': "Short duration bias. Yields may drift higher.",
+            'key': "rs_impl_duration_short"
+        }
+        implications['opportunities'].append({'text': "Underweight long-end duration", 'key': "rs_opp_underweight_duration"})
     else:
-        implications['duration'] = "Defensive positioning. Significant yield pressure risk."
-        implications['opportunities'].append("Short duration, T-bill barbell")
+        implications['duration'] = {
+            'text': "Defensive positioning. Significant yield pressure risk.",
+            'key': "rs_impl_duration_defensive"
+        }
+        implications['opportunities'].append({'text': "Short duration, T-bill barbell", 'key': "rs_opp_short_barbell"})
     
     # Curve implications
     tga_component = next((c for c in components if c.name == "TGA Dynamics"), None)
     auction_component = next((c for c in components if c.name == "Auction Demand"), None)
     
     if auction_component and auction_component.score < 0 and tga_component and tga_component.score < 0:
-        implications['curve'] = "Steepening pressure. Long-end under supply pressure."
-        implications['opportunities'].append("2s10s steepener")
+        implications['curve'] = {
+            'text': "Steepening pressure. Long-end under supply pressure.",
+            'key': "rs_impl_curve_steepening"
+        }
+        implications['opportunities'].append({'text': "2s10s steepener", 'key': "rs_opp_steepener"})
     elif score >= 20:
-        implications['curve'] = "Flattening bias. Risk-on environment favors belly."
-        implications['opportunities'].append("5s30s flattener")
+        implications['curve'] = {
+            'text': "Flattening bias. Risk-on environment favors belly.",
+            'key': "rs_impl_curve_flattening"
+        }
+        implications['opportunities'].append({'text': "5s30s flattener", 'key': "rs_opp_flattener"})
     else:
-        implications['curve'] = "Neutral curve view."
+        implications['curve'] = {
+            'text': "Neutral curve view.",
+            'key': "rs_impl_curve_neutral"
+        }
     
     # Credit implications
     if regime == RefinancingRegime.FUNDING_CRISIS:
-        implications['credit'] = "Risk-off. Credit spreads likely to widen. Reduce HY exposure."
-        implications['key_risks'].append("Credit spread widening")
+        implications['credit'] = {
+            'text': "Risk-off. Credit spreads likely to widen. Reduce HY exposure.",
+            'key': "rs_impl_credit_risk_off"
+        }
+        implications['key_risks'].append({'text': "Credit spread widening", 'key': "rs_risk_credit_spread"})
     elif regime == RefinancingRegime.SUPPLY_STRESS:
-        implications['credit'] = "Caution on credit. IG preferred over HY."
-        implications['key_risks'].append("Potential spread volatility")
+        implications['credit'] = {
+            'text': "Caution on credit. IG preferred over HY.",
+            'key': "rs_impl_credit_caution"
+        }
+        implications['key_risks'].append({'text': "Potential spread volatility", 'key': "rs_risk_spread_vol"})
     elif regime == RefinancingRegime.LIQUIDITY_SURPLUS:
-        implications['credit'] = "Credit supportive. Spreads likely to compress."
-        implications['opportunities'].append("Overweight IG credit")
+        implications['credit'] = {
+            'text': "Credit supportive. Spreads likely to compress.",
+            'key': "rs_impl_credit_supportive"
+        }
+        implications['opportunities'].append({'text': "Overweight IG credit", 'key': "rs_opp_overweight_ig"})
     else:
-        implications['credit'] = "Neutral credit environment."
+        implications['credit'] = {
+            'text': "Neutral credit environment.",
+            'key': "rs_impl_credit_neutral"
+        }
     
     # Equity implications
     if score >= 30:
-        implications['equity'] = "Supportive for equities. Liquidity tailwind."
+        implications['equity'] = {
+            'text': "Supportive for equities. Liquidity tailwind.",
+            'key': "rs_impl_equity_supportive"
+        }
     elif score <= -30:
-        implications['equity'] = "Headwind for equities. Liquidity drag and higher discount rates."
-        implications['key_risks'].append("Equity multiple compression")
+        implications['equity'] = {
+            'text': "Headwind for equities. Liquidity drag and higher discount rates.",
+            'key': "rs_impl_equity_headwind"
+        }
+        implications['key_risks'].append({'text': "Equity multiple compression", 'key': "rs_risk_equity_multiple"})
     else:
-        implications['equity'] = "Neutral equity impact from Treasury dynamics."
+        implications['equity'] = {
+            'text': "Neutral equity impact from Treasury dynamics.",
+            'key': "rs_impl_equity_neutral"
+        }
     
     # FX implications
     funding_component = next((c for c in components if c.name == "Funding Stress"), None)
     if funding_component and funding_component.score <= -30:
-        implications['fx'] = "USD strength on funding stress. Safe-haven flows."
+        implications['fx'] = {
+            'text': "USD strength on funding stress. Safe-haven flows.",
+            'key': "rs_impl_fx_strength"
+        }
     elif auction_component and auction_component.score <= -30:
-        implications['fx'] = "Watch for USD weakness if foreign demand continues to fade."
-        implications['key_risks'].append("Foreign demand deterioration pressuring USD")
+        implications['fx'] = {
+            'text': "Watch for USD weakness if foreign demand continues to fade.",
+            'key': "rs_impl_fx_watch_weakness"
+        }
+        implications['key_risks'].append({'text': "Foreign demand deterioration pressuring USD", 'key': "rs_risk_foreign_demand"})
     else:
-        implications['fx'] = "Neutral USD impact."
+        implications['fx'] = {
+            'text': "Neutral USD impact.",
+            'key': "rs_impl_fx_neutral"
+        }
     
     # Key risks based on components
     for c in components:
         if c.alert_level == 'critical':
-            implications['key_risks'].append(f"CRITICAL: {c.description}")
+            implications['key_risks'].append({'text': f"CRITICAL: {c.description}", 'key': f"rs_risk_{c.description_key}"})
         elif c.alert_level == 'warning':
-            implications['key_risks'].append(f"WARNING: {c.description}")
+            implications['key_risks'].append({'text': f"WARNING: {c.description}", 'key': f"rs_risk_{c.description_key}"})
     
     return implications
 

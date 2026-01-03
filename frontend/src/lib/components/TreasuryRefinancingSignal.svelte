@@ -21,18 +21,20 @@
     // Reactive data - handle v2.0 nested structure
     $: score = signalData.score || 0;
     $: regime = signalData.regime || {};
-    $: regimeName = regime.name || "Unknown";
     $: regimeCode = regime.code || "unknown";
-    $: regimeDescription = regime.description || "";
+    $: regimeName = translations[regime.name_key] || regime.name || "Unknown";
+    $: regimeDescription =
+        translations[regime.description_key] || regime.description || "";
     $: regimeColor = regime.color || "#6b7280";
 
     $: signal = signalData.signal || {};
-    $: signalName = signal.name || "Unknown";
+    $: signalName = translations[signal.name_key] || signal.name || "Unknown";
     $: signalColor = signal.color || "#6b7280";
 
     $: components = signalData.components || [];
     $: alertStatus = signalData.alert_status || {};
-    $: alertStatusText = alertStatus.status || "UNKNOWN";
+    $: alertStatusText =
+        translations[alertStatus.status_key] || alertStatus.status || "UNKNOWN";
     $: alertColor = alertStatus.color || "#6b7280";
 
     $: implications = signalData.implications || {};
@@ -204,7 +206,7 @@
     <!-- Component Breakdown -->
     <div class="components-section">
         <h4 class="section-title">
-            {translations.component_breakdown || "Component Breakdown"}
+            {translations.rs_component_breakdown || "Component Breakdown"}
         </h4>
         <div class="components-grid">
             {#each components as comp}
@@ -219,9 +221,7 @@
                             <span class="alert-icon"
                                 >{getAlertLevelIcon(comp.alert_level)}</span
                             >
-                            {translations[
-                                comp.name.toLowerCase().replace(/ /g, "_")
-                            ] || comp.name}
+                            {translations[comp.name_key] || comp.name}
                         </span>
                         <span class="component-weight"
                             >{(comp.weight * 100).toFixed(0)}%</span
@@ -242,7 +242,9 @@
                                 : ""}{comp.weighted_score.toFixed(1)}
                         </span>
                     </div>
-                    <p class="component-description">{comp.description}</p>
+                    <p class="component-description">
+                        {translations[comp.description_key] || comp.description}
+                    </p>
                     {#if comp.threshold_breached}
                         <span class="threshold-tag"
                             >{comp.threshold_breached.replace(/_/g, " ")}</span
@@ -256,7 +258,7 @@
     <!-- Trading Implications -->
     <div class="implications-section">
         <h4 class="section-title">
-            {translations.trading_implications || "Trading Implications"}
+            {translations.rs_trading_implications || "Trading Implications"}
         </h4>
         <div class="implications-grid">
             {#each ["duration", "curve", "credit", "equity", "fx"] as key}
@@ -266,7 +268,8 @@
                             >{formatImplicationKey(key)}</span
                         >
                         <span class="implication-value"
-                            >{implications[key]}</span
+                            >{translations[implications[key].key] ||
+                                implications[key].text}</span
                         >
                     </div>
                 {/if}
@@ -277,11 +280,13 @@
         {#if opportunities.length > 0}
             <div class="opportunities-section">
                 <h5 class="subsection-title">
-                    💡 {translations.opportunities || "Opportunities"}
+                    💡 {translations.rs_opportunities || "Opportunities"}
                 </h5>
                 <div class="tag-list">
                     {#each opportunities as opp}
-                        <span class="opportunity-tag">{opp}</span>
+                        <span class="opportunity-tag"
+                            >{translations[opp.key] || opp.text}</span
+                        >
                     {/each}
                 </div>
             </div>
@@ -291,11 +296,13 @@
         {#if keyRisks.length > 0}
             <div class="risks-section">
                 <h5 class="subsection-title">
-                    ⚠️ {translations.key_risks || "Key Risks"}
+                    ⚠️ {translations.rs_key_risks || "Key Risks"}
                 </h5>
                 <div class="risks-list">
                     {#each keyRisks as risk}
-                        <div class="risk-item">{risk}</div>
+                        <div class="risk-item">
+                            {translations[risk.key] || risk.text}
+                        </div>
                     {/each}
                 </div>
             </div>

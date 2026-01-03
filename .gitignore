@@ -25,3 +25,8 @@ __pycache__/
 dist/
 build/
 .svelte-kit/
+
+# Custom
+plain_txt/
+scripts/
+find_duplicates.js

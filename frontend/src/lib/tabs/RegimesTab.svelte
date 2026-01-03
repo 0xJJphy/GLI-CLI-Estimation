@@ -386,7 +386,7 @@
             {
                 x: dates,
                 y: btc,
-                name: "BTC Price",
+                name: t("btc_price", "BTC Price"),
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#f59e0b", width: 2 },
@@ -396,7 +396,7 @@
             {
                 x: dates,
                 y: scoreFiltered,
-                name: "Regime Score",
+                name: t("regime_score_label", "Score"),
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#3b82f6", width: 1.5 },
@@ -493,7 +493,7 @@
             {
                 x: dates,
                 y: btc,
-                name: "BTC Price",
+                name: t("btc_price", "BTC Price"),
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#f59e0b", width: 2 },
@@ -502,7 +502,7 @@
             {
                 x: dates,
                 y: scoreFiltered,
-                name: "Regime Score",
+                name: t("regime_score_label", "Score"),
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#a855f7", width: 1.5 },
@@ -532,7 +532,7 @@
         },
         yaxis: { visible: false, domain: [0.25, 1] },
         yaxis2: {
-            title: "BTC Price (log)",
+            title: t("btc_price_log", "BTC Price (log)"),
             type: "log",
             side: "right",
             overlaying: "y",
@@ -541,7 +541,7 @@
             domain: [0.25, 1],
         },
         yaxis3: {
-            title: "Score",
+            title: t("chart_score_y", "Score"),
             range: [0, 100],
             side: "left",
             anchor: "x",

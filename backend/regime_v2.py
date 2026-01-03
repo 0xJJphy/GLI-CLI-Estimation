@@ -820,10 +820,10 @@ def calculate_stress_historical(
     out['total_stress_pct'] = (total_stress / 27 * 100).round(1)
     
     # Nivel categórico
-    stress_level = pd.Series('LOW', index=idx)
-    stress_level = stress_level.where(total_stress < 5, 'MODERATE')
-    stress_level = stress_level.where(total_stress < 10, 'HIGH')
-    stress_level = stress_level.where(total_stress < 15, 'CRITICAL')
+    stress_level = pd.Series('low', index=idx)
+    stress_level = stress_level.where(total_stress < 5, 'moderate')
+    stress_level = stress_level.where(total_stress < 10, 'high')
+    stress_level = stress_level.where(total_stress < 15, 'critical')
     out['stress_level'] = stress_level
     
     return out

@@ -707,7 +707,7 @@ def calculate_auction_demand_score(df: pd.DataFrame, lookback_auctions: int = 10
         results['signal_description'] = 'Mixed signals. Market functioning normally.'
     
     # Recent auctions WITH alerts
-    results['recent_auctions'] = _get_recent_auctions_with_alerts(df, n=15)
+    results['recent_auctions'] = _get_recent_auctions_with_alerts(df, n=20)
     
     # Aggregate metrics
     results['metrics'] = {
@@ -776,6 +776,7 @@ def _calculate_type_score(df: pd.DataFrame, sec_type: str) -> Dict:
     
     return {
         'score': round(combined_score, 1),
+        'name_key': sec_type.lower(),
         'avg_btc': round(avg_btc, 2) if avg_btc else None,
         'avg_indirect_pct': round(avg_indirect, 1) if avg_indirect else None,
         'avg_direct_pct': round(avg_direct, 1) if avg_direct else None,
@@ -787,7 +788,7 @@ def _calculate_type_score(df: pd.DataFrame, sec_type: str) -> Dict:
     }
 
 
-def _get_recent_auctions_with_alerts(df: pd.DataFrame, n: int = 15) -> List[Dict]:
+def _get_recent_auctions_with_alerts(df: pd.DataFrame, n: int = 20) -> List[Dict]:
     recent = df.head(n * 2)
     
     auctions = []
@@ -849,6 +850,7 @@ def _get_recent_auctions_with_alerts(df: pd.DataFrame, n: int = 15) -> List[Dict
             'dealer_pct': round(dealer, 1) if dealer else None,
             'amount_billions': round(row.get('amount_billions', 0), 1),
             'status': status,
+            'status_key': status.lower(),
             'status_color': status_color,
             'alerts': alerts,
             'alert_count': len(alerts)
@@ -923,9 +925,17 @@ def fetch_treasury_auction_demand(silent: bool = False) -> Dict:
     # Generate alert summary
     alert_summary = generate_alert_summary(all_alerts)
     
+    # Ensure raw_auctions is clean for JSON
+    raw_auctions = demand_score.get('recent_auctions', [])
+    for a in raw_auctions:
+        for k, v in a.items():
+            if isinstance(v, float) and (np.isnan(v) or np.isinf(v)):
+                a[k] = None
+    
     result = {
         'demand_score': demand_score,
         'alerts': alert_summary,
+        'raw_auctions': raw_auctions,
         'last_updated': datetime.now().isoformat()
     }
     

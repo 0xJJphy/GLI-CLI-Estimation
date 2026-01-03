@@ -21,7 +21,10 @@ from regime_v2 import (
 )
 
 # Import unified signal configuration
-from signal_config import compute_signal, SIGNAL_CONFIG, SignalState
+from signal_config import (
+    compute_signal, SIGNAL_CONFIG, SignalState, STATE_SCORES,
+    STANCE_KEYS, aggregate_signal_score, validate_weights
+)
 
 # Import Treasury maturity data module
 from treasury_data import get_treasury_maturity_data
@@ -835,31 +838,31 @@ def calculate_market_stress_analysis(df, silent=False):
         
         if last_tips_be > 2.5:
             inflation_score += 2
-            inflation_signals.append("⚠️ Breakeven inflation above 2.5% - hawkish Fed pressure")
+            inflation_signals.append({"text": "⚠️ Breakeven inflation above 2.5% - hawkish Fed pressure", "key": "ms_infl_be_high"})
         elif last_tips_be > 2.2:
             inflation_score += 1
-            inflation_signals.append("🔶 Breakeven inflation slightly elevated (2.2-2.5%)")
+            inflation_signals.append({"text": "🔶 Breakeven inflation slightly elevated (2.2-2.5%)", "key": "ms_infl_be_elevated"})
         elif last_tips_be < 1.8:
             inflation_score -= 1
-            inflation_signals.append("🔵 Breakeven inflation below target - potential easing")
+            inflation_signals.append({"text": "🔵 Breakeven inflation below target - potential easing", "key": "ms_infl_be_low"})
         else:
-            inflation_signals.append("✅ Breakeven inflation near 2% target")
+            inflation_signals.append({"text": "✅ Breakeven inflation near 2% target", "key": "ms_infl_be_normal"})
         
         if tips_clev_divergence > 0.3:
             inflation_score += 1
-            inflation_signals.append(f"⚠️ High TIPS/Swap divergence ({tips_clev_divergence:.2f}pp)")
+            inflation_signals.append({"text": f"⚠️ High TIPS/Swap divergence ({tips_clev_divergence:.2f}pp)", "key": "ms_infl_div_high"})
         
         if last_5y5y > 2.5:
             inflation_score += 1
-            inflation_signals.append("⚠️ Long-term inflation expectations elevated (>2.5%)")
+            inflation_signals.append({"text": "⚠️ Long-term inflation expectations elevated (>2.5%)", "key": "ms_infl_5y5y_high"})
         
         if last_inf_risk > 0.3:
             inflation_score += 1
-            inflation_signals.append("⚠️ Elevated inflation risk premium")
+            inflation_signals.append({"text": "⚠️ Elevated inflation risk premium", "key": "ms_infl_risk_high"})
         
         if tips_be_roc_3m > 20:
             inflation_score += 2
-            inflation_signals.append("🔴 Rapid rise in inflation expectations (>20% 3M)")
+            inflation_signals.append({"text": "🔴 Rapid rise in inflation expectations (>20% 3M)", "key": "ms_infl_roc_high"})
         
         inf_level = 'HIGH' if inflation_score >= 4 else 'MODERATE' if inflation_score >= 2 else 'LOW'
         inf_color = 'red' if inflation_score >= 4 else 'yellow' if inflation_score >= 2 else 'green'
@@ -911,29 +914,29 @@ def calculate_market_stress_analysis(df, silent=False):
         
         if sofr_iorb_spread > 5:
             liquidity_score += 2
-            liquidity_signals.append(f"🔴 SOFR trading {sofr_iorb_spread:.0f}bps above IORB - funding stress")
+            liquidity_signals.append({"text": f"🔴 SOFR trading {sofr_iorb_spread:.0f}bps above IORB - funding stress", "key": "ms_liq_sofr_high"})
         elif sofr_iorb_spread > 2:
             liquidity_score += 1
-            liquidity_signals.append(f"🔶 SOFR slightly above IORB (+{sofr_iorb_spread:.0f}bps)")
+            liquidity_signals.append({"text": f"🔶 SOFR slightly above IORB (+{sofr_iorb_spread:.0f}bps)", "key": "ms_liq_sofr_elevated"})
         else:
-            liquidity_signals.append(f"✅ SOFR-IORB spread normal ({sofr_iorb_spread:.0f}bps)")
+            liquidity_signals.append({"text": f"✅ SOFR-IORB spread normal ({sofr_iorb_spread:.0f}bps)", "key": "ms_liq_sofr_normal"})
         
         if last_reserves < 2.8:
             liquidity_score += 2
-            liquidity_signals.append(f"🔴 Bank reserves critically low (${last_reserves:.2f}T)")
+            liquidity_signals.append({"text": f"🔴 Bank reserves critically low (${last_reserves:.2f}T)", "key": "ms_liq_reserves_critical"})
         elif last_reserves < 3.2:
             liquidity_score += 1
-            liquidity_signals.append(f"🔶 Bank reserves approaching stress zone")
+            liquidity_signals.append({"text": "🔶 Bank reserves approaching stress zone", "key": "ms_liq_reserves_low"})
         else:
-            liquidity_signals.append(f"✅ Bank reserves adequate (${last_reserves:.2f}T)")
+            liquidity_signals.append({"text": f"✅ Bank reserves adequate (${last_reserves:.2f}T)", "key": "ms_liq_reserves_adequate"})
         
         if last_rrp < 0.1:
             liquidity_score += 1
-            liquidity_signals.append("⚠️ RRP nearly depleted")
+            liquidity_signals.append({"text": "⚠️ RRP nearly depleted", "key": "ms_liq_rrp_depleted"})
         
         if net_liquidity < 5.5:
             liquidity_score += 1
-            liquidity_signals.append(f"⚠️ Net liquidity contracting (${net_liquidity:.2f}T)")
+            liquidity_signals.append({"text": f"⚠️ Net liquidity contracting (${net_liquidity:.2f}T)", "key": "ms_liq_net_contracting"})
         
         liq_level = 'HIGH' if liquidity_score >= 4 else 'MODERATE' if liquidity_score >= 2 else 'LOW'
         liq_color = 'red' if liquidity_score >= 4 else 'yellow' if liquidity_score >= 2 else 'green'
@@ -980,27 +983,27 @@ def calculate_market_stress_analysis(df, silent=False):
         
         if last_hy > 500:
             credit_score += 2
-            credit_signals.append(f"🔴 HY spreads elevated ({last_hy:.0f}bps)")
+            credit_signals.append({"text": f"🔴 HY spreads elevated ({last_hy:.0f}bps)", "key": "ms_cred_hy_high"})
         elif last_hy > 400:
             credit_score += 1
-            credit_signals.append(f"🔶 HY spreads above average ({last_hy:.0f}bps)")
+            credit_signals.append({"text": f"🔶 HY spreads above average ({last_hy:.0f}bps)", "key": "ms_cred_hy_elevated"})
         elif last_hy < 300:
-            credit_signals.append(f"🟢 HY spreads tight ({last_hy:.0f}bps)")
+            credit_signals.append({"text": f"🟢 HY spreads tight ({last_hy:.0f}bps)", "key": "ms_cred_hy_tight"})
         else:
-            credit_signals.append(f"✅ HY spreads normal ({last_hy:.0f}bps)")
+            credit_signals.append({"text": f"✅ HY spreads normal ({last_hy:.0f}bps)", "key": "ms_cred_hy_normal"})
         
         if last_ig > 150:
             credit_score += 1
-            credit_signals.append(f"⚠️ IG spreads elevated ({last_ig:.0f}bps)")
+            credit_signals.append({"text": f"⚠️ IG spreads elevated ({last_ig:.0f}bps)", "key": "ms_cred_ig_high"})
         
         if last_nfci > 0.5:
             credit_score += 2
-            credit_signals.append(f"🔴 NFCI signals tight conditions ({last_nfci:.2f})")
+            credit_signals.append({"text": f"🔴 NFCI signals tight conditions ({last_nfci:.2f})", "key": "ms_cred_nfci_tight"})
         elif last_nfci > 0:
             credit_score += 1
-            credit_signals.append(f"🔶 NFCI slightly tight ({last_nfci:.2f})")
+            credit_signals.append({"text": f"🔶 NFCI slightly tight ({last_nfci:.2f})", "key": "ms_cred_nfci_elevated"})
         else:
-            credit_signals.append(f"✅ NFCI neutral/loose ({last_nfci:.2f})")
+            credit_signals.append({"text": f"✅ NFCI neutral/loose ({last_nfci:.2f})", "key": "ms_cred_nfci_normal"})
         
         cred_level = 'HIGH' if credit_score >= 4 else 'MODERATE' if credit_score >= 2 else 'LOW'
         cred_color = 'red' if credit_score >= 4 else 'yellow' if credit_score >= 2 else 'green'
@@ -1051,32 +1054,32 @@ def calculate_market_stress_analysis(df, silent=False):
         # VIX signals
         if last_vix > 30:
             vol_score += 2
-            vol_signals.append(f"🔴 VIX elevated ({last_vix:.1f}) - high fear")
+            vol_signals.append({"text": f"🔴 VIX elevated ({last_vix:.1f}) - high fear", "key": "ms_vol_vix_high"})
         elif last_vix > 20:
             vol_score += 1
-            vol_signals.append(f"🔶 VIX above average ({last_vix:.1f})")
+            vol_signals.append({"text": f"🔶 VIX above average ({last_vix:.1f})", "key": "ms_vol_vix_elevated"})
         elif last_vix < 12:
-            vol_signals.append(f"⚠️ VIX very low ({last_vix:.1f}) - complacency")
+            vol_signals.append({"text": f"⚠️ VIX very low ({last_vix:.1f}) - complacency", "key": "ms_vol_vix_complacency"})
         else:
-            vol_signals.append(f"✅ VIX normal ({last_vix:.1f})")
+            vol_signals.append({"text": f"✅ VIX normal ({last_vix:.1f})", "key": "ms_vol_vix_normal"})
         
         if vix_zscore > 2:
             vol_score += 1
-            vol_signals.append(f"🔴 VIX Z-score extreme ({vix_zscore:.2f})")
+            vol_signals.append({"text": f"🔴 VIX Z-score extreme ({vix_zscore:.2f})", "key": "ms_vol_vix_z_extreme"})
         
         if vix_roc_1w > 30:
             vol_score += 1
-            vol_signals.append(f"⚠️ VIX spiking ({vix_roc_1w:.0f}% weekly)")
+            vol_signals.append({"text": f"⚠️ VIX spiking ({vix_roc_1w:.0f}% weekly)", "key": "ms_vol_vix_spike"})
         
         # Treasury yield volatility signals (MOVE proxy)
         if last_yield_vol > 10:
             vol_score += 2
-            vol_signals.append(f"🔴 10Y yield volatility HIGH ({last_yield_vol:.1f}bps/day)")
+            vol_signals.append({"text": f"🔴 10Y yield volatility HIGH ({last_yield_vol:.1f}bps/day)", "key": "ms_vol_yield_high"})
         elif last_yield_vol > 7:
             vol_score += 1
-            vol_signals.append(f"🔶 10Y yield volatility elevated ({last_yield_vol:.1f}bps/day)")
+            vol_signals.append({"text": f"🔶 10Y yield volatility elevated ({last_yield_vol:.1f}bps/day)", "key": "ms_vol_yield_elevated"})
         else:
-            vol_signals.append(f"✅ 10Y yield volatility normal ({last_yield_vol:.1f}bps/day)")
+            vol_signals.append({"text": f"✅ 10Y yield volatility normal ({last_yield_vol:.1f}bps/day)", "key": "ms_vol_yield_normal"})
         
         # Update max score to account for new yield vol signals
         vol_max_score = 6  # VIX (4) + Yield Vol (2)
@@ -1113,19 +1116,19 @@ def calculate_market_stress_analysis(df, silent=False):
         if total_score >= 15:
             global_level = 'CRITICAL'
             global_color = '#dc2626'
-            global_assessment = "🚨 CRITICAL STRESS - Multiple systemic risk indicators elevated"
+            global_assessment = {"text": "🚨 CRITICAL STRESS - Multiple systemic risk indicators elevated", "key": "ms_global_critical"}
         elif total_score >= 10:
             global_level = 'HIGH'
             global_color = '#ea580c'
-            global_assessment = "⚠️ HIGH STRESS - Significant tensions across markets"
+            global_assessment = {"text": "⚠️ HIGH STRESS - Significant tensions across markets", "key": "ms_global_high"}
         elif total_score >= 5:
             global_level = 'MODERATE'
             global_color = '#ca8a04'
-            global_assessment = "🔶 MODERATE STRESS - Some warning signs present"
+            global_assessment = {"text": "🔶 MODERATE STRESS - Some warning signs present", "key": "ms_global_moderate"}
         else:
             global_level = 'LOW'
             global_color = '#16a34a'
-            global_assessment = "✅ LOW STRESS - Market conditions relatively stable"
+            global_assessment = {"text": "✅ LOW STRESS - Market conditions relatively stable", "key": "ms_global_low"}
         
         analysis['global_stress'] = {
             'total_score': total_score,
@@ -1149,37 +1152,49 @@ def calculate_market_stress_analysis(df, silent=False):
             'tips_market': {
                 'title': 'Inflation Expectations (TIPS Market)',
                 'summary': f"10Y Breakeven at {last_tips_be:.2f}%. 5Y5Y Forward at {last_5y5y:.2f}%. Real rates at {last_real:.2f}%.",
+                'summary_key': 'ms_chart_tips_summary',
                 'signal': 'CAUTION' if last_tips_be > 2.5 or last_tips_be < 1.5 else 'NEUTRAL',
+                'signal_key': 'ms_signal_caution' if last_tips_be > 2.5 or last_tips_be < 1.5 else 'ms_signal_neutral',
                 'signal_color': 'yellow' if last_tips_be > 2.5 or last_tips_be < 1.5 else 'green'
             },
             'tips_vs_swaps': {
                 'title': 'TIPS vs Cleveland Fed (Inflation Swaps)',
                 'summary': f"TIPS ({last_tips_be:.2f}%) vs Cleveland Fed ({last_clev_10y:.2f}%). Divergence: {tips_clev_divergence:.2f}pp.",
+                'summary_key': 'ms_chart_tips_swaps_summary',
                 'signal': 'DIVERGENCE' if tips_clev_divergence > 0.3 else 'ALIGNED',
+                'signal_key': 'ms_signal_divergence' if tips_clev_divergence > 0.3 else 'ms_signal_aligned',
                 'signal_color': 'yellow' if tips_clev_divergence > 0.3 else 'green'
             },
             'bank_reserves': {
                 'title': 'Bank Reserves vs Net Liquidity',
                 'summary': f"Reserves at ${last_reserves:.2f}T. Net Liquidity: ${net_liquidity:.2f}T.",
+                'summary_key': 'ms_chart_reserves_summary',
                 'signal': 'STRESS' if last_reserves < 3.0 else 'OK',
+                'signal_key': 'ms_signal_stress' if last_reserves < 3.0 else 'ms_signal_ok',
                 'signal_color': 'red' if last_reserves < 3.0 else 'green'
             },
             'repo_stress': {
                 'title': 'Repo Market Stress (SOFR vs IORB)',
                 'summary': f"SOFR at {last_sofr:.3f}%, IORB at {last_iorb:.3f}%. Spread: {sofr_iorb_spread:.1f}bps.",
+                'summary_key': 'ms_chart_repo_summary',
                 'signal': 'STRESS' if sofr_iorb_spread > 5 else 'NORMAL',
+                'signal_key': 'ms_signal_stress' if sofr_iorb_spread > 5 else 'ms_signal_normal',
                 'signal_color': 'red' if sofr_iorb_spread > 5 else 'green'
             },
             'credit_conditions': {
                 'title': 'Credit Conditions (CLI)',
                 'summary': f"HY spread: {last_hy:.0f}bps. NFCI: {last_nfci:.2f}.",
+                'summary_key': 'ms_chart_credit_summary',
                 'signal': 'TIGHT' if last_nfci > 0 else 'NORMAL',
+                'signal_key': 'ms_signal_tight' if last_nfci > 0 else 'ms_signal_normal',
                 'signal_color': 'yellow' if last_nfci > 0 else 'green'
             },
             'volatility': {
                 'title': 'Volatility (VIX)',
                 'summary': f"VIX at {last_vix:.1f} (Z: {vix_zscore:.1f}).",
+                'summary_key': 'ms_chart_vol_summary',
                 'signal': 'FEAR' if last_vix > 25 else 'COMPLACENT' if last_vix < 12 else 'NEUTRAL',
+                'signal_key': 'ms_signal_fear' if last_vix > 25 else 'ms_signal_complacent' if last_vix < 12 else 'ms_signal_neutral',
                 'signal_color': 'red' if last_vix > 25 else 'yellow' if last_vix < 12 else 'green'
             }
         }
@@ -1191,31 +1206,31 @@ def calculate_market_stress_analysis(df, silent=False):
         key_positives = []
         
         if inflation_score >= 3:
-            key_risks.append("Inflation expectations deviating from target")
+            key_risks.append({"text": "Inflation expectations deviating from target", "key": "ms_risk_infl"})
         if liquidity_score >= 3:
-            key_risks.append("Liquidity conditions tightening")
+            key_risks.append({"text": "Liquidity conditions tightening", "key": "ms_risk_liq"})
         if credit_score >= 3:
-            key_risks.append("Credit spreads widening")
+            key_risks.append({"text": "Credit spreads widening", "key": "ms_risk_cred"})
         if vol_score >= 2:
-            key_risks.append("Elevated market volatility")
+            key_risks.append({"text": "Elevated market volatility", "key": "ms_risk_vol"})
         
         if inflation_score <= 1:
-            key_positives.append("Inflation expectations well-anchored")
+            key_positives.append({"text": "Inflation expectations well-anchored", "key": "ms_pos_infl"})
         if liquidity_score <= 1:
-            key_positives.append("Ample liquidity in the system")
+            key_positives.append({"text": "Ample liquidity in the system", "key": "ms_pos_liq"})
         if credit_score <= 1:
-            key_positives.append("Credit conditions supportive")
+            key_positives.append({"text": "Credit conditions supportive", "key": "ms_pos_cred"})
         if vol_score <= 1:
-            key_positives.append("Low volatility environment")
+            key_positives.append({"text": "Low volatility environment", "key": "ms_pos_vol"})
         
         analysis['overall_assessment'] = {
             'headline': global_assessment,
-            'key_risks': key_risks if key_risks else ["No major stress signals detected"],
-            'key_positives': key_positives if key_positives else ["Market in transition phase"],
+            'key_risks': key_risks if key_risks else [{"text": "No major stress signals detected", "key": "ms_risk_none"}],
+            'key_positives': key_positives if key_positives else [{"text": "Market in transition phase", "key": "ms_pos_transition"}],
             'recommendation': (
-                "Consider defensive positioning" if total_score >= 10 
-                else "Monitor closely for changes" if total_score >= 5 
-                else "Environment supportive for risk assets"
+                {"text": "Consider defensive positioning", "key": "ms_rec_defensive"} if total_score >= 10 
+                else {"text": "Monitor closely for changes", "key": "ms_rec_monitor"} if total_score >= 5 
+                else {"text": "Environment supportive for risk assets", "key": "ms_rec_supportive"}
             )
         }
         
@@ -2583,22 +2598,15 @@ def calculate_signals(df, cli_df):
             "confidence": round(result.confidence, 2)
         }
 
-    # 4. NFCI Credit (Negated: higher = looser)
+    # 4. NFCI Credit (already inverted in NFCI_CREDIT_Z: higher is better)
     nfcic = get_latest(cli_df.get('NFCI_CREDIT_Z'))
     if nfcic is not None:
-        # Use standard threshold from config (nfci uses similar thresholds)
-        state = "neutral"
-        if nfcic > 0.6: state = "bullish"
-        elif nfcic < -0.6: state = "bearish"
+        result = compute_signal('nfci_credit', nfcic)
         signals['nfci_credit'] = {
-            "state": state, 
+            "state": result.state, 
             "value": round(nfcic, 2),
-            "reason": SIGNAL_CONFIG.get('nfci_risk', {}).get('reasons', {}).get(
-                SignalState.BULLISH if state == "bullish" else 
-                SignalState.BEARISH if state == "bearish" else SignalState.NEUTRAL,
-                "NFCI Credit signal"
-            ),
-            "confidence": min(1.0, abs(nfcic) / 1.5)
+            "reason": result.reason,
+            "confidence": round(result.confidence, 2)
         }
 
     # 5. NFCI Risk (Negated)
@@ -2665,14 +2673,52 @@ def calculate_signals(df, cli_df):
             # Convert to basis points for threshold comparison
             spread_bps = spread * 100 if abs(spread) < 1 else spread
             
-            result = compute_signal('repo_stress', spread_bps, srf_usage=srf_active)
-            signals['repo_stress'] = {
+            # Use 'repo' as canonical key (not 'repo_stress')
+            result = compute_signal('repo', spread_bps, srf_usage=srf_active)
+            signals['repo'] = {
                 "state": result.state,
                 "value": round(spread_bps, 2),
                 "reason": result.reason,
                 "confidence": round(result.confidence, 2),
                 "srf_active": srf_active
             }
+            # Backward-compat alias: repo_stress -> repo
+            signals['repo_stress'] = signals['repo']
+
+    # 10. MOVE Index (Bond Volatility)
+    move_val = get_latest(df.get('MOVE', pd.Series(dtype=float)))
+    if move_val is not None:
+        result = compute_signal('move', move_val)
+        signals['move'] = {
+            "state": result.state,
+            "value": round(move_val, 2),
+            "reason": result.reason,
+            "confidence": round(result.confidence, 2)
+        }
+
+    # 11. FX Volatility (DXY Realized Vol)
+    fx_vol_val = get_latest(df.get('FX_VOL', pd.Series(dtype=float)))
+    if fx_vol_val is not None:
+        result = compute_signal('fx_vol', fx_vol_val)
+        signals['fx_vol'] = {
+            "state": result.state,
+            "value": round(fx_vol_val, 2),
+            "reason": result.reason,
+            "confidence": round(result.confidence, 2)
+        }
+
+    # 12. Yield Curve (10Y-2Y spread in bps)
+    y10 = get_latest(df.get('TREASURY_10Y_YIELD', pd.Series(dtype=float)))
+    y2 = get_latest(df.get('TREASURY_2Y_YIELD', pd.Series(dtype=float)))
+    if y10 is not None and y2 is not None:
+        spread_bps = (y10 - y2) * 100  # Convert % to bps
+        result = compute_signal('yield_curve', spread_bps)
+        signals['yield_curve'] = {
+            "state": result.state,
+            "value": round(spread_bps, 2),
+            "reason": result.reason,
+            "confidence": round(result.confidence, 2)
+        }
 
     return signals
 
@@ -3502,7 +3548,6 @@ def run_pipeline():
         gli = calculate_gli_from_trillions(df_t)
         us_net_liq = calculate_us_net_liq_from_trillions(df_t)
         cli_df = calculate_cli(df_t)
-        signals = calculate_signals(df_t, cli_df)
 
         # Add GLI_TOTAL, NET_LIQUIDITY and M2_TOTAL to df_t
         m2_data = calculate_global_m2(df_t)
@@ -3538,6 +3583,12 @@ def run_pipeline():
             df_t['FX_VOL'] = pd.Series(dtype=float, index=df_t.index)
         
         fx_vol_rocs = calculate_rocs(df_t['FX_VOL']) if 'FX_VOL' in df_t.columns and df_t['FX_VOL'].notna().sum() > 0 else {}
+
+        # Calculate signals AFTER FX_VOL is computed (so all data is available)
+        signals = calculate_signals(df_t, cli_df)
+        
+        # Compute aggregate signal score for dashboard
+        signal_aggregate = aggregate_signal_score(signals)
 
         # ================================================================
         # CLI V2 and Regime V2 Calculations (from regime_v2 module)
@@ -3838,6 +3889,8 @@ def run_pipeline():
                 'weights': {'HY': 0.25, 'IG': 0.15, 'NFCI_CREDIT': 0.20, 'NFCI_RISK': 0.20, 'LENDING': 0.10, 'VIX': 0.10}
             },
             'signals': signals,
+            'signal_aggregate': signal_aggregate,
+            'schema_version': 2,
             'nfci_credit': clean_for_json(df_t.get('NFCI_CREDIT', pd.Series(dtype=float))),
             'nfci_risk': clean_for_json(df_t.get('NFCI_RISK', pd.Series(dtype=float))),
             'lending': clean_for_json(df_t.get('LENDING_STD', pd.Series(dtype=float))),

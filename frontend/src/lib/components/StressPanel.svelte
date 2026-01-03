@@ -67,9 +67,12 @@
         class="assessment-text"
         style="border-left-color: {globalStress.color || '#6b7280'}"
     >
-        {globalStress.assessment ||
-            translations.loading_analysis ||
-            "Loading analysis..."}
+        {globalStress.assessment?.key
+            ? translations[globalStress.assessment.key]
+            : globalStress.assessment?.text ||
+              globalStress.assessment ||
+              translations.loading_analysis ||
+              "Loading analysis..."}
     </div>
 
     <!-- Stress Bars -->
@@ -196,17 +199,33 @@
         <div class="risks-section">
             <h4>⚠️ {translations.key_risks || "Key Risks"}</h4>
             <ul>
-                {#each assessment.key_risks || [translations.no_data || "No data"] as risk}
-                    <li>{risk}</li>
-                {/each}
+                {#if assessment.key_risks}
+                    {#each assessment.key_risks as risk}
+                        <li>
+                            {risk.key
+                                ? translations[risk.key]
+                                : risk.text || risk}
+                        </li>
+                    {/each}
+                {:else}
+                    <li>{translations.no_data || "No data"}</li>
+                {/if}
             </ul>
         </div>
         <div class="positives-section">
             <h4>✅ {translations.key_positives || "Key Positives"}</h4>
             <ul>
-                {#each assessment.key_positives || [translations.no_data || "No data"] as positive}
-                    <li>{positive}</li>
-                {/each}
+                {#if assessment.key_positives}
+                    {#each assessment.key_positives as positive}
+                        <li>
+                            {positive.key
+                                ? translations[positive.key]
+                                : positive.text || positive}
+                        </li>
+                    {/each}
+                {:else}
+                    <li>{translations.no_data || "No data"}</li>
+                {/if}
             </ul>
         </div>
     </div>
@@ -219,11 +238,16 @@
         <span class="rec-label"
             >💡 {translations.recommendation || "Recommendation"}:</span
         >
-        <span class="rec-text"
-            >{assessment.recommendation ||
-                translations.loading ||
-                "Loading..."}</span
-        >
+        <span class="rec-text">
+            {#if assessment.recommendation}
+                {assessment.recommendation.key
+                    ? translations[assessment.recommendation.key]
+                    : assessment.recommendation.text ||
+                      assessment.recommendation}
+            {:else}
+                {translations.loading || "Loading..."}
+            {/if}
+        </span>
     </div>
 </div>
 

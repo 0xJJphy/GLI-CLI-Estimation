@@ -115,6 +115,21 @@
         forecast_horizon: currentMonths,
     };
 
+    $: auctionDemandData = dashboardData.treasury_auction_demand || {};
+    $: recentAuctions = (auctionDemandData.raw_auctions || []).slice(0, 20);
+
+    // Format percentage
+    function formatPct(value) {
+        if (value === null || value === undefined) return "—";
+        return `${value.toFixed(1)}%`;
+    }
+
+    // Format bid-to-cover
+    function formatBtc(value) {
+        if (value === null || value === undefined) return "—";
+        return `${value.toFixed(2)}x`;
+    }
+
     // Format currency helper
     function formatCurrency(value, decimals = 2) {
         if (value === null || value === undefined) return "$0";
@@ -386,7 +401,7 @@
     </div>
 
     <!-- Monthly Table -->
-    <div class="table-card">
+    <div class="table-card" style="margin-bottom: 30px;">
         <div class="table-header">
             <h3 class="table-title">
                 {translations.monthly_maturity_schedule ||
@@ -456,6 +471,71 @@
 
     <!-- Treasury Auction Demand Section -->
     <TreasuryAuctionDemand {darkMode} {translations} {dashboardData} />
+
+    <!-- Detailed Auction History Table -->
+    {#if recentAuctions.length > 0}
+        <div class="table-card" style="margin-top: 24px;">
+            <div class="table-header">
+                <h3 class="table-title">
+                    {translations.last_20_completed_auctions ||
+                        "Last 20 Completed Auctions"}
+                </h3>
+            </div>
+            <div class="table-content">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>{translations.date || "Date"}</th>
+                            <th>{translations.security || "Security"}</th>
+                            <th>{translations.bid_to_cover || "BTC"}</th>
+                            <th>{translations.indirect || "Indirect"}</th>
+                            <th>{translations.direct || "Direct"}</th>
+                            <th>{translations.dealer || "Dealer"}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {#each recentAuctions as auction}
+                            <tr>
+                                <td
+                                    class="month-cell"
+                                    style="font-family: monospace; font-size: 11px;"
+                                >
+                                    {auction.date || "—"}
+                                </td>
+                                <td class="month-cell">
+                                    {auction.security || ""}
+                                </td>
+                                <td
+                                    class="value-cell"
+                                    style="color: {auction.bid_to_cover >= 2.7
+                                        ? '#4ade80'
+                                        : auction.bid_to_cover < 2.3
+                                          ? '#ef4444'
+                                          : '#f8fafc'}"
+                                >
+                                    {formatBtc(auction.bid_to_cover)}
+                                </td>
+                                <td class="value-cell"
+                                    >{formatPct(auction.indirect_pct)}</td
+                                >
+                                <td class="value-cell"
+                                    >{formatPct(auction.direct_pct)}</td
+                                >
+                                <td
+                                    class="value-cell"
+                                    style="color: {auction.dealer_pct > 25
+                                        ? '#fbbf24'
+                                        : '#94a3b8'}"
+                                >
+                                    {formatPct(auction.dealer_pct)}
+                                </td>
+                            </tr>
+                        {/each}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {/if}
 </div>
 
 <style>

@@ -9,6 +9,8 @@
     export let translations = {};
     export let dashboardData = {};
 
+    let showMethodology = false;
+
     // --- Computed Data ---
     $: auctionData = dashboardData.treasury_auction_demand || {
         demand_score: {},
@@ -21,7 +23,7 @@
     $: signal = demandScore.signal || "NO_DATA";
     $: signalColor = getSignalColor(signal);
     $: byType = demandScore.by_type || {};
-    $: recentAuctions = (auctionData.raw_auctions || []).slice(0, 8);
+    $: recentAuctions = (auctionData.raw_auctions || []).slice(0, 20);
 
     // Signal color mapping
     function getSignalColor(signal) {
@@ -116,7 +118,10 @@
         {#each Object.entries(byType) as [type, data]}
             <div class="type-card">
                 <div class="type-header">
-                    <span class="type-name">{type}</span>
+                    <span class="type-name"
+                        >{translations[data.name_key] || type}</span
+                    >
+
                     <span
                         class="type-score"
                         style="color: {getDemandLevelColor(data.score || 0)};"
@@ -138,61 +143,70 @@
                             >{translations.indirect_pct || "Indirect"}</span
                         >
                         <span class="metric-value"
-                            >{formatPct(data.indirect_pct)}</span
+                            >{formatPct(data.avg_indirect_pct)}</span
                         >
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label"
+                            >{translations.dealer_pct || "Dealer"}</span
+                        >
+                        <span
+                            class="metric-value"
+                            class:concerning={data.avg_dealer_pct > 25}
+                        >
+                            {formatPct(data.avg_dealer_pct)}
+                        </span>
                     </div>
                 </div>
             </div>
         {/each}
     </div>
 
-    <!-- Recent Auctions Table -->
-    {#if recentAuctions.length > 0}
-        <div class="recent-auctions">
-            <h4>{translations.recent_auctions || "Recent Auctions"}</h4>
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>{translations.date || "Date"}</th>
-                            <th>{translations.security || "Security"}</th>
-                            <th>{translations.bid_to_cover || "BTC"}</th>
-                            <th>{translations.indirect || "Indirect"}</th>
-                            <th>{translations.direct || "Direct"}</th>
-                            <th>{translations.dealer || "Dealer"}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {#each recentAuctions as auction}
-                            <tr>
-                                <td class="date-cell"
-                                    >{auction.auction_date ||
-                                        auction.issue_date ||
-                                        "—"}</td
-                                >
-                                <td class="security-cell"
-                                    >{auction.security_term || ""}
-                                    {auction.security_type || ""}</td
-                                >
-                                <td
-                                    class="btc-cell"
-                                    class:strong={auction.bid_to_cover >= 2.7}
-                                    class:weak={auction.bid_to_cover < 2.3}
-                                >
-                                    {formatBtc(auction.bid_to_cover)}
-                                </td>
-                                <td>{formatPct(auction.indirect_pct)}</td>
-                                <td>{formatPct(auction.direct_pct)}</td>
-                                <td class:concerning={auction.dealer_pct > 25}
-                                    >{formatPct(auction.dealer_pct)}</td
-                                >
-                            </tr>
-                        {/each}
-                    </tbody>
-                </table>
+    <!-- Methodology Description -->
+    <div class="methodology-section">
+        <button
+            class="methodology-toggle"
+            on:click={() => (showMethodology = !showMethodology)}
+        >
+            <span class="toggle-icon">{showMethodology ? "−" : "ℹ️"}</span>
+            {translations.auction_methodology_title ||
+                "Methodology & Interpretation"}
+        </button>
+
+        {#if showMethodology}
+            <div class="methodology-content">
+                <div class="methodology-item">
+                    <h5>
+                        {translations.formula || "Formula"}
+                    </h5>
+                    <p>
+                        {translations.auction_methodology_formula ||
+                            "The Demand Score is calculated as a weighted average of BTC, Indirect Bidders, and Dealer Takedown."}
+                    </p>
+                </div>
+                <div class="methodology-item">
+                    <h5>
+                        {translations.thresholds || "Thresholds"}
+                    </h5>
+                    <p>
+                        {translations.auction_methodology_thresholds ||
+                            "High BTC and Indirect participation signal strong demand. High Dealer takedown indicates forced absorption."}
+                    </p>
+                </div>
+                <div class="methodology-item">
+                    <h5>
+                        {translations.interpretation || "Interpretation"}
+                    </h5>
+                    <p>
+                        {translations.auction_methodology_interpretation ||
+                            "Scores indicate healthy absorption vs supply/demand imbalance."}
+                    </p>
+                </div>
             </div>
-        </div>
-    {/if}
+        {/if}
+    </div>
+
+    <!-- Type grid ends here -->
 </div>
 
 <style>
@@ -327,72 +341,79 @@
         font-weight: 500;
     }
 
-    .recent-auctions h4 {
-        font-size: 14px;
-        font-weight: 600;
-        color: #f8fafc;
-        margin: 0 0 12px 0;
+    .type-metrics {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
     }
 
-    .table-container {
-        overflow-x: auto;
-        max-height: 280px;
-        overflow-y: auto;
+    /* Methodology Section */
+    .methodology-section {
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
     }
 
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 12px;
-    }
-
-    thead {
-        position: sticky;
-        top: 0;
-        z-index: 10;
-    }
-
-    thead th {
-        text-align: left;
-        padding: 10px 12px;
-        background: rgba(0, 0, 0, 0.3);
-        color: #94a3b8;
-        font-weight: 600;
-        text-transform: uppercase;
-        font-size: 10px;
-        letter-spacing: 0.5px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    tbody td {
-        padding: 10px 12px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-        color: #cbd5e1;
-    }
-
-    .date-cell {
-        color: #94a3b8;
-        font-family: monospace;
-        font-size: 11px;
-    }
-
-    .security-cell {
-        color: #f8fafc;
+    .methodology-toggle {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: transparent;
+        border: none;
+        color: #64748b;
+        font-size: 13px;
         font-weight: 500;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 6px;
+        transition: all 0.2s;
+        margin-bottom: 8px;
     }
 
-    .btc-cell.strong {
-        color: #22c55e;
+    .methodology-toggle:hover {
+        color: #f8fafc;
+        background: rgba(255, 255, 255, 0.04);
+    }
+
+    .toggle-icon {
+        font-size: 14px;
+    }
+
+    .methodology-content {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        padding: 16px;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 12px;
+        animation: slideDown 0.3s ease-out;
+    }
+
+    .methodology-item h5 {
+        margin: 0 0 6px 0;
+        font-size: 12px;
         font-weight: 600;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 
-    .btc-cell.weak {
-        color: #ef4444;
-        font-weight: 600;
+    .methodology-item p {
+        margin: 0;
+        font-size: 13px;
+        color: #cbd5e1;
+        line-height: 1.5;
     }
 
-    td.concerning {
-        color: #fbbf24;
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
     /* Dark mode already default, light mode adjustments */

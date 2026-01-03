@@ -13,6 +13,7 @@
         darkMode,
         language,
         currentTranslations,
+        t,
     } from "../../stores/settingsStore";
 
     // Import utility functions
@@ -174,6 +175,15 @@
             "Monitor closely for regime changes",
     };
 
+    // Helper to translate structured backend assessment items
+    function getAssessmentText(item) {
+        if (!item) return "";
+        if (typeof item === "object") {
+            return t($currentTranslations, item.key || item.text || "");
+        }
+        return t($currentTranslations, item);
+    }
+
     $: treasurySettlements =
         $dashboardData["treasury_settlements"]?.grouped || [];
     $: next7dSettlements = treasurySettlements.filter((s) => {
@@ -237,12 +247,12 @@
     $: maxStress = 27;
     $: stressLevel =
         totalStress >= 15
-            ? "CRITICAL"
+            ? t($currentTranslations, "status_critical") || "CRITICAL"
             : totalStress >= 10
-              ? "HIGH"
+              ? t($currentTranslations, "status_high") || "HIGH"
               : totalStress >= 5
-                ? "MODERATE"
-                : "LOW";
+                ? t($currentTranslations, "status_moderate") || "MODERATE"
+                : t($currentTranslations, "status_low") || "LOW";
     $: stressColor =
         totalStress >= 15
             ? "#dc2626"
@@ -447,25 +457,35 @@
     $: repoStressLevel = (() => {
         if (repoMetrics.srfUsage > 10)
             return {
-                label: "HIGH",
+                label: t($currentTranslations, "status_high") || "HIGH",
                 class: "high",
-                desc: "SRF activated - banks tapping Fed backstop",
+                key: "alrt_repo_high_title",
+                desc:
+                    t($currentTranslations, "repo_srf_activated") ||
+                    "SRF activated - banks tapping Fed backstop",
             };
         if (sofrIorbSpread !== null && parseFloat(sofrIorbSpread) > 5)
             return {
-                label: "ELEVATED",
+                label: t($currentTranslations, "status_elevated") || "ELEVATED",
                 class: "moderate",
-                desc: "SOFR above IORB - funding pressure",
+                key: "alrt_repo_elevated_title",
+                desc:
+                    t($currentTranslations, "repo_funding_pressure") ||
+                    "SOFR above IORB - funding pressure",
             };
         if (repoMetrics.netRepoZscore > 1.5)
             return {
-                label: "WATCH",
+                label: t($currentTranslations, "status_watch") || "WATCH",
                 class: "moderate",
-                desc: "Net repo elevated vs historical",
+                key: "alrt_repo_watch_title",
+                desc:
+                    t($currentTranslations, "repo_net_elevated") ||
+                    "Net repo elevated vs historical",
             };
         return {
-            label: $currentTranslations.status_ok || "NORMAL",
+            label: t($currentTranslations, "status_normal") || "NORMAL",
             class: "low",
+            key: null,
             desc:
                 $currentTranslations.repo_normal_desc ||
                 "Repo markets functioning normally",
@@ -658,16 +678,26 @@
             alertList.push({
                 type: "danger",
                 icon: "🚨",
-                title: "CRITICAL STRESS",
-                msg: `Total stress at ${totalStress}/27 - Multiple systemic risk indicators elevated`,
+                title:
+                    t($currentTranslations, "alrt_critical_stress_title") ||
+                    "CRITICAL STRESS",
+                msg: (
+                    t($currentTranslations, "alrt_critical_stress_msg") ||
+                    "Total stress at {score}/27 - Multiple systemic risk indicators elevated"
+                ).replace("{score}", String(totalStress)),
                 severity: "critical",
             });
         } else if (totalStress >= 10) {
             alertList.push({
                 type: "warning",
                 icon: "⚠️",
-                title: "HIGH STRESS",
-                msg: `Total stress at ${totalStress}/27 - Significant market tensions`,
+                title:
+                    t($currentTranslations, "alrt_high_stress_title") ||
+                    "HIGH STRESS",
+                msg: (
+                    t($currentTranslations, "alrt_high_stress_msg") ||
+                    "Total stress at {score}/27 - Significant market tensions"
+                ).replace("{score}", String(totalStress)),
                 severity: "high",
             });
         }
@@ -684,16 +714,26 @@
                 alertList.push({
                     type: "warning",
                     icon: "🔀",
-                    title: "CLI-GLI DIVERGENCE",
-                    msg: "Credit easing (CLI↑) while global liquidity contracts (GLI↓)",
+                    title:
+                        t($currentTranslations, "alrt_cligli_div_ease_title") ||
+                        "CLI-GLI DIVERGENCE",
+                    msg:
+                        t($currentTranslations, "alrt_cligli_div_ease_msg") ||
+                        "Credit easing (CLI↑) while global liquidity contracts (GLI↓)",
                     severity: "medium",
                 });
             } else if (cliMom < -0.1 && gliImp > 0.1) {
                 alertList.push({
                     type: "warning",
                     icon: "🔀",
-                    title: "CLI-GLI DIVERGENCE",
-                    msg: "Credit tightening (CLI↓) while global liquidity expands (GLI↑)",
+                    title:
+                        t(
+                            $currentTranslations,
+                            "alrt_cligli_div_tight_title",
+                        ) || "CLI-GLI DIVERGENCE",
+                    msg:
+                        t($currentTranslations, "alrt_cligli_div_tight_msg") ||
+                        "Credit tightening (CLI↓) while global liquidity expands (GLI↑)",
                     severity: "medium",
                 });
             }
@@ -707,8 +747,12 @@
             alertList.push({
                 type: "info",
                 icon: "🔄",
-                title: "REGIME TRANSITION",
-                msg: "High acceleration detected - imminent regime change likely",
+                title:
+                    t($currentTranslations, "alrt_regime_transition_title") ||
+                    "REGIME TRANSITION",
+                msg:
+                    t($currentTranslations, "alrt_regime_transition_msg") ||
+                    "High acceleration detected - imminent regime change likely",
                 severity: "high",
             });
         }
@@ -719,24 +763,39 @@
                 alertList.push({
                     type: "signal",
                     icon: "📈",
-                    title: "BTC OVERVALUED",
-                    msg: `BTC at +${btcZscore.toFixed(1)}σ - Consider profit-taking`,
+                    title:
+                        t($currentTranslations, "alrt_btc_overvalued_title") ||
+                        "BTC OVERVALUED",
+                    msg: (
+                        t($currentTranslations, "alrt_btc_overvalued_msg") ||
+                        "BTC at +{zscore}σ - Consider profit-taking"
+                    ).replace("{zscore}", String(formatValue(btcZscore, 1))),
                     severity: "high",
                 });
             } else if (btcZscore < -2) {
                 alertList.push({
                     type: "signal",
                     icon: "📉",
-                    title: "BTC UNDERVALUED",
-                    msg: `BTC at ${btcZscore.toFixed(1)}σ - Potential accumulation zone`,
+                    title:
+                        t($currentTranslations, "alrt_btc_undervalued_title") ||
+                        "BTC UNDERVALUED",
+                    msg: (
+                        t($currentTranslations, "alrt_btc_undervalued_msg") ||
+                        "BTC at {zscore}σ - Potential accumulation zone"
+                    ).replace("{zscore}", String(formatValue(btcZscore, 1))),
                     severity: "high",
                 });
             } else if (btcZscore < -1.5) {
                 alertList.push({
                     type: "info",
                     icon: "👀",
-                    title: "BTC APPROACHING VALUE",
-                    msg: `BTC at ${btcZscore.toFixed(1)}σ - Approaching accumulation zone`,
+                    title:
+                        t($currentTranslations, "alrt_btc_value_zone_title") ||
+                        "BTC APPROACHING VALUE",
+                    msg: (
+                        t($currentTranslations, "alrt_btc_value_zone_msg") ||
+                        "BTC at {zscore}σ - Approaching accumulation zone"
+                    ).replace("{zscore}", String(formatValue(btcZscore, 1))),
                     severity: "medium",
                 });
             }
@@ -747,8 +806,13 @@
             alertList.push({
                 type: "warning",
                 icon: "⚠️",
-                title: "CB CONCENTRATION",
-                msg: `Single CB dominating liquidity flows (HHI: ${(cbHHI * 100).toFixed(0)}%)`,
+                title:
+                    t($currentTranslations, "alrt_cb_concentration_title") ||
+                    "CB CONCENTRATION",
+                msg: (
+                    t($currentTranslations, "alrt_cb_concentration_msg") ||
+                    "Single CB dominating liquidity flows (HHI: {hhi}%)"
+                ).replace("{hhi}", String(formatValue(cbHHI * 100, 0))),
                 severity: "medium",
             });
         }
@@ -758,8 +822,16 @@
             alertList.push({
                 type: "warning",
                 icon: "📉",
-                title: "LOW CB BREADTH",
-                msg: `Only ${(cbDiffusion * 100).toFixed(0)}% of CBs expanding - narrow liquidity base`,
+                title:
+                    t($currentTranslations, "alrt_cb_breadth_low_title") ||
+                    "LOW CB BREADTH",
+                msg: (
+                    t($currentTranslations, "alrt_cb_breadth_low_msg") ||
+                    "Only {breadth}% of CBs expanding - narrow liquidity base"
+                ).replace(
+                    "{breadth}",
+                    String(formatValue(cbDiffusion * 100, 0)),
+                ),
                 severity: "medium",
             });
         }
@@ -769,7 +841,9 @@
             alertList.push({
                 type: repoStressLevel.class === "high" ? "danger" : "warning",
                 icon: "🏛️",
-                title: `REPO ${repoStressLevel.label}`,
+                title:
+                    t($currentTranslations, repoStressLevel.key) ||
+                    `REPO ${repoStressLevel.label}`,
                 msg: repoStressLevel.desc,
                 severity:
                     repoStressLevel.class === "high" ? "critical" : "medium",
@@ -785,16 +859,26 @@
                 alertList.push({
                     type: "warning",
                     icon: "🔥",
-                    title: "INFLATION ELEVATED",
-                    msg: `10Y Breakeven at ${tipsBreakeven.toFixed(2)}% - Above Fed target`,
+                    title:
+                        t($currentTranslations, "alrt_infl_elevated_title") ||
+                        "INFLATION ELEVATED",
+                    msg: (
+                        t($currentTranslations, "alrt_infl_elevated_msg") ||
+                        "10Y Breakeven at {be}% - Above Fed target"
+                    ).replace("{be}", String(formatValue(tipsBreakeven, 2))),
                     severity: "medium",
                 });
             } else if (tipsBreakeven < 1.8) {
                 alertList.push({
                     type: "info",
                     icon: "❄️",
-                    title: "DISINFLATION RISK",
-                    msg: `10Y Breakeven at ${tipsBreakeven.toFixed(2)}% - Below target, watch for easing`,
+                    title:
+                        t($currentTranslations, "alrt_disinfl_risk_title") ||
+                        "DISINFLATION RISK",
+                    msg: (
+                        t($currentTranslations, "alrt_disinfl_risk_msg") ||
+                        "10Y Breakeven at {be}% - Below target, watch for easing"
+                    ).replace("{be}", String(formatValue(tipsBreakeven, 2))),
                     severity: "medium",
                 });
             }
@@ -804,10 +888,15 @@
         const vixValue = getLatestValue($dashboardData.vix?.values);
         if (vixValue !== null && vixValue > 25) {
             alertList.push({
-                type: "warning",
-                icon: "🌪️",
-                title: "ELEVATED VIX",
-                msg: `VIX at ${vixValue.toFixed(1)} - Heightened market fear`,
+                type: "danger",
+                icon: "🎭",
+                title:
+                    t($currentTranslations, "alrt_vix_spike_title") ||
+                    "ELEVATED VIX",
+                msg: (
+                    t($currentTranslations, "alrt_vix_spike_msg") ||
+                    "VIX at {vix} - Heightened market fear"
+                ).replace("{vix}", String(formatValue(vixValue, 1))),
                 severity: vixValue > 30 ? "high" : "medium",
             });
         }
@@ -853,9 +942,9 @@
                     >{$currentTranslations.market_assessment ||
                         "MARKET ASSESSMENT"}</span
                 >
-                <h2>{assessment.headline}</h2>
+                <h2>{getAssessmentText(assessment.headline)}</h2>
                 <div class="recommendation-badge">
-                    {assessment.recommendation}
+                    {getAssessmentText(assessment.recommendation)}
                 </div>
             </div>
             <div class="narrative-details">
@@ -865,7 +954,7 @@
                     >
                     <ul>
                         {#each assessment.key_risks as risk}
-                            <li>{risk}</li>
+                            <li>{getAssessmentText(risk)}</li>
                         {/each}
                     </ul>
                 </div>
@@ -876,7 +965,7 @@
                     >
                     <ul>
                         {#each assessment.key_positives as positive}
-                            <li>{positive}</li>
+                            <li>{getAssessmentText(positive)}</li>
                         {/each}
                     </ul>
                 </div>
@@ -897,14 +986,16 @@
                             >{$currentTranslations.settlements ||
                                 "Settlements"}</span
                         >
-                        <span class="v">${totalNext7dAmount.toFixed(1)}B</span>
+                        <span class="v"
+                            >{formatValue(totalNext7dAmount, 1, "B")}</span
+                        >
                     </div>
                     <div class="summ-item">
                         <span class="l"
                             >{$currentTranslations.rrp_buffer ||
                                 "RRP Buffer"}</span
                         >
-                        <span class="v">${rrpBuffer.toFixed(0)}B</span>
+                        <span class="v">{formatValue(rrpBuffer, 0, "B")}</span>
                     </div>
                 </div>
                 <div class="settlement-mini-table">
@@ -947,9 +1038,11 @@
                       : '#6b7280'}"
             >
                 <div class="score-inner">
-                    <span class="score-value">{regimeScore.toFixed(0)}</span>
+                    <span class="score-value"
+                        >{formatValue(regimeScore, 0)}</span
+                    >
                     <span class="confidence-label"
-                        >{regimeDiagnostics.confidence.toFixed(0)}% {$currentTranslations.confidence ||
+                        >{formatValue(regimeDiagnostics.confidence, 0)}% {$currentTranslations.confidence ||
                             "Conf."}</span
                     >
                 </div>
@@ -1030,7 +1123,7 @@
                                 >{$currentTranslations.target || "Target"}</span
                             >
                             <span class="rate-value target"
-                                >{currentFedRate.toFixed(2)}%</span
+                                >{formatValue(currentFedRate, 2, "%")}</span
                             >
                         </div>
                     {/if}
@@ -1038,7 +1131,7 @@
                         <div class="fed-rate">
                             <span class="rate-label">SOFR</span>
                             <span class="rate-value sofr"
-                                >{currentSOFR.toFixed(2)}%</span
+                                >{formatValue(currentSOFR, 2, "%")}</span
                             >
                         </div>
                     {/if}
@@ -1056,15 +1149,15 @@
                     <span class="prob-value"
                         >{nextMeetingProbs?.cut ?? "—"}%</span
                     >
-                    {#if nextMeetingProbs?.roc1m}
+                    {#if nextMeetingProbs?.roc1m?.cut !== undefined}
                         <span
                             class="prob-change"
-                            class:up={nextMeetingProbs.roc1m > 0}
-                            class:down={nextMeetingProbs.roc1m < 0}
+                            class:up={nextMeetingProbs.roc1m.cut > 0}
+                            class:down={nextMeetingProbs.roc1m.cut < 0}
                         >
-                            {nextMeetingProbs.roc1m > 0
+                            {nextMeetingProbs.roc1m.cut > 0
                                 ? "+"
-                                : ""}{nextMeetingProbs.roc1m.toFixed(0)}
+                                : ""}{nextMeetingProbs.roc1m.cut.toFixed(0)}
                         </span>
                     {/if}
                 </div>
@@ -1081,7 +1174,9 @@
                 </div>
                 {#if nextMeetingProbs?.hike > 5}
                     <div class="prob-item hike">
-                        <span class="prob-label">Hike</span>
+                        <span class="prob-label"
+                            >{$currentTranslations.prob_hike || "Hike"}</span
+                        >
                         <span class="prob-value">{nextMeetingProbs.hike}%</span>
                     </div>
                 {/if}
@@ -1271,9 +1366,7 @@
                                     >
                                 </td>
                                 <td class="value-cell">
-                                    {signal.value !== null
-                                        ? signal.value.toFixed(2)
-                                        : "—"}
+                                    {formatValue(signal.value, 2)}
                                     {#if signal.percentile !== null}
                                         <span class="percentile"
                                             >P{signal.percentile.toFixed(
@@ -1502,7 +1595,11 @@
                             <span
                                 class="v"
                                 class:warning={repoMetrics.srfUsage > 0}
-                                >${repoMetrics.srfUsage.toFixed(1)}B</span
+                                >{formatValue(
+                                    repoMetrics.srfUsage,
+                                    1,
+                                    "B",
+                                )}</span
                             >
                         </div>
                         <div class="f-metric">
@@ -1518,7 +1615,11 @@
                                     "Net Repo Z"}</span
                             >
                             <span class="v"
-                                >{repoMetrics.netRepoZscore.toFixed(2)}σ</span
+                                >{formatValue(
+                                    repoMetrics.netRepoZscore,
+                                    2,
+                                    "σ",
+                                )}</span
                             >
                         </div>
                     </div>
@@ -1560,7 +1661,7 @@
                         class:positive={btcDeviation > 0}
                         class:negative={btcDeviation < 0}
                     >
-                        {btcDeviation > 0 ? "+" : ""}{btcDeviation?.toFixed(1)}%
+                        {formatDelta(btcDeviation, 1)}%
                     </span>
                 </div>
                 <div class="btc-q-item">
@@ -1568,16 +1669,18 @@
                         >{$currentTranslations.valuation_z ||
                             "Valuation Z"}</span
                     >
-                    <span class="v">{btcZscore?.toFixed(2)}σ</span>
+                    <span class="v">{formatValue(btcZscore, 2, "σ")}</span>
                 </div>
                 <div class="btc-q-item">
                     <span class="l"
                         >{$currentTranslations.drawdown || "Drawdown"}</span
                     >
                     <span class="v"
-                        >{getLatestValue($dashboardData.btc?.drawdown)?.toFixed(
+                        >{formatValue(
+                            getLatestValue($dashboardData.btc?.drawdown),
                             1,
-                        )}%</span
+                            "%",
+                        )}</span
                     >
                 </div>
                 <div class="btc-q-item">
@@ -1586,9 +1689,13 @@
                             "Realized Vol"}</span
                     >
                     <span class="v"
-                        >{getLatestValue(
-                            $dashboardData.btc?.realized_vol_30d,
-                        )?.toFixed(1)}%</span
+                        >{formatValue(
+                            getLatestValue(
+                                $dashboardData.btc?.realized_vol_30d,
+                            ),
+                            1,
+                            "%",
+                        )}</span
                     >
                 </div>
             </div>

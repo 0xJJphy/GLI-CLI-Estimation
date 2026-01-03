@@ -26,6 +26,18 @@ class SignalState(Enum):
     NEUTRAL = "neutral"
     BEARISH = "bearish"
     DANGER = "danger"  # Systemic stress (e.g., SRF usage)
+    UNKNOWN = "unknown"  # Missing data
+
+
+# State to score mapping for weighted aggregation
+STATE_SCORES = {
+    "bullish": 1.0,
+    "neutral": 0.0,
+    "warning": -0.5,
+    "bearish": -1.0,
+    "danger": -2.0,
+    "unknown": 0.0,
+}
 
 
 class SignalDirection(Enum):
@@ -52,12 +64,15 @@ class SignalResult:
 SIGNAL_CONFIG: Dict[str, Dict[str, Any]] = {
     
     # -------------------------------------------------------------------------
-    # REPO STRESS (SOFR-IORB Spread)
+    # REPO (SOFR-IORB Spread) - formerly repo_stress
     # -------------------------------------------------------------------------
     # Spread = SOFR - IORB in basis points
     # Lower spread = better liquidity conditions
-    "repo_stress": {
+    "repo": {
         "direction": SignalDirection.LOWER_IS_BETTER,
+        "weight": 0.10,
+        "category": "liquidity",
+        "units": "bps",
         "thresholds": {
             # bullish: spread <= 0 (SOFR at or below IORB)
             "bullish_max": 0.0,
@@ -83,6 +98,9 @@ SIGNAL_CONFIG: Dict[str, Dict[str, Any]] = {
     # 2D grid: (BE level, RR level) -> signal
     "tips": {
         "direction": SignalDirection.COMPOSITE,
+        "weight": 0.05,
+        "category": "rates",
+        "units": "%",
         "thresholds": {
             # Breakeven thresholds (%)
             "be_high": 2.5,
@@ -118,6 +136,9 @@ SIGNAL_CONFIG: Dict[str, Dict[str, Any]] = {
     # Note: These use INVERTED Z-scores in cli_df, so higher Z = better
     "hy_spread": {
         "direction": SignalDirection.HIGHER_IS_BETTER,  # Inverted Z
+        "weight": 0.12,
+        "category": "credit",
+        "units": "z-score",
         "thresholds": {
             "bullish_min": 1.2,   # Z > 1.2 (spread contracted)
             "bearish_max": -1.2,  # Z < -1.2 (spread widened)
@@ -131,6 +152,9 @@ SIGNAL_CONFIG: Dict[str, Dict[str, Any]] = {
     
     "ig_spread": {
         "direction": SignalDirection.HIGHER_IS_BETTER,  # Inverted Z
+        "weight": 0.08,
+        "category": "credit",
+        "units": "z-score",
         "thresholds": {
             "bullish_min": 1.2,
             "bearish_max": -1.2,
@@ -147,6 +171,9 @@ SIGNAL_CONFIG: Dict[str, Dict[str, Any]] = {
     # -------------------------------------------------------------------------
     "cli": {
         "direction": SignalDirection.HIGHER_IS_BETTER,
+        "weight": 0.15,
+        "category": "credit",
+        "units": "z-score",
         "thresholds": {
             "bullish_min": 0.5,
             "bearish_max": -0.5,
@@ -158,12 +185,34 @@ SIGNAL_CONFIG: Dict[str, Dict[str, Any]] = {
             SignalState.NEUTRAL: "CLI neutral, balanced liquidity conditions",
         },
     },
+
+    # -------------------------------------------------------------------------
+    # NFCI CREDIT (NEGATED)
+    # -------------------------------------------------------------------------
+    "nfci_credit": {
+        "direction": SignalDirection.HIGHER_IS_BETTER,  # After negation
+        "weight": 0.10,
+        "category": "credit",
+        "units": "z-score",
+        "thresholds": {
+            "bullish_min": 0.5,
+            "bearish_max": -0.6,
+        },
+        "reasons": {
+            SignalState.BULLISH: "NFCI Credit negative: loose credit conditions",
+            SignalState.BEARISH: "NFCI Credit positive: restrictive credit conditions",
+            SignalState.NEUTRAL: "NFCI Credit neutral, no extreme pressure",
+        },
+    },
     
     # -------------------------------------------------------------------------
     # NFCI (Risk subindex, NEGATED)
     # -------------------------------------------------------------------------
     "nfci_risk": {
         "direction": SignalDirection.HIGHER_IS_BETTER,  # After negation
+        "weight": 0.08,
+        "category": "credit",
+        "units": "z-score",
         "thresholds": {
             "bullish_min": 0.5,
             "bearish_max": -1.2,  # Asymmetric: bearish only on extreme stress
@@ -180,6 +229,9 @@ SIGNAL_CONFIG: Dict[str, Dict[str, Any]] = {
     # -------------------------------------------------------------------------
     "lending": {
         "direction": SignalDirection.HIGHER_IS_BETTER,  # After negation
+        "weight": 0.07,
+        "category": "credit",
+        "units": "z-score",
         "thresholds": {
             "bullish_min": 0.1,
             "bearish_max": -0.6,
@@ -196,6 +248,9 @@ SIGNAL_CONFIG: Dict[str, Dict[str, Any]] = {
     # -------------------------------------------------------------------------
     "vix": {
         "direction": SignalDirection.HIGHER_IS_BETTER,  # After negation
+        "weight": 0.10,
+        "category": "volatility",
+        "units": "z-score",
         "thresholds": {
             "bullish_min": 0.7,
             "bearish_max": -2.2,  # Very asymmetric: bearish only in panic
@@ -212,6 +267,9 @@ SIGNAL_CONFIG: Dict[str, Dict[str, Any]] = {
     # -------------------------------------------------------------------------
     "move": {
         "direction": SignalDirection.LOWER_IS_BETTER,
+        "weight": 0.05,
+        "category": "volatility",
+        "units": "index",
         "thresholds": {
             "bullish_max": 80,
             "bearish_min": 120,
@@ -228,6 +286,9 @@ SIGNAL_CONFIG: Dict[str, Dict[str, Any]] = {
     # -------------------------------------------------------------------------
     "fx_vol": {
         "direction": SignalDirection.LOWER_IS_BETTER,
+        "weight": 0.05,
+        "category": "volatility",
+        "units": "index",
         "thresholds": {
             "bullish_max": 8,
             "bearish_min": 12,
@@ -238,7 +299,29 @@ SIGNAL_CONFIG: Dict[str, Dict[str, Any]] = {
             SignalState.NEUTRAL: "FX Vol average: normal currency volatility",
         },
     },
+
+    # -------------------------------------------------------------------------
+    # YIELD CURVE (10Y-2Y Spread)
+    # -------------------------------------------------------------------------
+    "yield_curve": {
+        "direction": SignalDirection.HIGHER_IS_BETTER,
+        "weight": 0.05,
+        "category": "rates",
+        "units": "bps",
+        "thresholds": {
+            "bullish_min": 50,   # Normal positive slope
+            "bearish_max": -10,  # Inverted
+        },
+        "reasons": {
+            SignalState.BULLISH: "Yield curve normal: growth expectations healthy",
+            SignalState.BEARISH: "Yield curve inverted: recession signal",
+            SignalState.NEUTRAL: "Yield curve flat: uncertain growth outlook",
+        },
+    },
 }
+
+# Backward compatibility alias
+SIGNAL_CONFIG["repo_stress"] = SIGNAL_CONFIG["repo"]  # Deprecated
 
 
 # =============================================================================
@@ -282,8 +365,9 @@ def compute_signal(
         return _compute_tips_signal(config, be_value, rr_value)
     
     # Special handling for repo stress (includes SRF danger)
-    if indicator == "repo_stress":
-        return _compute_repo_signal(config, value, srf_usage)
+    # Both 'repo' (canonical) and 'repo_stress' (backward-compat) use same logic
+    if indicator in ("repo", "repo_stress"):
+        return _compute_repo_signal(SIGNAL_CONFIG["repo"], value, srf_usage)
     
     # Standard single-value signals
     return _compute_standard_signal(config, indicator, value, momentum)
@@ -449,3 +533,101 @@ def get_signal_config(indicator: str) -> Optional[Dict]:
 def get_all_indicators() -> list:
     """Get list of all configured indicator keys."""
     return list(SIGNAL_CONFIG.keys())
+
+
+# =============================================================================
+# STANCE KEYS (Primary factors for aggregation)
+# =============================================================================
+# These are the 12 canonical signals used for bull/bear scoring.
+# Does NOT include backward-compat aliases (repo_stress) or composite sub-parts.
+
+STANCE_KEYS = [
+    "cli", "hy_spread", "ig_spread", "nfci_credit", "nfci_risk",
+    "lending", "vix", "move", "fx_vol", "repo", "tips", "yield_curve"
+]
+
+
+def validate_weights() -> Tuple[bool, float, list]:
+    """
+    Validate that weights sum to 1.0 for STANCE_KEYS.
+    
+    Returns:
+        (is_valid, total_weight, missing_keys)
+    """
+    total = 0.0
+    missing = []
+    for key in STANCE_KEYS:
+        cfg = SIGNAL_CONFIG.get(key)
+        if cfg and "weight" in cfg:
+            total += cfg["weight"]
+        else:
+            missing.append(key)
+    
+    is_valid = abs(total - 1.0) < 0.01  # Allow 1% tolerance
+    return is_valid, round(total, 3), missing
+
+
+def aggregate_signal_score(signals: Dict[str, Dict]) -> Dict:
+    """
+    Compute weighted aggregate score from individual signals.
+    
+    Args:
+        signals: Dict of signal_key -> {state, confidence, ...}
+    
+    Returns:
+        {
+            score: float (-2 to +1 range),
+            state: str (aggregate state),
+            coverage: float (sum of weights with valid data),
+            missing_keys: list,
+            confidence: float (weighted average confidence)
+        }
+    """
+    score = 0.0
+    coverage = 0.0
+    confidence_sum = 0.0
+    missing = []
+    
+    for key in STANCE_KEYS:
+        cfg = SIGNAL_CONFIG.get(key)
+        if not cfg or "weight" not in cfg:
+            continue
+            
+        weight = cfg["weight"]
+        
+        if key in signals and signals[key].get("state") not in (None, "unknown"):
+            state = signals[key]["state"]
+            sig_conf = signals[key].get("confidence", 0.5)
+            
+            score += weight * STATE_SCORES.get(state, 0.0)
+            coverage += weight
+            confidence_sum += weight * sig_conf
+        else:
+            missing.append(key)
+    
+    # Renormalize if coverage < 1 (missing data)
+    if coverage > 0 and coverage < 1.0:
+        score = score / coverage
+    
+    # Classify aggregate state
+    if score >= 0.3:
+        agg_state = "bullish"
+    elif score >= 0.1:
+        agg_state = "leaning_bullish"
+    elif score <= -0.5:
+        agg_state = "bearish"
+    elif score <= -0.2:
+        agg_state = "leaning_bearish"
+    else:
+        agg_state = "neutral"
+    
+    # Average confidence
+    avg_confidence = confidence_sum / coverage if coverage > 0 else 0.0
+    
+    return {
+        "score": round(score, 3),
+        "state": agg_state,
+        "coverage": round(coverage, 3),
+        "missing_keys": missing,
+        "confidence": round(avg_confidence, 3)
+    }
