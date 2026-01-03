@@ -23,6 +23,7 @@
   import BtcQuantV2Tab from "./lib/tabs/BtcQuantV2Tab.svelte";
   import FedForecastsTab from "./lib/tabs/FedForecastsTab.svelte";
   import RegimesTab from "./lib/tabs/RegimesTab.svelte";
+  import UsDebtTab from "./lib/tabs/UsDebtTab.svelte";
 
   // Global Settings Store
   import {
@@ -2376,6 +2377,17 @@
       </div>
       <div
         class="nav-item"
+        class:active={currentTab === "US Debt"}
+        on:click={() => setTab("US Debt")}
+        on:keydown={(e) => e.key === "Enter" && setTab("US Debt")}
+        role="button"
+        tabindex="0"
+      >
+        <span class="nav-icon">💵</span>
+        {$currentTranslations.us_debt_tab || "US Debt"}
+      </div>
+      <div
+        class="nav-item"
         class:active={currentTab === "Risk Model"}
         on:click={() => setTab("Risk Model")}
         on:keydown={(e) => e.key === "Enter" && setTab("Risk Model")}
@@ -2493,11 +2505,10 @@
 
     <div class="dashboard-grid">
       {#if currentTab === "Dashboard"}
-        <DashboardTab translations={$currentTranslations} />
+        <DashboardTab />
       {:else if currentTab === "Global Flows CB"}
         <GlobalFlowsCbTab
           darkMode={$darkMode}
-          language={$language}
           translations={$currentTranslations}
           dashboardData={$dashboardData}
         />
@@ -2511,6 +2522,12 @@
         <UsSystemTab
           darkMode={$darkMode}
           language={$language}
+          translations={$currentTranslations}
+          dashboardData={$dashboardData}
+        />
+      {:else if currentTab === "US Debt"}
+        <UsDebtTab
+          darkMode={$darkMode}
           translations={$currentTranslations}
           dashboardData={$dashboardData}
         />

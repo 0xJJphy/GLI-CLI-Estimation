@@ -49,7 +49,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.m2?.total,
-                name: "Global M2 Total",
+                name: translations.chart_m2_aggregate || "Global M2 Total",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#6366f1", width: 3, shape: "spline" },
@@ -280,22 +280,91 @@
     // Country configuration - STATIC (not reactive) to avoid cyclical dependency
     // The template will lookup data/range using getDataForCountry and getRangeForCountry
     const countryConfigs = [
-        { id: "us", name: "US M2", color: "#3b82f6", bank: "FED" },
-        { id: "eu", name: "EU M2", color: "#8b5cf6", bank: "ECB" },
-        { id: "cn", name: "China M2", color: "#10b981", bank: "PBOC" },
-        { id: "jp", name: "Japan M2", color: "#f43f5e", bank: "BOJ" },
-        { id: "uk", name: "UK M2", color: "#f59e0b", bank: "BOE" },
-        { id: "ca", name: "Canada M2", color: "#ef4444", bank: "BOC" },
-        { id: "au", name: "Australia M2", color: "#3b82f6", bank: "RBA" },
-        { id: "in", name: "India M2", color: "#6366f1", bank: "RBI" },
-        { id: "ch", name: "Switzerland M2", color: "#0ea5e9", bank: "SNB" },
-        { id: "ru", name: "Russia M2", color: "#22c55e", bank: "CBR" },
-        { id: "br", name: "Brazil M2", color: "#f59e0b", bank: "BCB" },
-        { id: "kr", name: "South Korea M2", color: "#8b5cf6", bank: "BOK" },
-        { id: "mx", name: "Mexico M2", color: "#10b981", bank: "MX" },
-        { id: "my", name: "Malaysia M2", color: "#6366f1", bank: "BNM" },
+        {
+            id: "us",
+            name: translations.indicator_us_m2 || "US M2",
+            color: "#3b82f6",
+            bank: "FED",
+        },
+        {
+            id: "eu",
+            name: translations.indicator_eu_m2 || "EU M2",
+            color: "#8b5cf6",
+            bank: "ECB",
+        },
+        {
+            id: "cn",
+            name: translations.indicator_cn_m2 || "China M2",
+            color: "#10b981",
+            bank: "PBOC",
+        },
+        {
+            id: "jp",
+            name: translations.indicator_jp_m2 || "Japan M2",
+            color: "#f43f5e",
+            bank: "BOJ",
+        },
+        {
+            id: "uk",
+            name: translations.indicator_uk_m2 || "UK M2",
+            color: "#f59e0b",
+            bank: "BOE",
+        },
+        {
+            id: "ca",
+            name: translations.indicator_ca_m2 || "Canada M2",
+            color: "#ef4444",
+            bank: "BOC",
+        },
+        {
+            id: "au",
+            name: translations.indicator_au_m2 || "Australia M2",
+            color: "#3b82f6",
+            bank: "RBA",
+        },
+        {
+            id: "in",
+            name: translations.indicator_in_m2 || "India M2",
+            color: "#6366f1",
+            bank: "RBI",
+        },
+        {
+            id: "ch",
+            name: translations.indicator_ch_m2 || "Switzerland M2",
+            color: "#0ea5e9",
+            bank: "SNB",
+        },
+        {
+            id: "ru",
+            name: translations.indicator_ru_m2 || "Russia M2",
+            color: "#22c55e",
+            bank: "CBR",
+        },
+        {
+            id: "br",
+            name: translations.indicator_br_m2 || "Brazil M2",
+            color: "#f59e0b",
+            bank: "BCB",
+        },
+        {
+            id: "kr",
+            name: translations.indicator_kr_m2 || "South Korea M2",
+            color: "#8b5cf6",
+            bank: "BOK",
+        },
+        {
+            id: "mx",
+            name: translations.indicator_mx_m2 || "Mexico M2",
+            color: "#10b981",
+            bank: "MX",
+        },
+        {
+            id: "my",
+            name: translations.indicator_my_m2 || "Malaysia M2",
+            color: "#6366f1",
+            bank: "BNM",
+        },
     ];
-
     // REACTIVE data and ranges map - Svelte tracks these objects for reactivity
     // When a range changes, the corresponding data is recomputed
     $: countryRanges = {
@@ -411,11 +480,13 @@
                             class:positive={totalRocs.m1 > 0}
                             class:negative={totalRocs.m1 < 0}
                         >
-                            <span class="roc-label">1M</span>
+                            <span class="roc-label"
+                                >{translations.val_1m || "1M"}</span
+                            >
                             <span class="roc-value"
                                 >{totalRocs.m1 !== null
                                     ? totalRocs.m1.toFixed(1) + "%"
-                                    : "N/A"}</span
+                                    : translations.na || "N/A"}</span
                             >
                         </div>
                         <div
@@ -423,11 +494,13 @@
                             class:positive={totalRocs.m3 > 0}
                             class:negative={totalRocs.m3 < 0}
                         >
-                            <span class="roc-label">3M</span>
+                            <span class="roc-label"
+                                >{translations.val_3m || "3M"}</span
+                            >
                             <span class="roc-value"
                                 >{totalRocs.m3 !== null
                                     ? totalRocs.m3.toFixed(1) + "%"
-                                    : "N/A"}</span
+                                    : translations.na || "N/A"}</span
                             >
                         </div>
                         <div
@@ -435,11 +508,13 @@
                             class:positive={totalRocs.m6 > 0}
                             class:negative={totalRocs.m6 < 0}
                         >
-                            <span class="roc-label">6M</span>
+                            <span class="roc-label"
+                                >{translations.val_6m || "6M"}</span
+                            >
                             <span class="roc-value"
                                 >{totalRocs.m6 !== null
                                     ? totalRocs.m6.toFixed(1) + "%"
-                                    : "N/A"}</span
+                                    : translations.na || "N/A"}</span
                             >
                         </div>
                         <div
@@ -447,11 +522,13 @@
                             class:positive={totalRocs.y1 > 0}
                             class:negative={totalRocs.y1 < 0}
                         >
-                            <span class="roc-label">1Y</span>
+                            <span class="roc-label"
+                                >{translations.val_1y || "1Y"}</span
+                            >
                             <span class="roc-value"
                                 >{totalRocs.y1 !== null
                                     ? totalRocs.y1.toFixed(1) + "%"
-                                    : "N/A"}</span
+                                    : translations.na || "N/A"}</span
                             >
                         </div>
                     </div>
@@ -468,22 +545,28 @@
                         <table class="metrics-table">
                             <thead>
                                 <tr>
-                                    <th>Economy</th>
-                                    <th>Wgt</th>
-                                    <th>1M</th>
+                                    <th
+                                        >{translations.economy_col ||
+                                            "Economy"}</th
+                                    >
+                                    <th>{translations.wgt_col || "Wgt"}</th>
+                                    <th>{translations.val_1m || "1M"}</th>
                                     <th
                                         title={translations.impact_1m ||
-                                            "1M Global Impact"}>Imp</th
+                                            "1M Global Impact"}
+                                        >{translations.imp_col || "Imp"}</th
                                     >
-                                    <th>3M</th>
+                                    <th>{translations.val_3m || "3M"}</th>
                                     <th
                                         title={translations.impact_3m ||
-                                            "3M Global Impact"}>Imp</th
+                                            "3M Global Impact"}
+                                        >{translations.imp_col || "Imp"}</th
                                     >
-                                    <th>1Y</th>
+                                    <th>{translations.val_1y || "1Y"}</th>
                                     <th
                                         title={translations.impact_1y ||
-                                            "1Y Global Impact"}>Imp</th
+                                            "1Y Global Impact"}
+                                        >{translations.imp_col || "Imp"}</th
                                     >
                                 </tr>
                             </thead>
@@ -554,8 +637,8 @@
                     <p
                         style="font-size: 10px; color: #94a3b8; margin-top: 8px;"
                     >
-                        * Impact = % contribution of local M2 1M move to total
-                        Global M2.
+                        * {translations.impact_note_m2 ||
+                            "Impact = % contribution of local M2 1M move to total Global M2."}
                     </p>
                 </div>
             </div>
@@ -588,11 +671,13 @@
                         class:positive={rocs.w1 > 0}
                         class:negative={rocs.w1 < 0}
                     >
-                        <span class="roc-label">1W</span>
+                        <span class="roc-label"
+                            >{translations.val_1w || "1W"}</span
+                        >
                         <span class="roc-value"
                             >{rocs.w1 !== null
                                 ? rocs.w1.toFixed(1) + "%"
-                                : "N/A"}</span
+                                : translations.na || "N/A"}</span
                         >
                     </div>
                     <div
@@ -600,11 +685,13 @@
                         class:positive={rocs.m1 > 0}
                         class:negative={rocs.m1 < 0}
                     >
-                        <span class="roc-label">1M</span>
+                        <span class="roc-label"
+                            >{translations.val_1m || "1M"}</span
+                        >
                         <span class="roc-value"
                             >{rocs.m1 !== null
                                 ? rocs.m1.toFixed(1) + "%"
-                                : "N/A"}</span
+                                : translations.na || "N/A"}</span
                         >
                     </div>
                     <div
@@ -612,11 +699,13 @@
                         class:positive={rocs.m3 > 0}
                         class:negative={rocs.m3 < 0}
                     >
-                        <span class="roc-label">3M</span>
+                        <span class="roc-label"
+                            >{translations.val_3m || "3M"}</span
+                        >
                         <span class="roc-value"
                             >{rocs.m3 !== null
                                 ? rocs.m3.toFixed(1) + "%"
-                                : "N/A"}</span
+                                : translations.na || "N/A"}</span
                         >
                     </div>
                     <div
@@ -624,11 +713,13 @@
                         class:positive={rocs.m6 > 0}
                         class:negative={rocs.m6 < 0}
                     >
-                        <span class="roc-label">6M</span>
+                        <span class="roc-label"
+                            >{translations.val_6m || "6M"}</span
+                        >
                         <span class="roc-value"
                             >{rocs.m6 !== null
                                 ? rocs.m6.toFixed(1) + "%"
-                                : "N/A"}</span
+                                : translations.na || "N/A"}</span
                         >
                     </div>
                 </div>

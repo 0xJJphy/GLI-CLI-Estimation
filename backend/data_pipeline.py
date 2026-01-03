@@ -20,6 +20,12 @@ from regime_v2 import (
     clean_series_for_json as clean_series_v2
 )
 
+# Import unified signal configuration
+from signal_config import compute_signal, SIGNAL_CONFIG, SignalState
+
+# Import Treasury maturity data module
+from treasury_data import get_treasury_maturity_data
+
 # Helper functions for JSON serialization and date handling
 def clean_for_json(obj):
     if isinstance(obj, pd.Series):
@@ -2511,7 +2517,13 @@ def compute_signal_metrics(df: pd.DataFrame, cli_df: pd.DataFrame, window: int =
 
 def calculate_signals(df, cli_df):
     """
-    Calculates operational signals with hysteresis and trend confirmation.
+    Calculates operational signals using unified signal_config.
+    
+    ARCHITECTURE:
+    - All thresholds are defined in signal_config.py (single source of truth)
+    - Key names are standardized: hy_spread, ig_spread, repo_stress, etc.
+    - Each signal includes: state, value, reason, confidence
+    
     SIGN CONVENTION: Higher values = better/easier conditions (matching CLI).
     """
     signals = {}
@@ -2527,103 +2539,138 @@ def calculate_signals(df, cli_df):
         if series is None or len(series) < window + 1: return 0
         valid = series.dropna()
         if len(valid) < window + 1: return 0
-        # Momentum check: diff over window
         return float(valid.iloc[-1] - valid.iloc[-window-1])
 
     # 1. CLI Signal (with momentum confirmation)
     cli_val = get_latest(cli_df['CLI'])
-    cli_mom = get_momentum(cli_df['CLI'], 20) # 4 weeks
+    cli_mom = get_momentum(cli_df['CLI'], 20)
     
     if cli_val is not None:
-        state = "neutral"
-        if cli_val > 0.5 and cli_mom > 0: state = "bullish"
-        elif cli_val < -0.5 and cli_mom < 0: state = "bearish"
-        signals['cli'] = {"state": state, "value": round(cli_val, 2), "momentum": round(cli_mom, 3)}
+        result = compute_signal('cli', cli_val, momentum=cli_mom)
+        signals['cli'] = {
+            "state": result.state, 
+            "value": round(cli_val, 2), 
+            "momentum": round(cli_mom, 3),
+            "reason": result.reason,
+            "confidence": round(result.confidence, 2)
+        }
 
-    # 2. HY Spread (Inverted in cli_df)
+    # 2. HY Spread (standardized key name: hy_spread)
     hy_z = get_latest(cli_df.get('HY_SPREAD_Z'))
     if hy_z is not None:
-        state = "neutral"
-        if hy_z > 1.2: state = "bullish" # With buffer
-        elif hy_z < -1.2: state = "bearish"
-        signals['hy'] = {"state": state, "value": round(hy_z, 2)}
+        result = compute_signal('hy_spread', hy_z)
+        signals['hy_spread'] = {
+            "state": result.state, 
+            "value": round(hy_z, 2),
+            "reason": result.reason,
+            "confidence": round(result.confidence, 2)
+        }
 
-    # 3. IG Spread (Inverted in cli_df)
+    # 3. IG Spread (standardized key name: ig_spread)
     ig_z = get_latest(cli_df.get('IG_SPREAD_Z'))
     if ig_z is not None:
-        state = "neutral"
-        if ig_z > 1.2: state = "bullish"
-        elif ig_z < -1.2: state = "bearish"
-        signals['ig'] = {"state": state, "value": round(ig_z, 2)}
+        result = compute_signal('ig_spread', ig_z)
+        signals['ig_spread'] = {
+            "state": result.state, 
+            "value": round(ig_z, 2),
+            "reason": result.reason,
+            "confidence": round(result.confidence, 2)
+        }
 
     # 4. NFCI Credit (Negated: higher = looser)
     nfcic = get_latest(cli_df.get('NFCI_CREDIT_Z'))
     if nfcic is not None:
+        # Use standard threshold from config (nfci uses similar thresholds)
         state = "neutral"
         if nfcic > 0.6: state = "bullish"
         elif nfcic < -0.6: state = "bearish"
-        signals['nfci_credit'] = {"state": state, "value": round(nfcic, 2)}
+        signals['nfci_credit'] = {
+            "state": state, 
+            "value": round(nfcic, 2),
+            "reason": SIGNAL_CONFIG.get('nfci_risk', {}).get('reasons', {}).get(
+                SignalState.BULLISH if state == "bullish" else 
+                SignalState.BEARISH if state == "bearish" else SignalState.NEUTRAL,
+                "NFCI Credit signal"
+            ),
+            "confidence": min(1.0, abs(nfcic) / 1.5)
+        }
 
     # 5. NFCI Risk (Negated)
     nfcir = get_latest(cli_df.get('NFCI_RISK_Z'))
     if nfcir is not None:
-        state = "neutral"
-        if nfcir > 0.5: state = "bullish"
-        elif nfcir < -1.2: state = "bearish"
-        signals['nfci_risk'] = {"state": state, "value": round(nfcir, 2)}
+        result = compute_signal('nfci_risk', nfcir)
+        signals['nfci_risk'] = {
+            "state": result.state, 
+            "value": round(nfcir, 2),
+            "reason": result.reason,
+            "confidence": round(result.confidence, 2)
+        }
 
     # 6. Lending Standards (Negated)
     lending = get_latest(cli_df.get('LENDING_STD_Z'))
     if lending is not None:
-        state = "neutral"
-        if lending > 0.1: state = "bullish"
-        elif lending < -0.6: state = "bearish"
-        signals['lending'] = {"state": state, "value": round(lending, 2)}
+        result = compute_signal('lending', lending)
+        signals['lending'] = {
+            "state": result.state, 
+            "value": round(lending, 2),
+            "reason": result.reason,
+            "confidence": round(result.confidence, 2)
+        }
 
     # 7. VIX (Negated: higher = lower VIX)
     vix_z = get_latest(cli_df.get('VIX_Z'))
     if vix_z is not None:
-        state = "neutral"
-        if vix_z > 0.7: state = "bullish"
-        elif vix_z < -2.2: state = "bearish"
-        signals['vix'] = {"state": state, "value": round(vix_z, 2)}
+        result = compute_signal('vix', vix_z)
+        signals['vix'] = {
+            "state": result.state, 
+            "value": round(vix_z, 2),
+            "reason": result.reason,
+            "confidence": round(result.confidence, 2)
+        }
 
-    # 8. TIPS Composite
+    # 8. TIPS Composite (2D grid: BE vs RR)
     rr = df.get('TIPS_REAL_RATE', pd.Series(dtype=float))
     be = df.get('TIPS_BREAKEVEN', pd.Series(dtype=float))
-    fwd = df.get('TIPS_5Y5Y_FORWARD', pd.Series(dtype=float))
     
-    rr_3m_delta = get_momentum(rr, 63)
-    be_3m_delta = get_momentum(be, 63)
-    fwd_3m_delta = get_momentum(fwd, 63)
+    rr_val = get_latest(rr)
+    be_val = get_latest(be)
     
-    tips_state = "neutral"
-    if rr_3m_delta > 0.40: tips_state = "bearish" # Tightening
-    elif be_3m_delta > 0.15 and rr_3m_delta <= 0: tips_state = "bullish" # Reflation
-    elif fwd_3m_delta < -0.15: tips_state = "warning" # Disinflation scare
-    
-    signals['tips'] = {
-        "state": tips_state, 
-        "rr_delta": round(rr_3m_delta, 3), 
-        "be_delta": round(be_3m_delta, 3),
-        "fwd_delta": round(fwd_3m_delta, 3)
-    }
+    if rr_val is not None and be_val is not None:
+        result = compute_signal('tips', 0, be_value=be_val, rr_value=rr_val)
+        signals['tips'] = {
+            "state": result.state,
+            "label": result.label,
+            "be_value": round(be_val, 3),
+            "rr_value": round(rr_val, 3),
+            "reason": result.reason,
+            "confidence": round(result.confidence, 2)
+        }
 
-    # 9. Repo Stress (CONVENTION: Lower spread = better/easier)
+    # 9. Repo Stress (UNIFIED thresholds from signal_config)
     sofr = df.get('SOFR')
     iorb = df.get('IORB')
+    srf_usage = df.get('SRF_USAGE', pd.Series(dtype=float))
+    
     if sofr is not None and iorb is not None:
         spread = get_latest(sofr - iorb)
+        srf_active = get_latest(srf_usage) is not None and get_latest(srf_usage) > 0
+        
         if spread is not None:
-            state = "neutral"
-            # SOFR below IORB (negative spread) is BULLISH (excess liquidity/loose plumbing)
-            # SOFR above IORB (positive spread) is BEARISH/WARNING (funding pressure)
-            if spread <= 0: state = "bullish"
-            elif spread > 0.05: state = "bearish"
-            elif spread > 0.01: state = "warning"
-            signals['repo'] = {"state": state, "value": round(spread, 3)}
+            # Convert to basis points for threshold comparison
+            spread_bps = spread * 100 if abs(spread) < 1 else spread
+            
+            result = compute_signal('repo_stress', spread_bps, srf_usage=srf_active)
+            signals['repo_stress'] = {
+                "state": result.state,
+                "value": round(spread_bps, 2),
+                "reason": result.reason,
+                "confidence": round(result.confidence, 2),
+                "srf_active": srf_active
+            }
 
     return signals
+
+
 
 
 def calculate_macro_regime(
@@ -3972,6 +4019,7 @@ def run_pipeline():
                 'total_stress': clean_for_json(stress_historical['total_stress']),
                 'total_stress_pct': clean_for_json(stress_historical['total_stress_pct']),
             },
+            'treasury_maturities': get_treasury_maturity_data(24),
         }
 
         output_path = os.path.join(OUTPUT_DIR, filename)

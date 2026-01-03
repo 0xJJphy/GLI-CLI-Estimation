@@ -31,7 +31,8 @@
                     "Quant v2: Enhanced Bitcoin Fair Value Model"}
             </h3>
             <span class="last-date"
-                >Weekly Δlog returns + ElasticNet + PCA GLI Factor</span
+                >{translations.quant_v2_subtitle ||
+                    "Weekly Δlog returns + ElasticNet + PCA GLI Factor"}</span
             >
         </div>
         <div class="quant-description">
@@ -139,6 +140,7 @@
                     <span class="metric-label">Frequency</span>
                     <span class="metric-value"
                         >{dashboardData.btc?.models?.quant_v2?.frequency ||
+                            translations.freq_weekly ||
                             "weekly"}</span
                     >
                 </div>
@@ -254,9 +256,13 @@
     <!-- ... charts ... -->
     <div class="chart-card wide premium">
         <div class="chart-header">
-            <h3>₿ Bitcoin: Quant v2 Fair Value (Weekly - Cumulative)</h3>
+            <h3>
+                {translations.chart_quant_v2_cum ||
+                    "Bitcoin: Quant v2 Fair Value (Weekly - Cumulative)"}
+            </h3>
             <span class="last-date"
-                >⚠️ Cumulative drift may cause divergence over time</span
+                >{translations.quant_v2_drift_warn ||
+                    "⚠️ Cumulative drift may cause divergence over time"}</span
             >
         </div>
         <div class="chart-content tv-chart-wrap">
@@ -271,9 +277,13 @@
     <!-- Rebalanced Fair Value Chart -->
     <div class="chart-card wide premium purple">
         <div class="chart-header">
-            <h3>₿ Bitcoin: Rebalanced Fair Value (Quarterly Reset)</h3>
+            <h3>
+                {translations.chart_quant_v2_rebal ||
+                    "Bitcoin: Rebalanced Fair Value (Quarterly Reset)"}
+            </h3>
             <span class="last-date"
-                >✅ Resets to actual price every 13 weeks to avoid drift</span
+                >{translations.quant_v2_reset_note ||
+                    "✅ Resets to actual price every 13 weeks to avoid drift"}</span
             >
         </div>
         <div class="chart-content tv-chart-wrap">
@@ -288,9 +298,13 @@
     <!-- Returns Comparison Chart -->
     <div class="chart-card wide premium blue">
         <div class="chart-header">
-            <h3>📊 Weekly Returns: Predicted vs Actual (%)</h3>
+            <h3>
+                {translations.chart_returns_comp ||
+                    "Weekly Returns: Predicted vs Actual (%)"}
+            </h3>
             <span class="last-date"
-                >Orange bars = Actual | Green line = Predicted</span
+                >{translations.returns_comp_legend ||
+                    "Orange bars = Actual | Green line = Predicted"}</span
             >
         </div>
         <div class="chart-content">

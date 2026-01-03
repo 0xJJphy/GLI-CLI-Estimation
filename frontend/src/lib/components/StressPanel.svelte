@@ -67,7 +67,9 @@
         class="assessment-text"
         style="border-left-color: {globalStress.color || '#6b7280'}"
     >
-        {globalStress.assessment || "Loading analysis..."}
+        {globalStress.assessment ||
+            translations.loading_analysis ||
+            "Loading analysis..."}
     </div>
 
     <!-- Stress Bars -->
@@ -194,7 +196,7 @@
         <div class="risks-section">
             <h4>⚠️ {translations.key_risks || "Key Risks"}</h4>
             <ul>
-                {#each assessment.key_risks || ["No data"] as risk}
+                {#each assessment.key_risks || [translations.no_data || "No data"] as risk}
                     <li>{risk}</li>
                 {/each}
             </ul>
@@ -202,7 +204,7 @@
         <div class="positives-section">
             <h4>✅ {translations.key_positives || "Key Positives"}</h4>
             <ul>
-                {#each assessment.key_positives || ["No data"] as positive}
+                {#each assessment.key_positives || [translations.no_data || "No data"] as positive}
                     <li>{positive}</li>
                 {/each}
             </ul>
@@ -217,7 +219,10 @@
         <span class="rec-label"
             >💡 {translations.recommendation || "Recommendation"}:</span
         >
-        <span class="rec-text">{assessment.recommendation || "Loading..."}</span
+        <span class="rec-text"
+            >{assessment.recommendation ||
+                translations.loading ||
+                "Loading..."}</span
         >
     </div>
 </div>

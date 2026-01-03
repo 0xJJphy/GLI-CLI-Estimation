@@ -18,9 +18,6 @@
     // Import utility functions
     import { getLatestValue } from "../utils/helpers.js";
 
-    // Translations prop
-    export let translations = {};
-
     // Load optimized params on mount
     import { onMount } from "svelte";
 
@@ -97,10 +94,10 @@
 
     $: regimeLabel =
         regimeCode === 1
-            ? "BULLISH"
+            ? $currentTranslations.status_bullish
             : regimeCode === -1
-              ? "BEARISH"
-              : "NEUTRAL";
+              ? $currentTranslations.status_bearish
+              : $currentTranslations.status_neutral;
     $: regimeEmoji = regimeCode === 1 ? "🟢" : regimeCode === -1 ? "🔴" : "⚪";
     $: regimeColor =
         regimeCode === 1
@@ -113,33 +110,85 @@
         const accel = getLatestValue($dashboardData.flow_metrics?.gli_accel);
         if (accel === null || accel === undefined)
             return { label: "→", class: "neutral" };
-        if (accel > 0.1) return { label: "↗️ Accelerating", class: "positive" };
+        if (accel > 0.1)
+            return {
+                label: `↗️ ${$currentTranslations.regime_accelerating || "Accelerating"}`,
+                class: "positive",
+            };
         if (accel < -0.1)
-            return { label: "↘️ Decelerating", class: "negative" };
-        return { label: "→ Stable", class: "neutral" };
+            return {
+                label: `↘️ ${$currentTranslations.regime_decelerating || "Decelerating"}`,
+                class: "negative",
+            };
+        return {
+            label: `→ ${$currentTranslations.stable || "Stable"}`,
+            class: "neutral",
+        };
     })();
 
     $: regimeDiagnostics = (() => {
         const mr = $dashboardData.macro_regime;
         if (!mr)
-            return { liquidity_z: 0, credit_z: 0, brakes_z: 0, total_z: 0 };
+            return {
+                liquidity_z: 0,
+                credit_z: 0,
+                brakes_z: 0,
+                total_z: 0,
+                confidence: 0,
+            };
         const getLatest = (arr) => {
             if (!arr?.length) return 0;
             return arr[arr.length - 1] ?? 0;
         };
+        const tz = getLatest(mr.total_z);
         return {
             liquidity_z: getLatest(mr.liquidity_z),
             credit_z: getLatest(mr.credit_z),
             brakes_z: getLatest(mr.brakes_z),
-            total_z: getLatest(mr.total_z),
+            total_z: tz,
+            confidence: Math.min(100, Math.abs(tz) * 40), // Simple confidence based on Z magnitude
         };
     })();
 
-    // Current Fed Funds Rate and SOFR (Effective Rate)
     $: currentFedRate = getLatestValue(
         $dashboardData.fed_forecasts?.fed_funds_rate,
     );
     $: currentSOFR = getLatestValue($dashboardData.repo_stress?.sofr);
+
+    // ========================================================================
+    // NARRATIVE & CATALYSTS
+    // ========================================================================
+    $: assessment = $dashboardData.stress_analysis?.overall_assessment || {
+        headline:
+            $currentTranslations.market_in_transition || "MARKET IN TRANSITION",
+        key_risks: [
+            $currentTranslations.no_major_stress ||
+                "No major stress signals detected",
+        ],
+        key_positives: [
+            $currentTranslations.liquidity_stable ||
+                "Liquidity conditions stable",
+        ],
+        recommendation:
+            $currentTranslations.monitor_closely ||
+            "Monitor closely for regime changes",
+    };
+
+    $: treasurySettlements =
+        $dashboardData["treasury_settlements"]?.grouped || [];
+    $: next7dSettlements = treasurySettlements.filter((s) => {
+        const date = new Date(s.date);
+        const now = new Date();
+        const nextWeek = new Date();
+        nextWeek.setDate(now.getDate() + 7);
+        return date >= now && date <= nextWeek;
+    });
+
+    $: totalNext7dAmount = next7dSettlements.reduce(
+        (acc, s) => acc + (s.amount || 0),
+        0,
+    );
+    $: rrpBuffer = getLatestValue($dashboardData.us_net_liq_rrp) * 1000; // T -> B
 
     // ========================================================================
     // STRESS ANALYSIS
@@ -251,8 +300,55 @@
     $: bullCount = signalMatrix.filter((s) => s.state === "bullish").length;
     $: bearCount = signalMatrix.filter((s) => s.state === "bearish").length;
     $: netSignal = bullCount - bearCount;
+
+    // Weighted Signal Score & Drivers
+    $: signalWeights = {
+        cli: 0.2,
+        hy_spread: 0.15,
+        ig_spread: 0.1,
+        nfci_credit: 0.1,
+        nfci_risk: 0.1,
+        lending: 0.1,
+        tips_real_rate: 0.1,
+        repo: 0.15,
+    };
+
+    $: weightedScoreInfo = (() => {
+        let score = 0;
+        const drivers = [];
+
+        signalMatrix.forEach((s) => {
+            const weight = signalWeights[s.id] || 0.05;
+            const sValue =
+                s.state === "bullish" ? 1 : s.state === "bearish" ? -1 : 0;
+            score += sValue * weight;
+
+            if (s.state !== "neutral") {
+                drivers.push({
+                    id: s.id,
+                    label: s.label,
+                    impact: sValue * weight,
+                    state: s.state,
+                });
+            }
+        });
+
+        const topDrivers = drivers
+            .sort((a, b) => Math.abs(b.impact) - Math.abs(a.impact))
+            .slice(0, 3);
+
+        return {
+            score: Math.round(score * 100), // Scale to -100 to 100
+            topDrivers,
+        };
+    })();
+
     $: aggregateSignal =
-        netSignal > 2 ? "bullish" : netSignal < -2 ? "bearish" : "neutral";
+        weightedScoreInfo.score > 15
+            ? "bullish"
+            : weightedScoreInfo.score < -15
+              ? "bearish"
+              : "neutral";
 
     // ========================================================================
     // FLOW MOMENTUM
@@ -368,9 +464,11 @@
                 desc: "Net repo elevated vs historical",
             };
         return {
-            label: "NORMAL",
+            label: $currentTranslations.status_ok || "NORMAL",
             class: "low",
-            desc: "Repo markets functioning normally",
+            desc:
+                $currentTranslations.repo_normal_desc ||
+                "Repo markets functioning normally",
         };
     })();
 
@@ -527,9 +625,7 @@
         corePce: getLatestValue($dashboardData.fed_forecasts?.core_pce_yoy),
     };
 
-    // ========================================================================
-    // BTC VALUATION (for alerts)
-    // ========================================================================
+    // BTC VALUATION (for dashboard blocks)
     $: btcPrice = getLatestValue($dashboardData.btc?.price);
     $: btcFairValue = getLatestValue(
         $dashboardData.btc?.fair_value_v2 || $dashboardData.btc?.fair_value,
@@ -538,6 +634,7 @@
         btcPrice && btcFairValue
             ? ((btcPrice - btcFairValue) / btcFairValue) * 100
             : null;
+
     $: btcZscore = getLatestValue(
         $dashboardData.btc?.zscore_v2 || $dashboardData.btc?.zscore,
     );
@@ -747,6 +844,96 @@
 
 <div class="dashboard-quant" class:dark={$darkMode}>
     <!-- ================================================================== -->
+    <!-- 0. EXECUTIVE NARRATIVE (NEW) -->
+    <!-- ================================================================== -->
+    <div class="narrative-assessment" class:dark={$darkMode}>
+        <div class="narrative-main">
+            <div class="narrative-headline">
+                <span class="label"
+                    >{$currentTranslations.market_assessment ||
+                        "MARKET ASSESSMENT"}</span
+                >
+                <h2>{assessment.headline}</h2>
+                <div class="recommendation-badge">
+                    {assessment.recommendation}
+                </div>
+            </div>
+            <div class="narrative-details">
+                <div class="detail-group risks">
+                    <span class="group-title"
+                        >⚠️ {$currentTranslations.top_risks}</span
+                    >
+                    <ul>
+                        {#each assessment.key_risks as risk}
+                            <li>{risk}</li>
+                        {/each}
+                    </ul>
+                </div>
+                <div class="detail-group positives">
+                    <span class="group-title"
+                        >✅ {$currentTranslations.supportive_factors ||
+                            "SUPPORTIVE FACTORS"}</span
+                    >
+                    <ul>
+                        {#each assessment.key_positives as positive}
+                            <li>{positive}</li>
+                        {/each}
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="catalyst-next-7d">
+            <div class="panel-header">
+                <h3>
+                    🗓️ {$currentTranslations.next_7d_catalysts ||
+                        "Next 7 Days Catalysts"}
+                </h3>
+            </div>
+            {#if next7dSettlements.length > 0}
+                <div class="catalyst-summary">
+                    <div class="summ-item">
+                        <span class="l"
+                            >{$currentTranslations.settlements ||
+                                "Settlements"}</span
+                        >
+                        <span class="v">${totalNext7dAmount.toFixed(1)}B</span>
+                    </div>
+                    <div class="summ-item">
+                        <span class="l"
+                            >{$currentTranslations.rrp_buffer ||
+                                "RRP Buffer"}</span
+                        >
+                        <span class="v">${rrpBuffer.toFixed(0)}B</span>
+                    </div>
+                </div>
+                <div class="settlement-mini-table">
+                    {#each next7dSettlements as s}
+                        <div class="s-row">
+                            <span class="s-date"
+                                >{new Date(s.date).toLocaleDateString(
+                                    undefined,
+                                    { month: "short", day: "numeric" },
+                                )}</span
+                            >
+                            <span class="s-type">{s.types}</span>
+                            <span class="s-amt">${s.amount}B</span>
+                            <span class="s-risk {s.risk_level}"
+                                >{s.risk_level.toUpperCase()}</span
+                            >
+                        </div>
+                    {/each}
+                </div>
+            {:else}
+                <div class="no-catalysts">
+                    {$currentTranslations.no_major_settlements ||
+                        "No major settlements next 7d"}
+                </div>
+            {/if}
+        </div>
+    </div>
+
+    <!-- ================================================================== -->
     <!-- 1. REGIME STATUS BAR -->
     <!-- ================================================================== -->
     <div class="regime-status-bar">
@@ -759,7 +946,13 @@
                       ? '#ef4444'
                       : '#6b7280'}"
             >
-                <span class="score-value">{regimeScore.toFixed(0)}</span>
+                <div class="score-inner">
+                    <span class="score-value">{regimeScore.toFixed(0)}</span>
+                    <span class="confidence-label"
+                        >{regimeDiagnostics.confidence.toFixed(0)}% {$currentTranslations.confidence ||
+                            "Conf."}</span
+                    >
+                </div>
             </div>
             <div class="regime-info">
                 <span class="regime-label {regimeColor}"
@@ -773,7 +966,9 @@
 
         <div class="regime-components">
             <div class="component">
-                <span class="comp-label">Liquidity</span>
+                <span class="comp-label"
+                    >{$currentTranslations.regime_liquidity}</span
+                >
                 <span
                     class="comp-value"
                     class:positive={regimeDiagnostics.liquidity_z > 0}
@@ -783,7 +978,9 @@
                 </span>
             </div>
             <div class="component">
-                <span class="comp-label">Credit</span>
+                <span class="comp-label"
+                    >{$currentTranslations.regime_credit}</span
+                >
                 <span
                     class="comp-value"
                     class:positive={regimeDiagnostics.credit_z > 0}
@@ -793,7 +990,9 @@
                 </span>
             </div>
             <div class="component">
-                <span class="comp-label">Brakes</span>
+                <span class="comp-label"
+                    >{$currentTranslations.regime_brakes}</span
+                >
                 <span
                     class="comp-value"
                     class:positive={regimeDiagnostics.brakes_z < 0}
@@ -806,9 +1005,13 @@
 
         <div class="fomc-section">
             <div class="fomc-countdown">
-                <span class="fomc-label">Next FOMC</span>
+                <span class="fomc-label"
+                    >{$currentTranslations.next || "Next"} FOMC</span
+                >
                 {#if fomcCountdown.isToday}
-                    <span class="fomc-today">🔴 TODAY</span>
+                    <span class="fomc-today"
+                        >🔴 {$currentTranslations.today || "TODAY"}</span
+                    >
                 {:else}
                     <span class="fomc-time"
                         >{fomcCountdown.days}d {fomcCountdown.hours}h</span
@@ -823,7 +1026,9 @@
                 <div class="rates-container">
                     {#if currentFedRate}
                         <div class="fed-rate">
-                            <span class="rate-label">Target</span>
+                            <span class="rate-label"
+                                >{$currentTranslations.target || "Target"}</span
+                            >
                             <span class="rate-value target"
                                 >{currentFedRate.toFixed(2)}%</span
                             >
@@ -845,7 +1050,9 @@
                     class="prob-item cut"
                     class:high={nextMeetingProbs?.cut > 50}
                 >
-                    <span class="prob-label">Cut</span>
+                    <span class="prob-label"
+                        >{$currentTranslations.prob_cut || "Cut"}</span
+                    >
                     <span class="prob-value"
                         >{nextMeetingProbs?.cut ?? "—"}%</span
                     >
@@ -865,7 +1072,9 @@
                     class="prob-item hold"
                     class:high={nextMeetingProbs?.hold > 50}
                 >
-                    <span class="prob-label">Hold</span>
+                    <span class="prob-label"
+                        >{$currentTranslations.prob_hold || "Hold"}</span
+                    >
                     <span class="prob-value"
                         >{nextMeetingProbs?.hold ?? "—"}%</span
                     >
@@ -880,7 +1089,9 @@
         </div>
 
         <div class="signal-summary">
-            <span class="summary-label">Signals</span>
+            <span class="summary-label"
+                >{$currentTranslations.nav_regimes || "Signals"}</span
+            >
             <span class="summary-value">
                 <span class="bull-count">🟢 {bullCount}</span>
                 <span class="bear-count">🔴 {bearCount}</span>
@@ -896,44 +1107,42 @@
     </div>
 
     <!-- ================================================================== -->
-    <!-- 2. LIQUIDITY PULSE (Stats Cards) -->
+    <!-- 2. LIQUIDITY ENGINE (4-Card Block) (NEW) -->
     <!-- ================================================================== -->
-    {#if $latestStats}
-        <div class="stats-grid">
-            <StatsCard
-                title={translations.stat_gli || "Global Liquidity (GLI)"}
-                value={$latestStats.gli?.value}
-                change={$latestStats.gli?.change}
-                period="7d"
-                suffix="T"
-                icon="🌍"
-            />
-            <StatsCard
-                title={translations.stat_us_net || "US Net Liquidity"}
-                value={$latestStats.us_net_liq?.value}
-                change={$latestStats.us_net_liq?.change}
-                period="7d"
-                suffix="T"
-                icon="🇺🇸"
-            />
-            <StatsCard
-                title={translations.stat_cli || "Credit Index (CLI)"}
-                value={$latestStats.cli?.value}
-                change={$latestStats.cli?.change}
-                period="7d"
-                suffix="Z"
-                icon="💳"
-                precision={3}
-            />
-            <StatsCard
-                title={translations.stat_vix || "VIX"}
-                value={$latestStats.vix?.value}
-                change={$latestStats.vix?.change}
-                period="7d"
-                icon="🌪️"
-            />
-        </div>
-    {/if}
+    <div class="stats-grid liquidity-engine">
+        <StatsCard
+            title={$currentTranslations.indicator_fed || "FED ASSETS"}
+            value={getLatestValue($dashboardData.gli?.fed)}
+            change={calcDelta($dashboardData.gli?.fed, 5)}
+            period="1w"
+            suffix="T"
+            icon="🏦"
+        />
+        <StatsCard
+            title={$currentTranslations.stat_bank_reserves || "BANK RESERVES"}
+            value={getLatestValue($dashboardData.us_net_liq_reserves)}
+            change={calcDelta($dashboardData.us_net_liq_reserves, 5)}
+            period="1w"
+            suffix="T"
+            icon="🛡️"
+        />
+        <StatsCard
+            title={$currentTranslations.stat_rrp_usage || "ON RRP USAGE"}
+            value={getLatestValue($dashboardData.us_net_liq_rrp)}
+            change={calcDelta($dashboardData.us_net_liq_rrp, 5)}
+            period="1w"
+            suffix="T"
+            icon="📉"
+        />
+        <StatsCard
+            title={$currentTranslations.stat_tga_balance || "TGA BALANCE"}
+            value={getLatestValue($dashboardData.us_net_liq_tga)}
+            change={calcDelta($dashboardData.us_net_liq_tga, 5)}
+            period="1w"
+            suffix="T"
+            icon="🏛️"
+        />
+    </div>
 
     <!-- ================================================================== -->
     <!-- EARLY WARNINGS & ALERTS (TOP) -->
@@ -941,7 +1150,9 @@
     {#if alerts.length > 0}
         <div class="alerts-panel">
             <div class="alerts-header">
-                <h3>⚠️ Alerts ({alerts.length})</h3>
+                <h3>
+                    ⚠️ {$currentTranslations.alerts || "Alerts"} ({alerts.length})
+                </h3>
             </div>
             <div class="alerts-grid">
                 {#each alerts as alert}
@@ -963,7 +1174,10 @@
         <!-- ================================================================== -->
         <div class="panel stress-panel">
             <div class="panel-header">
-                <h3>📊 Market Stress Dashboard</h3>
+                <h3>
+                    📊 {$currentTranslations.stress_panel_title ||
+                        "Market Stress Dashboard"}
+                </h3>
                 <div class="stress-total" style="--stress-color: {stressColor}">
                     <span class="stress-score">{totalStress}/{maxStress}</span>
                     <span
@@ -1003,23 +1217,46 @@
         <!-- ================================================================== -->
         <div class="panel signal-panel">
             <div class="panel-header">
-                <h3>📡 Signal Matrix</h3>
+                <div class="title-with-score">
+                    <h3>
+                        📡 {$currentTranslations.signal_matrix_title ||
+                            "Signal Matrix"}
+                    </h3>
+                    <div class="weighted-score-pill {aggregateSignal}">
+                        {weightedScoreInfo.score > 0
+                            ? "+"
+                            : ""}{weightedScoreInfo.score}
+                    </div>
+                </div>
+                <div class="top-drivers-mini">
+                    {#each weightedScoreInfo.topDrivers as driver}
+                        <div class="driver-tag {driver.state}">
+                            {driver.label}
+                        </div>
+                    {/each}
+                </div>
                 <div class="aggregate-badge {aggregateSignal}">
                     {aggregateSignal === "bullish"
-                        ? "🟢 RISK-ON"
+                        ? `🟢 ${$currentTranslations.risk_on_label || "RISK-ON"}`
                         : aggregateSignal === "bearish"
-                          ? "🔴 RISK-OFF"
-                          : "⚪ NEUTRAL"}
+                          ? `🔴 ${$currentTranslations.risk_off_label || "RISK-OFF"}`
+                          : `⚪ ${$currentTranslations.neutral_label || "NEUTRAL"}`}
                 </div>
             </div>
             <div class="signal-table-container">
                 <table class="signal-table">
                     <thead>
                         <tr>
-                            <th>Indicator</th>
-                            <th>Value</th>
-                            <th>Δ1M</th>
-                            <th>Signal</th>
+                            <th
+                                >{$currentTranslations.indicator_col ||
+                                    "Indicator"}</th
+                            >
+                            <th>{$currentTranslations.value_col || "Value"}</th>
+                            <th>{$currentTranslations.delta_col || "Δ1M"}</th>
+                            <th
+                                >{$currentTranslations.signal_col ||
+                                    "Signal"}</th
+                            >
                         </tr>
                     </thead>
                     <tbody>
@@ -1073,16 +1310,28 @@
         <!-- ================================================================== -->
         <div class="panel flow-panel">
             <div class="panel-header">
-                <h3>⚡ Flow Momentum</h3>
+                <h3>
+                    ⚡ {$currentTranslations.flow_momentum_title ||
+                        "Flow Momentum"}
+                </h3>
             </div>
             <table class="flow-table">
                 <thead>
                     <tr>
-                        <th>Aggregate</th>
-                        <th>Impulse 4W</th>
-                        <th>Impulse 13W</th>
-                        <th>Accel</th>
-                        <th>Z-Score</th>
+                        <th
+                            >{$currentTranslations.aggregate_col ||
+                                "Aggregate"}</th
+                        >
+                        <th
+                            >{$currentTranslations.impulse_4w_col ||
+                                "Impulse 4W"}</th
+                        >
+                        <th
+                            >{$currentTranslations.impulse_13w_col ||
+                                "Impulse 13W"}</th
+                        >
+                        <th>{$currentTranslations.accel_col || "Accel"}</th>
+                        <th>{$currentTranslations.zscore_col || "Z-Score"}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1125,7 +1374,10 @@
             </table>
 
             <div class="cb-contributions">
-                <h4>CB Contribution to ΔGLI (13W)</h4>
+                <h4>
+                    {$currentTranslations.cb_contrib_title ||
+                        "CB Contribution to ΔGLI (13W)"}
+                </h4>
                 <div class="contrib-bars">
                     {#each cbContributions as cb}
                         <div class="contrib-item">
@@ -1157,79 +1409,189 @@
         <!-- ================================================================== -->
         <!-- 6. REPO USAGE & FED CORRIDOR -->
         <!-- ================================================================== -->
+        <!-- ================================================================== -->
+        <!-- 6. REPO & PLUMBING (REDESIGNED) -->
+        <!-- ================================================================== -->
         <div class="panel repo-panel">
             <div class="panel-header">
-                <h3>🏛️ Repo Market & Fed Corridor</h3>
+                <h3>
+                    🏛️ {$currentTranslations.plumbing_title ||
+                        "Plumbing: Repo & Corridor"}
+                </h3>
                 <div class="repo-status {repoStressLevel.class}">
                     {repoStressLevel.label}
                 </div>
             </div>
 
-            <div class="corridor-visual">
-                <div class="corridor-rate ceiling">
-                    <span class="rate-label">SRF (Ceiling)</span>
-                    <span class="rate-value"
-                        >{formatValue(repoMetrics.srfRate, 2, "%")}</span
+            <div class="repo-split">
+                <div class="repo-sub-section">
+                    <span class="sub-label"
+                        >{$currentTranslations.corridor_status_bps ||
+                            "CORRIDOR STATUS (BPS)"}</span
                     >
+                    <div class="corridor-visual">
+                        <div class="c-line ceiling">
+                            <span class="l">SRF</span>
+                            <span class="v"
+                                >{formatValue(
+                                    repoMetrics.srfRate,
+                                    2,
+                                    "%",
+                                )}</span
+                            >
+                        </div>
+                        <div class="c-line sofr">
+                            <span class="l">SOFR</span>
+                            <span class="v"
+                                >{formatValue(repoMetrics.sofr, 3, "%")}</span
+                            >
+                            <span class="delta"
+                                >{$currentTranslations.gap_label || "Gap"}: {gapToCeiling ??
+                                    "—"}bps</span
+                            >
+                        </div>
+                        <div class="c-line floor">
+                            <span class="l">IORB</span>
+                            <span class="v"
+                                >{formatValue(repoMetrics.iorb, 2, "%")}</span
+                            >
+                            <span class="delta"
+                                >{$currentTranslations.spread_label || "Spr"}: {sofrIorbSpread ??
+                                    "—"}bps</span
+                            >
+                        </div>
+                    </div>
                 </div>
-                <div class="corridor-rate sofr">
-                    <span class="rate-label">SOFR</span>
-                    <span class="rate-value"
-                        >{formatValue(repoMetrics.sofr, 3, "%")}</span
+
+                <div class="repo-sub-section">
+                    <span class="sub-label"
+                        >{$currentTranslations.liquidity_flows ||
+                            "LIQUIDITY FLOWS"}</span
                     >
-                    <span class="rate-spread"
-                        >Gap: {gapToCeiling ?? "—"}bps</span
-                    >
-                </div>
-                <div class="corridor-rate iorb">
-                    <span class="rate-label">IORB (Floor)</span>
-                    <span class="rate-value"
-                        >{formatValue(repoMetrics.iorb, 2, "%")}</span
-                    >
-                    <span class="rate-spread"
-                        >Spread: {sofrIorbSpread ?? "—"}bps</span
-                    >
-                </div>
-                <div class="corridor-rate rrp">
-                    <span class="rate-label">RRP Award</span>
-                    <span class="rate-value"
-                        >{formatValue(repoMetrics.rrpAward, 2, "%")}</span
-                    >
+                    <div class="flow-metrics-grid">
+                        <div class="f-metric">
+                            <span class="l"
+                                >{$currentTranslations.rrp_1w_label ||
+                                    "ΔRRP (1w)"}</span
+                            >
+                            <span
+                                class="v"
+                                class:drain={calcDelta(
+                                    $dashboardData.us_net_liq_rrp,
+                                    5,
+                                ) > 0}
+                                class:inject={calcDelta(
+                                    $dashboardData.us_net_liq_rrp,
+                                    5,
+                                ) < 0}
+                            >
+                                {formatDelta(
+                                    calcDelta(
+                                        $dashboardData.us_net_liq_rrp,
+                                        5,
+                                    ) * 1000,
+                                    0,
+                                )}B
+                            </span>
+                        </div>
+                        <div class="f-metric">
+                            <span class="l"
+                                >{$currentTranslations.srf_usage_label ||
+                                    "SRF Usage"}</span
+                            >
+                            <span
+                                class="v"
+                                class:warning={repoMetrics.srfUsage > 0}
+                                >${repoMetrics.srfUsage.toFixed(1)}B</span
+                            >
+                        </div>
+                        <div class="f-metric">
+                            <span class="l"
+                                >{$currentTranslations.sofr_vol_label ||
+                                    "SOFR Vol"}</span
+                            >
+                            <span class="v">${repoMetrics.sofrVolume}B</span>
+                        </div>
+                        <div class="f-metric">
+                            <span class="l"
+                                >{$currentTranslations.net_repo_z_label ||
+                                    "Net Repo Z"}</span
+                            >
+                            <span class="v"
+                                >{repoMetrics.netRepoZscore.toFixed(2)}σ</span
+                            >
+                        </div>
+                    </div>
                 </div>
             </div>
-
-            <div class="repo-metrics-grid">
-                <div class="repo-metric">
-                    <span class="metric-label">RRP Usage</span>
-                    <span class="metric-value"
-                        >${formatValue(repoMetrics.rrpUsage, 2)}T</span
-                    >
-                </div>
-                <div class="repo-metric">
-                    <span class="metric-label">SRF Usage</span>
-                    <span
-                        class="metric-value"
-                        class:warning={repoMetrics.srfUsage > 0}
-                        >${formatValue(repoMetrics.srfUsage, 1)}B</span
-                    >
-                </div>
-                <div class="repo-metric">
-                    <span class="metric-label">SOFR Volume</span>
-                    <span class="metric-value"
-                        >${formatValue(repoMetrics.sofrVolume, 0)}B</span
-                    >
-                </div>
-                <div class="repo-metric">
-                    <span class="metric-label">Net Repo Z</span>
-                    <span
-                        class="metric-value"
-                        class:elevated={repoMetrics.netRepoZscore > 1}
-                        >{formatValue(repoMetrics.netRepoZscore, 2)}σ</span
-                    >
-                </div>
-            </div>
-
             <p class="repo-desc">{repoStressLevel.desc}</p>
+        </div>
+
+        <!-- ================================================================== -->
+        <!-- 6b. BTC FUNDAMENTALS (NEW) -->
+        <!-- ================================================================== -->
+        <div class="panel btc-panel">
+            <div class="panel-header">
+                <h3>
+                    ₿ {$currentTranslations.btc_fundamentals_title ||
+                        "BTC Fundamentals-Lite"}
+                </h3>
+                <div
+                    class="btc-signal-badge"
+                    class:cheap={btcZscore < -1}
+                    class:expensive={btcZscore > 1}
+                >
+                    {btcZscore > 1
+                        ? $currentTranslations.valuation_premium || "PREMIUM"
+                        : btcZscore < -1
+                          ? $currentTranslations.valuation_discount ||
+                            "DISCOUNT"
+                          : $currentTranslations.valuation_fair || "FAIR VALUE"}
+                </div>
+            </div>
+            <div class="btc-quant-grid">
+                <div class="btc-q-item">
+                    <span class="l"
+                        >{$currentTranslations.price_vs_fair ||
+                            "Price vs Fair"}</span
+                    >
+                    <span
+                        class="v"
+                        class:positive={btcDeviation > 0}
+                        class:negative={btcDeviation < 0}
+                    >
+                        {btcDeviation > 0 ? "+" : ""}{btcDeviation?.toFixed(1)}%
+                    </span>
+                </div>
+                <div class="btc-q-item">
+                    <span class="l"
+                        >{$currentTranslations.valuation_z ||
+                            "Valuation Z"}</span
+                    >
+                    <span class="v">{btcZscore?.toFixed(2)}σ</span>
+                </div>
+                <div class="btc-q-item">
+                    <span class="l"
+                        >{$currentTranslations.drawdown || "Drawdown"}</span
+                    >
+                    <span class="v"
+                        >{getLatestValue($dashboardData.btc?.drawdown)?.toFixed(
+                            1,
+                        )}%</span
+                    >
+                </div>
+                <div class="btc-q-item">
+                    <span class="l"
+                        >{$currentTranslations.realized_vol ||
+                            "Realized Vol"}</span
+                    >
+                    <span class="v"
+                        >{getLatestValue(
+                            $dashboardData.btc?.realized_vol_30d,
+                        )?.toFixed(1)}%</span
+                    >
+                </div>
+            </div>
         </div>
 
         <!-- ================================================================== -->
@@ -1237,12 +1599,13 @@
         <!-- ================================================================== -->
         <div class="panel inflation-panel wide">
             <div class="panel-header">
-                <h3>🔥 Inflation Expectations</h3>
+                <h3>
+                    🔥 {$currentTranslations.inflation_expect_title ||
+                        "Inflation Expectations"}
+                </h3>
                 <div class="inflation-signal {inflationCurveSignal.class}">
-                    Curve: {inflationCurveSignal.label} ({formatDelta(
-                        inflationCurveSignal.spread,
-                        2,
-                    )}pp)
+                    {$currentTranslations.curve_label || "Curve"}: {inflationCurveSignal.label}
+                    ({formatDelta(inflationCurveSignal.spread, 2)}pp)
                 </div>
             </div>
 
@@ -1270,19 +1633,25 @@
                     <span class="actual-value"
                         >{formatValue(actualInflation.corePce, 2, "%")}</span
                     >
-                    <span class="target-badge">Fed Target: 2%</span>
+                    <span class="target-badge"
+                        >{$currentTranslations.fed_target_label ||
+                            "Fed Target"}: 2%</span
+                    >
                 </div>
             </div>
 
             <table class="inflation-table">
                 <thead>
                     <tr>
-                        <th>Metric</th>
-                        <th>Source</th>
-                        <th>Value</th>
-                        <th>Δ1M (pp)</th>
-                        <th>ROC 1M</th>
-                        <th>ROC 3M</th>
+                        <th>{$currentTranslations.metric_col || "Metric"}</th>
+                        <th>{$currentTranslations.source_col || "Source"}</th>
+                        <th>{$currentTranslations.value_col || "Value"}</th>
+                        <th
+                            >{$currentTranslations.delta_pp_col ||
+                                "Δ1M (pp)"}</th
+                        >
+                        <th>{$currentTranslations.roc_1m_col || "ROC 1M"}</th>
+                        <th>{$currentTranslations.roc_3m_col || "ROC 3M"}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1334,6 +1703,225 @@
         gap: 20px;
     }
 
+    /* ========== EXECUTIVE NARRATIVE ========== */
+    .narrative-assessment {
+        display: grid;
+        grid-template-columns: 1fr 400px;
+        gap: 20px;
+        background: linear-gradient(
+            135deg,
+            var(--bg-secondary, #1e293b) 0%,
+            var(--bg-tertiary, #334155) 100%
+        );
+        border-radius: 20px;
+        border: 1px solid var(--border-color, #475569);
+        overflow: hidden;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    }
+
+    .narrative-main {
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .narrative-headline {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .narrative-headline .label {
+        font-size: 0.75rem;
+        font-weight: 800;
+        color: #60a5fa;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+    }
+
+    .narrative-headline h2 {
+        margin: 0;
+        font-size: 1.75rem;
+        font-weight: 800;
+        color: var(--text-primary, #f1f5f9);
+        line-height: 1.2;
+    }
+
+    .recommendation-badge {
+        display: inline-block;
+        align-self: flex-start;
+        margin-top: 8px;
+        padding: 6px 14px;
+        background: rgba(96, 165, 250, 0.15);
+        color: #60a5fa;
+        border: 1px solid rgba(96, 165, 250, 0.3);
+        border-radius: 99px;
+        font-size: 0.85rem;
+        font-weight: 700;
+    }
+
+    .narrative-details {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+    }
+
+    .detail-group {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .group-title {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: var(--text-muted, #94a3b8);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .detail-group ul {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .detail-group li {
+        font-size: 0.9rem;
+        color: var(--text-secondary, #cbd5e1);
+        padding-left: 12px;
+        position: relative;
+    }
+
+    .detail-group.risks li {
+        border-left: 2px solid #ef4444;
+    }
+
+    .detail-group.positives li {
+        border-left: 2px solid #10b981;
+    }
+
+    /* ========== CATALYSTS ========== */
+    .catalyst-next-7d {
+        background: rgba(0, 0, 0, 0.2);
+        padding: 24px;
+        border-left: 1px solid var(--border-color, #475569);
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .catalyst-summary {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+
+    .summ-item {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        background: var(--bg-secondary, #1e293b);
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px solid var(--border-color, #334155);
+    }
+
+    .summ-item .l {
+        font-size: 0.65rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+    }
+
+    .summ-item .v {
+        font-size: 1rem;
+        font-weight: 700;
+        font-family: monospace;
+    }
+
+    .settlement-mini-table {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .s-row {
+        display: grid;
+        grid-template-columns: 60px 1fr 60px 70px;
+        align-items: center;
+        gap: 10px;
+        padding: 8px;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 6px;
+        font-size: 0.8rem;
+    }
+
+    .s-date {
+        font-weight: 600;
+        color: var(--text-muted);
+    }
+
+    .s-type {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: var(--text-secondary);
+    }
+
+    .s-amt {
+        font-weight: 700;
+        font-family: monospace;
+        text-align: right;
+    }
+
+    .s-risk {
+        font-size: 0.65rem;
+        font-weight: 800;
+        text-align: center;
+        padding: 2px 4px;
+        border-radius: 4px;
+    }
+
+    .s-risk.low {
+        background: rgba(16, 185, 129, 0.15);
+        color: #10b981;
+    }
+
+    .s-risk.medium {
+        background: rgba(245, 158, 11, 0.15);
+        color: #f59e0b;
+    }
+
+    .s-risk.high {
+        background: rgba(239, 68, 68, 0.15);
+        color: #ef4444;
+    }
+
+    .no-catalysts {
+        text-align: center;
+        padding: 40px 20px;
+        color: var(--text-muted);
+        font-style: italic;
+        font-size: 0.9rem;
+    }
+
+    @media (max-width: 1000px) {
+        .narrative-assessment {
+            grid-template-columns: 1fr;
+        }
+        .catalyst-next-7d {
+            border-left: none;
+            border-top: 1px solid var(--border-color, #475569);
+        }
+        .narrative-details {
+            grid-template-columns: 1fr;
+        }
+    }
+
     /* ========== REGIME STATUS BAR ========== */
     .regime-status-bar {
         display: flex;
@@ -1376,12 +1964,27 @@
         border-radius: 50%;
     }
 
-    .score-value {
+    .score-inner {
         position: relative;
         z-index: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .score-value {
         font-size: 1.25rem;
         font-weight: 800;
         color: var(--text-primary, #f1f5f9);
+        line-height: 1.1;
+    }
+
+    .confidence-label {
+        font-size: 0.55rem;
+        font-weight: 700;
+        color: var(--text-muted, #94a3b8);
+        text-transform: uppercase;
     }
 
     .regime-info {
@@ -1502,10 +2105,199 @@
         }
     }
 
-    .rates-container {
+    /* Signal Matrix Header Styles */
+    .title-with-score {
         display: flex;
-        gap: 0;
-        border-right: 1px solid var(--border-color, #475569);
+        align-items: center;
+        gap: 12px;
+    }
+
+    .weighted-score-pill {
+        padding: 4px 12px;
+        border-radius: 99px;
+        font-size: 0.9rem;
+        font-weight: 800;
+        font-family: monospace;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .weighted-score-pill.bullish {
+        background: #10b981;
+        color: white;
+    }
+    .weighted-score-pill.bearish {
+        background: #ef4444;
+        color: white;
+    }
+    .weighted-score-pill.neutral {
+        background: #6b7280;
+        color: white;
+    }
+
+    .top-drivers-mini {
+        display: flex;
+        gap: 6px;
+    }
+
+    .driver-tag {
+        font-size: 0.6rem;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .driver-tag.bullish {
+        background: rgba(16, 185, 129, 0.15);
+        color: #10b981;
+    }
+    .driver-tag.bearish {
+        background: rgba(239, 68, 68, 0.15);
+        color: #ef4444;
+    }
+
+    /* Repo Split Layout */
+    .repo-split {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-bottom: 8px;
+    }
+
+    .repo-sub-section {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .sub-label {
+        font-size: 0.6rem;
+        font-weight: 800;
+        color: var(--text-muted);
+        letter-spacing: 1px;
+    }
+
+    .corridor-visual {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .c-line {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 10px;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.03);
+    }
+
+    .c-line .l {
+        font-size: 0.7rem;
+        width: 40px;
+        color: var(--text-muted);
+    }
+    .c-line .v {
+        font-family: monospace;
+        font-weight: 700;
+    }
+    .c-line .delta {
+        font-size: 0.65rem;
+        color: var(--text-muted);
+        margin-left: auto;
+    }
+
+    .c-line.ceiling {
+        border-left: 3px solid #ef4444;
+    }
+    .c-line.sofr {
+        border-left: 3px solid #3b82f6;
+        background: rgba(59, 130, 246, 0.05);
+    }
+    .c-line.floor {
+        border-left: 3px solid #10b981;
+    }
+
+    .flow-metrics-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+
+    .f-metric {
+        background: rgba(255, 255, 255, 0.03);
+        padding: 8px;
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .f-metric .l {
+        font-size: 0.6rem;
+        color: var(--text-muted);
+    }
+    .f-metric .v {
+        font-size: 0.9rem;
+        font-weight: 700;
+        font-family: monospace;
+    }
+    .f-metric .v.drain {
+        color: #ef4444;
+    }
+    .f-metric .v.inject {
+        color: #10b981;
+    }
+
+    /* BTC Quant Grid */
+    .btc-signal-badge {
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 0.7rem;
+        font-weight: 800;
+    }
+    .btc-signal-badge.cheap {
+        background: rgba(16, 185, 129, 0.2);
+        color: #10b981;
+    }
+    .btc-signal-badge.expensive {
+        background: rgba(239, 68, 68, 0.2);
+        color: #ef4444;
+    }
+
+    .btc-quant-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+    }
+
+    .btc-q-item {
+        background: rgba(255, 255, 255, 0.03);
+        padding: 10px;
+        border-radius: 10px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        border: 1px solid var(--border-color);
+    }
+
+    .btc-q-item .l {
+        font-size: 0.65rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+    }
+    .btc-q-item .v {
+        font-size: 1.1rem;
+        font-weight: 800;
+        font-family: monospace;
+    }
+    .btc-q-item .v.positive {
+        color: #ef4444;
+    }
+    .btc-q-item .v.negative {
+        color: #10b981;
     }
 
     .fed-rate {
@@ -2123,6 +2915,16 @@
         background: rgba(107, 114, 128, 0.2);
         color: #9ca3af;
     }
+    .inflation-signal.warning {
+        background: rgba(245, 158, 11, 0.3);
+        color: #f59e0b;
+        border: 1px solid rgba(245, 158, 11, 0.5);
+    }
+    .inflation-signal.danger {
+        background: rgba(239, 68, 68, 0.3);
+        color: #ef4444;
+        border: 1px solid rgba(239, 68, 68, 0.5);
+    }
 
     .actual-inflation {
         display: grid;
@@ -2185,89 +2987,6 @@
         font-size: 0.8rem;
         color: var(--text-muted, #94a3b8);
         font-style: italic;
-    }
-
-    /* ========== BTC PANEL ========== */
-    .btc-metrics {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 12px;
-        margin-bottom: 16px;
-    }
-
-    .btc-metric {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 4px;
-        padding: 12px;
-        background: var(--bg-tertiary, #334155);
-        border-radius: 8px;
-    }
-
-    .btc-metric.zscore {
-        border: 1px solid var(--border-color, #334155);
-    }
-
-    .btc-label {
-        font-size: 0.7rem;
-        color: var(--text-muted, #94a3b8);
-        text-transform: uppercase;
-    }
-
-    .btc-value {
-        font-size: 1rem;
-        font-weight: 700;
-        font-family: monospace;
-        color: var(--text-primary, #f1f5f9);
-    }
-    .btc-value.positive {
-        color: #10b981;
-    }
-    .btc-value.negative {
-        color: #ef4444;
-    }
-    .btc-value.overbought {
-        color: #ef4444;
-    }
-    .btc-value.oversold {
-        color: #10b981;
-    }
-
-    .btc-breadth {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 12px;
-    }
-
-    .breadth-item {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 4px;
-        padding: 12px;
-        background: var(--bg-tertiary, #334155);
-        border-radius: 8px;
-    }
-
-    .breadth-label {
-        font-size: 0.7rem;
-        color: var(--text-muted, #94a3b8);
-        text-transform: uppercase;
-    }
-
-    .breadth-value {
-        font-size: 1.1rem;
-        font-weight: 700;
-        color: var(--text-primary, #f1f5f9);
-    }
-    .breadth-value.warning {
-        color: #f59e0b;
-    }
-
-    .breadth-desc {
-        font-size: 0.65rem;
-        color: var(--text-muted, #94a3b8);
     }
 
     /* ========== ALERTS PANEL ========== */

@@ -40,7 +40,7 @@ Built with **Svelte + Vite** frontend and **Python** data pipeline, featuring FR
 - **Rate of Change (ROC) Badges**: 1-month momentum indicators on key metrics
 - **Treasury Bond Settlements Table**: Upcoming Treasury issuance with RRP coverage ratios and risk levels
 
-### US System Tab (NEW)
+- **US System Tab (NEW)**:
 - **Current Value Labels**: Each chart now displays current balance in **$T (Trillions)**:
   - Net Liquidity: Green badge
   - Bank Reserves: Green badge
@@ -49,6 +49,16 @@ Built with **Svelte + Vite** frontend and **Python** data pipeline, featuring FR
   - Treasury TGA: Amber badge
 - **Component Impact Table**: 1M/3M/1Y ROC with liquidity impact percentages
 - **Liquidity Score**: Composite metric for regime detection
+
+### US Debt Tab (NEW)
+- **Treasury Maturity Tracker**: Real-time visualization of upcoming US debt maturities
+- **Debt Categorization**: Detailed breakdown by security type: Bills, Notes, Bonds, TIPS, and FRN
+- **Key Refinancing Metrics**:
+  - **Peak Maturity Month**: Identifies upcoming refinancing "cliffs"
+  - **Refinancing Volume**: Next 12 months' mandatory rollover amount
+  - **Bills Outstanding**: Short-term debt concentration tracking
+- **Dual-View Charting**: Toggle between **Stacked Bar** (composition) and **Multi-Line** (trend) views
+- **Monthly Schedule Table**: Tabular breakdown of the next 12 months' maturities in $B (Billions)
 
 ### Bitcoin Analysis
 - **Quant V2 Model**: ElasticNet with automatic feature selection, PCA liquidity factors, 52-week rolling volatility bands
@@ -187,12 +197,14 @@ npm run preview
 GLI-CLI-Estimation/
 ├── backend/
 │   ├── data_pipeline.py         # Main data processing (50+ FRED series)
+│   ├── treasury_data.py         # US Debt maturity API integration
 │   ├── train_regime_offset.py   # Regime walk-forward optimization
 │   ├── regime_v2.py             # Regime detection logic
 │   ├── requirements.txt         # Python dependencies
 │   └── data/                    # Generated JSON data files
 │       ├── dashboard_data.json
 │       ├── fred_cache_data.json
+│       ├── treasury_maturities_cache.json
 │       ├── treasury_settlements_cache.json
 │       └── regime_params.json
 │
@@ -211,6 +223,7 @@ GLI-CLI-Estimation/
 │   │   │   │   ├── GlobalFlowsCbTab.svelte
 │   │   │   │   ├── GlobalM2Tab.svelte
 │   │   │   │   ├── UsSystemTab.svelte
+│   │   │   │   ├── UsDebtTab.svelte
 │   │   │   │   ├── RiskModelTab.svelte
 │   │   │   │   ├── BtcAnalysisTab.svelte
 │   │   │   │   ├── BtcQuantV2Tab.svelte
@@ -270,6 +283,7 @@ The data pipeline runs in sequence:
 |-----------|---------------|------|
 | FRED Data | 24 hours | `fred_cache_data.json` |
 | TradingView Data | 6 hours | `tv_cache_data.json` |
+| Treasury Maturities | 24 hours | `treasury_maturities_cache.json` |
 | Treasury Settlements | 24 hours | `treasury_settlements_cache.json` |
 | Cache Timestamps | N/A | `data_cache_info.json` |
 
@@ -287,6 +301,12 @@ The data pipeline runs in sequence:
 - Added current value labels ($T) to all chart headers
 - Color-coded badges matching each chart's theme
 - Reactive real-time updates
+
+### US Debt Tab (NEW)
+- **Treasury Maturity Tracker**: Integrated with FiscalData.Treasury.gov API
+- **Refinancing Metrics**: Automated calculation of next 12-month rollover requirements
+- **Multi-Line Analysis**: Visualize trend divergence between Bills, Notes, and Bonds
+- **Performance Caching**: 24-hour persistent cache for Treasury maturity data
 
 ### Treasury Settlements
 - Fixed data access path in FedForecastsTab

@@ -182,7 +182,7 @@ export const dashboardData = writable({
         move: { latest: { state: "neutral", percentile: 50 }, percentile: [] },
         fx_vol: { latest: { state: "neutral", percentile: 50 }, percentile: [] },
         tips: { latest: { state: "neutral", percentile: 50 }, percentile: [] },
-        repo: { latest: { state: "neutral", percentile: 50 }, percentile: [] }
+        repo_stress: { latest: { state: "neutral", percentile: 50 }, percentile: [] }
     },
     fed_forecasts: {
         cpi_yoy: [], core_cpi_yoy: [], pce_yoy: [], core_pce_yoy: [],

@@ -65,7 +65,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.us_net_liq_reserves,
-                name: "Bank Reserves (T)",
+                name: translations.reserves_t || "Bank Reserves (T)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#22c55e", width: 2, shape: "spline" },
@@ -75,7 +75,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.us_net_liq,
-                name: "Net Liquidity (T)",
+                name: translations.net_liq_t || "Net Liquidity (T)",
                 type: "scatter",
                 mode: "lines",
                 line: {
@@ -92,9 +92,13 @@
     );
 
     $: bankReservesLayout = {
-        yaxis: { title: "Reserves (T)", side: "left", showgrid: false },
+        yaxis: {
+            title: translations.reserves_axis || "Reserves (T)",
+            side: "left",
+            showgrid: false,
+        },
         yaxis2: {
-            title: "Net Liq (T)",
+            title: translations.net_liq_axis || "Net Liq (T)",
             overlaying: "y",
             side: "right",
             showgrid: false,
@@ -271,43 +275,63 @@
 
         if (latestReserves < 2.5) {
             score += 3;
-            risks.push("Critical Reserves Scarce (<$2.5T)");
+            risks.push(
+                translations.risk_reserves_critical ||
+                    "Critical Reserves Scarce (<$2.5T)",
+            );
         } else if (latestReserves < 2.8) {
             score += 1.5;
-            risks.push("Reserves approaching comfortable floor (<$2.8T)");
+            risks.push(
+                translations.risk_reserves_low ||
+                    "Reserves approaching comfortable floor (<$2.8T)",
+            );
         }
 
         if (sofrIorbSpread > 5) {
             score += 2;
-            risks.push("Severe funding stress (SOFR >> IORB)");
+            risks.push(
+                translations.risk_sofr_stress ||
+                    "Severe funding stress (SOFR >> IORB)",
+            );
         } else if (sofrIorbSpread > 0) {
             score += 1;
-            risks.push("Market rate decoupling from Fed floor");
+            risks.push(
+                translations.risk_sofr_decoupling ||
+                    "Market rate decoupling from Fed floor",
+            );
         }
 
         if (latestRepoSRF > 0) {
             score += 2;
-            risks.push(`Active SRF Usage ($${latestRepoSRF.toFixed(1)}B)`);
+            risks.push(
+                `${translations.risk_srf_active || "Active SRF Usage"} ($${latestRepoSRF.toFixed(1)}B)`,
+            );
         }
 
-        let level = "LOW";
+        let level = translations.risk_level_low || "LOW";
         let color = "#22c55e";
-        let summary = "Adequate liquidity. System functioning correctly.";
+        let summary =
+            translations.risk_summary_low ||
+            "Adequate liquidity. System functioning correctly.";
 
         if (score >= 4) {
-            level = "CRITICAL";
+            level = translations.risk_level_critical || "CRITICAL";
             color = "#dc2626";
             summary =
+                translations.risk_summary_critical ||
                 "High risk of funding crunch. Immediate Fed intervention likely needed.";
         } else if (score >= 2) {
-            level = "MODERATE";
+            level = translations.risk_level_moderate || "MODERATE";
             color = "#f59e0b";
             summary =
+                translations.risk_summary_moderate ||
                 "Evolving stress detected. Monitor rate decoupling and SRF usage.";
         } else if (score >= 1) {
-            level = "CAUTION";
+            level = translations.risk_level_caution || "CAUTION";
             color = "rgba(245, 158, 11, 0.7)";
-            summary = "Liquidity buffer narrowing. Watch RRP depletion.";
+            summary =
+                translations.risk_summary_caution ||
+                "Liquidity buffer narrowing. Watch RRP depletion.";
         }
 
         return { score, level, color, summary, risks };
@@ -338,7 +362,7 @@
         {
             x: dashboardData.dates,
             y: dashboardData.repo_operations?.net_repo,
-            name: "Net Repo Operations",
+            name: translations.net_repo_operations || "Net Repo Operations",
             type: "scatter",
             mode: "lines",
             fill: "tozeroy",
@@ -866,15 +890,25 @@
             <div class="metrics-sidebar">
                 <div class="metrics-section">
                     <h4>
-                        {translations.reserves_velocity || "Reserves Velocity"}
+                        {translations.reserves_velocity_title ||
+                            "Reserves Velocity"}
                     </h4>
                     <div class="metrics-table-container">
                         <table class="metrics-table compact">
                             <thead>
                                 <tr>
-                                    <th>Metric</th>
-                                    <th>Value</th>
-                                    <th>Signal</th>
+                                    <th
+                                        >{translations.metric_header ||
+                                            "Metric"}</th
+                                    >
+                                    <th
+                                        >{translations.value_header ||
+                                            "Value"}</th
+                                    >
+                                    <th
+                                        >{translations.signal_header ||
+                                            "Signal"}</th
+                                    >
                                 </tr>
                             </thead>
                             <tbody>
@@ -1054,8 +1088,11 @@
                                     </td>
                                 </tr>
                                 <tr>
-                                    <td title="Standing Repo Facility Usage"
-                                        >SRF Usage</td
+                                    <td
+                                        title={translations.net_repo_srf_usage ||
+                                            "Standing Repo Facility Usage"}
+                                        >{translations.srf_usage_label ||
+                                            "SRF Usage"}</td
                                     >
                                     <td
                                         class="roc-val"
@@ -1084,7 +1121,8 @@
                         >
                             <span
                                 style="font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase;"
-                                >Overall Risk Level</span
+                                >{translations.overall_risk_level ||
+                                    "Overall Risk Level"}</span
                             >
                             <span
                                 style="font-size: 12px; font-weight: 800; color: {liquidityRiskAssessment.color};"
@@ -1354,7 +1392,7 @@
     <div class="chart-card wide">
         <div class="chart-header">
             <h3>
-                {translations.chart_net_repo || "Fed Net Repo Operations"}
+                {translations.chart_net_repo_ops || "Fed Net Repo Operations"}
                 <span
                     class="current-value-badge"
                     style="margin-left: 12px; background: {latestNet > 0
@@ -1393,7 +1431,7 @@
             >
                 <span
                     style="font-size: 11px; opacity: 0.7; display: block; margin-bottom: 4px;"
-                    >Net Position</span
+                    >{translations.net_pos || "Net Position"}</span
                 >
                 <div
                     style="font-size: 18px; font-weight: 700; color: {latestNet >
@@ -1414,7 +1452,7 @@
             >
                 <span
                     style="font-size: 11px; opacity: 0.7; display: block; margin-bottom: 4px;"
-                    >Regime</span
+                    >{translations.regime_label || "Regime"}</span
                 >
                 <div
                     style="font-size: 14px; font-weight: 600; color: {regimeColor};"
@@ -1428,7 +1466,7 @@
             >
                 <span
                     style="font-size: 11px; opacity: 0.7; display: block; margin-bottom: 4px;"
-                    >SRF (Inject)</span
+                    >{translations.srf_inject_label || "SRF (Inject)"}</span
                 >
                 <div style="font-size: 14px; font-weight: 600; color: #22c55e;">
                     +${latestRepoSRF.toFixed(1)}B
@@ -1440,7 +1478,7 @@
             >
                 <span
                     style="font-size: 11px; opacity: 0.7; display: block; margin-bottom: 4px;"
-                    >RRP (Drain)</span
+                    >{translations.rrp_drain_label || "RRP (Drain)"}</span
                 >
                 <div style="font-size: 14px; font-weight: 600; color: #ef4444;">
                     -${latestRepoRRP.toFixed(1)}B

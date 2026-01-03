@@ -10,7 +10,6 @@
 
     // Core props only
     export let darkMode = false;
-    export let language = "en";
     export let translations = {};
     export let dashboardData = {};
 
@@ -52,7 +51,9 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.gli?.total,
-                name: "Global Liquidity Index (GLI)",
+                name:
+                    translations.chart_gli_aggregate ||
+                    "Global Liquidity Index (GLI)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#6366f1", width: 3, shape: "spline" },
@@ -67,7 +68,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.gli?.fed,
-                name: "Fed Assets",
+                name: translations.indicator_fed || "Fed Assets",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#3b82f6", width: 3, shape: "spline" },
@@ -81,7 +82,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.gli?.ecb,
-                name: "ECB Assets",
+                name: translations.indicator_ecb || "ECB Assets",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#8b5cf6", width: 3, shape: "spline" },
@@ -95,7 +96,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.gli?.boj,
-                name: "BoJ Assets",
+                name: translations.indicator_boj || "BoJ Assets",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#f43f5e", width: 3, shape: "spline" },
@@ -109,7 +110,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.gli?.boe,
-                name: "BoE Assets",
+                name: translations.indicator_boe || "BoE Assets",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#f59e0b", width: 3, shape: "spline" },
@@ -123,7 +124,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.gli?.pboc,
-                name: "PBoC Assets",
+                name: translations.indicator_pboc || "PBoC Assets",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#10b981", width: 3, shape: "spline" },
@@ -137,7 +138,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.gli?.boc,
-                name: "BoC Assets",
+                name: translations.indicator_boc || "BoC Assets",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#34d399", width: 3, shape: "spline" },
@@ -151,7 +152,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.gli?.rba,
-                name: "RBA Assets",
+                name: translations.indicator_rba || "RBA Assets",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#14b8a6", width: 3, shape: "spline" },
@@ -165,7 +166,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.gli?.snb,
-                name: "SNB Assets",
+                name: translations.indicator_snb || "SNB Assets",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#06b6d4", width: 3, shape: "spline" },
@@ -179,7 +180,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.gli?.bok,
-                name: "BoK Assets",
+                name: translations.indicator_bok || "BoK Assets",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#0ea5e9", width: 3, shape: "spline" },
@@ -193,7 +194,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.gli?.rbi,
-                name: "RBI Assets",
+                name: translations.indicator_rbi || "RBI Assets",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#6366f1", width: 3, shape: "spline" },
@@ -207,7 +208,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.gli?.cbr,
-                name: "CBR Assets",
+                name: translations.indicator_cbr || "CBR Assets",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#8b5cf6", width: 3, shape: "spline" },
@@ -221,7 +222,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.gli?.bcb,
-                name: "BCB Assets",
+                name: translations.indicator_bcb || "BCB Assets",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#a855f7", width: 3, shape: "spline" },
@@ -235,7 +236,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.gli?.rbnz,
-                name: "RBNZ Assets",
+                name: translations.indicator_rbnz || "RBNZ Assets",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#d946ef", width: 3, shape: "spline" },
@@ -249,7 +250,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.gli?.sr,
-                name: "SR Assets",
+                name: translations.indicator_sr || "Sveriges Riksbank",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#ec4899", width: 3, shape: "spline" },
@@ -263,7 +264,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.gli?.bnm,
-                name: "BNM Assets",
+                name: translations.indicator_bnm || "BNM Assets",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#fb923c", width: 3, shape: "spline" },
@@ -280,7 +281,9 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.macro_regime?.cb_diffusion_13w,
-                name: "CB Breadth (% Expanding)",
+                name:
+                    translations.indicator_cb_breadth ||
+                    "CB Breadth (% Expanding)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#10b981", width: 2, shape: "spline" },
@@ -297,7 +300,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.macro_regime?.cb_hhi_13w,
-                name: "CB Concentration (HHI)",
+                name: translations.indicator_cb_hhi || "CB Concentration (HHI)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#f59e0b", width: 2, shape: "spline" },
@@ -497,7 +500,10 @@
         <!-- CB Breadth Chart -->
         <div class="chart-card">
             <div class="chart-header">
-                <h3>Central Bank Breadth (% Expanding)</h3>
+                <h3>
+                    {translations.indicator_cb_breadth ||
+                        "Central Bank Breadth (% Expanding)"}
+                </h3>
                 <div class="header-controls">
                     <TimeRangeSelector
                         selectedRange={cbBreadthRange}
@@ -506,9 +512,8 @@
                 </div>
             </div>
             <p class="chart-description">
-                {language === "es"
-                    ? "% de bancos centrales en expansión (13 semanas). ↑ Alcista."
-                    : "Percentage of CBs expanding (13-week basis). ↑ Bullish."}
+                {translations.cb_breadth_desc ||
+                    "Percentage of CBs expanding (13-week basis). ↑ Bullish."}
             </p>
             <div class="chart-content short">
                 <Chart {darkMode} data={cbBreadthData} />
@@ -518,7 +523,10 @@
         <!-- CB Concentration Chart -->
         <div class="chart-card">
             <div class="chart-header">
-                <h3>Central Bank Concentration (HHI)</h3>
+                <h3>
+                    {translations.indicator_cb_hhi ||
+                        "Central Bank Concentration (HHI)"}
+                </h3>
                 <div class="header-controls">
                     <TimeRangeSelector
                         selectedRange={cbConcentrationRange}
@@ -527,9 +535,8 @@
                 </div>
             </div>
             <p class="chart-description">
-                {language === "es"
-                    ? "Índice HHI. Alto = pocos bancos dominan flujos."
-                    : "HHI Index. High = few banks drive liquidity."}
+                {translations.cb_hhi_desc ||
+                    "HHI Index. High = few banks drive liquidity."}
             </p>
             <div class="chart-content short">
                 <Chart {darkMode} data={cbConcentrationData} />
@@ -560,11 +567,13 @@
                         class:positive={rocs.w1 > 0}
                         class:negative={rocs.w1 < 0}
                     >
-                        <span class="roc-label">1W</span>
+                        <span class="roc-label"
+                            >{translations.val_1w || "1W"}</span
+                        >
                         <span class="roc-value"
                             >{rocs.w1 !== null
                                 ? rocs.w1.toFixed(1) + "%"
-                                : "N/A"}</span
+                                : translations.na || "N/A"}</span
                         >
                     </div>
                     <div
@@ -572,11 +581,13 @@
                         class:positive={rocs.m1 > 0}
                         class:negative={rocs.m1 < 0}
                     >
-                        <span class="roc-label">1M</span>
+                        <span class="roc-label"
+                            >{translations.val_1m || "1M"}</span
+                        >
                         <span class="roc-value"
                             >{rocs.m1 !== null
                                 ? rocs.m1.toFixed(1) + "%"
-                                : "N/A"}</span
+                                : translations.na || "N/A"}</span
                         >
                     </div>
                     <div
@@ -584,11 +595,13 @@
                         class:positive={rocs.m3 > 0}
                         class:negative={rocs.m3 < 0}
                     >
-                        <span class="roc-label">3M</span>
+                        <span class="roc-label"
+                            >{translations.val_3m || "3M"}</span
+                        >
                         <span class="roc-value"
                             >{rocs.m3 !== null
                                 ? rocs.m3.toFixed(1) + "%"
-                                : "N/A"}</span
+                                : translations.na || "N/A"}</span
                         >
                     </div>
                     <div
@@ -596,11 +609,13 @@
                         class:positive={rocs.m6 > 0}
                         class:negative={rocs.m6 < 0}
                     >
-                        <span class="roc-label">6M</span>
+                        <span class="roc-label"
+                            >{translations.val_6m || "6M"}</span
+                        >
                         <span class="roc-value"
                             >{rocs.m6 !== null
                                 ? rocs.m6.toFixed(1) + "%"
-                                : "N/A"}</span
+                                : translations.na || "N/A"}</span
                         >
                     </div>
                 </div>
@@ -627,17 +642,6 @@
 
     .chart-card.full-width {
         width: 100%;
-    }
-
-    .chart-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 20px;
-    }
-
-    .chart-card.half {
-        width: 100%;
-        height: fit-content;
     }
 
     .chart-grid {
@@ -751,9 +755,6 @@
 
     @media (max-width: 1200px) {
         .chart-grid {
-            grid-template-columns: 1fr;
-        }
-        .chart-row {
             grid-template-columns: 1fr;
         }
     }

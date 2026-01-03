@@ -26,7 +26,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.fed_forecasts?.cpi_yoy || [],
-                name: "CPI YoY",
+                name: translations.headline_cpi || "CPI YoY",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#ef4444", width: 2 },
@@ -34,7 +34,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.fed_forecasts?.core_cpi_yoy || [],
-                name: "Core CPI YoY",
+                name: translations.core_cpi || "Core CPI YoY",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#f97316", width: 2, dash: "dash" },
@@ -50,7 +50,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.fed_forecasts?.pce_yoy || [],
-                name: "PCE YoY",
+                name: translations.headline_pce || "PCE YoY",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#8b5cf6", width: 2 },
@@ -58,7 +58,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.fed_forecasts?.core_pce_yoy || [],
-                name: "Core PCE YoY",
+                name: translations.core_pce || "Core PCE YoY",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#a855f7", width: 2, dash: "dash" },
@@ -74,7 +74,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.fed_forecasts?.ism_mfg || [],
-                name: "ISM Manufacturing",
+                name: translations.manufacturing || "ISM Manufacturing",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#3b82f6", width: 2 },
@@ -82,7 +82,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.fed_forecasts?.ism_svc || [],
-                name: "ISM Services",
+                name: translations.services || "ISM Services",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#10b981", width: 2, dash: "dash" },
@@ -98,7 +98,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.fed_forecasts?.unemployment || [],
-                name: "Unemployment Rate",
+                name: translations.nav_unemployment || "Unemployment Rate",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#6b7280", width: 2 },
@@ -116,7 +116,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.fed_forecasts?.fed_funds_rate || [],
-                name: "Fed Funds Rate",
+                name: translations.fed_funds_rate || "Fed Funds Rate",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#1e40af", width: 3 },
@@ -555,11 +555,10 @@
         ],
         annotations: [
             {
-                x: 1.02,
                 y: 2,
                 xref: "paper",
                 yref: "y",
-                text: "2% Target",
+                text: `${translations.fed_target_label || "Fed Target"}: 2%`,
                 showarrow: false,
                 font: { size: 10, color: "#10b981" },
             },
@@ -587,7 +586,9 @@
                 y: 50,
                 xref: "paper",
                 yref: "y",
-                text: "Expansion/Contraction",
+                text:
+                    translations.expansion_contraction ||
+                    "Expansion/Contraction",
                 showarrow: false,
                 font: { size: 9, color: "#f59e0b" },
             },
@@ -932,7 +933,7 @@
                             {#if meeting.probs}
                                 <div class="market-target">
                                     <span class="target-label"
-                                        >{translations.target_rate ||
+                                        >{translations.target ||
                                             "Target"}:</span
                                     >
                                     <span class="target-value"
@@ -1195,7 +1196,10 @@
                             on:change={resetPagination}
                         />
                         <span class="toggle-label"
-                            >{groupedView ? "Grouped" : "Individual"}</span
+                            >{groupedView
+                                ? translations.view_grouped || "Grouped"
+                                : translations.view_individual ||
+                                  "Individual"}</span
                         >
                     </label>
                     <span class="rrp-indicator">
@@ -1207,12 +1211,15 @@
             <!-- Filters Row -->
             <div class="settlements-filters">
                 <div class="filter-group">
-                    <label>Type:</label>
+                    <label for="filter-security-type"
+                        >{translations.type || "Type"}:</label
+                    >
                     <select
+                        id="filter-security-type"
                         bind:value={filterSecurityType}
                         on:change={resetPagination}
                     >
-                        <option value="all">All</option>
+                        <option value="all">{translations.all || "All"}</option>
                         <option value="Bill">Bills</option>
                         <option value="Note">Notes</option>
                         <option value="Bond">Bonds</option>
@@ -1222,12 +1229,15 @@
                     </select>
                 </div>
                 <div class="filter-group">
-                    <label>Term Min:</label>
+                    <label for="filter-term-min"
+                        >{translations.term_min || "Term Min"}:</label
+                    >
                     <select
+                        id="filter-term-min"
                         bind:value={filterTermMin}
                         on:change={resetPagination}
                     >
-                        <option value="">Any</option>
+                        <option value="">{translations.any || "Any"}</option>
                         <option value="4">4-Week</option>
                         <option value="8">8-Week</option>
                         <option value="13">13-Week</option>
@@ -1244,12 +1254,15 @@
                     </select>
                 </div>
                 <div class="filter-group">
-                    <label>Term Max:</label>
+                    <label for="filter-term-max"
+                        >{translations.term_max || "Term Max"}:</label
+                    >
                     <select
+                        id="filter-term-max"
                         bind:value={filterTermMax}
                         on:change={resetPagination}
                     >
-                        <option value="">Any</option>
+                        <option value="">{translations.any || "Any"}</option>
                         <option value="4">4-Week</option>
                         <option value="8">8-Week</option>
                         <option value="13">13-Week</option>
@@ -1266,8 +1279,11 @@
                     </select>
                 </div>
                 <div class="filter-group">
-                    <label>Min $B:</label>
+                    <label for="filter-amount-min"
+                        >{translations.min_amount || "Min $B"}:</label
+                    >
                     <input
+                        id="filter-amount-min"
                         type="number"
                         placeholder="0"
                         bind:value={filterAmountMin}
@@ -1277,8 +1293,11 @@
                     />
                 </div>
                 <div class="filter-group">
-                    <label>Max $B:</label>
+                    <label for="filter-amount-max"
+                        >{translations.max_amount || "Max $B"}:</label
+                    >
                     <input
+                        id="filter-amount-max"
                         type="number"
                         placeholder="∞"
                         bind:value={filterAmountMax}
@@ -1296,7 +1315,7 @@
                         filterAmountMin = "";
                         filterAmountMax = "";
                         resetPagination();
-                    }}>Clear</button
+                    }}>{translations.clear || "Clear"}</button
                 >
             </div>
 
@@ -1305,11 +1324,11 @@
                     <thead>
                         <tr>
                             <th>{translations.date || "Date"}</th>
-                            <th>Status</th>
+                            <th>{translations.status || "Status"}</th>
                             <th>{translations.type || "Type"}</th>
                             <th>{translations.amount || "Amount"}</th>
-                            <th>RRP Balance</th>
-                            <th>Coverage</th>
+                            <th>{translations.rrp_balance || "RRP Balance"}</th>
+                            <th>{translations.rrp_coverage || "Coverage"}</th>
                             <th>{translations.risk || "Risk"}</th>
                         </tr>
                     </thead>
@@ -1329,11 +1348,13 @@
                                 <td class="settlement-status">
                                     {#if settlement.is_future}
                                         <span class="status-badge future"
-                                            >📅 Upcoming</span
+                                            >📅 {translations.upcoming ||
+                                                "Upcoming"}</span
                                         >
                                     {:else}
                                         <span class="status-badge past"
-                                            >✓ Settled</span
+                                            >✓ {translations.settled ||
+                                                "Settled"}</span
                                         >
                                     {/if}
                                 </td>
@@ -1372,24 +1393,36 @@
                         disabled={settlementPage === 0}
                         on:click={() => settlementPage--}
                     >
-                        ← Prev
+                        ← {translations.prev || "Prev"}
                     </button>
                     <span class="pagination-info">
-                        Page {settlementPage + 1} of {totalSettlementPages}
+                        {translations.page || "Page"}
+                        {settlementPage + 1}
+                        {translations.of || "of"}
+                        {totalSettlementPages}
                     </span>
                     <button
                         class="pagination-btn"
                         disabled={settlementPage >= totalSettlementPages - 1}
                         on:click={() => settlementPage++}
                     >
-                        Next →
+                        {translations.next || "Next"} →
                     </button>
                 </div>
             {/if}
             <div class="settlements-legend">
-                <span>🟢 RRP ≥ 3x Settlement (Safe)</span>
-                <span>🟡 RRP 1.5-3x (Caution)</span>
-                <span>🔴 RRP &lt; 1.5x (Liquidity Stress)</span>
+                <span
+                    >🟢 {translations.rrp_coverage_safe ||
+                        "RRP ≥ 3x Settlement (Safe)"}</span
+                >
+                <span
+                    >🟡 {translations.rrp_coverage_caution ||
+                        "RRP 1.5-3x (Caution)"}</span
+                >
+                <span
+                    >🔴 {translations.rrp_coverage_stress ||
+                        "RRP < 1.5x (Liquidity Stress)"}</span
+                >
             </div>
         </div>
     {/if}
@@ -2673,7 +2706,6 @@
     }
 
     .filter-group select,
-    .filter-group input[type="date"],
     .filter-group input[type="number"] {
         font-size: 0.75rem;
         padding: 4px 8px;
@@ -2685,10 +2717,6 @@
 
     .filter-group select {
         min-width: 80px;
-    }
-
-    .filter-group input[type="date"] {
-        width: 130px;
     }
 
     .filter-group input[type="number"] {
@@ -2717,8 +2745,9 @@
             gap: 8px;
         }
 
-        .filter-group input[type="date"] {
-            width: 110px;
+        .filter-group {
+            width: 100%;
+            justify-content: space-between;
         }
     }
     /* Mode selector styling */

@@ -46,7 +46,7 @@
 
     $: btcFairValueData = [
         {
-            name: "BTC Price",
+            name: translations.btc_price || "BTC Price",
             type: "area",
             color: "#f7931a",
             topColor: "rgba(247, 147, 26, 0.1)",
@@ -55,7 +55,7 @@
             width: 3,
         },
         {
-            name: "Fair Value",
+            name: translations.fair_value || "Fair Value",
             type: "line",
             color: "#10b981",
             data: formatTV(dashboardData.dates, activeBtcModel.fair_value),
@@ -105,7 +105,7 @@
                   y: lagCorrelationChartData[
                       selectedLagWindow
                   ].correlations.map((c) => (c !== null ? c * 100 : null)),
-                  name: `${selectedLagWindow.toUpperCase()} ROC Lag Correlation`,
+                  name: `${selectedLagWindow.toUpperCase()} ${translations.chart_lag_corr || "ROC Lag Correlation"}`,
                   type: "bar",
                   marker: {
                       color: lagCorrelationChartData?.[
@@ -128,7 +128,7 @@
             {
                 x: Object.keys(corrs["gli_btc"] || {}).map(Number),
                 y: Object.values(corrs["gli_btc"] || {}),
-                name: "GLI vs BTC",
+                name: translations.chart_corr_gli_btc || "GLI vs BTC",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#6366f1", width: 2 },
@@ -136,7 +136,7 @@
             {
                 x: Object.keys(corrs["cli_btc"] || {}).map(Number),
                 y: Object.values(corrs["cli_btc"] || {}),
-                name: "CLI vs BTC",
+                name: translations.chart_corr_cli_btc || "CLI vs BTC",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#f59e0b", width: 2 },
@@ -144,7 +144,7 @@
             {
                 x: Object.keys(corrs["vix_btc"] || {}).map(Number),
                 y: Object.values(corrs["vix_btc"] || {}),
-                name: "VIX vs BTC",
+                name: translations.chart_corr_vix_btc || "VIX vs BTC",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#dc2626", width: 2 },
@@ -152,7 +152,7 @@
             {
                 x: Object.keys(corrs["netliq_btc"] || {}).map(Number),
                 y: Object.values(corrs["netliq_btc"] || {}),
-                name: "Net Liq vs BTC",
+                name: translations.chart_corr_netliq_btc || "Net Liq vs BTC",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#10b981", width: 2 },
@@ -243,13 +243,14 @@
                         class="toggle-btn"
                         class:active={selectedBtcModel === "macro"}
                         on:click={() => (selectedBtcModel = "macro")}
-                        >Macro Liquidity</button
+                        >{translations.model_macro || "Macro Liquidity"}</button
                     >
                     <button
                         class="toggle-btn"
                         class:active={selectedBtcModel === "adoption"}
                         on:click={() => (selectedBtcModel = "adoption")}
-                        >Macro + Adoption</button
+                        >{translations.model_adoption ||
+                            "Macro + Adoption"}</button
                     >
                 </div>
                 <TimeRangeSelector
@@ -287,19 +288,19 @@
                         class="toggle-btn"
                         class:active={selectedLagWindow === "7d"}
                         on:click={() => (selectedLagWindow = "7d")}
-                        >7-Day</button
+                        >{translations.window_7d || "7-Day"}</button
                     >
                     <button
                         class="toggle-btn"
                         class:active={selectedLagWindow === "14d"}
                         on:click={() => (selectedLagWindow = "14d")}
-                        >14-Day</button
+                        >{translations.window_14d || "14-Day"}</button
                     >
                     <button
                         class="toggle-btn"
                         class:active={selectedLagWindow === "30d"}
                         on:click={() => (selectedLagWindow = "30d")}
-                        >30-Day</button
+                        >{translations.window_30d || "30-Day"}</button
                     >
                 </div>
             </div>
@@ -342,10 +343,13 @@
     <!-- Cross-Correlation Chart -->
     <div class="chart-card wide">
         <div class="chart-header">
-            <h3>Cross-Correlation Analysis (90-Day Window)</h3>
+            <h3>
+                {translations.chart_cross_corr_title ||
+                    "Cross-Correlation Analysis (90-Day Window)"}
+            </h3>
             <span class="last-date"
-                >Negative lag = indicator leads BTC | Positive lag = BTC leads
-                indicator</span
+                >{translations.cross_corr_desc ||
+                    "Negative lag = indicator leads BTC | Positive lag = BTC leads indicator"}</span
             >
         </div>
         <div class="chart-content">
@@ -355,15 +359,19 @@
 
     <!-- ROC Comparison -->
     <div class="chart-card wide">
-        <h4 style="margin-top: 0;">Momentum Comparison (ROC %)</h4>
+        <h4 style="margin-top: 0;">
+            {translations.chart_momentum_comp || "Momentum Comparison (ROC %)"}
+        </h4>
         <div class="metrics-table-container">
             <div class="roc-grid">
                 <div class="roc-row header">
-                    <div class="roc-col">Asset</div>
-                    <div class="roc-col">1M</div>
-                    <div class="roc-col">3M</div>
-                    <div class="roc-col">6M</div>
-                    <div class="roc-col">1Y</div>
+                    <div class="roc-col">
+                        {translations.col_asset || "Asset"}
+                    </div>
+                    <div class="roc-col">{translations.col_1m || "1M"}</div>
+                    <div class="roc-col">{translations.col_3m || "3M"}</div>
+                    <div class="roc-col">{translations.col_6m || "6M"}</div>
+                    <div class="roc-col">{translations.col_1y || "1Y"}</div>
                 </div>
                 <div class="roc-row">
                     <div class="roc-col label">
@@ -431,7 +439,9 @@
                 </div>
                 <!-- ... other rows ... -->
                 <div class="roc-row">
-                    <div class="roc-col label">Global GLI</div>
+                    <div class="roc-col label">
+                        {translations.label_global_gli || "Global GLI"}
+                    </div>
                     <div
                         class="roc-col"
                         class:plus={getLatestROC(

@@ -102,10 +102,19 @@
     };
 
     function getStressLevel(score) {
-        if (score >= 15) return { text: "CRITICAL", class: "critical" };
-        if (score >= 10) return { text: "HIGH", class: "high" };
-        if (score >= 5) return { text: "MODERATE", class: "moderate" };
-        return { text: "LOW", class: "low" };
+        if (score >= 15)
+            return {
+                text: t("stress_critical", "CRITICAL"),
+                class: "critical",
+            };
+        if (score >= 10)
+            return { text: t("stress_high", "HIGH"), class: "high" };
+        if (score >= 5)
+            return {
+                text: t("stress_moderate", "MODERATE"),
+                class: "moderate",
+            };
+        return { text: t("stress_low", "LOW"), class: "low" };
     }
 
     // Calculate best offset (correlation with BTC returns)
@@ -273,7 +282,10 @@
             {
                 x: dates,
                 y: score,
-                name: regimeVersion === "v2a" ? "V2A Score" : "V2B Score",
+                name:
+                    regimeVersion === "v2a"
+                        ? t("regime_v2a_score_title", "V2A Score")
+                        : t("regime_v2b_score_title", "V2B Score"),
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#3b82f6", width: 2 },
@@ -288,7 +300,7 @@
     $: regimeScoreLayout = {
         xaxis: { showgrid: false, color: darkMode ? "#94a3b8" : "#475569" },
         yaxis: {
-            title: "Score",
+            title: t("chart_score_y", "Score"),
             range: [0, 100],
             tickvals: [20, 35, 50, 65, 80],
             color: darkMode ? "#94a3b8" : "#475569",
@@ -416,7 +428,7 @@
         },
         yaxis: { visible: false, domain: [0.25, 1] }, // Hidden main y
         yaxis2: {
-            title: "BTC Price (log)",
+            title: t("btc_price_log", "BTC Price (log)"),
             type: "log",
             side: "right",
             overlaying: "y",
@@ -425,7 +437,7 @@
             domain: [0.25, 1],
         },
         yaxis3: {
-            title: "Score",
+            title: t("chart_score_y", "Score"),
             range: [0, 100],
             side: "left",
             anchor: "x",
@@ -722,7 +734,7 @@
                     stress.inflation_stress,
                     stressHistoricalRange,
                 ),
-                name: "Inflation",
+                name: t("stress_inflation", "Inflation"),
                 type: "bar",
                 marker: { color: "#f59e0b" },
             },
@@ -732,14 +744,14 @@
                     stress.liquidity_stress,
                     stressHistoricalRange,
                 ),
-                name: "Liquidity",
+                name: t("stress_liquidity", "Liquidity"),
                 type: "bar",
                 marker: { color: "#3b82f6" },
             },
             {
                 x: dates,
                 y: filterByRange(stress.credit_stress, stressHistoricalRange),
-                name: "Credit",
+                name: t("stress_credit", "Credit"),
                 type: "bar",
                 marker: { color: "#10b981" },
             },
@@ -749,7 +761,7 @@
                     stress.volatility_stress,
                     stressHistoricalRange,
                 ),
-                name: "Volatility",
+                name: t("stress_volatility", "Volatility"),
                 type: "bar",
                 marker: { color: "#ef4444" },
             },
@@ -759,7 +771,7 @@
     $: stressHistoricalLayout = {
         xaxis: { showgrid: false, color: darkMode ? "#94a3b8" : "#475569" },
         yaxis: {
-            title: "Stress Score",
+            title: t("stress_score_y", "Stress Score"),
             range: [0, 27],
             color: darkMode ? "#94a3b8" : "#475569",
             gridcolor: darkMode
@@ -840,7 +852,9 @@
         <div class="regime-badge {getSignalLabel(latestRegimeCode).class}">
             <span class="emoji">{getSignalLabel(latestRegimeCode).emoji}</span>
             <span class="label">{getSignalLabel(latestRegimeCode).text}</span>
-            <span class="score">SCORE: {latestScore}</span>
+            <span class="score"
+                >{t("regime_score_label", "SCORE")}: {latestScore}</span
+            >
         </div>
     </div>
 </div>
@@ -939,12 +953,13 @@
 <!-- Offset Slider -->
 <div class="offset-panel" class:light={!darkMode}>
     <div class="offset-label">
-        <span>Offset (Days):</span>
+        <span>{t("offset_days_label", "Offset (Days):")}</span>
         <input type="range" min="0" max="120" bind:value={btcOffsetDays} />
         <span class="offset-value">{btcOffsetDays}</span>
     </div>
     <button class="best-offset-btn" on:click={applyBestOffset}>
-        Best Offset: {bestOffset || "Calculate"}
+        {t("best_offset_label", "Best Offset")}: {bestOffset ||
+            t("calculate_label", "Calculate")}
     </button>
 </div>
 
@@ -955,8 +970,8 @@
         <div class="chart-header">
             <h3>
                 {regimeVersion === "v2a"
-                    ? t("regime_v2a_title", "Macro Regime V2A Score")
-                    : t("regime_v2b_title", "Macro Regime V2B Score")}
+                    ? t("regime_v2a_score_title", "Macro Regime V2A Score")
+                    : t("regime_v2b_score_title", "Macro Regime V2B Score")}
             </h3>
             <div class="header-controls">
                 <TimeRangeSelector

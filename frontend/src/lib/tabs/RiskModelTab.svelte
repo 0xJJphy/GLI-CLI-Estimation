@@ -406,7 +406,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.cli?.total || [],
-                name: "CLI Aggregate (Z-Score)",
+                name: translations.chart_cli_z || "CLI Aggregate (Z-Score)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#10b981", width: 3 },
@@ -422,7 +422,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.signal_metrics?.cli?.percentile || [],
-                name: "CLI (Percentile)",
+                name: translations.chart_cli_pct || "CLI (Percentile)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#10b981", width: 3 },
@@ -437,7 +437,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.cli_components?.hy_z || [],
-                name: "HY Spread (Z-Score)",
+                name: translations.chart_hy_z || "HY Spread (Z-Score)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#ef4444", width: 2 },
@@ -451,7 +451,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.signal_metrics?.hy_spread?.percentile || [],
-                name: "HY Spread (Percentile)",
+                name: translations.chart_hy_pct || "HY Spread (Percentile)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#ef4444", width: 2 },
@@ -465,7 +465,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.hy_spread || [],
-                name: "HY Spread (bps)",
+                name: translations.chart_hy_raw || "HY Spread (bps)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#ef4444", width: 2 },
@@ -480,7 +480,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.cli_components?.ig_z || [],
-                name: "IG Spread (Z-Score)",
+                name: translations.chart_ig_z || "IG Spread (Z-Score)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#38bdf8", width: 2 },
@@ -494,7 +494,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.signal_metrics?.ig_spread?.percentile || [],
-                name: "IG Spread (Percentile)",
+                name: translations.chart_ig_pct || "IG Spread (Percentile)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#38bdf8", width: 2 },
@@ -508,7 +508,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.ig_spread || [],
-                name: "IG Spread (bps)",
+                name: translations.chart_ig_raw || "IG Spread (bps)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#38bdf8", width: 2 },
@@ -661,7 +661,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.signal_metrics?.vix?.zscore || [],
-                name: "VIX (Z-Score)",
+                name: translations.chart_vix_z || "VIX (Z-Score)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#dc2626", width: 2 },
@@ -675,7 +675,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.signal_metrics?.vix?.percentile || [],
-                name: "VIX (Percentile)",
+                name: translations.chart_vix_pct || "VIX (Percentile)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#dc2626", width: 2 },
@@ -793,7 +793,7 @@
                     dashboardData.signal_metrics?.treasury_10y?.raw ||
                     dashboardData.treasury_10y ||
                     [],
-                name: "10Y UST Yield (%)",
+                name: translations.chart_treasury_10y || "10Y UST Yield (%)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#3b82f6", width: 2 },
@@ -807,7 +807,8 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.signal_metrics?.treasury_10y?.zscore || [],
-                name: "10Y Yield (Z-Score)",
+                name:
+                    translations.chart_treasury_10y_z || "10Y Yield (Z-Score)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#3b82f6", width: 2 },
@@ -821,7 +822,9 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.signal_metrics?.treasury_10y?.percentile || [],
-                name: "10Y Yield (Percentile)",
+                name:
+                    translations.chart_treasury_10y_pct ||
+                    "10Y Yield (Percentile)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#3b82f6", width: 2 },
@@ -838,7 +841,7 @@
                     dashboardData.signal_metrics?.treasury_2y?.raw ||
                     dashboardData.treasury_2y ||
                     [],
-                name: "2Y UST Yield (%)",
+                name: translations.chart_treasury_2y || "2Y UST Yield (%)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#60a5fa", width: 2 },
@@ -852,7 +855,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.signal_metrics?.treasury_2y?.zscore || [],
-                name: "2Y Yield (Z-Score)",
+                name: translations.chart_treasury_2y_z || "2Y Yield (Z-Score)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#60a5fa", width: 2 },
@@ -866,7 +869,9 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.signal_metrics?.treasury_2y?.percentile || [],
-                name: "2Y Yield (Percentile)",
+                name:
+                    translations.chart_treasury_2y_pct ||
+                    "2Y Yield (Percentile)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#60a5fa", width: 2 },
@@ -880,7 +885,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.yield_curve || [],
-                name: "10Y-2Y Spread (%)",
+                name: translations.chart_yield_curve || "10Y-2Y Spread (%)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#8b5cf6", width: 2.5 },
@@ -896,7 +901,8 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.signal_metrics?.yield_curve?.zscore || [],
-                name: "Yield Curve (Z-Score)",
+                name:
+                    translations.chart_yield_curve_z || "Yield Curve (Z-Score)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#8b5cf6", width: 2 },
@@ -1066,7 +1072,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.st_louis_stress || [],
-                name: "STLFSI4 (Raw)",
+                name: translations.chart_stlfsi4_raw || "STLFSI4 (Raw)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#7c3aed", width: 2 },
@@ -1111,7 +1117,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.kansas_city_stress || [],
-                name: "KCFSI (Raw)",
+                name: translations.chart_kcfsi_raw || "KCFSI (Raw)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#c026d3", width: 2 },
@@ -1293,7 +1299,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.macro_regime?.cli_gli_divergence || [],
-                name: "CLI-GLI Divergence",
+                name: translations.chart_divergence || "CLI-GLI Divergence",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#f43f5e", width: 2.5 },
@@ -1309,7 +1315,9 @@
                 y:
                     dashboardData.signal_metrics?.cli_gli_divergence?.zscore ||
                     [],
-                name: "CLI-GLI Divergence (Z-Score)",
+                name:
+                    translations.divergence_z_axis ||
+                    "CLI-GLI Divergence (Z-Score)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#f43f5e", width: 2 },
@@ -1340,7 +1348,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.repo_stress?.srf_rate || [],
-                name: "SRF Rate (Ceiling)",
+                name: translations.repo_srf_ceiling || "SRF Rate (Ceiling)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#ef4444", width: 1.5, dash: "dash" },
@@ -1360,7 +1368,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.repo_stress?.iorb || [],
-                name: "IORB (Floor)",
+                name: translations.repo_iorb_floor || "IORB (Floor)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#22c55e", width: 1.5, dash: "dash" },
@@ -1444,7 +1452,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.tips?.breakeven || [],
-                name: "10Y Breakeven (%)",
+                name: translations.tips_breakeven || "10Y Breakeven (%)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#f59e0b", width: 2.5 },
@@ -1453,7 +1461,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.tips?.real_rate || [],
-                name: "10Y Real Rate (%)",
+                name: translations.tips_real_rate || "10Y Real Rate (%)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#3b82f6", width: 2, dash: "dash" },
@@ -1462,7 +1470,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.tips?.fwd_5y5y || [],
-                name: "5Y5Y Forward (%)",
+                name: translations.tips_fwd || "5Y5Y Forward (%)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#10b981", width: 2 },
@@ -1587,7 +1595,9 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.inflation_swaps?.cleveland_1y || [],
-                name: "1Y Inflation Exp. (%)",
+                name:
+                    translations.chart_inflation_exp_1y ||
+                    "1Y Inflation Exp. (%)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#3b82f6", width: 2.5 },
@@ -1595,7 +1605,9 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.inflation_swaps?.cleveland_2y || [],
-                name: "2Y Inflation Exp. (%)",
+                name:
+                    translations.chart_inflation_exp_2y ||
+                    "2Y Inflation Exp. (%)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#1e3a8a", width: 2 },
@@ -1603,7 +1615,9 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.inflation_swaps?.cleveland_5y || [],
-                name: "5Y Inflation Exp. (%)",
+                name:
+                    translations.chart_inflation_exp_5y ||
+                    "5Y Inflation Exp. (%)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#f59e0b", width: 2 },
@@ -1611,7 +1625,9 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.inflation_swaps?.cleveland_10y || [],
-                name: "10Y Inflation Exp. (%)",
+                name:
+                    translations.chart_inflation_exp_10y ||
+                    "10Y Inflation Exp. (%)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#ef4444", width: 2 },
@@ -1619,7 +1635,7 @@
             {
                 x: dashboardData.dates,
                 y: dashboardData.tips?.fwd_5y5y || [],
-                name: "5Y5Y Forward (%)",
+                name: translations.tips_fwd || "5Y5Y Forward (%)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#10b981", width: 2, dash: "dash" },
@@ -1910,11 +1926,17 @@
     };
     $: nfciCreditRawLayout = {
         ...rawLayoutBase,
-        yaxis: { title: "NFCI Credit", autorange: true },
+        yaxis: {
+            title: translations.chart_nfci_credit || "NFCI Credit",
+            autorange: true,
+        },
     };
     $: nfciRiskRawLayout = {
         ...rawLayoutBase,
-        yaxis: { title: "NFCI Risk", autorange: true },
+        yaxis: {
+            title: translations.chart_nfci_risk || "NFCI Risk",
+            autorange: true,
+        },
     };
     $: lendingRawLayout = {
         ...rawLayoutBase,
@@ -2422,26 +2444,36 @@
             >
                 <span class="legend-item">
                     <span class="legend-dot" style="background: #3b82f6"></span>
-                    <span class="legend-label">1Y</span>
+                    <span class="legend-label"
+                        >{translations.legend_1y || "1Y"}</span
+                    >
                 </span>
                 <span class="legend-item">
                     <span class="legend-dot" style="background: #1e3a8a"></span>
-                    <span class="legend-label">2Y</span>
+                    <span class="legend-label"
+                        >{translations.legend_2y || "2Y"}</span
+                    >
                 </span>
                 <span class="legend-item">
                     <span class="legend-dot" style="background: #f59e0b"></span>
-                    <span class="legend-label">5Y</span>
+                    <span class="legend-label"
+                        >{translations.legend_5y || "5Y"}</span
+                    >
                 </span>
                 <span class="legend-item">
                     <span class="legend-dot" style="background: #ef4444"></span>
-                    <span class="legend-label">10Y</span>
+                    <span class="legend-label"
+                        >{translations.legend_10y || "10Y"}</span
+                    >
                 </span>
                 <span class="legend-item">
                     <span
                         class="legend-dot"
                         style="background: #10b981; border: 1px dashed rgba(255,255,255,0.5)"
                     ></span>
-                    <span class="legend-label">5Y5Y Fwd</span>
+                    <span class="legend-label"
+                        >{translations.tips_fwd || "5Y5Y Fwd"}</span
+                    >
                 </span>
             </div>
             <div class="chart-content" style="height: 300px;">
@@ -2485,9 +2517,8 @@
                         {/if}
                     </div>
                     <div class="signal-value">
-                        Spread (1Y-2Y): <b
-                            >{inflationExpectInversionSpread.toFixed(2)}%</b
-                        >
+                        {translations.spread_1y_2y || "Spread (1Y-2Y)"}:
+                        <b>{inflationExpectInversionSpread.toFixed(2)}%</b>
                     </div>
                     <div
                         class="signal-reason"
@@ -2958,7 +2989,8 @@
                         : 'rgba(0,0,0,0.03)'}; padding: 8px 12px; border-radius: 6px;"
                 >
                     <span style="font-size: 11px; opacity: 0.7;"
-                        >SOFR-IORB Spread</span
+                        >{translations.sofr_iorb_spread ||
+                            "SOFR-IORB Spread"}</span
                     >
                     <div
                         style="font-size: 16px; font-weight: 600; color: {corridorStressColor};"
@@ -2973,7 +3005,7 @@
                         : 'rgba(0,0,0,0.03)'}; padding: 8px 12px; border-radius: 6px;"
                 >
                     <span style="font-size: 11px; opacity: 0.7;"
-                        >Gap to Ceiling</span
+                        >{translations.gap_to_ceiling || "Gap to Ceiling"}</span
                     >
                     <div style="font-size: 16px; font-weight: 600;">
                         {latestSofrToCeiling.toFixed(1)} bps
@@ -2985,7 +3017,9 @@
                         ? 'rgba(255,255,255,0.05)'
                         : 'rgba(0,0,0,0.03)'}; padding: 8px 12px; border-radius: 6px;"
                 >
-                    <span style="font-size: 11px; opacity: 0.7;">Status</span>
+                    <span style="font-size: 11px; opacity: 0.7;"
+                        >{translations.status_label || "Status"}</span
+                    >
                     <div
                         style="font-size: 14px; font-weight: 600; color: {corridorStressColor};"
                     >
@@ -3771,7 +3805,8 @@
                 </div>
             </div>
             <p class="chart-description">
-                Long-term curve steepness. Inversion = severe stress.
+                {translations.yield_curve_30y10y_desc ||
+                    "Long term curve steepness. Inversion = severe stress."}
             </p>
             <div class="chart-content" style="height: 280px;">
                 <Chart
