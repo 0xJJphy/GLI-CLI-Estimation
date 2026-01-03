@@ -699,6 +699,11 @@ const translations = {
         demand_desc_neutral: "Mixed demand signals. Watch for trend changes.",
         demand_desc_soft: "Softening demand. Potential yield pressure ahead.",
         demand_desc_weak: "Weak auction demand. Risk-off signal for bonds.",
+        // Dynamic metric labels
+        bills_maturing: "Bills Maturing",
+        total_maturing: "Total Maturing",
+        refinancing_in_range: "Refinancing in Range",
+        in_selected_range: "In selected range",
     },
     es: {
         gli: "Suma de los balances de 15 bancos centrales en USD. ↑ Expansión = Inyección de liquidez (alcista) | ↓ Contracción = QT (bajista)",
@@ -1489,6 +1494,11 @@ const translations = {
         demand_desc_neutral: "Señales de demanda mixtas. Vigilar cambios de tendencia.",
         demand_desc_soft: "Demanda debilitándose. Posible presión al alza en rendimientos.",
         demand_desc_weak: "Demanda débil en subastas. Señal de aversión al riesgo para bonos.",
+        // Dynamic metric labels
+        bills_maturing: "Letras por Vencer",
+        total_maturing: "Total por Vencer",
+        refinancing_in_range: "Refinanciamiento en Rango",
+        in_selected_range: "En rango seleccionado",
     },
 };
 

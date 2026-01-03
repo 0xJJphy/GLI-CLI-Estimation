@@ -23,6 +23,9 @@
         { value: "6M", label: "6M" },
         { value: "1Y", label: "1Y" },
         { value: "2Y", label: "2Y" },
+        { value: "3Y", label: "3Y" },
+        { value: "4Y", label: "4Y" },
+        { value: "5Y", label: "5Y" },
         { value: "ALL", label: "ALL" },
     ];
 
@@ -32,6 +35,9 @@
         "6M": 6,
         "1Y": 12,
         "2Y": 24,
+        "3Y": 36,
+        "4Y": 48,
+        "5Y": 60,
         ALL: 120,
     };
 
@@ -69,10 +75,35 @@
 
     $: monthlyTable = (rawMonthlyTable || []).slice(0, currentMonths);
 
-    // Re-limit table if it gets too long for the UI?
-    // Actually, ALL could be 120 rows. Svelte handles this fine, but maybe let's limit
-    // the table to show a subset if it's too huge, or just let it scroll.
-    // The previous implementation showed 12 months. Let's keep it flexible.
+    // Compute dynamic metrics based on the filtered schedule
+    $: filteredMetrics = {
+        // Peak maturity within selected range
+        peak_month: (() => {
+            const totals = schedule.total || [];
+            const months = schedule.months || [];
+            if (!totals.length) return null;
+            const maxIdx = totals.indexOf(Math.max(...totals));
+            return months[maxIdx] || null;
+        })(),
+        peak_amount: Math.max(...(schedule.total || [0])),
+        // Bills outstanding in selected range
+        bills_outstanding: (schedule.bills || []).reduce(
+            (a, b) => a + (b || 0),
+            0,
+        ),
+        // Total outstanding in selected range
+        total_outstanding: (schedule.total || []).reduce(
+            (a, b) => a + (b || 0),
+            0,
+        ),
+        // Next N months refinancing (sum of all maturities in filtered range)
+        refinancing_in_range: (schedule.total || []).reduce(
+            (a, b) => a + (b || 0),
+            0,
+        ),
+        // Forecast horizon (number of months in view)
+        forecast_horizon: currentMonths,
+    };
 
     // Format currency helper
     function formatCurrency(value, decimals = 2) {
@@ -217,7 +248,9 @@
                 >{translations.peak_maturity_month ||
                     "Peak Maturity Month"}</span
             >
-            <span class="metric-value cyan">{metrics.peak_month || "N/A"}</span>
+            <span class="metric-value cyan"
+                >{filteredMetrics.peak_month || "N/A"}</span
+            >
             <span class="metric-sub"
                 >{translations.highest_refinancing ||
                     "Highest refinancing"}</span
@@ -228,7 +261,7 @@
                 >{translations.peak_amount || "Peak Amount"}</span
             >
             <span class="metric-value green"
-                >{formatCurrency(metrics.peak_amount)}</span
+                >{formatCurrency(filteredMetrics.peak_amount)}</span
             >
             <span class="metric-sub"
                 >{translations.single_month_max || "Single month maximum"}</span
@@ -236,33 +269,33 @@
         </div>
         <div class="metric-card">
             <span class="metric-label"
-                >{translations.bills_outstanding || "Bills Outstanding"}</span
+                >{translations.bills_maturing || "Bills Maturing"}</span
             >
             <span class="metric-value green"
-                >{formatCurrency(metrics.bills_outstanding)}</span
+                >{formatCurrency(filteredMetrics.bills_outstanding)}</span
             >
             <span class="metric-sub"
-                >{translations.short_term_debt || "Short-term debt"}</span
+                >{translations.in_selected_range || "In selected range"}</span
             >
         </div>
         <div class="metric-card">
             <span class="metric-label"
-                >{translations.total_outstanding || "Total Outstanding"}</span
+                >{translations.total_maturing || "Total Maturing"}</span
             >
             <span class="metric-value white"
-                >{formatCurrency(metrics.total_outstanding)}</span
+                >{formatCurrency(filteredMetrics.total_outstanding)}</span
             >
             <span class="metric-sub"
-                >{translations.marketable_debt || "Marketable debt"}</span
+                >{translations.in_selected_range || "In selected range"}</span
             >
         </div>
         <div class="metric-card">
             <span class="metric-label"
-                >{translations.next_12m_refinancing ||
-                    "Next 12M Refinancing"}</span
+                >{translations.refinancing_in_range ||
+                    "Refinancing in Range"}</span
             >
             <span class="metric-value orange"
-                >{formatCurrency(metrics.next_12m_refinancing)}</span
+                >{formatCurrency(filteredMetrics.refinancing_in_range)}</span
             >
             <span class="metric-sub"
                 >{translations.must_be_rolled || "Must be rolled over"}</span
@@ -273,7 +306,7 @@
                 >{translations.forecast_horizon || "Forecast Horizon"}</span
             >
             <span class="metric-value white"
-                >{metrics.forecast_horizon || 0}
+                >{filteredMetrics.forecast_horizon || 0}
                 {translations.months_abbr || "Mo"}</span
             >
             <span class="metric-sub"
