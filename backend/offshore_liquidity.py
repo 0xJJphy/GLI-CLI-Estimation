@@ -511,15 +511,33 @@ def calculate_xccy_basis_series(
     
     # Get foreign rate - either dynamic series or constant
     if foreign_rate_series is not None and not foreign_rate_series.empty:
+        # Ensure index alignment: force both to tz-naive
+        if df.index.tz is not None:
+            df.index = df.index.tz_localize(None)
+        if foreign_rate_series.index.tz is not None:
+            foreign_rate_series.index = foreign_rate_series.index.tz_localize(None)
+            
         # Use dynamic series, align with other data
         df['foreign_rate'] = foreign_rate_series.reindex(df.index).ffill()
-        use_dynamic = True
+        # Initial points might be NaN if foreign_rate_series starts later
+        df['foreign_rate'] = df['foreign_rate'].bfill()
+        
+        # FINAL SAFETY: If everything is still NaN (mismatch), use constant
+        if df['foreign_rate'].isna().all():
+            if config.foreign_leg.key.startswith('CONST:'):
+                const_rate = float(config.foreign_leg.key.split(':')[1])
+            else:
+                const_rate = 0.25 if config.pair == 'USDJPY' else 2.5
+            df['foreign_rate'] = const_rate
+            use_dynamic = False
+        else:
+            use_dynamic = True
     else:
         # Use constant from config (fallback)
         if config.foreign_leg.key.startswith('CONST:'):
             const_rate = float(config.foreign_leg.key.split(':')[1])
         else:
-            const_rate = 2.5  # Default fallback
+            const_rate = 0.25 if config.pair == 'USDJPY' else 2.5
         df['foreign_rate'] = const_rate
         use_dynamic = False
     
@@ -546,6 +564,7 @@ def calculate_xccy_basis_series(
             day_count=config.foreign_leg.day_count,
             futures_quote=config.futures_quote
         )
+        
         basis_values.append(basis)
     
     result = pd.Series(basis_values, index=df.index, name=f'XCCY_{config.pair}')

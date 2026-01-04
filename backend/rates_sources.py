@@ -170,6 +170,10 @@ def fetch_estr_fallback_from_fred(df_fred: pd.DataFrame) -> pd.Series:
     estr_daily = df_fred.get('ESTR', pd.Series(dtype=float))
     
     if estr_daily.empty:
+        # Try original FRED ticker as fallback
+        estr_daily = df_fred.get('ECBESTRVOLWGTTRMDMNRT', pd.Series(dtype=float))
+    
+    if estr_daily.empty:
         return pd.Series(dtype=float, name='ESTR_3M_FALLBACK')
     
     # Simple 90-day rolling average (approximation, not true compounding)
@@ -202,12 +206,16 @@ def fetch_boj_call_rate() -> pd.Series:
     try:
         import bojdata
         
-        # BoJ series code for uncollateralized overnight call rate
-        # Note: Exact series ID may need verification
-        data = bojdata.get_data('FM01\'FM080117')  # Call rate
-        
-        if data is not None and not data.empty:
-            result = data.iloc[:, 0]  # First column
+        # BoJ series code for uncollateralized overnight call rate: FM08'117
+        # We try to access it via property or get_series if get_data fails
+        if hasattr(bojdata, 'get_series'):
+            series = bojdata.get_series('FM01\'FM080117')
+        else:
+            # Maybe it's directly accessible or uses a different method
+            series = bojdata.FM08_117 if hasattr(bojdata, 'FM08_117') else None
+            
+        if series is not None and not series.empty:
+            result = series
             result.name = 'JPY_CALL_RATE'
             logger.info(f"Fetched {len(result)} points of JPY call rate via bojdata")
             return result
@@ -216,27 +224,40 @@ def fetch_boj_call_rate() -> pd.Series:
         logger.info("bojdata not installed, trying XLSX fallback")
     except Exception as e:
         logger.warning(f"bojdata fetch failed: {e}")
-    
-    # Try direct XLSX download
-    try:
         # BoJ publishes daily XLSX with call rate
-        # URL pattern for 2025 data
-        xlsx_url = "https://www.boj.or.jp/en/statistics/market/short/mutan/d_release/md/2025/mutan2501.xlsx"
+        # URL pattern: https://www.boj.or.jp/en/statistics/market/short/mutan/d_release/md/YYYY/mutanYYMM.xlsx
         
-        df = pd.read_excel(xlsx_url, sheet_name=0, skiprows=3)
+        # Try current and previous 2 months
+        now = datetime.now()
+        attempts = [now, now - timedelta(days=28), now - timedelta(days=58)]
+        
+        df = pd.DataFrame()
+        for dt in attempts:
+            year = dt.year
+            yy = str(year)[2:]
+            mm = dt.strftime('%m')
+            xlsx_url = f"https://www.boj.or.jp/en/statistics/market/short/mutan/d_release/md/{year}/mutan{yy}{mm}.xlsx"
+            try:
+                df = pd.read_excel(xlsx_url, sheet_name=0, skiprows=3)
+                if not df.empty:
+                    logger.info(f"Successfully fetched BoJ data from {xlsx_url}")
+                    break
+            except Exception:
+                continue
         
         if not df.empty:
             # Parse date column and rate column
-            # Note: Column structure may vary, needs verification
-            df.columns = ['date', 'call_rate'] + list(df.columns[2:])
+            # Note: The BoJ Mutan excel structure has 'Date' in Col A and 'Average' in Col B
+            df = df.iloc[:, [0, 1]] # Keep first two columns
+            df.columns = ['date', 'call_rate']
             df['date'] = pd.to_datetime(df['date'], errors='coerce')
+            # Handle non-numeric rate values (e.g. asterisks or strings)
+            df['call_rate'] = pd.to_numeric(df['call_rate'], errors='coerce')
             df = df.dropna(subset=['date', 'call_rate'])
             
-            result = df.set_index('date')['call_rate']
+            result = df.set_index('date')['call_rate'].sort_index()
             result.name = 'JPY_CALL_RATE'
-            logger.info(f"Fetched {len(result)} points of JPY call rate via XLSX")
             return result
-            
     except Exception as e:
         logger.warning(f"BoJ XLSX download failed: {e}")
     

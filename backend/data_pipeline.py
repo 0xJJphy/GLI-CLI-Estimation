@@ -1492,7 +1492,7 @@ FRED_CONFIG = {
     'SOFRINDEX': 'SOFR_INDEX',              # SOFR Compounded Index (daily)
     'SOFR90DAYAVG': 'SOFR_90D_AVG',          # 90-Day Average SOFR (sanity check)
     'IUDZOS2': 'SONIA_INDEX',               # SONIA Compounded Index (daily)
-    'ECBESTRVOLWGTTRMDRATE': 'ESTR',        # €STR Volume-Weighted Rate (daily, fallback)
+    'ECBESTRVOLWGTTRMDMNRT': 'ESTR',     # €STR Volume-Weighted Trimmed Mean Rate (daily)
 }
 
 # Mapping: Symbol -> Internal Name (TradingView ECONOMICS)
@@ -3403,7 +3403,10 @@ def run_pipeline():
     df_fred_t['EFFR'] = df_fred.get('EFFR', pd.Series(dtype=float))
     # FED_CB_SWAPS is alias for CB_LIQ_SWAPS (needed by offshore_liquidity module)
     df_fred_t['FED_CB_SWAPS'] = df_fred.get('CB_LIQ_SWAPS', pd.Series(dtype=float))
-
+    # Indices for XCCY basis
+    df_fred_t['SOFR_INDEX'] = df_fred.get('SOFR_INDEX', pd.Series(dtype=float))
+    df_fred_t['SONIA_INDEX'] = df_fred.get('SONIA_INDEX', pd.Series(dtype=float))
+    df_fred_t['ESTR'] = df_fred.get('ESTR', pd.Series(dtype=float))
     # 2. Fetch TV and Normalize to Trillions
     print("Fetching TradingView Update Data (Trillions)...")
     raw_tv = {}
@@ -3458,7 +3461,7 @@ def run_pipeline():
         
         # Only ffill for most series. bfill ONLY for FX rates as they are denominators.
         # All FX rates from TV_CONFIG matching PineScript
-        all_fx = ['EURUSD', 'JPYUSD', 'GBPUSD', 'CNYUSD', 'CADUSD', 'AUDUSD', 'INRUSD', 'CHFUSD', 
+        all_fx = ['EURUSD', 'JPYUSD', 'GBPUSD', 'USDJPY', 'CNYUSD', 'CADUSD', 'AUDUSD', 'INRUSD', 'CHFUSD', 
                   'RUBUSD', 'BRLUSD', 'KRWUSD', 'NZDUSD', 'SEKUSD', 'MYRUSD', 'MXNUSD', 'IDRUSD', 'ZARUSD']
         fx_cols = [c for c in all_fx if c in df_tv_t.columns]
         for c in fx_cols:
@@ -3533,11 +3536,11 @@ def run_pipeline():
         # Offshore Liquidity XCCY Basis: Create _SPOT aliases for FX spots
         # offshore_liquidity.py expects EURUSD_SPOT, USDJPY_SPOT, GBPUSD_SPOT
         if 'EURUSD' in df_tv_t.columns:
-            res_tv_t['EURUSD_SPOT'] = df_tv_t['EURUSD']
+            res_tv_t['EURUSD'] = df_tv_t['EURUSD']
         if 'USDJPY' in df_tv_t.columns:
-            res_tv_t['USDJPY_SPOT'] = df_tv_t['USDJPY']
+            res_tv_t['USDJPY'] = df_tv_t['USDJPY']
         if 'GBPUSD' in df_tv_t.columns:
-            res_tv_t['GBPUSD_SPOT'] = df_tv_t['GBPUSD']
+            res_tv_t['GBPUSD'] = df_tv_t['GBPUSD']
         
         # Offshore Liquidity XCCY Basis: Pass through CME FX futures
         fx_futures = ['EURUSD_FUT', 'JPYUSD_FUT', 'GBPUSD_FUT']
@@ -3556,7 +3559,9 @@ def run_pipeline():
                              'INFLATION_EXPECT_1Y', 'INFLATION_EXPECT_5Y', 'INFLATION_EXPECT_10Y',
                              'TREASURY_10Y_YIELD', 'TREASURY_2Y_YIELD', 'NFP', 'JOLTS',
                              # Offshore liquidity series
-                             'OBFR', 'EFFR', 'FED_CB_SWAPS']
+                             'OBFR', 'EFFR', 'FED_CB_SWAPS',
+                             # Rates Indices
+                             'SOFR_INDEX', 'SONIA_INDEX', 'ESTR']
         # Only select columns that actually exist in df_fred_t
         fred_cols_available = [col for col in fred_cols_to_sync if col in df_fred_t.columns]
         res_tv_t = res_tv_t.combine_first(df_fred_t[fred_cols_available]).ffill()
@@ -3760,7 +3765,7 @@ def run_pipeline():
         net_liq_rocs = calculate_rocs(us_net_liq['NET_LIQUIDITY'])
         
         # Offshore Liquidity XCCY Basis - Build TV DataFrame
-        offshore_tv_cols = ['EURUSD_SPOT', 'USDJPY_SPOT', 'GBPUSD_SPOT', 
+        offshore_tv_cols = ['EURUSD', 'USDJPY', 'GBPUSD', 
                             'EURUSD_FUT', 'JPYUSD_FUT', 'GBPUSD_FUT']
         df_offshore_tv = pd.DataFrame({
             col: df_t[col] for col in offshore_tv_cols if col in df_t.columns
