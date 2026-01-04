@@ -442,23 +442,25 @@ def calculate_xccy_basis_single(
     usd_rate: float,
     foreign_rate: float,
     days: int = 91,
-    day_count: int = 360,
+    usd_day_count: int = 360,
+    foreign_day_count: int = 360,
     futures_quote: str = 'direct'
 ) -> float:
     """
     Calculate cross-currency basis from spot/futures using CIP.
     
     Formula:
-    - CIP Forward = Spot * (1 + r_USD * t) / (1 + r_foreign * t)
+    - CIP Forward = Spot * (1 + r_USD * t_usd) / (1 + r_foreign * t_for)
     - Basis = Implied foreign rate - Observed foreign rate
     
     Args:
         spot: FX spot rate
         futures: FX futures price (front month)
-        usd_rate: USD rate (SOFR) as decimal
+        usd_rate: USD rate (SOFR 3M) as decimal
         foreign_rate: Foreign currency rate as decimal
         days: Days to expiry (~91 for 3M)
-        day_count: Day count convention (360 or 365)
+        usd_day_count: USD day count convention (always 360)
+        foreign_day_count: Foreign day count (360 for EUR/JPY, 365 for GBP)
         futures_quote: 'direct' (EUR/USD) or 'inverse' (6J = JPY/USD)
         
     Returns:
@@ -468,7 +470,8 @@ def calculate_xccy_basis_single(
     if spot <= 0 or futures <= 0 or not np.isfinite(spot) or not np.isfinite(futures):
         return np.nan
     
-    t = days / day_count
+    t_usd = days / usd_day_count
+    t_for = days / foreign_day_count
     
     if futures_quote == 'inverse':
         # 6J is JPY/USD (inverse), typically ~0.004-0.012
@@ -480,12 +483,12 @@ def calculate_xccy_basis_single(
         futures_adj = 1.0 / futures
         ratio = futures_adj / spot
         
-        # Forward/spot ratio for 3M G10 pairs: ±5% max (was ±10%)
+        # Forward/spot ratio for 3M G10 pairs: ±5% max
         if ratio < 0.95 or ratio > 1.05:
             return np.nan
         
-        # USD/JPY (indirect): F = S * (1 + r_JPY * t) / (1 + r_USD * t)
-        implied_foreign = ((ratio) * (1 + usd_rate * t) - 1) / t
+        # USD/JPY: 1 + r_for*t_for = ratio * (1 + r_usd*t_usd)
+        implied_foreign = (ratio * (1 + usd_rate * t_usd) - 1) / t_for
     else:
         # Direct quote (EUR/USD, GBP/USD)
         ratio = futures / spot
@@ -494,8 +497,9 @@ def calculate_xccy_basis_single(
         if ratio < 0.95 or ratio > 1.05:
             return np.nan
         
-        # F = S * (1 + r_USD * t) / (1 + r_foreign * t)
-        implied_foreign = ((1 + usd_rate * t) / ratio - 1) / t
+        # F = S * (1 + r_USD * t_usd) / (1 + r_foreign * t_for)
+        # => 1 + r_for*t_for = (1 + r_usd*t_usd) / ratio
+        implied_foreign = ((1 + usd_rate * t_usd) / ratio - 1) / t_for
     
     # Guardrail: implied rates > 20% are absurd -> bad data
     if not np.isfinite(implied_foreign) or abs(implied_foreign) > 0.20:
@@ -504,10 +508,7 @@ def calculate_xccy_basis_single(
     basis_bps = (implied_foreign - foreign_rate) * 10000
     
     # Final output cap: ±200bp max (historical crises rarely exceed this for G10)
-    if abs(basis_bps) > 200:
-        return np.nan
-    
-    return basis_bps
+    return np.nan if abs(basis_bps) > 200 else basis_bps
 
 
 def calculate_xccy_basis_series(
@@ -591,7 +592,8 @@ def calculate_xccy_basis_series(
             usd_rate=sofr_dec.loc[idx],
             foreign_rate=foreign_dec.loc[idx],
             days=days_to_mat,
-            day_count=config.foreign_leg.day_count,
+            usd_day_count=360,  # USD always 360
+            foreign_day_count=config.foreign_leg.day_count,  # 360 for EUR/JPY, 365 for GBP
             futures_quote=config.futures_quote
         )
         
