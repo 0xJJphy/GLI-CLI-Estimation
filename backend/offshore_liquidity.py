@@ -41,16 +41,17 @@ FRED_OFFSHORE_SERIES = {
     'SWPT': 'FED_CB_SWAPS',      # Central Bank Liquidity Swaps Outstanding ($M)
 }
 
-# TradingView symbols to add (update TV_CONFIG in data_pipeline.py)
+# TradingView symbols - column names as they appear in df_tv
+# (These are defined in TV_CONFIG in data_pipeline.py)
 TV_OFFSHORE_SYMBOLS = {
-    # FX Spot
-    'EURUSD_SPOT': ('FX_IDC', 'EURUSD'),
-    'USDJPY_SPOT': ('FX_IDC', 'USDJPY'),
-    'GBPUSD_SPOT': ('FX_IDC', 'GBPUSD'),
-    # FX Futures
-    'EURUSD_FUT': ('CME', '6E1!'),
-    'JPYUSD_FUT': ('CME', '6J1!'),
-    'GBPUSD_FUT': ('CME', '6B1!'),
+    # FX Spot (column names in df_tv)
+    'EURUSD_SPOT': 'EURUSD',           # Uses EURUSD column
+    'USDJPY_SPOT': 'USDJPY',           # Uses USDJPY column  
+    'GBPUSD_SPOT': 'GBPUSD',           # Uses GBPUSD column
+    # FX Futures (column names in df_tv)
+    'EURUSD_FUT': 'EURUSD_FUT',        # From TV symbol 6E1!
+    'JPYUSD_FUT': 'JPYUSD_FUT',        # From TV symbol 6J1! (inverse)
+    'GBPUSD_FUT': 'GBPUSD_FUT',        # From TV symbol 6B1!
 }
 
 # Data frequency config (for z-score calculation)
@@ -85,8 +86,8 @@ class CurrencyPairConfig:
 CURRENCY_PAIRS = {
     'EURUSD': CurrencyPairConfig(
         pair='EURUSD',
-        spot_key='EURUSD_SPOT',
-        futures_key='EURUSD_FUT',
+        spot_key='EURUSD',              # TV_CONFIG column name (not EURUSD_SPOT)
+        futures_key='EURUSD_FUT',       # TV_CONFIG: 6E1! -> EURUSD_FUT
         futures_quote='direct',
         foreign_leg=ForeignLegConfig(
             leg_type='index',      # Will use ECB €STR 3M (via rates_sources)
@@ -98,9 +99,9 @@ CURRENCY_PAIRS = {
     ),
     'USDJPY': CurrencyPairConfig(
         pair='USDJPY',
-        spot_key='USDJPY_SPOT',
-        futures_key='JPYUSD_FUT',
-        futures_quote='inverse',   # 6J quotes JPY/USD
+        spot_key='USDJPY',              # TV_CONFIG column name
+        futures_key='JPYUSD_FUT',       # TV_CONFIG: 6J1! -> JPYUSD_FUT (inverse)
+        futures_quote='inverse',        # 6J quotes JPY/USD
         foreign_leg=ForeignLegConfig(
             leg_type='const',      # BoJ call rate ~0.25% (bojdata when available)
             key='CONST:0.25',
@@ -111,8 +112,8 @@ CURRENCY_PAIRS = {
     ),
     'GBPUSD': CurrencyPairConfig(
         pair='GBPUSD',
-        spot_key='GBPUSD_SPOT',
-        futures_key='GBPUSD_FUT',
+        spot_key='GBPUSD',              # TV_CONFIG column name
+        futures_key='GBPUSD_FUT',       # TV_CONFIG: 6B1! -> GBPUSD_FUT
         futures_quote='direct',
         foreign_leg=ForeignLegConfig(
             leg_type='index',      # Will use SONIA Index -> 3M
