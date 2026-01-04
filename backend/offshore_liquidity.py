@@ -464,22 +464,49 @@ def calculate_xccy_basis_single(
     Returns:
         Basis in basis points (negative = USD shortage)
     """
-    if spot <= 0 or futures <= 0:
+    # Input validation: filter impossible data
+    if spot <= 0 or futures <= 0 or not np.isfinite(spot) or not np.isfinite(futures):
         return np.nan
     
     t = days / day_count
     
     if futures_quote == 'inverse':
-        # 6J is JPY/USD (inverse), convert to USD/JPY
-        futures_adj = 1 / futures if futures != 0 else np.nan
+        # 6J is JPY/USD (inverse), typically ~0.004-0.012
+        # Filter absurd values that would cause division explosion
+        if futures < 1e-4 or futures > 0.1:
+            return np.nan
+        
+        # Convert to USD/JPY
+        futures_adj = 1.0 / futures
+        ratio = futures_adj / spot
+        
+        # Forward/spot ratio for 3M G10 pairs: ±5% max (was ±10%)
+        if ratio < 0.95 or ratio > 1.05:
+            return np.nan
+        
         # USD/JPY (indirect): F = S * (1 + r_JPY * t) / (1 + r_USD * t)
-        implied_foreign = ((futures_adj / spot) * (1 + usd_rate * t) - 1) / t
+        implied_foreign = ((ratio) * (1 + usd_rate * t) - 1) / t
     else:
         # Direct quote (EUR/USD, GBP/USD)
+        ratio = futures / spot
+        
+        # Forward/spot ratio: ±5% max
+        if ratio < 0.95 or ratio > 1.05:
+            return np.nan
+        
         # F = S * (1 + r_USD * t) / (1 + r_foreign * t)
-        implied_foreign = ((1 + usd_rate * t) / (futures / spot) - 1) / t
+        implied_foreign = ((1 + usd_rate * t) / ratio - 1) / t
+    
+    # Guardrail: implied rates > 20% are absurd -> bad data
+    if not np.isfinite(implied_foreign) or abs(implied_foreign) > 0.20:
+        return np.nan
     
     basis_bps = (implied_foreign - foreign_rate) * 10000
+    
+    # Final output cap: ±200bp max (historical crises rarely exceed this for G10)
+    if abs(basis_bps) > 200:
+        return np.nan
+    
     return basis_bps
 
 
@@ -522,21 +549,19 @@ def calculate_xccy_basis_series(
         if foreign_rate_series.index.tz is not None:
             foreign_rate_series.index = foreign_rate_series.index.tz_localize(None)
             
-        # Use dynamic series, align with other data
-        df['foreign_rate'] = foreign_rate_series.reindex(df.index).ffill()
-        # Initial points might be NaN if foreign_rate_series starts later
-        df['foreign_rate'] = df['foreign_rate'].bfill()
+        # Use dynamic series, align with other data (ffill only - NO bfill to avoid lookahead)
+        aligned_fr = foreign_rate_series.reindex(df.index).ffill()
         
-        # FINAL SAFETY: If everything is still NaN (mismatch), use constant
-        if df['foreign_rate'].isna().all():
-            if config.foreign_leg.key.startswith('CONST:'):
-                const_rate = float(config.foreign_leg.key.split(':')[1])
-            else:
-                const_rate = 0.25 if config.pair == 'USDJPY' else 2.5
-            df['foreign_rate'] = const_rate
-            use_dynamic = False
+        # Fallback constant for initial NaNs (no lookahead)
+        if config.foreign_leg.key.startswith('CONST:'):
+            const_rate = float(config.foreign_leg.key.split(':')[1])
         else:
-            use_dynamic = True
+            const_rate = 0.25 if config.pair == 'USDJPY' else 2.5
+        
+        df['foreign_rate'] = aligned_fr.fillna(const_rate)
+        
+        # Check if we got any dynamic data
+        use_dynamic = not aligned_fr.dropna().empty
     else:
         # Use constant from config (fallback)
         if config.foreign_leg.key.startswith('CONST:'):
@@ -652,12 +677,22 @@ def get_chart2_data(
     if foreign_rates is None:
         foreign_rates = {}
     
+    # Helper to get column with flexible naming (accepts both EURUSD and EURUSD_SPOT)
+    def _get_col(df: pd.DataFrame, *names: str) -> pd.Series:
+        for n in names:
+            if n in df.columns:
+                s = df[n]
+                if isinstance(s, pd.Series) and not s.empty:
+                    return s
+        return pd.Series(dtype=float)
+    
     xccy_series = {}
     xccy_latest = {}
     
     for pair, config in CURRENCY_PAIRS.items():
-        spot = df_tv.get(config.spot_key, pd.Series(dtype=float))
-        futures = df_tv.get(config.futures_key, pd.Series(dtype=float))
+        # Flexible column lookup: accept both 'EURUSD' and 'EURUSD_SPOT' naming
+        spot = _get_col(df_tv, config.spot_key, f"{config.spot_key}_SPOT")
+        futures = _get_col(df_tv, config.futures_key, f"{config.futures_key}_FUT")
         
         if spot.empty or futures.empty:
             print(f"  -> Missing data for {pair} (spot: {not spot.empty}, futures: {not futures.empty})")
