@@ -26,11 +26,7 @@
     <!-- Model Description -->
     <div class="chart-card wide">
         <div class="chart-header">
-            <h3
-                class="glitch-text"
-                data-text="🧪 {translations.quant_v2_title ||
-                    'Quant v2: Enhanced Bitcoin Fair Value Model'}"
-            >
+            <h3 style="font-family: var(--font-mono);">
                 🧪 {translations.quant_v2_title ||
                     "Quant v2: Enhanced Bitcoin Fair Value Model"}
             </h3>
@@ -74,11 +70,7 @@
         <!-- OOS Metrics Panel -->
         <div class="chart-card premium purple">
             <div class="chart-header">
-                <h3
-                    class="glitch-text"
-                    data-text="📈 {translations.oos_metrics ||
-                        'Out-of-Sample Metrics'}"
-                >
+                <h3 style="font-family: var(--font-mono);">
                     📈 {translations.oos_metrics || "Out-of-Sample Metrics"}
                 </h3>
             </div>
@@ -125,11 +117,7 @@
         <!-- Model Parameters -->
         <div class="chart-card premium blue">
             <div class="chart-header">
-                <h3
-                    class="glitch-text"
-                    data-text="⚙️ {translations.model_params ||
-                        'Model Parameters'}"
-                >
+                <h3 style="font-family: var(--font-mono);">
                     ⚙️ {translations.model_params || "Model Parameters"}
                 </h3>
             </div>
@@ -171,11 +159,7 @@
         <!-- Active Features List (Moved from bottom) -->
         <div class="chart-card premium">
             <div class="chart-header">
-                <h3
-                    class="glitch-text"
-                    data-text="🎯 {translations.active_features ||
-                        'Active Features'}"
-                >
+                <h3 style="font-family: var(--font-mono);">
                     🎯 {translations.active_features || "Active Features"}
                 </h3>
             </div>
@@ -204,11 +188,7 @@
             ) > 5}
         >
             <div class="chart-header">
-                <h3
-                    class="glitch-text"
-                    data-text="📊 {translations.current_valuation ||
-                        'Current Valuation'}"
-                >
+                <h3 style="font-family: var(--font-mono);">
                     📊 {translations.current_valuation || "Current Valuation"}
                 </h3>
             </div>
@@ -280,11 +260,7 @@
     <!-- ... charts ... -->
     <div class="chart-card wide premium">
         <div class="chart-header">
-            <h3
-                class="glitch-text"
-                data-text={translations.chart_quant_v2_cum ||
-                    "Bitcoin: Quant v2 Fair Value (Weekly - Cumulative)"}
-            >
+            <h3 style="font-family: var(--font-mono);">
                 {translations.chart_quant_v2_cum ||
                     "Bitcoin: Quant v2 Fair Value (Weekly - Cumulative)"}
             </h3>
@@ -305,11 +281,7 @@
     <!-- Rebalanced Fair Value Chart -->
     <div class="chart-card wide premium purple">
         <div class="chart-header">
-            <h3
-                class="glitch-text"
-                data-text={translations.chart_quant_v2_rebal ||
-                    "Bitcoin: Rebalanced Fair Value (Quarterly Reset)"}
-            >
+            <h3 style="font-family: var(--font-mono);">
                 {translations.chart_quant_v2_rebal ||
                     "Bitcoin: Rebalanced Fair Value (Quarterly Reset)"}
             </h3>
@@ -330,11 +302,7 @@
     <!-- Returns Comparison Chart -->
     <div class="chart-card wide premium blue">
         <div class="chart-header">
-            <h3
-                class="glitch-text"
-                data-text={translations.chart_returns_comp ||
-                    "Weekly Returns: Predicted vs Actual (%)"}
-            >
+            <h3 style="font-family: var(--font-mono);">
                 {translations.chart_returns_comp ||
                     "Weekly Returns: Predicted vs Actual (%)"}
             </h3>

@@ -158,13 +158,17 @@
                 horzTouchDrag: true,
                 vertTouchDrag: true,
             },
+        });
+
+        // Apply watermark separately if typing issues persist with createChart options in some versions
+        api.chart.applyOptions({
             watermark: {
                 visible: true,
                 fontSize: 48,
                 fontFamily: "JetBrains Mono",
                 horzAlign: "center",
                 vertAlign: "center",
-                color: colors.text + "20", // Increased opacity (approx 12.5%) for better visibility
+                color: colors.text + "20",
                 text: "0xJJphy",
             },
         });

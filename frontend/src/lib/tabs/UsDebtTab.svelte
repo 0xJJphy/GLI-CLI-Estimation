@@ -368,11 +368,7 @@
     <!-- Maturity Schedule Chart -->
     <div class="chart-card">
         <div class="chart-header">
-            <h3
-                class="chart-title glitch-text"
-                data-text={translations.maturity_schedule_title ||
-                    "Maturity Schedule by Security Type"}
-            >
+            <h3 class="chart-title" style="font-family: var(--font-mono);">
                 {translations.maturity_schedule_title ||
                     "Maturity Schedule by Security Type"}
             </h3>
@@ -411,11 +407,7 @@
     <!-- Monthly Table -->
     <div class="table-card" style="margin-bottom: 30px;">
         <div class="table-header">
-            <h3
-                class="table-title glitch-text"
-                data-text={translations.monthly_maturity_schedule ||
-                    "Monthly Maturity Schedule ($ Billions)"}
-            >
+            <h3 class="table-title" style="font-family: var(--font-mono);">
                 {translations.monthly_maturity_schedule ||
                     "Monthly Maturity Schedule ($ Billions)"}
             </h3>
@@ -520,10 +512,10 @@
                                 <td
                                     class="value-cell"
                                     style="color: {auction.bid_to_cover >= 2.7
-                                        ? '#4ade80'
+                                        ? '#22c55e'
                                         : auction.bid_to_cover < 2.3
                                           ? '#ef4444'
-                                          : '#f8fafc'}"
+                                          : 'var(--text-primary)'}"
                                 >
                                     {formatBtc(auction.bid_to_cover)}
                                 </td>
@@ -667,6 +659,20 @@
     }
     .metric-value.orange {
         color: #fb923c;
+    }
+
+    /* Light Mode Overrides for Better Contrast */
+    :global(html:not([data-theme="dark"])) .metric-value.blue {
+        color: #2563eb; /* Blue 600 */
+    }
+    :global(html:not([data-theme="dark"])) .metric-value.purple {
+        color: #7c3aed; /* Violet 600 */
+    }
+    :global(html:not([data-theme="dark"])) .metric-value.orange {
+        color: #d97706; /* Amber 600 */
+    }
+    :global(html:not([data-theme="dark"])) .metric-value.green {
+        color: #059669; /* Emerald 600 */
     }
     .metric-value.white {
         color: var(--text-primary);
@@ -837,8 +843,15 @@
     .value-cell.blue {
         color: #3b82f6;
     }
+    :global(html:not([data-theme="dark"])) .value-cell.blue {
+        color: #2563eb;
+    }
+
     .value-cell.purple {
         color: #8b5cf6;
+    }
+    :global(html:not([data-theme="dark"])) .value-cell.purple {
+        color: #7c3aed;
     }
     .value-cell.total {
         color: var(--accent-secondary);

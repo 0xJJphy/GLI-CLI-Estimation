@@ -263,11 +263,7 @@
     <div class="chart-card wide">
         <div class="chart-header">
             <div>
-                <h3
-                    class="glitch-text"
-                    data-text={translations.nav_chart_explorer ||
-                        "Chart Explorer"}
-                >
+                <h3 class="chart-title" style="font-family: var(--font-mono);">
                     {translations.nav_chart_explorer || "Chart Explorer"}
                 </h3>
                 <p
@@ -392,11 +388,7 @@
     <div class="chart-card wide">
         <div class="chart-header">
             <div>
-                <h3
-                    class="glitch-text"
-                    data-text={translations.abs_chart_title ||
-                        "Absolute Explorer"}
-                >
+                <h3 class="chart-title" style="font-family: var(--font-mono);">
                     {translations.abs_chart_title || "Absolute Explorer"}
                 </h3>
                 <p

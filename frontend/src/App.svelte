@@ -2345,8 +2345,20 @@
         <img src="logo.png" alt="JJ-Risk" class="logo-img" />
       </div>
       <div class="brand-text">
-        <h2>JJ-Risk</h2>
-        <span>Dashboard</span>
+        <h2
+          class="glitch-text"
+          data-text="JJ-Risk"
+          style="font-family: var(--font-mono); margin: 0; line-height: 1;"
+        >
+          JJ-Risk
+        </h2>
+        <span
+          class="glitch-text"
+          data-text="DASHBOARD"
+          style="font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase; opacity: 0.8;"
+        >
+          DASHBOARD
+        </span>
       </div>
     </div>
 
