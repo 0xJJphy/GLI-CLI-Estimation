@@ -264,9 +264,7 @@
             </div>
             <div class="metric">
                 <span class="metric-label"
-                    >{lang === "es"
-                        ? "Puntuación Estrés"
-                        : "Stress Score"}</span
+                    >{translations.stress_level_label || "Stress Level"}</span
                 >
                 <span
                     class="metric-value"
@@ -356,7 +354,10 @@
                     >
                 </div>
                 <div class="metric">
-                    <span class="metric-label">Composite Stress</span>
+                    <span class="metric-label"
+                        >{translations.stress_level_label ||
+                            "Composite Stress"}</span
+                    >
                     <span
                         class="metric-value"
                         style="color: {getStressColor(chart2.stress_level)}"

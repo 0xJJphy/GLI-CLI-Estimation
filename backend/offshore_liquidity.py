@@ -103,8 +103,8 @@ CURRENCY_PAIRS = {
         futures_key='JPYUSD_FUT',       # TV_CONFIG: 6J1! -> JPYUSD_FUT (inverse)
         futures_quote='inverse',        # 6J quotes JPY/USD
         foreign_leg=ForeignLegConfig(
-            leg_type='const',      # BoJ call rate ~0.25% (bojdata when available)
-            key='CONST:0.25',
+            leg_type='rate',
+            key='JPY_3M',
             day_count=360
         ),
         weight=5,
@@ -575,7 +575,8 @@ def calculate_xccy_composite_stress(xccy_series: Dict[str, pd.Series]) -> pd.Ser
     """
     Calculate composite XCCY stress from multiple pairs.
     
-    Weighted by importance. More negative = more stress.
+    Uses expanding percentiles for robustness across regimes.
+    More negative basis = higher percentile = more stress.
     
     Args:
         xccy_series: Dict mapping pair -> basis series
@@ -607,8 +608,14 @@ def calculate_xccy_composite_stress(xccy_series: Dict[str, pd.Series]) -> pd.Ser
         
         aligned = series.reindex(all_idx).ffill()
         
-        # Scale: 0bp = 0, -50bp = 100
-        stress = (-aligned / abs(Thresholds.XCCY_CRISIS)) * 100
+        # Calculate stress as expanding percentile of NEGATIVE basis
+        # (So a more negative value gets a higher score)
+        neg_basis = -aligned
+        stress = neg_basis.expanding().apply(
+            lambda x: (x.iloc[:-1] < x.iloc[-1]).mean() * 100 if len(x) > 1 else 50,
+            raw=False
+        )
+        
         stress = stress.clip(0, 100)
         
         composite += stress * weight
@@ -668,9 +675,10 @@ def get_chart2_data(
         if not basis.empty:
             xccy_series[pair] = basis
             valid = basis.dropna()
-            xccy_latest[pair] = float(valid.iloc[-1]) if not valid.empty else None
+            val = float(valid.iloc[-1]) if not valid.empty else None
+            xccy_latest[pair] = val  # Populate xccy_latest
             rate_source = "dynamic" if foreign_rate_series is not None else "constant"
-            print(f"  -> {pair}: {xccy_latest[pair]:.1f}bp ({rate_source})" if xccy_latest[pair] else f"  -> {pair}: No data")
+            print(f"  -> {pair}: {val:.1f}bp ({rate_source})" if val is not None else f"  -> {pair}: No data")
     
     # Calculate composite
     composite = calculate_xccy_composite_stress(xccy_series)
@@ -1012,7 +1020,7 @@ def get_offshore_liquidity_output(
                 'stress_score': round(chart1['stress_score'], 2)
             },
             
-            # Chart 2: XCCY DIY (may be null if no TV data)
+            # Chart 2: XCCY Proxy (DIY)
             'chart2_xccy_diy': {
                 'xccy_eurusd': clean_series_for_json(chart2['series']['xccy_eurusd']) if chart2 else [],
                 'xccy_usdjpy': clean_series_for_json(chart2['series']['xccy_usdjpy']) if chart2 else [],

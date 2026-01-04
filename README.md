@@ -95,6 +95,7 @@ Built with **Svelte + Vite** frontend and **Python** data pipeline, featuring FR
 | **Fed Calendar** | Scraped | Daily | FOMC meeting dates |
 | **Dot Plot Scraper** | palewire | Per-meeting | Fed rate projections |
 | **Treasury Fiscal Data** | API | Daily | Treasury settlements |
+| **BoJ XLSX + FRED** | 2000-present | Daily | JPY call rate for XCCY basis |
 
 ### FRED Series Configuration
 
@@ -146,6 +147,24 @@ RRP Award ────────── Absolute floor
 - Gap to ceiling < 5 bps → HIGH stress
 - SOFR-IORB spread > 10 bps → ELEVATED stress
 - SRF Usage > 0 → Immediate stress signal
+
+#### XCCY Basis (DIY Synthetic)
+Cross-currency basis derived from FX spot/futures difference:
+```
+XCCY Basis (bp) = (Forward - Spot) / Spot × (360 / Days) × 10000 - (r_USD - r_FGN)
+```
+- **EUR/USD, GBP/USD, USD/JPY** pairs with CME futures
+- **Foreign rates**: Dynamic fetching from ECB (EUR), FRED (GBP), BoJ (JPY)
+- **JPY Rate Source**: BoJ historical cache (2000-present) with incremental updates
+
+#### BoJ Call Rate Cache System
+```
+backend/cache/boj_call_rate_cache.csv
+├── Historical (2000 - Sept 2025): FRED IRSTCI01JPM156N (monthly → daily ffill)
+└── Recent (Oct 2025+): BoJ daily XLSX md{YYYYMMDD}.xlsx (official source)
+```
+- Incremental updates: Only fetches missing dates from last 60 days
+- Automatic merge: XLSX data takes priority where available
 
 ---
 

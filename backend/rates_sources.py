@@ -16,11 +16,21 @@ Date: January 2026
 import pandas as pd
 import numpy as np
 import requests
+import os
+import time
+from pathlib import Path
+from io import BytesIO
 from datetime import datetime, timedelta
 from typing import Dict, Optional, Tuple
 import logging
 
 logger = logging.getLogger(__name__)
+
+# ============================================================
+# BOJ PATCH CONSTANTS
+# ============================================================
+BOJ_CURRENT_POLICY_RATE = 0.75  # BoJ policy rate as of Dec 19, 2025
+FRED_JPY_CALL_RATE = 'IRSTCI01JPM156N'
 
 
 # ============================================================
@@ -187,88 +197,303 @@ def fetch_estr_fallback_from_fred(df_fred: pd.DataFrame) -> pd.Series:
 
 
 # ============================================================
-# JPY: BoJ Call Rate
+# BOJ CALL RATE WITH CACHE (HISTORICAL FROM 2000)
 # ============================================================
 
-def fetch_boj_call_rate() -> pd.Series:
-    """
-    Fetch Japanese Uncollateralized Overnight Call Rate from BoJ.
+# Cache configuration
+BOJ_CACHE_FILENAME = 'boj_call_rate_cache.csv'
+BOJ_START_YEAR = 2000
+BOJ_XLSX_START_DATE = '2025-09-01'  # BoJ started daily XLSX pattern around this date
+
+
+def _get_boj_cache_path() -> Path:
+    """Get path to BoJ cache file (backend/cache/boj_call_rate_cache.csv)."""
+    cache_dir = Path(__file__).resolve().parent / "cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    return cache_dir / BOJ_CACHE_FILENAME
+
+
+def _load_boj_cache() -> pd.Series:
+    """Load BoJ rates from local cache file."""
+    cache_path = _get_boj_cache_path()
+    if not cache_path.exists():
+        return pd.Series(dtype=float, name='JPY_CALL_RATE')
     
-    Attempts:
-    1. bojdata library (if installed)
-    2. Direct XLSX download from BoJ
-    3. Constant fallback (0.25%)
+    try:
+        df = pd.read_csv(cache_path, parse_dates=['date'], index_col='date')
+        if 'rate' in df.columns:
+            result = df['rate'].dropna()
+            result.name = 'JPY_CALL_RATE'
+            return result
+    except Exception as e:
+        logger.warning(f"Failed to load BoJ cache: {e}")
+    
+    return pd.Series(dtype=float, name='JPY_CALL_RATE')
+
+
+def _save_boj_cache(data: pd.Series) -> None:
+    """Save BoJ rates to local cache file."""
+    if data.empty:
+        return
+    
+    cache_path = _get_boj_cache_path()
+    try:
+        df = pd.DataFrame({'date': data.index, 'rate': data.values})
+        df.to_csv(cache_path, index=False)
+        logger.debug(f"Saved {len(data)} points to BoJ cache")
+    except Exception as e:
+        logger.warning(f"Failed to save BoJ cache: {e}")
+
+
+def _parse_boj_xlsx_rate(content: bytes) -> Optional[float]:
+    """Parse BoJ XLSX content and extract the Average rate."""
+    from io import BytesIO
+    try:
+        df = pd.read_excel(BytesIO(content), sheet_name=0, header=None)
+        
+        # Direct position: row 9 (0-indexed), column 2
+        if df.shape[0] > 9 and df.shape[1] > 2:
+            raw_val = df.iloc[9, 2]
+            rate_value = pd.to_numeric(raw_val, errors='coerce')
+            if not pd.isna(rate_value):
+                return float(rate_value)
+        
+        # Fallback: search for 'Average' text
+        for idx in range(df.shape[0]):
+            cell_val = str(df.iloc[idx, 1]) if df.shape[1] > 1 else ''
+            if 'Average' in cell_val or '平均' in cell_val:
+                if df.shape[1] > 2:
+                    rate_value = pd.to_numeric(df.iloc[idx, 2], errors='coerce')
+                    if not pd.isna(rate_value):
+                        return float(rate_value)
+    except Exception as e:
+        logger.debug(f"Failed to parse BoJ XLSX: {e}")
+    
+    return None
+
+
+def fetch_boj_xlsx_daily(start_date: str = None, end_date: str = None, use_cache: bool = True) -> pd.Series:
+    """
+    Fetch BoJ call rate from daily XLSX files with caching.
+    
+    Only fetches dates that are missing from the cache and within the XLSX availability window
+    (post Sept 2025). For historical data, use FRED fallback.
+    
+    Args:
+        start_date: Start date (YYYY-MM-DD), defaults to BOJ_XLSX_START_DATE
+        end_date: End date (YYYY-MM-DD), defaults to today
+        use_cache: Whether to use local cache (default True)
+        
+    Returns:
+        Series with call rate indexed by date
+    """
+    base_url = "https://www.boj.or.jp/en/statistics/market/short/mutan/d_release/md"
+    
+    # Define date range
+    xlsx_start = pd.Timestamp(BOJ_XLSX_START_DATE)
+    end_dt = pd.Timestamp(end_date) if end_date else pd.Timestamp(datetime.now().date())
+    start_dt = pd.Timestamp(start_date) if start_date else xlsx_start
+    
+    # Clamp to XLSX availability
+    start_dt = max(start_dt, xlsx_start)
+    
+    if start_dt > end_dt:
+        return pd.Series(dtype=float, name='JPY_CALL_RATE')
+    
+    # Load existing cache
+    cached = _load_boj_cache() if use_cache else pd.Series(dtype=float)
+    
+    # Determine which dates we need to fetch
+    all_biz_days = pd.date_range(start=start_dt, end=end_dt, freq='B')
+    if not cached.empty:
+        cached_dates = set(cached.index.normalize())
+        missing_dates = [d for d in all_biz_days if d.normalize() not in cached_dates]
+    else:
+        missing_dates = list(all_biz_days)
+    
+    # Only fetch recent missing dates (last 60 days to avoid hammering server)
+    cutoff = pd.Timestamp(datetime.now().date()) - pd.Timedelta(days=60)
+    dates_to_fetch = [d for d in missing_dates if d >= cutoff]
+    
+    if not dates_to_fetch:
+        logger.debug("All XLSX dates already cached, skipping fetch")
+        result = cached[(cached.index >= start_dt) & (cached.index <= end_dt)]
+        return result if not result.empty else pd.Series(dtype=float, name='JPY_CALL_RATE')
+    
+    logger.info(f"Fetching {len(dates_to_fetch)} missing BoJ XLSX dates...")
+    
+    new_rates = {}
+    for date in dates_to_fetch:
+        year = date.year
+        date_str = date.strftime('%Y%m%d')
+        xlsx_url = f"{base_url}/{year}/md{date_str}.xlsx"
+        
+        try:
+            response = requests.get(xlsx_url, timeout=10, headers={
+                'User-Agent': 'rates_sources/2.0 (requests)'
+            })
+            
+            if response.status_code == 200:
+                rate_value = _parse_boj_xlsx_rate(response.content)
+                if rate_value is not None:
+                    new_rates[date] = rate_value
+                    logger.debug(f"BoJ: {date.strftime('%Y-%m-%d')} -> {rate_value:.4f}%")
+                    
+        except Exception as e:
+            logger.debug(f"BoJ XLSX {date_str}: {e}")
+    
+    # Merge new rates into cache
+    if new_rates:
+        new_series = pd.Series(new_rates, name='JPY_CALL_RATE')
+        new_series.index = pd.to_datetime(new_series.index)
+        
+        if not cached.empty:
+            combined = pd.concat([cached, new_series])
+            combined = combined[~combined.index.duplicated(keep='last')].sort_index()
+        else:
+            combined = new_series.sort_index()
+        
+        # Save updated cache
+        if use_cache:
+            _save_boj_cache(combined)
+        
+        result = combined[(combined.index >= start_dt) & (combined.index <= end_dt)]
+        logger.info(f"Fetched {len(new_rates)} new BoJ XLSX points")
+        return result
+    
+    # Return cached data if no new rates
+    if not cached.empty:
+        result = cached[(cached.index >= start_dt) & (cached.index <= end_dt)]
+        return result
+    
+    return pd.Series(dtype=float, name='JPY_CALL_RATE')
+
+
+# ============================================================
+# FRED FALLBACK (MONTHLY -> DAILY) WITH CACHE
+# ============================================================
+
+def fetch_jpy_rate_from_fred(start_year: int = BOJ_START_YEAR, use_cache: bool = True) -> pd.Series:
+    """
+    Fetch Japan call rate from FRED (monthly, forward-filled to daily).
+    
+    Uses IRSTCI01JPM156N: Interest Rates: Call Money/Interbank Rate: Total for Japan
+    This provides historical data from 1985 onwards until recent months.
+    
+    Args:
+        start_year: Start year for data (default 2000)
+        use_cache: Whether to use cache for combined result
+        
+    Returns:
+        Series with rate forward-filled to daily frequency
+    """
+    try:
+        # Direct FRED CSV download (no API key required)
+        url = f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={FRED_JPY_CALL_RATE}"
+        df = pd.read_csv(url, parse_dates=['observation_date'], index_col='observation_date')
+        monthly = df.iloc[:, 0]
+        
+        if monthly is not None and not monthly.empty:
+            # Filter by start year
+            monthly = monthly[monthly.index.year >= start_year]
+            
+            # Resample to daily and forward-fill
+            daily = monthly.resample('D').ffill()
+            daily.name = 'JPY_CALL_RATE'
+            logger.info(f"FRED JPY rate: {len(daily)} points ({daily.index.min().strftime('%Y-%m-%d')} to {daily.index.max().strftime('%Y-%m-%d')})")
+            return daily
+            
+    except Exception as e:
+        logger.warning(f"FRED JPY rate fetch failed: {e}")
+    
+    return pd.Series(dtype=float, name='JPY_CALL_RATE')
+
+
+# ============================================================
+# MAIN JPY FETCHER (WITH CACHE & FALLBACKS)
+# ============================================================
+
+def fetch_boj_call_rate(start_year: int = BOJ_START_YEAR) -> pd.Series:
+    """
+    Fetch Japanese Uncollateralized Overnight Call Rate.
+    
+    Strategy:
+    1. Load local cache (historical + recent XLSX data)
+    2. For historical data (pre-Sept 2025): Use FRED monthly data (ffill to daily)
+    3. For recent data (post-Sept 2025): Fetch BoJ daily XLSX files
+    4. Merge sources, preferring XLSX where available (more accurate)
+    5. Fallback to constant if all methods fail
+    
+    Args:
+        start_year: Start year for historical data (default 2000)
     
     Returns:
         Series with call rate (%), or constant series if all methods fail
     """
-    # Try bojdata first
+    
+    # Try bojdata library first (if installed)
     try:
         import bojdata
-        
-        # BoJ series code for uncollateralized overnight call rate: FM08'117
-        # We try to access it via property or get_series if get_data fails
         if hasattr(bojdata, 'get_series'):
             series = bojdata.get_series('FM01\'FM080117')
         else:
-            # Maybe it's directly accessible or uses a different method
             series = bojdata.FM08_117 if hasattr(bojdata, 'FM08_117') else None
             
         if series is not None and not series.empty:
-            result = series
+            result = series[series.index.year >= start_year].copy()
             result.name = 'JPY_CALL_RATE'
             logger.info(f"Fetched {len(result)} points of JPY call rate via bojdata")
             return result
             
     except ImportError:
-        logger.info("bojdata not installed, trying XLSX fallback")
+        logger.debug("bojdata not installed, using FRED + XLSX")
     except Exception as e:
         logger.warning(f"bojdata fetch failed: {e}")
-        # BoJ publishes daily XLSX with call rate
-        # URL pattern: https://www.boj.or.jp/en/statistics/market/short/mutan/d_release/md/YYYY/mutanYYMM.xlsx
-        
-        # Try current and previous 2 months
-        now = datetime.now()
-        attempts = [now, now - timedelta(days=28), now - timedelta(days=58)]
-        
-        df = pd.DataFrame()
-        for dt in attempts:
-            year = dt.year
-            yy = str(year)[2:]
-            mm = dt.strftime('%m')
-            xlsx_url = f"https://www.boj.or.jp/en/statistics/market/short/mutan/d_release/md/{year}/mutan{yy}{mm}.xlsx"
-            try:
-                df = pd.read_excel(xlsx_url, sheet_name=0, skiprows=3)
-                if not df.empty:
-                    logger.info(f"Successfully fetched BoJ data from {xlsx_url}")
-                    break
-            except Exception:
-                continue
-        
-        if not df.empty:
-            # Parse date column and rate column
-            # Note: The BoJ Mutan excel structure has 'Date' in Col A and 'Average' in Col B
-            df = df.iloc[:, [0, 1]] # Keep first two columns
-            df.columns = ['date', 'call_rate']
-            df['date'] = pd.to_datetime(df['date'], errors='coerce')
-            # Handle non-numeric rate values (e.g. asterisks or strings)
-            df['call_rate'] = pd.to_numeric(df['call_rate'], errors='coerce')
-            df = df.dropna(subset=['date', 'call_rate'])
-            
-            result = df.set_index('date')['call_rate'].sort_index()
-            result.name = 'JPY_CALL_RATE'
-            return result
-    except Exception as e:
-        logger.warning(f"BoJ XLSX download failed: {e}")
     
-    # Fallback: Generate constant series
-    logger.warning("Using constant JPY call rate fallback (0.25%)")
+    # Load cached data first
+    cached = _load_boj_cache()
+    
+    # Fetch FRED historical data (2000 to ~present, monthly -> daily ffill)
+    fred_data = fetch_jpy_rate_from_fred(start_year=start_year, use_cache=True)
+    
+    # Fetch recent BoJ XLSX data (Sept 2025 onwards, only missing dates)
+    xlsx_data = fetch_boj_xlsx_daily(use_cache=True)
+    
+    # Merge: FRED for historical, XLSX for recent (XLSX takes priority)
+    parts = []
+    
+    if not fred_data.empty:
+        parts.append(fred_data)
+    
+    if not xlsx_data.empty:
+        parts.append(xlsx_data)
+    
+    if parts:
+        combined = pd.concat(parts)
+        combined = combined[~combined.index.duplicated(keep='last')].sort_index()
+        combined = combined[combined.index.year >= start_year]
+        
+        if not combined.empty:
+            # Resample to business days and forward-fill gaps
+            biz_idx = pd.date_range(start=combined.index.min(), end=combined.index.max(), freq='B')
+            combined = combined.reindex(biz_idx).ffill()
+            
+            combined.name = 'JPY_CALL_RATE'
+            logger.info(f"BoJ combined: {len(combined)} points ({combined.index.min().strftime('%Y-%m-%d')} to {combined.index.max().strftime('%Y-%m-%d')})")
+            
+            # Update cache with combined data
+            _save_boj_cache(combined)
+            
+            return combined
+    
+    # Final fallback: constant rate
+    logger.warning(f"Using constant JPY call rate fallback ({BOJ_CURRENT_POLICY_RATE}%)")
     dates = pd.date_range(
-        start=datetime.now() - timedelta(days=365*5),
+        start=datetime(start_year, 1, 1),
         end=datetime.now(),
-        freq='B'  # Business days
+        freq='B'
     )
-    result = pd.Series(0.25, index=dates, name='JPY_CALL_RATE')
+    result = pd.Series(BOJ_CURRENT_POLICY_RATE, index=dates, name='JPY_CALL_RATE')
     return result
 
 
@@ -361,7 +586,7 @@ class ForeignRateFetcher:
             logger.info(f"EUR 3M rate: latest = {rate.dropna().iloc[-1]:.3f}%")
         return rate
     
-    def get_jpy_3m_rate(self) -> pd.Series:
+    def get_jpy_3m_rate(self, lookback_years: int = 5) -> pd.Series:
         """
         Get JPY "3M" rate from BoJ call rate.
         
@@ -371,12 +596,12 @@ class ForeignRateFetcher:
         if 'JPY_3M' in self._cache:
             return self._cache['JPY_3M']
         
-        rate = fetch_boj_call_rate()
+        rate = fetch_boj_call_rate()  # Fallback hierarchy
         rate.name = 'JPY_3M'
         self._cache['JPY_3M'] = rate
         
         if not rate.empty:
-            logger.info(f"JPY call rate: latest = {rate.dropna().iloc[-1]:.3f}%")
+            logger.info(f"JPY call rate (BoJ XLSX): latest = {rate.dropna().iloc[-1]:.3f}%")
         return rate
     
     def get_rate_for_currency(self, currency: str) -> pd.Series:
@@ -438,29 +663,37 @@ if __name__ == "__main__":
     import sys
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     
-    print("=" * 60)
-    print("RATE SOURCES MODULE TEST")
-    print("=" * 60)
+    print("=" * 70)
+    print("BOJ CALL RATE FETCHER - FIXED VERSION TEST")
+    print("=" * 70)
     
-    # Test ECB €STR fetch
-    print("\n[1] Testing ECB €STR 3M Compounded Average...")
-    eur_rate = fetch_ecb_estr_3m()
-    if not eur_rate.empty:
-        print(f"    [OK] Fetched {len(eur_rate)} points")
-        print(f"    Latest: {eur_rate.iloc[-1]:.3f}% ({eur_rate.index[-1].strftime('%Y-%m-%d')})")
+    # Test 1: Direct XLSX fetch (new pattern)
+    print("\n[1] Testing BoJ XLSX daily fetch (NEW pattern: md{YYYYMMDD}.xlsx)...")
+    xlsx_result = fetch_boj_xlsx_daily(lookback_days=10)
+    if not xlsx_result.empty:
+        print(f"    [OK] Fetched {len(xlsx_result)} daily points")
+        print(f"    Latest: {xlsx_result.iloc[-1]:.4f}% ({xlsx_result.index[-1].strftime('%Y-%m-%d')})")
     else:
-        print("    [FAILED] Failed to fetch EUR rate")
+        print("    [WARN] XLSX fetch returned empty (may be holiday/weekend)")
     
-    # Test JPY fetch
-    print("\n[2] Testing BoJ Call Rate...")
-    jpy_rate = fetch_boj_call_rate()
-    if not jpy_rate.empty:
-        print(f"    [OK] Got {len(jpy_rate)} points")
-        print(f"    Latest: {jpy_rate.iloc[-1]:.3f}% ({jpy_rate.index[-1].strftime('%Y-%m-%d')})")
+    # Test 2: FRED fallback
+    print("\n[2] Testing FRED fallback...")
+    fred_result = fetch_jpy_rate_from_fred()
+    if not fred_result.empty:
+        print(f"    [OK] FRED data available: {len(fred_result)} points")
+        print(f"    Latest: {fred_result.dropna().iloc[-1]:.4f}%")
     else:
-        print("    [FAILED] Failed to fetch JPY rate")
+        print("    [WARN] FRED fallback not available")
     
-    print("\n" + "=" * 60)
-    print("Note: USD/GBP rates require FRED index data (SOFRINDEX, IUDZOS2)")
-    print("Run full test via data_pipeline.py with FRED data loaded")
-    print("=" * 60)
+    # Test 3: Full function with all fallbacks
+    print("\n[3] Testing full fetch_boj_call_rate() with fallbacks...")
+    full_result = fetch_boj_call_rate()
+    if not full_result.empty:
+        print(f"    [OK] Got {len(full_result)} points")
+        print(f"    Latest: {full_result.dropna().iloc[-1]:.4f}% ({full_result.dropna().index[-1].strftime('%Y-%m-%d')})")
+    else:
+        print("    [FAILED] All sources failed")
+    
+    print("\n" + "=" * 70)
+    print("Test complete.")
+    print("=" * 70)
