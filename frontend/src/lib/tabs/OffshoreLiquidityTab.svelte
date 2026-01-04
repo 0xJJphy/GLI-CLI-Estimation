@@ -131,7 +131,7 @@
     }
 
     function getStressLabel(level) {
-        const key = `stress_${level}`;
+        const key = `offshore_stress_${level}`;
         return (
             translations[key] ||
             level?.charAt(0).toUpperCase() + level?.slice(1) ||
