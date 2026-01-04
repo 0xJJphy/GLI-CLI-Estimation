@@ -63,14 +63,21 @@ DATA_FREQUENCY = {
 
 
 @dataclass
+class ForeignLegConfig:
+    """Configuration for foreign currency leg rate source."""
+    leg_type: str         # 'index' | 'rate' | 'const'
+    key: str              # Series key or 'CONST:value' for constant
+    day_count: int        # 360 (EUR, USD, JPY) or 365 (GBP)
+
+
+@dataclass
 class CurrencyPairConfig:
     """Configuration for XCCY basis calculation."""
     pair: str
     spot_key: str
     futures_key: str
     futures_quote: str      # 'direct' or 'inverse'
-    foreign_rate: float     # Current foreign rate (%, for approximation)
-    day_count: int          # 360 or 365
+    foreign_leg: ForeignLegConfig   # Dynamic rate configuration
     weight: int             # Importance weight (1-5)
     description: str
 
@@ -81,8 +88,11 @@ CURRENCY_PAIRS = {
         spot_key='EURUSD_SPOT',
         futures_key='EURUSD_FUT',
         futures_quote='direct',
-        foreign_rate=2.90,      # €STR ~2.90%
-        day_count=360,
+        foreign_leg=ForeignLegConfig(
+            leg_type='index',      # Will use ECB €STR 3M (via rates_sources)
+            key='EUR_3M',
+            day_count=360
+        ),
         weight=5,
         description='Euro - European banks'
     ),
@@ -90,9 +100,12 @@ CURRENCY_PAIRS = {
         pair='USDJPY',
         spot_key='USDJPY_SPOT',
         futures_key='JPYUSD_FUT',
-        futures_quote='inverse',  # 6J quotes JPY/USD
-        foreign_rate=0.25,        # TONA ~0.25%
-        day_count=360,
+        futures_quote='inverse',   # 6J quotes JPY/USD
+        foreign_leg=ForeignLegConfig(
+            leg_type='const',      # BoJ call rate ~0.25% (bojdata when available)
+            key='CONST:0.25',
+            day_count=360
+        ),
         weight=5,
         description='Yen - Carry trade'
     ),
@@ -101,12 +114,64 @@ CURRENCY_PAIRS = {
         spot_key='GBPUSD_SPOT',
         futures_key='GBPUSD_FUT',
         futures_quote='direct',
-        foreign_rate=4.50,        # SONIA ~4.50%
-        day_count=365,
+        foreign_leg=ForeignLegConfig(
+            leg_type='index',      # Will use SONIA Index -> 3M
+            key='GBP_3M',
+            day_count=365          # GBP convention
+        ),
         weight=4,
         description='Sterling - London'
     ),
 }
+
+
+def get_next_delivery_date(reference_date: datetime) -> datetime:
+    """
+    Get next CME FX futures delivery date (3rd Wednesday of IMM month).
+    
+    IMM months: March, June, September, December.
+    
+    Note: For continuous futures (e.g., 6E1!), this is an approximation
+    since we don't have the actual contract month metadata.
+    
+    Args:
+        reference_date: Date from which to find next delivery
+        
+    Returns:
+        3rd Wednesday of next IMM month
+    """
+    from datetime import timedelta
+    
+    imm_months = [3, 6, 9, 12]
+    year = reference_date.year
+    
+    for month in imm_months:
+        # Find 3rd Wednesday of month
+        first_day = datetime(year, month, 1)
+        # Find first Wednesday (weekday 2)
+        days_until_wed = (2 - first_day.weekday() + 7) % 7
+        first_wednesday = first_day + timedelta(days=days_until_wed)
+        third_wednesday = first_wednesday + timedelta(weeks=2)
+        
+        if third_wednesday > reference_date:
+            return third_wednesday
+    
+    # Roll to next year's March
+    first_day = datetime(year + 1, 3, 1)
+    days_until_wed = (2 - first_day.weekday() + 7) % 7
+    first_wednesday = first_day + timedelta(days=days_until_wed)
+    return first_wednesday + timedelta(weeks=2)
+
+
+def calculate_days_to_maturity(reference_date: datetime) -> int:
+    """
+    Calculate days from reference_date to next IMM delivery.
+    
+    Returns:
+        Number of calendar days to delivery (typically 30-90)
+    """
+    delivery = get_next_delivery_date(reference_date)
+    return (delivery - reference_date).days
 
 
 # Thresholds for stress levels
@@ -416,7 +481,8 @@ def calculate_xccy_basis_series(
     spot_series: pd.Series,
     futures_series: pd.Series,
     sofr_series: pd.Series,
-    config: CurrencyPairConfig
+    config: CurrencyPairConfig,
+    foreign_rate_series: pd.Series = None
 ) -> pd.Series:
     """
     Calculate XCCY basis time series for a currency pair.
@@ -426,6 +492,8 @@ def calculate_xccy_basis_series(
         futures_series: FX futures price series
         sofr_series: SOFR rate series (in %)
         config: Currency pair configuration
+        foreign_rate_series: Dynamic foreign rate series (in %), optional
+                           If None, uses constant from config.foreign_leg.key
         
     Returns:
         Basis series in bp
@@ -440,20 +508,41 @@ def calculate_xccy_basis_series(
     if df.empty:
         return pd.Series(dtype=float, name=f'XCCY_{config.pair}')
     
+    # Get foreign rate - either dynamic series or constant
+    if foreign_rate_series is not None and not foreign_rate_series.empty:
+        # Use dynamic series, align with other data
+        df['foreign_rate'] = foreign_rate_series.reindex(df.index).ffill()
+        use_dynamic = True
+    else:
+        # Use constant from config (fallback)
+        if config.foreign_leg.key.startswith('CONST:'):
+            const_rate = float(config.foreign_leg.key.split(':')[1])
+        else:
+            const_rate = 2.5  # Default fallback
+        df['foreign_rate'] = const_rate
+        use_dynamic = False
+    
     # Convert rates to decimals
     sofr_dec = df['sofr'] / 100
-    foreign_dec = config.foreign_rate / 100
+    foreign_dec = df['foreign_rate'] / 100
     
-    # Calculate basis
+    # Calculate basis with dynamic days-to-maturity
     basis_values = []
     for idx, row in df.iterrows():
+        # Calculate days to next IMM delivery
+        ref_date = pd.to_datetime(idx)
+        days_to_mat = calculate_days_to_maturity(ref_date.to_pydatetime())
+        
+        # Clamp days to reasonable range (30-90)
+        days_to_mat = max(30, min(90, days_to_mat))
+        
         basis = calculate_xccy_basis_single(
             spot=row['spot'],
             futures=row['futures'],
             usd_rate=sofr_dec.loc[idx],
-            foreign_rate=foreign_dec,
-            days=91,
-            day_count=config.day_count,
+            foreign_rate=foreign_dec.loc[idx],
+            days=days_to_mat,
+            day_count=config.foreign_leg.day_count,
             futures_quote=config.futures_quote
         )
         basis_values.append(basis)
@@ -511,17 +600,26 @@ def calculate_xccy_composite_stress(xccy_series: Dict[str, pd.Series]) -> pd.Ser
     return composite
 
 
-def get_chart2_data(df_tv: pd.DataFrame, sofr_series: pd.Series) -> Dict[str, Any]:
+def get_chart2_data(
+    df_tv: pd.DataFrame, 
+    sofr_series: pd.Series,
+    foreign_rates: Dict[str, pd.Series] = None
+) -> Dict[str, Any]:
     """
     Calculate all Chart 2 (XCCY DIY) data.
     
     Args:
         df_tv: DataFrame with TradingView FX data
         sofr_series: SOFR rate series from FRED (in %)
+        foreign_rates: Dict of currency -> 3M rate series (e.g., {'EUR': eur_3m, 'GBP': gbp_3m})
+                      If None, uses constant rates from config
         
     Returns:
         Dict with series, latest values, signals, stress level
     """
+    if foreign_rates is None:
+        foreign_rates = {}
+    
     xccy_series = {}
     xccy_latest = {}
     
@@ -533,13 +631,26 @@ def get_chart2_data(df_tv: pd.DataFrame, sofr_series: pd.Series) -> Dict[str, An
             print(f"  -> Missing data for {pair} (spot: {not spot.empty}, futures: {not futures.empty})")
             continue
         
-        basis = calculate_xccy_basis_series(spot, futures, sofr_series, config)
+        # Get foreign rate series for this currency
+        # Map pair to currency code (EURUSD -> EUR, GBPUSD -> GBP, USDJPY -> JPY)
+        if pair == 'USDJPY':
+            foreign_ccy = 'JPY'
+        else:
+            foreign_ccy = pair[:3]  # EUR, GBP
+        
+        foreign_rate_series = foreign_rates.get(foreign_ccy)
+        
+        basis = calculate_xccy_basis_series(
+            spot, futures, sofr_series, config, 
+            foreign_rate_series=foreign_rate_series
+        )
         
         if not basis.empty:
             xccy_series[pair] = basis
             valid = basis.dropna()
             xccy_latest[pair] = float(valid.iloc[-1]) if not valid.empty else None
-            print(f"  -> {pair}: {xccy_latest[pair]:.1f}bp" if xccy_latest[pair] else f"  -> {pair}: No data")
+            rate_source = "dynamic" if foreign_rate_series is not None else "constant"
+            print(f"  -> {pair}: {xccy_latest[pair]:.1f}bp ({rate_source})" if xccy_latest[pair] else f"  -> {pair}: No data")
     
     # Calculate composite
     composite = calculate_xccy_composite_stress(xccy_series)
@@ -805,7 +916,37 @@ def get_offshore_liquidity_output(
         print("  Chart 2: XCCY DIY...")
         sofr = df_fred.get('SOFR', pd.Series(dtype=float))
         if not sofr.empty:
-            chart2 = get_chart2_data(df_tv, sofr)
+            # Try to get dynamic foreign rates from rates_sources
+            foreign_rates = {}
+            try:
+                from rates_sources import ForeignRateFetcher
+                rate_fetcher = ForeignRateFetcher(df_fred)
+                
+                # Get dynamic rates for each currency
+                eur_3m = rate_fetcher.get_eur_3m_rate()
+                gbp_3m = rate_fetcher.get_gbp_3m_rate()
+                jpy_3m = rate_fetcher.get_jpy_3m_rate()
+                
+                if not eur_3m.empty:
+                    foreign_rates['EUR'] = eur_3m
+                if not gbp_3m.empty:
+                    foreign_rates['GBP'] = gbp_3m
+                if not jpy_3m.empty:
+                    foreign_rates['JPY'] = jpy_3m
+                
+                # Sanity check USD (optional)
+                passes, diff_bp = rate_fetcher.sanity_check_usd()
+                if passes:
+                    print(f"  -> USD sanity check passed (diff: {diff_bp:.1f}bp)")
+                elif not np.isnan(diff_bp):
+                    print(f"  -> USD sanity check warning: {diff_bp:.1f}bp difference")
+                    
+            except ImportError as e:
+                print(f"  -> rates_sources not available: {e}, using constant rates")
+            except Exception as e:
+                print(f"  -> Error fetching dynamic rates: {e}, using constant rates")
+            
+            chart2 = get_chart2_data(df_tv, sofr, foreign_rates=foreign_rates)
         else:
             print("  -> Warning: SOFR not available, skipping Chart 2")
     

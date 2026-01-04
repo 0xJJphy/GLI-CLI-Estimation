@@ -1488,6 +1488,11 @@ FRED_CONFIG = {
     # Offshore Liquidity (Eurodollar / Shadow Banking Stress)
     'OBFR': 'OBFR',                         # Overnight Bank Funding Rate (includes offshore)
     'EFFR': 'EFFR',                         # Effective Federal Funds Rate (onshore only)
+    # Index-based compounded rates for XCCY basis calculation
+    'SOFRINDEX': 'SOFR_INDEX',              # SOFR Compounded Index (daily)
+    'SOFR90DAYAVG': 'SOFR_90D_AVG',          # 90-Day Average SOFR (sanity check)
+    'IUDZOS2': 'SONIA_INDEX',               # SONIA Compounded Index (daily)
+    'ECBESTRVOLWGTTRMDRATE': 'ESTR',        # €STR Volume-Weighted Rate (daily, fallback)
 }
 
 # Mapping: Symbol -> Internal Name (TradingView ECONOMICS)
