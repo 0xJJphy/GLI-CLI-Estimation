@@ -41,6 +41,23 @@
                 color: isDark ? "#cbd5e1" : "#1e293b",
             },
         },
+        annotations: [
+            {
+                text: "0xJJphy",
+                xref: "paper",
+                yref: "paper",
+                x: 0.5,
+                y: 0.5,
+                showarrow: false,
+                font: {
+                    size: 60,
+                    color: isDark
+                        ? "rgba(255,255,255,0.04)"
+                        : "rgba(0,0,0,0.03)",
+                },
+                textangle: -30,
+            },
+        ],
     });
 
     onMount(() => {
@@ -94,7 +111,7 @@
     });
 </script>
 
-<div bind:this={chartContainer} class="chart-wrapper"></div>
+<div id={divId} bind:this={chartContainer} class="chart-wrapper"></div>
 
 <style>
     .chart-wrapper {

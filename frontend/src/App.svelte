@@ -1,5 +1,6 @@
 ﻿<script>
   import { onMount } from "svelte";
+  import { slide } from "svelte/transition";
   import {
     fetchData,
     dashboardData,
@@ -25,6 +26,7 @@
   import RegimesTab from "./lib/tabs/RegimesTab.svelte";
   import UsDebtTab from "./lib/tabs/UsDebtTab.svelte";
   import OffshoreLiquidityTab from "./lib/tabs/OffshoreLiquidityTab.svelte";
+  import ChartExplorerTab from "./lib/tabs/ChartExplorerTab.svelte";
 
   // Global Settings Store
   import {
@@ -277,6 +279,23 @@
   const setTab = (tab) => {
     currentTab = tab;
   };
+
+  // Sidebar Hierarchical State
+  let sidebarVisible = true;
+  let expandedCategories = new Set(["Macro", "Liquidity"]); // Default expanded
+
+  function toggleSidebar() {
+    sidebarVisible = !sidebarVisible;
+  }
+
+  function toggleCategory(category) {
+    if (expandedCategories.has(category)) {
+      expandedCategories.delete(category);
+    } else {
+      expandedCategories.add(category);
+    }
+    expandedCategories = expandedCategories; // Trigger reactivity
+  }
 
   $: activeBtcModel = $dashboardData.btc?.models?.[selectedBtcModel] || {
     fair_value: [],
@@ -2308,7 +2327,7 @@
 </svelte:head>
 
 <div class="app-container">
-  <aside class="sidebar">
+  <aside class="sidebar" class:hidden={!sidebarVisible}>
     <svg style="position: absolute; width: 0; height: 0;" aria-hidden="true">
       <filter id="remove-white">
         <feColorMatrix
@@ -2332,6 +2351,7 @@
     </div>
 
     <nav>
+      <!-- DASHBOARD - TOP LEVEL -->
       <div
         class="nav-item"
         class:active={currentTab === "Dashboard"}
@@ -2343,115 +2363,221 @@
         <span class="nav-icon">📊</span>
         {$currentTranslations.nav_dashboard}
       </div>
-      <div
-        class="nav-item"
-        class:active={currentTab === "Global Flows CB"}
-        on:click={() => setTab("Global Flows CB")}
-        on:keydown={(e) => e.key === "Enter" && setTab("Global Flows CB")}
-        role="button"
-        tabindex="0"
-      >
-        <span class="nav-icon">🌍</span>
-        {$currentTranslations.nav_gli}
+
+      <!-- MACRO - PARENT -->
+      <div class="nav-category">
+        <div
+          class="category-header"
+          on:click={() => toggleCategory("Macro")}
+          on:keydown={(e) => e.key === "Enter" && toggleCategory("Macro")}
+          role="button"
+          tabindex="0"
+        >
+          <span class="nav-icon">📊</span>
+          <span class="category-title">{$currentTranslations.nav_macro}</span>
+          <span class="chevron" class:expanded={expandedCategories.has("Macro")}
+            >▼</span
+          >
+        </div>
+
+        {#if expandedCategories.has("Macro")}
+          <div class="category-content" transition:slide>
+            <!-- LIQUIDITY - SUB-PARENT -->
+            <div class="nav-subcategory">
+              <div
+                class="subcategory-header"
+                on:click={() => toggleCategory("Liquidity")}
+                on:keydown={(e) =>
+                  e.key === "Enter" && toggleCategory("Liquidity")}
+                role="button"
+                tabindex="0"
+              >
+                <span class="nav-icon">💧</span>
+                <span class="subcategory-title"
+                  >{$currentTranslations.nav_liquidity}</span
+                >
+                <span
+                  class="chevron"
+                  class:expanded={expandedCategories.has("Liquidity")}>▼</span
+                >
+              </div>
+
+              {#if expandedCategories.has("Liquidity")}
+                <div class="subcategory-content" transition:slide>
+                  <div
+                    class="nav-item sub"
+                    class:active={currentTab === "Global Flows CB"}
+                    on:click={() => setTab("Global Flows CB")}
+                    on:keydown={(e) =>
+                      e.key === "Enter" && setTab("Global Flows CB")}
+                    role="button"
+                    tabindex="0"
+                  >
+                    {$currentTranslations.nav_global_flows}
+                  </div>
+                  <div
+                    class="nav-item sub"
+                    class:active={currentTab === "Global M2"}
+                    on:click={() => setTab("Global M2")}
+                    on:keydown={(e) => e.key === "Enter" && setTab("Global M2")}
+                    role="button"
+                    tabindex="0"
+                  >
+                    {$currentTranslations.nav_global_m2}
+                  </div>
+                  <div
+                    class="nav-item sub"
+                    class:active={currentTab === "US System"}
+                    on:click={() => setTab("US System")}
+                    on:keydown={(e) => e.key === "Enter" && setTab("US System")}
+                    role="button"
+                    tabindex="0"
+                  >
+                    {$currentTranslations.nav_us_system}
+                  </div>
+                  <div
+                    class="nav-item sub"
+                    class:active={currentTab === "Offshore Liquidity"}
+                    on:click={() => setTab("Offshore Liquidity")}
+                    on:keydown={(e) =>
+                      e.key === "Enter" && setTab("Offshore Liquidity")}
+                    role="button"
+                    tabindex="0"
+                  >
+                    {$currentTranslations.nav_offshore}
+                  </div>
+                </div>
+              {/if}
+            </div>
+
+            <!-- OTHER MACRO ITEMS -->
+            <div
+              class="nav-item sub-parent"
+              class:active={currentTab === "US Debt"}
+              on:click={() => setTab("US Debt")}
+              on:keydown={(e) => e.key === "Enter" && setTab("US Debt")}
+              role="button"
+              tabindex="0"
+            >
+              <span class="nav-icon">💵</span>
+              {$currentTranslations.nav_us_debt}
+            </div>
+            <div
+              class="nav-item sub-parent"
+              class:active={currentTab === "Risk Model"}
+              on:click={() => setTab("Risk Model")}
+              on:keydown={(e) => e.key === "Enter" && setTab("Risk Model")}
+              role="button"
+              tabindex="0"
+            >
+              <span class="nav-icon">⚠️</span>
+              {$currentTranslations.nav_risk_model}
+            </div>
+            <div
+              class="nav-item sub-parent"
+              class:active={currentTab === "Fed Forecasts"}
+              on:click={() => setTab("Fed Forecasts")}
+              on:keydown={(e) => e.key === "Enter" && setTab("Fed Forecasts")}
+              role="button"
+              tabindex="0"
+            >
+              <span class="nav-icon">🏦</span>
+              {$currentTranslations.nav_fed_forecast}
+            </div>
+
+            <!-- CHARTING - SUB-PARENT -->
+            <div class="nav-subcategory">
+              <div
+                class="subcategory-header"
+                on:click={() => toggleCategory("Charting")}
+                on:keydown={(e) =>
+                  e.key === "Enter" && toggleCategory("Charting")}
+                role="button"
+                tabindex="0"
+              >
+                <span class="nav-icon">📉</span>
+                <span class="subcategory-title"
+                  >{$currentTranslations.nav_charting}</span
+                >
+                <span
+                  class="chevron"
+                  class:expanded={expandedCategories.has("Charting")}>▼</span
+                >
+              </div>
+
+              {#if expandedCategories.has("Charting")}
+                <div class="subcategory-content" transition:slide>
+                  <div
+                    class="nav-item sub"
+                    class:active={currentTab === "Chart Explorer"}
+                    on:click={() => setTab("Chart Explorer")}
+                    on:keydown={(e) =>
+                      e.key === "Enter" && setTab("Chart Explorer")}
+                    role="button"
+                    tabindex="0"
+                  >
+                    {$currentTranslations.nav_chart}
+                  </div>
+                  <div
+                    class="nav-item sub"
+                    class:active={currentTab === "Regimes"}
+                    on:click={() => setTab("Regimes")}
+                    on:keydown={(e) => e.key === "Enter" && setTab("Regimes")}
+                    role="button"
+                    tabindex="0"
+                  >
+                    {$currentTranslations.nav_regimes}
+                  </div>
+                </div>
+              {/if}
+            </div>
+          </div>
+        {/if}
       </div>
-      <div
-        class="nav-item"
-        class:active={currentTab === "Global M2"}
-        on:click={() => setTab("Global M2")}
-        on:keydown={(e) => e.key === "Enter" && setTab("Global M2")}
-        role="button"
-        tabindex="0"
-      >
-        <span class="nav-icon">💰</span>
-        {$currentTranslations.nav_m2}
-      </div>
-      <div
-        class="nav-item"
-        class:active={currentTab === "US System"}
-        on:click={() => setTab("US System")}
-        on:keydown={(e) => e.key === "Enter" && setTab("US System")}
-        role="button"
-        tabindex="0"
-      >
-        <span class="nav-icon">🇺🇸</span>
-        {$currentTranslations.nav_us_system}
-      </div>
-      <div
-        class="nav-item"
-        class:active={currentTab === "US Debt"}
-        on:click={() => setTab("US Debt")}
-        on:keydown={(e) => e.key === "Enter" && setTab("US Debt")}
-        role="button"
-        tabindex="0"
-      >
-        <span class="nav-icon">💵</span>
-        {$currentTranslations.us_debt_tab || "US Debt"}
-      </div>
-      <div
-        class="nav-item"
-        class:active={currentTab === "Risk Model"}
-        on:click={() => setTab("Risk Model")}
-        on:keydown={(e) => e.key === "Enter" && setTab("Risk Model")}
-        role="button"
-        tabindex="0"
-      >
-        <span class="nav-icon">⚠️</span>
-        {$currentTranslations.nav_risk_model}
-      </div>
-      <div
-        class="nav-item"
-        class:active={currentTab === "BTC Analysis"}
-        on:click={() => setTab("BTC Analysis")}
-        on:keydown={(e) => e.key === "Enter" && setTab("BTC Analysis")}
-        role="button"
-        tabindex="0"
-      >
-        <span class="nav-icon">₿</span>
-        {$currentTranslations.nav_btc_analysis}
-      </div>
-      <div
-        class="nav-item"
-        class:active={currentTab === "BTC Quant v2"}
-        on:click={() => setTab("BTC Quant v2")}
-        on:keydown={(e) => e.key === "Enter" && setTab("BTC Quant v2")}
-        role="button"
-        tabindex="0"
-      >
-        <span class="nav-icon">🧪</span>
-        {$currentTranslations.nav_btc_quant}
-      </div>
-      <div
-        class="nav-item"
-        class:active={currentTab === "Fed Forecasts"}
-        on:click={() => setTab("Fed Forecasts")}
-        on:keydown={(e) => e.key === "Enter" && setTab("Fed Forecasts")}
-        role="button"
-        tabindex="0"
-      >
-        <span class="nav-icon">🏦</span>
-        {$currentTranslations.nav_fed_forecasts || "Fed Forecasts"}
-      </div>
-      <div
-        class="nav-item"
-        class:active={currentTab === "Regimes"}
-        on:click={() => setTab("Regimes")}
-        on:keydown={(e) => e.key === "Enter" && setTab("Regimes")}
-        role="button"
-        tabindex="0"
-      >
-        <span class="nav-icon">📊</span>
-        {$currentTranslations.nav_regimes || "Regimes"}
-      </div>
-      <div
-        class="nav-item"
-        class:active={currentTab === "Offshore Liquidity"}
-        on:click={() => setTab("Offshore Liquidity")}
-        on:keydown={(e) => e.key === "Enter" && setTab("Offshore Liquidity")}
-        role="button"
-        tabindex="0"
-      >
-        <span class="nav-icon">🌊</span>
-        {$currentTranslations.offshore_tab || "Offshore Liquidity"}
+
+      <!-- BTC MODELS - PARENT -->
+      <div class="nav-category">
+        <div
+          class="category-header"
+          on:click={() => toggleCategory("BTC Models")}
+          on:keydown={(e) => e.key === "Enter" && toggleCategory("BTC Models")}
+          role="button"
+          tabindex="0"
+        >
+          <span class="nav-icon">₿</span>
+          <span class="category-title"
+            >{$currentTranslations.nav_btc_models}</span
+          >
+          <span
+            class="chevron"
+            class:expanded={expandedCategories.has("BTC Models")}>▼</span
+          >
+        </div>
+
+        {#if expandedCategories.has("BTC Models")}
+          <div class="category-content" transition:slide>
+            <div
+              class="nav-item sub"
+              class:active={currentTab === "BTC Quant v2"}
+              on:click={() => setTab("BTC Quant v2")}
+              on:keydown={(e) => e.key === "Enter" && setTab("BTC Quant v2")}
+              role="button"
+              tabindex="0"
+            >
+              {$currentTranslations.nav_btc_quant}
+            </div>
+            <div
+              class="nav-item sub"
+              class:active={currentTab === "BTC Analysis"}
+              on:click={() => setTab("BTC Analysis")}
+              on:keydown={(e) => e.key === "Enter" && setTab("BTC Analysis")}
+              role="button"
+              tabindex="0"
+            >
+              {$currentTranslations.nav_btc_analysis}
+            </div>
+          </div>
+        {/if}
       </div>
     </nav>
 
@@ -2461,12 +2587,35 @@
   <main class="content">
     <header>
       <div class="content-header">
-        <h1>
-          {currentTab}
-          {$currentTranslations.nav_dashboard === "Dashboard"
-            ? "Overview"
-            : "Resumen"}
-        </h1>
+        <div class="header-main-title">
+          <button
+            class="sidebar-toggle-btn"
+            on:click={toggleSidebar}
+            title={sidebarVisible ? "Hide Sidebar" : "Show Sidebar"}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              class:rotated={!sidebarVisible}
+            >
+              <path
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                fill="none"
+                d="M15 18l-6-6 6-6"
+              />
+            </svg>
+          </button>
+          <h1>
+            {currentTab}
+            {$currentTranslations.nav_dashboard === "Dashboard"
+              ? "Overview"
+              : "Resumen"}
+          </h1>
+        </div>
         <p>
           {$currentTranslations.header_desc}
         </p>
@@ -2586,6 +2735,12 @@
           translations={$currentTranslations}
           dashboardData={$dashboardData}
         />
+      {:else if currentTab === "Chart Explorer"}
+        <ChartExplorerTab
+          darkMode={$darkMode}
+          translations={$currentTranslations}
+          dashboardData={$dashboardData}
+        />
       {/if}
     </div>
   </main>
@@ -2693,9 +2848,14 @@
     flex-direction: column;
     padding: 40px 24px;
     flex-shrink: 0;
-    transition:
-      background-color 0.3s ease,
-      border-color 0.3s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 100;
+  }
+
+  .sidebar.hidden {
+    margin-left: -280px;
+    opacity: 0;
+    pointer-events: none;
   }
 
   .brand {
@@ -2752,9 +2912,9 @@
   }
 
   .nav-item {
-    padding: 12px 16px;
-    border-radius: 12px;
-    font-size: 0.9375rem;
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-size: 0.9rem;
     color: var(--text-muted);
     cursor: pointer;
     transition: all 0.2s;
@@ -2764,8 +2924,89 @@
     font-weight: 500;
   }
 
+  .nav-item.sub {
+    padding-left: 44px;
+    font-size: 0.85rem;
+    position: relative;
+  }
+
+  .nav-item.sub::before {
+    content: "";
+    position: absolute;
+    left: 24px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    opacity: 0.3;
+  }
+
+  .nav-item.sub.active::before {
+    background: var(--accent-primary);
+    opacity: 1;
+  }
+
+  .nav-item.sub-parent {
+    padding-left: 28px;
+  }
+
   .nav-icon {
     font-size: 1.125rem;
+  }
+
+  .nav-category,
+  .nav-subcategory {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .category-header,
+  .subcategory-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 0.9375rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+  }
+
+  .subcategory-header {
+    padding: 10px 16px 10px 28px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-muted);
+  }
+
+  .category-header:hover,
+  .subcategory-header:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+  }
+
+  .chevron {
+    margin-left: auto;
+    font-size: 0.65rem;
+    transition: transform 0.2s ease;
+    opacity: 0.5;
+  }
+
+  .chevron.expanded {
+    transform: rotate(180deg);
+  }
+
+  .category-content,
+  .subcategory-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow: hidden;
   }
 
   .nav-item:hover {
@@ -2779,6 +3020,43 @@
     font-weight: 600;
   }
 
+  /* Sidebar Toggle Button */
+  .header-main-title {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .sidebar-toggle-btn {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: var(--card-shadow);
+  }
+
+  .sidebar-toggle-btn svg {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .sidebar-toggle-btn svg.rotated {
+    transform: rotate(180deg);
+  }
+
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 40px;
+    background: var(--bg-primary);
+    transition: padding 0.3s ease;
+  }
   .sidebar-footer {
     margin-top: auto;
     padding: 0 8px;
@@ -2818,14 +3096,6 @@
       transform: scale(0.95);
       box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
     }
-  }
-
-  .content {
-    flex: 1;
-    padding: 24px;
-    overflow-y: auto;
-    background: var(--bg-primary);
-    transition: background-color 0.3s ease;
   }
 
   header {

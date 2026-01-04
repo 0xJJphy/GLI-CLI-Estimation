@@ -541,7 +541,7 @@
 <style>
     .us-debt-tab {
         padding: 20px;
-        color: #f1f5f9;
+        color: var(--text-primary);
     }
 
     /* Header */
@@ -551,7 +551,7 @@
         align-items: center;
         margin-bottom: 24px;
         padding-bottom: 16px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        border-bottom: 1px solid var(--border-color);
     }
 
     .header-left {
@@ -568,11 +568,15 @@
         font-size: 24px;
         font-weight: 700;
         margin: 0;
-        color: #f8fafc;
+        color: var(--text-primary);
     }
 
     .demo-badge {
-        background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+        background: linear-gradient(
+            135deg,
+            var(--accent-secondary),
+            var(--accent-primary)
+        );
         color: white;
         padding: 4px 12px;
         border-radius: 20px;
@@ -589,15 +593,15 @@
 
     .source-link {
         font-size: 12px;
-        color: #94a3b8;
-        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-muted);
+        background: var(--bg-tertiary);
         padding: 6px 12px;
         border-radius: 6px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid var(--border-color);
     }
 
     .source-link a {
-        color: #22d3ee;
+        color: var(--accent-secondary);
         text-decoration: none;
     }
 
@@ -614,13 +618,14 @@
     }
 
     .metric-card {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
         border-radius: 12px;
         padding: 16px;
         display: flex;
         flex-direction: column;
         gap: 4px;
+        box-shadow: var(--card-shadow);
     }
 
     .metric-label {
@@ -628,7 +633,7 @@
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        color: #64748b;
+        color: var(--text-muted);
     }
 
     .metric-value {
@@ -637,10 +642,10 @@
     }
 
     .metric-value.cyan {
-        color: #22d3ee;
+        color: var(--accent-secondary);
     }
     .metric-value.green {
-        color: #4ade80;
+        color: var(--positive-color);
     }
     .metric-value.blue {
         color: #3b82f6;
@@ -652,21 +657,22 @@
         color: #fb923c;
     }
     .metric-value.white {
-        color: #f8fafc;
+        color: var(--text-primary);
     }
 
     .metric-sub {
         font-size: 11px;
-        color: #64748b;
+        color: var(--text-muted);
     }
 
     /* Chart Card */
     .chart-card {
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
         border-radius: 12px;
         padding: 20px;
         margin-bottom: 24px;
+        box-shadow: var(--card-shadow);
     }
 
     .chart-header {
@@ -680,7 +686,7 @@
         font-size: 16px;
         font-weight: 600;
         margin: 0;
-        color: #f8fafc;
+        color: var(--text-primary);
     }
 
     .chart-controls {
@@ -691,7 +697,7 @@
     .view-toggle {
         display: flex;
         gap: 4px;
-        background: rgba(0, 0, 0, 0.3);
+        background: var(--bg-tertiary);
         border-radius: 8px;
         padding: 4px;
     }
@@ -699,7 +705,7 @@
     .view-toggle button {
         background: transparent;
         border: none;
-        color: #94a3b8;
+        color: var(--text-muted);
         padding: 6px 16px;
         border-radius: 6px;
         font-size: 12px;
@@ -709,11 +715,11 @@
     }
 
     .view-toggle button:hover {
-        color: #f8fafc;
+        color: var(--text-primary);
     }
 
     .view-toggle button.active {
-        background: #3b82f6;
+        background: var(--accent-primary);
         color: white;
     }
 
@@ -727,7 +733,7 @@
         align-items: center;
         justify-content: center;
         height: 100%;
-        color: #64748b;
+        color: var(--text-muted);
         gap: 12px;
     }
 
@@ -738,10 +744,11 @@
 
     /* Table Card */
     .table-card {
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
         border-radius: 12px;
         padding: 20px;
+        box-shadow: var(--card-shadow);
     }
 
     .table-header {
@@ -755,13 +762,13 @@
         font-size: 16px;
         font-weight: 600;
         margin: 0;
-        color: #f8fafc;
+        color: var(--text-primary);
     }
 
     .table-updated {
         font-size: 11px;
-        color: #64748b;
-        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-muted);
+        background: var(--bg-tertiary);
         padding: 4px 10px;
         border-radius: 6px;
     }
@@ -788,22 +795,22 @@
     thead th {
         text-align: left;
         padding: 12px 16px;
-        background: rgba(0, 0, 0, 0.2);
-        color: #94a3b8;
+        background: var(--bg-tertiary);
+        color: var(--text-muted);
         font-weight: 600;
         text-transform: uppercase;
         font-size: 10px;
         letter-spacing: 0.5px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        border-bottom: 1px solid var(--border-color);
     }
 
     tbody td {
         padding: 12px 16px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        border-bottom: 1px solid var(--border-color);
     }
 
     .month-cell {
-        color: #f8fafc;
+        color: var(--text-primary);
         font-weight: 500;
     }
 
@@ -813,7 +820,7 @@
     }
 
     .value-cell.green {
-        color: #4ade80;
+        color: var(--positive-color);
     }
     .value-cell.blue {
         color: #3b82f6;
@@ -822,32 +829,18 @@
         color: #8b5cf6;
     }
     .value-cell.total {
-        color: #22d3ee;
+        color: var(--accent-secondary);
         font-weight: 700;
     }
 
     tbody tr:hover {
-        background: rgba(255, 255, 255, 0.02);
+        background: var(--bg-tertiary);
+        opacity: 0.8;
     }
 
     .no-data {
         text-align: center;
-        color: #64748b;
+        color: var(--text-muted);
         padding: 32px !important;
-    }
-
-    /* Dark mode adjustments */
-    .us-debt-tab:not(.dark) {
-        color: #1e293b;
-    }
-
-    .us-debt-tab:not(.dark) .header-title,
-    .us-debt-tab:not(.dark) .chart-title,
-    .us-debt-tab:not(.dark) .table-title {
-        color: #1e293b;
-    }
-
-    .us-debt-tab:not(.dark) .metric-value.white {
-        color: #1e293b;
     }
 </style>

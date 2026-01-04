@@ -3465,7 +3465,7 @@ def run_pipeline():
                   'RUBUSD', 'BRLUSD', 'KRWUSD', 'NZDUSD', 'SEKUSD', 'MYRUSD', 'MXNUSD', 'IDRUSD', 'ZARUSD']
         fx_cols = [c for c in all_fx if c in df_tv_t.columns]
         for c in fx_cols:
-            df_tv_t[c] = df_tv_t[c].ffill().bfill()
+            df_tv_t[c] = df_tv_t[c].ffill()
         
         # Everything else only ffills (forward in time)
         other_cols = [c for c in df_tv_t.columns if c not in fx_cols]

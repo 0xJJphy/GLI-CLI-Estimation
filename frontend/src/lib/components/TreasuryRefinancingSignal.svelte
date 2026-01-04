@@ -126,7 +126,9 @@
                 <path
                     d="M 20 100 A 80 80 0 0 1 180 100"
                     fill="none"
-                    stroke="rgba(255,255,255,0.1)"
+                    stroke={darkMode
+                        ? "rgba(255,255,255,0.1)"
+                        : "rgba(0,0,0,0.05)"}
                     stroke-width="12"
                     stroke-linecap="round"
                 />
@@ -312,15 +314,12 @@
 
 <style>
     .signal-container {
-        background: linear-gradient(
-            135deg,
-            rgba(15, 23, 42, 0.95),
-            rgba(30, 41, 59, 0.9)
-        );
+        background: var(--bg-secondary);
         border-radius: 16px;
         padding: 24px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid var(--border-color);
         margin-bottom: 24px;
+        box-shadow: var(--card-shadow);
     }
 
     .signal-header {
@@ -343,7 +342,7 @@
     .header-title {
         font-size: 20px;
         font-weight: 700;
-        color: #f8fafc;
+        color: var(--text-primary);
         margin: 0;
     }
 
@@ -363,7 +362,7 @@
         gap: 32px;
         margin-bottom: 24px;
         padding: 20px;
-        background: rgba(255, 255, 255, 0.03);
+        background: var(--bg-tertiary);
         border-radius: 12px;
     }
 
@@ -381,7 +380,7 @@
         display: flex;
         justify-content: space-between;
         font-size: 10px;
-        color: #64748b;
+        color: var(--text-muted);
         margin-top: -10px;
         padding: 0 10px;
     }
@@ -417,13 +416,13 @@
     .signal-text {
         font-size: 13px;
         font-weight: 600;
-        color: #f8fafc;
+        color: var(--text-primary);
         text-transform: capitalize;
     }
 
     .regime-description {
         font-size: 14px;
-        color: #94a3b8;
+        color: var(--text-secondary);
         margin-top: 12px;
         line-height: 1.5;
     }
@@ -432,7 +431,7 @@
     .section-title {
         font-size: 14px;
         font-weight: 600;
-        color: #94a3b8;
+        color: var(--text-muted);
         text-transform: uppercase;
         letter-spacing: 0.5px;
         margin-bottom: 16px;
@@ -441,7 +440,7 @@
     .subsection-title {
         font-size: 13px;
         font-weight: 600;
-        color: #cbd5e1;
+        color: var(--text-secondary);
         margin: 16px 0 12px 0;
     }
 
@@ -457,8 +456,8 @@
     }
 
     .component-card {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-color);
         border-radius: 12px;
         padding: 16px;
     }
@@ -473,7 +472,7 @@
     .component-name {
         font-size: 13px;
         font-weight: 600;
-        color: #f8fafc;
+        color: var(--text-primary);
         display: flex;
         align-items: center;
         gap: 6px;
@@ -485,8 +484,8 @@
 
     .component-weight {
         font-size: 11px;
-        color: #64748b;
-        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-muted);
+        background: var(--bg-secondary);
         padding: 2px 8px;
         border-radius: 12px;
     }
@@ -505,12 +504,12 @@
 
     .weighted-score {
         font-size: 12px;
-        color: #64748b;
+        color: var(--text-muted);
     }
 
     .component-description {
         font-size: 12px;
-        color: #94a3b8;
+        color: var(--text-secondary);
         line-height: 1.4;
         margin: 0;
     }
@@ -541,7 +540,7 @@
         display: flex;
         flex-direction: column;
         gap: 4px;
-        background: rgba(255, 255, 255, 0.03);
+        background: var(--bg-tertiary);
         border-radius: 8px;
         padding: 12px;
     }
@@ -549,13 +548,13 @@
     .implication-key {
         font-size: 11px;
         font-weight: 600;
-        color: #64748b;
+        color: var(--text-muted);
         text-transform: uppercase;
     }
 
     .implication-value {
         font-size: 12px;
-        color: #f8fafc;
+        color: var(--text-primary);
         line-height: 1.4;
     }
 

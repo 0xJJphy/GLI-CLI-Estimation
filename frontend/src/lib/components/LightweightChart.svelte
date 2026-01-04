@@ -14,6 +14,46 @@
         darkMode = false,
     } = $props();
 
+    /**
+     * Resets both Left and Right price scales to auto-scale mode.
+     */
+    export const resetScales = () => {
+        if (!api.chart) return;
+        api.chart.priceScale("left").applyOptions({ autoScale: true });
+        api.chart.priceScale("right").applyOptions({ autoScale: true });
+        api.chart.timeScale().fitContent();
+    };
+
+    /**
+     * Downloads the chart as a PNG image.
+     */
+    export const downloadChart = () => {
+        if (!api.chart) return;
+        const canvas = api.chart.takeScreenshot();
+        const dataURL = canvas.toDataURL("image/png");
+        const link = document.createElement("a");
+        link.download = `${title || "chart"}.png`;
+        link.href = dataURL;
+        link.click();
+    };
+
+    /**
+     * Toggles fullscreen mode for the chart container.
+     */
+    export const toggleFullscreen = () => {
+        if (!container) return;
+        const wrapper = container.parentElement;
+        if (!document.fullscreenElement) {
+            wrapper.requestFullscreen().catch((err) => {
+                console.error(
+                    `Error attempting to enable fullscreen: ${err.message}`,
+                );
+            });
+        } else {
+            document.exitFullscreen();
+        }
+    };
+
     let container;
     let currentData;
     let currentLogScale;
@@ -71,6 +111,17 @@
                 borderColor: colors.border,
                 mode: logScale ? 1 : 0,
                 autoScale: true,
+                visible: true,
+                scaleMargins: {
+                    top: 0.1,
+                    bottom: 0.1,
+                },
+            },
+            leftPriceScale: {
+                borderColor: colors.border,
+                mode: logScale ? 1 : 0,
+                autoScale: true,
+                visible: true,
                 scaleMargins: {
                     top: 0.1,
                     bottom: 0.1,
@@ -82,6 +133,28 @@
                 secondsVisible: false,
                 rightOffset: 10,
                 barSpacing: 6,
+                shiftVisibleRangeOnNewBar: true,
+            },
+            handleScale: {
+                mouseWheel: true,
+                pinch: true,
+                axisPressedMouseMove: {
+                    time: true,
+                    price: true,
+                },
+            },
+            handleScroll: {
+                mouseWheel: true,
+                horzTouchDrag: true,
+                vertTouchDrag: true,
+            },
+            watermark: {
+                visible: true,
+                fontSize: 48,
+                horzAlign: "center",
+                vertAlign: "center",
+                color: colors.text + "10", // Very low opacity (approx 6%)
+                text: "0xJJphy",
             },
         });
 
@@ -97,7 +170,6 @@
                     width: container.clientWidth,
                     height: container.clientHeight,
                 });
-                api.chart.timeScale().fitContent();
             }
         };
 
@@ -120,52 +192,79 @@
     function updateSeries() {
         if (!api.chart) return;
 
-        api.seriesMap.forEach((s) => api.chart.removeSeries(s));
-        api.seriesMap.clear();
+        const newDataMap = new Map();
+        data.forEach((s) => newDataMap.set(s.name, s));
 
-        if (!data || data.length === 0) return;
+        // 1. Remove series that are no longer in the data prop
+        api.seriesMap.forEach((seriesInstance, name) => {
+            if (!newDataMap.has(name)) {
+                api.chart.removeSeries(seriesInstance);
+                api.seriesMap.delete(name);
+            }
+        });
 
+        // 2. Add or Update series
         data.forEach((sConfig) => {
             if (!sConfig.data || sConfig.data.length === 0) return;
 
             try {
-                let series;
-                let seriesType;
-                switch (sConfig.type) {
-                    case "area":
-                        seriesType = AreaSeries;
-                        break;
-                    case "histogram":
-                        seriesType = HistogramSeries;
-                        break;
-                    default:
-                        seriesType = LineSeries;
-                }
+                let series = api.seriesMap.get(sConfig.name);
 
-                const options = {
+                const seriesOptions = {
                     color: sConfig.color,
                     lineWidth: sConfig.width || 2,
                     priceLineVisible: false,
                     lastValueVisible: true,
                     title: sConfig.name,
+                    priceScaleId: sConfig.priceScaleId || "right",
                     ...sConfig.options,
                 };
 
                 if (sConfig.type === "area") {
-                    options.lineColor = sConfig.color;
-                    options.topColor = sConfig.topColor || sConfig.color;
-                    options.bottomColor = sConfig.bottomColor || "transparent";
+                    seriesOptions.lineColor = sConfig.color;
+                    seriesOptions.topColor = sConfig.topColor || sConfig.color;
+                    seriesOptions.bottomColor =
+                        sConfig.bottomColor || "transparent";
                 }
 
-                series = api.chart.addSeries(seriesType, options);
+                if (!series) {
+                    // Create new series
+                    let seriesType;
+                    switch (sConfig.type) {
+                        case "area":
+                            seriesType = AreaSeries;
+                            break;
+                        case "histogram":
+                            seriesType = HistogramSeries;
+                            break;
+                        default:
+                            seriesType = LineSeries;
+                    }
+                    series = api.chart.addSeries(seriesType, seriesOptions);
+                    api.seriesMap.set(sConfig.name, series);
+                } else {
+                    // Update existing series options
+                    series.applyOptions(seriesOptions);
+                }
+
                 series.setData(sConfig.data);
-                api.seriesMap.set(sConfig.name, series);
             } catch (e) {
-                console.error(`Failed to add series ${sConfig.name}:`, e);
+                console.error(
+                    `Failed to add/update series ${sConfig.name}:`,
+                    e,
+                );
             }
         });
 
-        api.chart.timeScale().fitContent();
+        // Only fitContent if it's the very first time we have data,
+        // or if explicitly requested by a flag (not implemented yet).
+        if (
+            api.seriesMap.size > 0 &&
+            Array.from(api.seriesMap.values())[0].data().length > 0
+        ) {
+            // We could optionally fitContent here if we detect it's the "first" load
+            // But for now, let's just let it be.
+        }
     }
 
     function updateTheme() {
@@ -195,8 +294,14 @@
             rightPriceScale: {
                 borderColor: colors.border,
             },
+            leftPriceScale: {
+                borderColor: colors.border,
+            },
             timeScale: {
                 borderColor: colors.border,
+            },
+            watermark: {
+                color: colors.text + "10",
             },
         });
     }

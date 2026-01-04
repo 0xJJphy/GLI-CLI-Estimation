@@ -77,10 +77,12 @@ Built with **Svelte + Vite** frontend and **Python** data pipeline, featuring FR
   - **Structured UI**: Modern grid layout with status badges and condition-based styling.
 
 ### UI/UX
-- **Bilingual Support**: English and Spanish with persistent language selection
-- **Premium Dark Mode**: High-contrast, accessibility-aware theme
-- **Responsive Design**: Optimized for standard desktops without horizontal scrolling
-- **Signal-Integrated Styling**: Dynamic color-coding for bullish/bearish indicators
+- **Hierarchical Sidebar (NEW)**: Reorganized navigation into logical categories (Macro, Charting, BTC) with smooth `slide` animations.
+- **Sidebar Toggle**: Collapse/Expand the main menu to maximize chart workspace.
+- **TradingView Integration**: Advanced Chart Explorer with dual-axis TradingView Lightweight Charts.
+- **Bilingual Support**: English and Spanish with persistent language selection.
+- **Adaptive Themes**: 100% legibility in both Dark and Light modes across all components.
+- **Brand Identity**: Subtle "0xJJphy" watermarks integrated into all professional chart layouts.
 
 ---
 
@@ -319,7 +321,19 @@ The data pipeline runs in sequence:
 
 ---
 
-## 📈 Recent Updates (January 2026)
+### Hierarchical Navigation & UX
+- **Dynamic Sidebar**: Implemented category-based organization for better discoverability.
+- **Space Optimization**: Added a global sidebar toggle to maximize chart area visibility.
+- **Smooth Transitions**: Professional slide and fade animations for all UI interactions.
+
+### Professional Charting
+- **Lightweight Charts Migration**: Replaced Plotly in Chart Explorer with TradingView's library for better interactivity.
+- **Dual Y-Axis Logic**: Independent scaling for multiple indicators on the same time-series view.
+- **Pro-Feature Bar**: Download PNG, Fullscreen toggle, and View Reset integrated directly into chart containers.
+
+### Universal Theme Sync
+- **Light Mode Refinement**: Critical contrast fixes for US Debt and Auction demand metrics.
+- **Watermark System**: Low-opacity "0xJJphy" branding across both Plotly and TradingView implementations.
 
 ### Fed Rate Corridor Enhancement
 - Added **SRFTSYD** (SRF Rate), **RRPONTSYAWARD** (RRP Award), **RPONTSYD** (SRF Usage) FRED series

@@ -212,9 +212,10 @@
 <style>
     .auction-demand {
         padding: 24px;
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
         border-radius: 16px;
+        box-shadow: var(--card-shadow);
     }
 
     .section-header {
@@ -231,7 +232,7 @@
     .section-header h3 {
         font-size: 18px;
         font-weight: 600;
-        color: #f8fafc;
+        color: var(--text-primary);
         margin: 0;
         flex: 1;
     }
@@ -250,7 +251,7 @@
         display: flex;
         gap: 24px;
         padding: 20px;
-        background: rgba(0, 0, 0, 0.2);
+        background: var(--bg-tertiary);
         border-radius: 12px;
         margin-bottom: 20px;
     }
@@ -270,7 +271,7 @@
 
     .score-label {
         font-size: 11px;
-        color: #64748b;
+        color: var(--text-muted);
         text-transform: uppercase;
         margin-top: 8px;
     }
@@ -283,7 +284,7 @@
 
     .score-description p {
         margin: 0;
-        color: #94a3b8;
+        color: var(--text-secondary);
         font-size: 14px;
         line-height: 1.5;
     }
@@ -296,8 +297,8 @@
     }
 
     .type-card {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.06);
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-color);
         border-radius: 10px;
         padding: 14px;
     }
@@ -310,7 +311,7 @@
     }
 
     .type-name {
-        color: #f8fafc;
+        color: var(--text-primary);
         font-weight: 600;
         font-size: 13px;
     }
@@ -333,25 +334,19 @@
     }
 
     .metric-label {
-        color: #64748b;
+        color: var(--text-muted);
     }
 
     .metric-value {
-        color: #f8fafc;
+        color: var(--text-primary);
         font-weight: 500;
-    }
-
-    .type-metrics {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
     }
 
     /* Methodology Section */
     .methodology-section {
         margin-top: 16px;
         padding-top: 16px;
-        border-top: 1px solid rgba(255, 255, 255, 0.06);
+        border-top: 1px solid var(--border-color);
     }
 
     .methodology-toggle {
@@ -360,7 +355,7 @@
         gap: 8px;
         background: transparent;
         border: none;
-        color: #64748b;
+        color: var(--text-muted);
         font-size: 13px;
         font-weight: 500;
         cursor: pointer;
@@ -371,8 +366,8 @@
     }
 
     .methodology-toggle:hover {
-        color: #f8fafc;
-        background: rgba(255, 255, 255, 0.04);
+        color: var(--text-primary);
+        background: var(--bg-tertiary);
     }
 
     .toggle-icon {
@@ -384,7 +379,7 @@
         flex-direction: column;
         gap: 16px;
         padding: 16px;
-        background: rgba(0, 0, 0, 0.2);
+        background: var(--bg-tertiary);
         border-radius: 12px;
         animation: slideDown 0.3s ease-out;
     }
@@ -393,7 +388,7 @@
         margin: 0 0 6px 0;
         font-size: 12px;
         font-weight: 600;
-        color: #94a3b8;
+        color: var(--text-muted);
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
@@ -401,7 +396,7 @@
     .methodology-item p {
         margin: 0;
         font-size: 13px;
-        color: #cbd5e1;
+        color: var(--text-secondary);
         line-height: 1.5;
     }
 
@@ -414,11 +409,5 @@
             opacity: 1;
             transform: translateY(0);
         }
-    }
-
-    /* Dark mode already default, light mode adjustments */
-    .auction-demand:not(.dark) {
-        background: rgba(0, 0, 0, 0.02);
-        border-color: rgba(0, 0, 0, 0.08);
     }
 </style>
