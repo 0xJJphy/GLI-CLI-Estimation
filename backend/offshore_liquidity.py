@@ -126,20 +126,18 @@ CURRENCY_PAIRS = {
 }
 
 
-def get_next_delivery_date(reference_date: datetime) -> datetime:
+def get_next_delivery_date(reference_date: datetime, roll_buffer_days: int = 10) -> datetime:
     """
     Get next CME FX futures delivery date (3rd Wednesday of IMM month).
     
     IMM months: March, June, September, December.
     
-    Note: For continuous futures (e.g., 6E1!), this is an approximation
-    since we don't have the actual contract month metadata.
-    
     Args:
         reference_date: Date from which to find next delivery
+        roll_buffer_days: If within this many days of IMM, assume contract has rolled
         
     Returns:
-        3rd Wednesday of next IMM month
+        3rd Wednesday of next IMM month (accounting for roll)
     """
     from datetime import timedelta
     
@@ -149,12 +147,14 @@ def get_next_delivery_date(reference_date: datetime) -> datetime:
     for month in imm_months:
         # Find 3rd Wednesday of month
         first_day = datetime(year, month, 1)
-        # Find first Wednesday (weekday 2)
         days_until_wed = (2 - first_day.weekday() + 7) % 7
         first_wednesday = first_day + timedelta(days=days_until_wed)
         third_wednesday = first_wednesday + timedelta(weeks=2)
         
         if third_wednesday > reference_date:
+            # If within roll buffer, skip to next IMM
+            if (third_wednesday - reference_date).days <= roll_buffer_days:
+                continue
             return third_wednesday
     
     # Roll to next year's March
@@ -164,15 +164,20 @@ def get_next_delivery_date(reference_date: datetime) -> datetime:
     return first_wednesday + timedelta(weeks=2)
 
 
-def calculate_days_to_maturity(reference_date: datetime) -> int:
+def calculate_days_to_maturity(reference_date: datetime, roll_buffer_days: int = 10) -> int:
     """
     Calculate days from reference_date to next IMM delivery.
     
+    Args:
+        reference_date: Current date
+        roll_buffer_days: Buffer for roll assumption (default 10)
+    
     Returns:
-        Number of calendar days to delivery (typically 30-90)
+        Number of calendar days to delivery (clamped 30-100)
     """
-    delivery = get_next_delivery_date(reference_date)
-    return (delivery - reference_date).days
+    delivery = get_next_delivery_date(reference_date, roll_buffer_days)
+    dtm = (delivery - reference_date).days
+    return max(30, min(100, dtm))  # Clamp for numerical stability
 
 
 # Thresholds for stress levels
@@ -725,14 +730,16 @@ def get_chart2_data(
                 'implication': f'Monitor {desc}'
             })
     
-    # Determine stress level
+    # Determine stress level from percentile-based composite score
+    # Thresholds aligned with statistical interpretation:
+    # 95th+ = critical, 85-95 = stressed, 70-85 = elevated
     stress_level = 'normal'
     if latest_composite is not None:
-        if latest_composite >= 60:
+        if latest_composite >= 95:
             stress_level = 'critical'
-        elif latest_composite >= 35:
+        elif latest_composite >= 85:
             stress_level = 'stressed'
-        elif latest_composite >= 15:
+        elif latest_composite >= 70:
             stress_level = 'elevated'
     
     return {
@@ -942,41 +949,59 @@ def get_offshore_liquidity_output(
     chart2 = None
     if df_tv is not None and not df_tv.empty:
         print("  Chart 2: XCCY DIY...")
-        sofr = df_fred.get('SOFR', pd.Series(dtype=float))
-        if not sofr.empty:
-            # Try to get dynamic foreign rates from rates_sources
-            foreign_rates = {}
-            try:
-                from rates_sources import ForeignRateFetcher
-                rate_fetcher = ForeignRateFetcher(df_fred)
-                
-                # Get dynamic rates for each currency
-                eur_3m = rate_fetcher.get_eur_3m_rate()
-                gbp_3m = rate_fetcher.get_gbp_3m_rate()
-                jpy_3m = rate_fetcher.get_jpy_3m_rate()
-                
-                if not eur_3m.empty:
-                    foreign_rates['EUR'] = eur_3m
-                if not gbp_3m.empty:
-                    foreign_rates['GBP'] = gbp_3m
-                if not jpy_3m.empty:
-                    foreign_rates['JPY'] = jpy_3m
-                
-                # Sanity check USD (optional)
-                passes, diff_bp = rate_fetcher.sanity_check_usd()
-                if passes:
-                    print(f"  -> USD sanity check passed (diff: {diff_bp:.1f}bp)")
-                elif not np.isnan(diff_bp):
-                    print(f"  -> USD sanity check warning: {diff_bp:.1f}bp difference")
-                    
-            except ImportError as e:
-                print(f"  -> rates_sources not available: {e}, using constant rates")
-            except Exception as e:
-                print(f"  -> Error fetching dynamic rates: {e}, using constant rates")
+        
+        # P0 FIX: Use USD 3M rate (term-aligned with foreign rates)
+        # instead of SOFR overnight
+        usd_3m = None
+        foreign_rates = {}
+        
+        try:
+            from rates_sources import ForeignRateFetcher
+            rate_fetcher = ForeignRateFetcher(df_fred)
             
-            chart2 = get_chart2_data(df_tv, sofr, foreign_rates=foreign_rates)
+            # USD 3M from SOFR Index (preferred - term aligned)
+            usd_3m = rate_fetcher.get_usd_3m_rate()
+            if usd_3m is not None and not usd_3m.empty:
+                print(f"  -> USD 3M from SOFR Index: {usd_3m.dropna().iloc[-1]:.3f}%")
+            
+            # Get dynamic rates for each foreign currency
+            eur_3m = rate_fetcher.get_eur_3m_rate()
+            gbp_3m = rate_fetcher.get_gbp_3m_rate()
+            jpy_3m = rate_fetcher.get_jpy_3m_rate()
+            
+            if not eur_3m.empty:
+                foreign_rates['EUR'] = eur_3m
+            if not gbp_3m.empty:
+                foreign_rates['GBP'] = gbp_3m
+            if not jpy_3m.empty:
+                foreign_rates['JPY'] = jpy_3m
+            
+            # Sanity check USD (optional)
+            passes, diff_bp = rate_fetcher.sanity_check_usd()
+            if passes:
+                print(f"  -> USD sanity check passed (diff: {diff_bp:.1f}bp)")
+            elif not np.isnan(diff_bp):
+                print(f"  -> USD sanity check warning: {diff_bp:.1f}bp difference")
+                
+        except ImportError as e:
+            print(f"  -> rates_sources not available: {e}, using fallback")
+        except Exception as e:
+            print(f"  -> Error fetching dynamic rates: {e}, using fallback")
+        
+        # Fallback chain for USD rate
+        if usd_3m is None or usd_3m.empty:
+            usd_3m = df_fred.get('SOFR_90D_AVG', pd.Series(dtype=float))
+            if not usd_3m.empty:
+                print("  -> USD rate from SOFR_90D_AVG (fallback)")
+        if usd_3m is None or usd_3m.empty:
+            usd_3m = df_fred.get('SOFR', pd.Series(dtype=float))
+            if not usd_3m.empty:
+                print("  -> USD rate from SOFR overnight (last resort)")
+        
+        if usd_3m is not None and not usd_3m.empty:
+            chart2 = get_chart2_data(df_tv, usd_3m, foreign_rates=foreign_rates)
         else:
-            print("  -> Warning: SOFR not available, skipping Chart 2")
+            print("  -> Warning: No USD rate available, skipping Chart 2")
     
     # Get dates for x-axis
     def get_dates(s):

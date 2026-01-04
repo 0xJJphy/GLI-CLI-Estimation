@@ -354,6 +354,18 @@
                     >
                 </div>
                 <div class="metric">
+                    <span class="metric-label">GBP/USD Basis</span>
+                    <span
+                        class="metric-value"
+                        style="color: {(chart2.latest?.xccy_gbpusd || 0) < -25
+                            ? '#ef4444'
+                            : '#22c55e'}"
+                    >
+                        {formatBp(chart2.latest?.xccy_gbpusd)}
+                    </span>
+                    <span class="metric-sub">Sterling</span>
+                </div>
+                <div class="metric">
                     <span class="metric-label"
                         >{translations.stress_level_label ||
                             "Composite Stress"}</span
