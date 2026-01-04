@@ -583,8 +583,10 @@ def calculate_xccy_basis_series(
         ref_date = pd.to_datetime(idx)
         days_to_mat = calculate_days_to_maturity(ref_date.to_pydatetime())
         
-        # Clamp days to reasonable range (30-90)
-        days_to_mat = max(30, min(90, days_to_mat))
+        # Clamp days to reasonable range (60-90)
+        # We use a higher floor (60 instead of 30) to improve numerical stability 
+        # as the contract approaches maturity (avoids division by very small t)
+        days_to_mat = max(60, min(90, days_to_mat))
         
         basis = calculate_xccy_basis_single(
             spot=row['spot'],
@@ -601,6 +603,25 @@ def calculate_xccy_basis_series(
     
     result = pd.Series(basis_values, index=df.index, name=f'XCCY_{config.pair}')
     return result
+
+
+def smooth_series(s: pd.Series, window: int = 5) -> pd.Series:
+    """
+    Smoothing helper using rolling median to filter daily microstructure noise.
+    
+    Args:
+        s: Basis series in bps
+        window: Window size (days)
+        
+    Returns:
+        Smoothed series
+    """
+    if s is None or s.empty:
+        return pd.Series(dtype=float)
+    
+    # We use median instead of mean to be robust against remnant single-day spikes
+    # while preserving the trend.
+    return s.rolling(window=window, min_periods=max(2, window//2), center=True).median()
 
 
 def calculate_xccy_composite_stress(xccy_series: Dict[str, pd.Series]) -> pd.Series:
@@ -716,6 +737,10 @@ def get_chart2_data(
         
         if not basis.empty:
             xccy_series[pair] = basis
+            
+            # Generate smoothed version for plotting
+            xccy_series[f"{pair}_plot"] = smooth_series(basis)
+            
             valid = basis.dropna()
             val = float(valid.iloc[-1]) if not valid.empty else None
             xccy_latest[pair] = val  # Populate xccy_latest
@@ -784,6 +809,9 @@ def get_chart2_data(
             'xccy_eurusd': xccy_series.get('EURUSD', pd.Series(dtype=float)),
             'xccy_usdjpy': xccy_series.get('USDJPY', pd.Series(dtype=float)),
             'xccy_gbpusd': xccy_series.get('GBPUSD', pd.Series(dtype=float)),
+            'xccy_eurusd_plot': xccy_series.get('EURUSD_plot', pd.Series(dtype=float)),
+            'xccy_usdjpy_plot': xccy_series.get('USDJPY_plot', pd.Series(dtype=float)),
+            'xccy_gbpusd_plot': xccy_series.get('GBPUSD_plot', pd.Series(dtype=float)),
             'xccy_composite_stress': composite
         },
         'latest': {
@@ -962,6 +990,60 @@ def clean_series_for_json(s: pd.Series) -> List:
     return [None if pd.isna(x) or np.isinf(x) else round(float(x), 4) for x in s]
 
 
+def debug_xccy_snapshot(date_str: str, pair: str, df_tv: pd.DataFrame, 
+                        usd_3m: pd.Series, foreign_rates: Dict, 
+                        config: CurrencyPairConfig) -> Dict:
+    """
+    Debug helper to validate a specific basis calculation for a given date.
+    
+    Args:
+        date_str: ISO date string (YYYY-MM-DD)
+        pair: Currency pair name
+        df_tv: Raw TradingView DataFrame
+        usd_3m: USD 3M rate series (%)
+        foreign_rates: Dict of dynamic foreign rates
+        config: Pair configuration
+        
+    Returns:
+        Dict with all calculation components
+    """
+    dt = pd.Timestamp(date_str)
+    if dt not in df_tv.index:
+        return {"error": f"Date {date_str} not in TradingView index"}
+        
+    spot = float(df_tv.loc[dt, config.spot_key])
+    fut = float(df_tv.loc[dt, config.futures_key])
+    days = calculate_days_to_maturity(dt.to_pydatetime())
+    
+    usd = float(usd_3m.loc[dt]) / 100.0 if dt in usd_3m.index else 0.05
+    
+    # Get foreign rate
+    frn_series = foreign_rates.get(pair[:3] if pair != 'USDJPY' else 'JPY')
+    if frn_series is not None and dt in frn_series.index:
+        frn = float(frn_series.loc[dt]) / 100.0
+    else:
+        # Fallback constant
+        frn = (0.25 if pair == 'USDJPY' else 2.5) / 100.0
+        
+    basis = calculate_xccy_basis_single(
+        spot, fut, usd, frn, days,
+        usd_day_count=360,
+        foreign_day_count=config.foreign_leg.day_count,
+        futures_quote=config.futures_quote
+    )
+    
+    return {
+        "date": date_str,
+        "pair": pair,
+        "spot": round(spot, 4),
+        "futures": round(fut, 4),
+        "days_to_mat": days,
+        "usd_3m_pct": round(usd * 100, 3),
+        "foreign_3m_pct": round(frn * 100, 3),
+        "basis_bp": round(basis, 2) if not np.isnan(basis) else None
+    }
+
+
 def get_offshore_liquidity_output(
     df_fred: pd.DataFrame,
     df_tv: pd.DataFrame = None
@@ -1087,12 +1169,17 @@ def get_offshore_liquidity_output(
                 'xccy_eurusd': clean_series_for_json(chart2['series']['xccy_eurusd']) if chart2 else [],
                 'xccy_usdjpy': clean_series_for_json(chart2['series']['xccy_usdjpy']) if chart2 else [],
                 'xccy_gbpusd': clean_series_for_json(chart2['series']['xccy_gbpusd']) if chart2 else [],
+                # Added smoothed versions for plotting
+                'xccy_eurusd_plot': clean_series_for_json(chart2['series']['xccy_eurusd_plot']) if chart2 else [],
+                'xccy_usdjpy_plot': clean_series_for_json(chart2['series']['xccy_usdjpy_plot']) if chart2 else [],
+                'xccy_gbpusd_plot': clean_series_for_json(chart2['series']['xccy_gbpusd_plot']) if chart2 else [],
                 'xccy_composite_stress': clean_series_for_json(chart2['series']['xccy_composite_stress']) if chart2 else [],
                 'dates': get_dates(chart2['series']['xccy_eurusd']) if chart2 else [],
                 'latest': {
                     **(chart2['latest'] if chart2 else {}),
                     'zscore': xccy_stats.get('zscore', 0) if xccy_stats else 0,
                     'percentile': xccy_stats.get('percentile', 0) if xccy_stats else 0,
+                    'xccy_composite_stress': chart2.get('stress_score', 0) if chart2 else 0
                 },
                 'signals': chart2['signals'] if chart2 else [],
                 'stress_level': chart2['stress_level'] if chart2 else 'unknown',

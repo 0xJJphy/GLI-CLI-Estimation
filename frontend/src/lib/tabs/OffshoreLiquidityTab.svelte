@@ -87,34 +87,37 @@
     $: xccyChartData = chart2
         ? [
               {
-                  name: "EUR/USD",
+                  name: "EUR/USD Basis",
                   data: getFilteredData(
                       chart2.dates,
-                      chart2.xccy_eurusd,
+                      chart2.xccy_eurusd_plot,
                       selectedRange,
                   ),
                   color: "#3b82f6",
                   type: "line",
+                  width: 1.5,
               },
               {
-                  name: "USD/JPY",
+                  name: "USD/JPY Basis",
                   data: getFilteredData(
                       chart2.dates,
-                      chart2.xccy_usdjpy,
+                      chart2.xccy_usdjpy_plot,
                       selectedRange,
                   ),
                   color: "#ef4444",
                   type: "line",
+                  width: 1.5,
               },
               {
-                  name: "GBP/USD",
+                  name: "GBP/USD Basis",
                   data: getFilteredData(
                       chart2.dates,
-                      chart2.xccy_gbpusd,
+                      chart2.xccy_gbpusd_plot,
                       selectedRange,
                   ),
-                  color: "#10b981",
+                  color: "#22c55e",
                   type: "line",
+                  width: 1.5,
               },
           ]
         : [];
@@ -374,10 +377,13 @@
                         class="metric-value"
                         style="color: {getStressColor(chart2.stress_level)}"
                     >
-                        {formatZ(chart2.latest?.zscore)}
+                        {chart2.latest?.xccy_composite_stress?.toFixed(1) ||
+                            "0.0"}
                     </span>
                     <span class="metric-sub"
-                        >Pct: {chart2.latest?.percentile?.toFixed(0)}%</span
+                        >{formatZ(chart2.latest?.zscore)} ({chart2.latest?.percentile?.toFixed(
+                            0,
+                        )}%)</span
                     >
                 </div>
             </div>
