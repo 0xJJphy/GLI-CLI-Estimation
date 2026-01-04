@@ -2582,6 +2582,7 @@
       {:else if currentTab === "Offshore Liquidity"}
         <OffshoreLiquidityTab
           darkMode={$darkMode}
+          language={$language}
           translations={$currentTranslations}
           dashboardData={$dashboardData}
         />

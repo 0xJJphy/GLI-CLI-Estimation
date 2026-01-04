@@ -1485,6 +1485,9 @@ FRED_CONFIG = {
     'BAA': 'BAA_YIELD',                    # Moody's Seasoned Baa Corporate Bond Yield
     'AAA': 'AAA_YIELD',                    # Moody's Seasoned Aaa Corporate Bond Yield
     'SWPT': 'CB_LIQ_SWAPS',                # Assets: Central Bank Liquidity Swaps
+    # Offshore Liquidity (Eurodollar / Shadow Banking Stress)
+    'OBFR': 'OBFR',                         # Overnight Bank Funding Rate (includes offshore)
+    'EFFR': 'EFFR',                         # Effective Federal Funds Rate (onshore only)
 }
 
 # Mapping: Symbol -> Internal Name (TradingView ECONOMICS)
@@ -1554,6 +1557,20 @@ TV_CONFIG = {
     'MXNUSD': ('FX_IDC', 'MXNUSD'),
     'IDRUSD': ('FX_IDC', 'IDRUSD'),
     'ZARUSD': ('FX_IDC', 'ZARUSD'),
+    
+    # ==========================================================
+    # OFFSHORE LIQUIDITY: FX SPOTS FOR XCCY BASIS
+    # Reuse existing EURUSD, GBPUSD. Add USDJPY for direct USD/JPY quote.
+    # The _SPOT suffix aliases are created in processing below.
+    # ==========================================================
+    'USDJPY': ('FX_IDC', 'USDJPY'),           # USD/JPY Spot (direct quote)
+    
+    # ==========================================================
+    # OFFSHORE LIQUIDITY: CME FX FUTURES FOR XCCY BASIS
+    # ==========================================================
+    '6E1!': ('CME', 'EURUSD_FUT'),           # Euro FX Front Month
+    '6J1!': ('CME', 'JPYUSD_FUT'),           # Japanese Yen FX Front Month (inverse of USDJPY)
+    '6B1!': ('CME', 'GBPUSD_FUT'),           # British Pound FX Front Month
     
     # ==========================================================
     # OTHER & MACRO
@@ -3376,6 +3393,11 @@ def run_pipeline():
     df_fred_t['BAA_YIELD'] = df_fred.get('BAA_YIELD', pd.Series(dtype=float))
     df_fred_t['AAA_YIELD'] = df_fred.get('AAA_YIELD', pd.Series(dtype=float))
     df_fred_t['CB_LIQ_SWAPS'] = df_fred.get('CB_LIQ_SWAPS', pd.Series(dtype=float))
+    # Offshore Liquidity series
+    df_fred_t['OBFR'] = df_fred.get('OBFR', pd.Series(dtype=float))
+    df_fred_t['EFFR'] = df_fred.get('EFFR', pd.Series(dtype=float))
+    # FED_CB_SWAPS is alias for CB_LIQ_SWAPS (needed by offshore_liquidity module)
+    df_fred_t['FED_CB_SWAPS'] = df_fred.get('CB_LIQ_SWAPS', pd.Series(dtype=float))
 
     # 2. Fetch TV and Normalize to Trillions
     print("Fetching TradingView Update Data (Trillions)...")
@@ -3503,6 +3525,21 @@ def run_pipeline():
             if fx_col in df_tv_t.columns:
                 res_tv_t[fx_col] = df_tv_t[fx_col]
 
+        # Offshore Liquidity XCCY Basis: Create _SPOT aliases for FX spots
+        # offshore_liquidity.py expects EURUSD_SPOT, USDJPY_SPOT, GBPUSD_SPOT
+        if 'EURUSD' in df_tv_t.columns:
+            res_tv_t['EURUSD_SPOT'] = df_tv_t['EURUSD']
+        if 'USDJPY' in df_tv_t.columns:
+            res_tv_t['USDJPY_SPOT'] = df_tv_t['USDJPY']
+        if 'GBPUSD' in df_tv_t.columns:
+            res_tv_t['GBPUSD_SPOT'] = df_tv_t['GBPUSD']
+        
+        # Offshore Liquidity XCCY Basis: Pass through CME FX futures
+        fx_futures = ['EURUSD_FUT', 'JPYUSD_FUT', 'GBPUSD_FUT']
+        for fut_col in fx_futures:
+            if fut_col in df_tv_t.columns:
+                res_tv_t[fut_col] = df_tv_t[fut_col]
+
         # TGA/RRP are usually not in TV economics, fallback to FRED baseline
         # We use combine_first to ensure we have the full FRED history for these columns
         # Then we ffill() to carry the last FRED value forward to the latest TV date
@@ -3512,7 +3549,9 @@ def run_pipeline():
                              'BANK_RESERVES', 'SOFR', 'IORB', 'SOFR_VOLUME', 'FX_VOL',
                              'CPI', 'CORE_CPI', 'PCE', 'CORE_PCE', 'UNEMPLOYMENT', 'FED_FUNDS_RATE',
                              'INFLATION_EXPECT_1Y', 'INFLATION_EXPECT_5Y', 'INFLATION_EXPECT_10Y',
-                             'TREASURY_10Y_YIELD', 'TREASURY_2Y_YIELD', 'NFP', 'JOLTS']
+                             'TREASURY_10Y_YIELD', 'TREASURY_2Y_YIELD', 'NFP', 'JOLTS',
+                             # Offshore liquidity series
+                             'OBFR', 'EFFR', 'FED_CB_SWAPS']
         # Only select columns that actually exist in df_fred_t
         fred_cols_available = [col for col in fred_cols_to_sync if col in df_fred_t.columns]
         res_tv_t = res_tv_t.combine_first(df_fred_t[fred_cols_available]).ffill()
@@ -3714,6 +3753,13 @@ def run_pipeline():
         m2_rocs_total = calculate_rocs(m2_data.get('M2_TOTAL', pd.Series(dtype=float)))
         # Net Liquidity ROCs (for the sidebar)
         net_liq_rocs = calculate_rocs(us_net_liq['NET_LIQUIDITY'])
+        
+        # Offshore Liquidity XCCY Basis - Build TV DataFrame
+        offshore_tv_cols = ['EURUSD_SPOT', 'USDJPY_SPOT', 'GBPUSD_SPOT', 
+                            'EURUSD_FUT', 'JPYUSD_FUT', 'GBPUSD_FUT']
+        df_offshore_tv = pd.DataFrame({
+            col: df_t[col] for col in offshore_tv_cols if col in df_t.columns
+        }, index=df_t.index)
         
         data_output = {
             'dates': df_t.index.strftime('%Y-%m-%d').tolist(),
@@ -4098,7 +4144,7 @@ def run_pipeline():
                 silent=True
             ),
             # Offshore Dollar Liquidity
-            'offshore_liquidity': get_offshore_liquidity_output(df_t, None).get('offshore_liquidity', {}),
+            'offshore_liquidity': get_offshore_liquidity_output(df_t, df_offshore_tv if not df_offshore_tv.empty else None).get('offshore_liquidity', {}),
 
         }
 

@@ -10,6 +10,7 @@
     import TimeRangeSelector from "../components/TimeRangeSelector.svelte";
 
     export let darkMode = true;
+    export let language = "en";
     export let translations = {};
     export let dashboardData = {};
 
@@ -20,38 +21,103 @@
     $: thresholds = offshoreData.thresholds || {};
 
     // Time range state
-    let selectedRange = 365;
+    let selectedRange = "365";
     const timeRanges = [
-        { label: "30D", value: 30 },
-        { label: "90D", value: 90 },
-        { label: "1Y", value: 365 },
-        { label: "2Y", value: 730 },
-        { label: "All", value: 9999 },
+        { label: "30D", value: "30" },
+        { label: "90D", value: "90" },
+        { label: "1Y", value: "365" },
+        { label: "2Y", value: "730" },
+        { label: "All", value: "9999" },
     ];
 
-    // Format dates for charts
-    function getChartDates(dates, range) {
-        if (!dates || dates.length === 0) return [];
-        const sliced = dates.slice(-range);
-        return sliced;
+    // Filter and transform function
+    function getFilteredData(dates, values, rangeStr) {
+        if (!dates || !values || dates.length === 0) return [];
+
+        const range = parseInt(rangeStr);
+        let startIndex = 0;
+        if (range < 9999) {
+            const lastDate = new Date(dates[dates.length - 1]);
+            const cutoffDate = new Date(lastDate);
+            cutoffDate.setDate(cutoffDate.getDate() - range);
+            const cutoffStr = cutoffDate.toISOString().split("T")[0];
+            startIndex = dates.findIndex((d) => d >= cutoffStr);
+            if (startIndex === -1) startIndex = 0;
+        }
+
+        const filteredDates = dates.slice(startIndex);
+        const filteredValues = values.slice(startIndex);
+
+        return filteredDates
+            .map((date, i) => ({
+                time: date,
+                value: filteredValues[i] ?? null,
+            }))
+            .filter((d) => d.value !== null);
     }
 
-    // Slice data based on range
-    function sliceData(data, range) {
-        if (!data || data.length === 0) return [];
-        return data.slice(-range);
-    }
+    // Chart 1: FRED Proxy - Reactive Data
+    $: spreadChartData = [
+        {
+            name: translations.obfr_effr_title || "OBFR-EFFR Spread",
+            data: getFilteredData(
+                chart1.dates,
+                chart1.obfr_effr_spread,
+                selectedRange,
+            ),
+            color: "#60a5fa",
+            type: "line",
+        },
+    ];
 
-    // Chart 1: FRED Proxy - Spread + CB Swaps
-    $: chart1Dates = getChartDates(chart1.dates, selectedRange);
-    $: spreadData = sliceData(chart1.obfr_effr_spread, selectedRange);
-    $: swapsData = sliceData(chart1.cb_swaps_b, selectedRange);
+    $: swapsChartData = [
+        {
+            name: translations.cb_swaps_title || "CB Swaps",
+            data: getFilteredData(
+                chart1.dates,
+                chart1.cb_swaps_b,
+                selectedRange,
+            ),
+            color: "#f59e0b",
+            type: "histogram",
+        },
+    ];
 
-    // Chart 2: XCCY Basis (if available)
-    $: chart2Dates = chart2 ? getChartDates(chart2.dates, selectedRange) : [];
-    $: xccyEurusd = chart2 ? sliceData(chart2.xccy_eurusd, selectedRange) : [];
-    $: xccyUsdjpy = chart2 ? sliceData(chart2.xccy_usdjpy, selectedRange) : [];
-    $: xccyGbpusd = chart2 ? sliceData(chart2.xccy_gbpusd, selectedRange) : [];
+    // Chart 2: XCCY Basis - Reactive Data
+    $: xccyChartData = chart2
+        ? [
+              {
+                  name: "EUR/USD",
+                  data: getFilteredData(
+                      chart2.dates,
+                      chart2.xccy_eurusd,
+                      selectedRange,
+                  ),
+                  color: "#3b82f6",
+                  type: "line",
+              },
+              {
+                  name: "USD/JPY",
+                  data: getFilteredData(
+                      chart2.dates,
+                      chart2.xccy_usdjpy,
+                      selectedRange,
+                  ),
+                  color: "#ef4444",
+                  type: "line",
+              },
+              {
+                  name: "GBP/USD",
+                  data: getFilteredData(
+                      chart2.dates,
+                      chart2.xccy_gbpusd,
+                      selectedRange,
+                  ),
+                  color: "#10b981",
+                  type: "line",
+              },
+          ]
+        : [];
 
     // Stress level badge styling
     function getStressColor(level) {
@@ -84,6 +150,14 @@
         return `$${val.toFixed(1)}B`;
     }
 
+    function formatZ(val) {
+        if (val == null) return "—";
+        return `${val >= 0 ? "+" : ""}${val.toFixed(2)}σ`;
+    }
+
+    // Determine current language
+    $: lang = language || translations.current_language || "en";
+
     // Show methodology toggle
     let showMethodology = false;
 </script>
@@ -104,8 +178,30 @@
                 </p>
             </div>
         </div>
-        <TimeRangeSelector bind:selectedRange {timeRanges} {translations} />
+        <TimeRangeSelector bind:selectedRange ranges={timeRanges} />
     </div>
+
+    <!-- Professional Analysis Section -->
+    {#if offshoreData.analysis && offshoreData.analysis[lang]}
+        <div class="analysis-section">
+            <div class="analysis-grid">
+                {#each offshoreData.analysis[lang] as item}
+                    <div class="analysis-item {item.level}">
+                        <div class="item-header">
+                            <span class="item-icon">{item.icon}</span>
+                            <div class="item-meta">
+                                <span class="item-title">{item.title}</span>
+                                <span class="item-badge"
+                                    >{item.level.toUpperCase()}</span
+                                >
+                            </div>
+                        </div>
+                        <p class="item-text">{item.text}</p>
+                    </div>
+                {/each}
+            </div>
+        </div>
+    {/if}
 
     <!-- Chart 1: FRED Proxy -->
     <div class="chart-card">
@@ -142,6 +238,11 @@
                 >
                     {formatBp(chart1.latest?.obfr_effr_spread)}
                 </span>
+                <span class="metric-sub"
+                    >{formatZ(chart1.latest?.spread_zscore)} ({chart1.latest?.spread_percentile?.toFixed(
+                        0,
+                    )}%)</span
+                >
             </div>
             <div class="metric">
                 <span class="metric-label"
@@ -155,67 +256,54 @@
                 >
                     {formatBn(chart1.latest?.cb_swaps_b)}
                 </span>
+                <span class="metric-sub"
+                    >{chart1.latest?.swaps_percentile > 0
+                        ? `Pct: ${chart1.latest.swaps_percentile.toFixed(0)}%`
+                        : "Inactive"}</span
+                >
             </div>
             <div class="metric">
-                <span class="metric-label">Stress Score</span>
-                <span class="metric-value"
-                    >{chart1.stress_score?.toFixed(0) || 0}/100</span
+                <span class="metric-label"
+                    >{lang === "es"
+                        ? "Puntuación Estrés"
+                        : "Stress Score"}</span
+                >
+                <span
+                    class="metric-value"
+                    style="color: {getStressColor(chart1.stress_level)}"
+                >
+                    {chart1.stress_score?.toFixed(0) || 0}/100
+                </span>
+                <span class="metric-sub"
+                    >{getStressLabel(chart1.stress_level)}</span
                 >
             </div>
         </div>
 
-        {#if chart1Dates.length > 0}
+        {#if spreadChartData[0].data.length > 0}
             <div class="chart-container">
-                <LightweightChart
-                    dates={chart1Dates}
-                    series={[
-                        {
-                            name:
-                                translations.obfr_effr_title ||
-                                "OBFR-EFFR Spread",
-                            data: spreadData,
-                            color: "#3b82f6",
-                            type: "line",
-                        },
-                    ]}
-                    height={250}
-                    {darkMode}
-                    showLegend={true}
-                    yAxisLabel="bp"
-                />
+                <LightweightChart {darkMode} data={spreadChartData} />
             </div>
 
-            {#if swapsData.some((d) => d && d > 0)}
+            {#if chart1.latest?.cb_swaps_b > 0.1 || swapsChartData[0].data.some((d) => d.value > 0)}
                 <div class="chart-container" style="margin-top: 16px;">
                     <h4
                         style="margin: 0 0 8px 0; color: #94a3b8; font-size: 13px;"
                     >
-                        {translations.cb_swaps_title || "Fed CB Swap Lines"}
+                        {translations.cb_swaps_title || "Fed CB Swap Lines"} ($B)
                     </h4>
-                    <LightweightChart
-                        dates={chart1Dates}
-                        series={[
-                            {
-                                name: translations.cb_swaps_title || "CB Swaps",
-                                data: swapsData,
-                                color: "#f59e0b",
-                                type: "histogram",
-                            },
-                        ]}
-                        height={120}
-                        {darkMode}
-                        showLegend={false}
-                        yAxisLabel="$B"
-                    />
+                    <LightweightChart {darkMode} data={swapsChartData} />
                 </div>
             {/if}
         {:else}
-            <p class="no-data">{translations.no_data || "No data available"}</p>
+            <p class="no-data">
+                {translations.no_data || "No data available for this range"}
+            </p>
         {/if}
     </div>
 
     <!-- Chart 2: XCCY Basis (Conditional) -->
-    {#if chart2 && chart2Dates.length > 0}
+    {#if chart2 && xccyChartData && xccyChartData.length > 0 && xccyChartData[0].data.length > 0}
         <div class="chart-card">
             <div class="card-header">
                 <div class="card-title-row">
@@ -237,74 +325,52 @@
 
             <div class="metrics-row">
                 <div class="metric">
-                    <span class="metric-label"
-                        >{translations.xccy_eurusd || "EUR/USD"}</span
-                    >
+                    <span class="metric-label">EUR/USD Basis</span>
                     <span
                         class="metric-value"
-                        style="color: {(chart2.latest?.xccy_eurusd || 0) < -20
+                        style="color: {(chart2.latest?.xccy_eurusd || 0) < -25
                             ? '#ef4444'
                             : '#22c55e'}"
                     >
                         {formatBp(chart2.latest?.xccy_eurusd)}
                     </span>
+                    <span class="metric-sub"
+                        >{translations.xccy_label || "Cross-Currency"}</span
+                    >
                 </div>
                 <div class="metric">
-                    <span class="metric-label"
-                        >{translations.xccy_usdjpy || "USD/JPY"}</span
-                    >
+                    <span class="metric-label">USD/JPY Basis</span>
                     <span
                         class="metric-value"
-                        style="color: {(chart2.latest?.xccy_usdjpy || 0) < -20
-                            ? '#ef4444'
+                        style="color: {(chart2.latest?.xccy_usdjpy || 0) >
+                            100 || (chart2.latest?.xccy_usdjpy || 0) < -40
+                            ? '#f59e0b'
                             : '#22c55e'}"
                     >
                         {formatBp(chart2.latest?.xccy_usdjpy)}
                     </span>
+                    <span class="metric-sub"
+                        >{chart2.latest?.xccy_usdjpy > 100
+                            ? "Wide Basis"
+                            : "Stable"}</span
+                    >
                 </div>
                 <div class="metric">
-                    <span class="metric-label"
-                        >{translations.xccy_gbpusd || "GBP/USD"}</span
-                    >
+                    <span class="metric-label">Composite Stress</span>
                     <span
                         class="metric-value"
-                        style="color: {(chart2.latest?.xccy_gbpusd || 0) < -20
-                            ? '#ef4444'
-                            : '#22c55e'}"
+                        style="color: {getStressColor(chart2.stress_level)}"
                     >
-                        {formatBp(chart2.latest?.xccy_gbpusd)}
+                        {formatZ(chart2.latest?.zscore)}
                     </span>
+                    <span class="metric-sub"
+                        >Pct: {chart2.latest?.percentile?.toFixed(0)}%</span
+                    >
                 </div>
             </div>
 
             <div class="chart-container">
-                <LightweightChart
-                    dates={chart2Dates}
-                    series={[
-                        {
-                            name: translations.xccy_eurusd || "EUR/USD",
-                            data: xccyEurusd,
-                            color: "#3b82f6",
-                            type: "line",
-                        },
-                        {
-                            name: translations.xccy_usdjpy || "USD/JPY",
-                            data: xccyUsdjpy,
-                            color: "#ef4444",
-                            type: "line",
-                        },
-                        {
-                            name: translations.xccy_gbpusd || "GBP/USD",
-                            data: xccyGbpusd,
-                            color: "#10b981",
-                            type: "line",
-                        },
-                    ]}
-                    height={280}
-                    {darkMode}
-                    showLegend={true}
-                    yAxisLabel="bp"
-                />
+                <LightweightChart {darkMode} data={xccyChartData} />
             </div>
         </div>
     {/if}
@@ -445,6 +511,125 @@
         margin-bottom: 4px;
     }
 
+    /* Analysis Section & Grid */
+    .analysis-section {
+        margin-bottom: 32px;
+    }
+
+    .analysis-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 16px;
+    }
+
+    .analysis-item {
+        background: rgba(15, 23, 42, 0.4);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-left: 4px solid #64748b;
+        border-radius: 12px;
+        padding: 16px;
+        transition: all 0.2s ease;
+    }
+
+    .analysis-item:hover {
+        transform: translateY(-2px);
+        background: rgba(15, 23, 42, 0.6);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    }
+
+    .analysis-item.critical {
+        border-left-color: #ef4444;
+        background: linear-gradient(
+            90deg,
+            rgba(239, 68, 68, 0.05),
+            transparent
+        );
+    }
+    .analysis-item.warning {
+        border-left-color: #f59e0b;
+        background: linear-gradient(
+            90deg,
+            rgba(245, 158, 11, 0.05),
+            transparent
+        );
+    }
+    .analysis-item.info {
+        border-left-color: #3b82f6;
+        background: linear-gradient(
+            90deg,
+            rgba(59, 130, 246, 0.05),
+            transparent
+        );
+    }
+    .analysis-item.success {
+        border-left-color: #10b981;
+        background: linear-gradient(
+            90deg,
+            rgba(16, 185, 129, 0.05),
+            transparent
+        );
+    }
+
+    .item-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 10px;
+    }
+
+    .item-icon {
+        font-size: 20px;
+        padding-top: 2px;
+    }
+
+    .item-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .item-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: #f1f5f9;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .item-badge {
+        font-size: 9px;
+        font-weight: 800;
+        padding: 2px 6px;
+        border-radius: 4px;
+        width: fit-content;
+        letter-spacing: 0.5px;
+    }
+
+    .critical .item-badge {
+        background: rgba(239, 68, 68, 0.2);
+        color: #f87171;
+    }
+    .warning .item-badge {
+        background: rgba(245, 158, 11, 0.2);
+        color: #fbbf24;
+    }
+    .info .item-badge {
+        background: rgba(59, 130, 246, 0.2);
+        color: #60a5fa;
+    }
+    .success .item-badge {
+        background: rgba(16, 185, 129, 0.2);
+        color: #34d399;
+    }
+
+    .item-text {
+        font-size: 13.5px;
+        line-height: 1.5;
+        color: #cbd5e1;
+        margin: 0;
+    }
+
     .card-header h3 {
         font-size: 18px;
         font-weight: 600;
@@ -485,14 +670,21 @@
     .metric-label {
         font-size: 11px;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
-        color: #64748b;
+        letter-spacing: 1px;
+        color: #94a3b8;
     }
 
     .metric-value {
-        font-size: 20px;
-        font-weight: 600;
+        font-size: 22px;
+        font-weight: 700;
         color: #f8fafc;
+        margin: 2px 0;
+    }
+
+    .metric-sub {
+        font-size: 12px;
+        color: #64748b;
+        font-weight: 500;
     }
 
     .chart-container {

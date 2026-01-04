@@ -588,6 +588,147 @@ def get_chart2_data(df_tv: pd.DataFrame, sofr_series: pd.Series) -> Dict[str, An
 
 
 # ============================================================
+# PROFESSIONAL STATISTICAL ANALYTICS
+# ============================================================
+
+def calculate_series_statistics(series: pd.Series, lookback_years: int = 5) -> Dict[str, Any]:
+    """
+    Calculate comprehensive statistics for a time series.
+    
+    Returns percentiles, z-scores, and descriptive stats for professional analysis.
+    Uses a rolling lookback window to avoid look-ahead bias.
+    
+    Args:
+        series: Pandas Series with datetime index
+        lookback_years: Years of history for percentile/z-score calculation
+        
+    Returns:
+        Dict with current value, percentile, z-score, and descriptive stats
+    """
+    if series is None or series.empty:
+        return {}
+    
+    valid = series.dropna()
+    if len(valid) < 20:  # Need minimum data
+        return {}
+    
+    current = float(valid.iloc[-1])
+    lookback_days = lookback_years * 252  # Trading days
+    
+    # Use rolling lookback for percentile (avoid look-ahead)
+    lookback_series = valid.iloc[-lookback_days:] if len(valid) > lookback_days else valid
+    
+    # Current percentile rank (0-100)
+    percentile = float((lookback_series < current).mean() * 100)
+    
+    # Z-score vs lookback period
+    mean = float(lookback_series.mean())
+    std = float(lookback_series.std())
+    zscore = float((current - mean) / std) if std > 0 else 0
+    
+    # Descriptive stats
+    stats = {
+        'current': round(current, 2),
+        'percentile': round(percentile, 1),  # 0-100 rank
+        'zscore': round(zscore, 2),
+        'mean': round(mean, 2),
+        'std': round(std, 2),
+        'median': round(float(lookback_series.median()), 2),
+        'min': round(float(lookback_series.min()), 2),
+        'max': round(float(lookback_series.max()), 2),
+        'p10': round(float(lookback_series.quantile(0.10)), 2),
+        'p25': round(float(lookback_series.quantile(0.25)), 2),
+        'p75': round(float(lookback_series.quantile(0.75)), 2),
+        'p90': round(float(lookback_series.quantile(0.90)), 2),
+        'lookback_days': len(lookback_series),
+    }
+    
+    return stats
+
+
+def generate_stress_analysis(spread_stats: Dict, swaps_stats: Dict, 
+                            xccy_stats: Dict = None) -> Dict[str, List[Dict[str, str]]]:
+    """
+    Generate professional structured analysis.
+    
+    Returns categorized items with levels (info, warning, critical, success).
+    """
+    items_en = []
+    items_es = []
+    
+    # OBFR-EFFR Spread Analysis
+    if spread_stats and 'percentile' in spread_stats:
+        pct = spread_stats['percentile']
+        z = spread_stats['zscore']
+        current = spread_stats['current']
+        
+        item = {'title_en': 'Offshore Spread', 'title_es': 'Spread Offshore'}
+        if pct >= 90:
+            item.update({'icon': '⚠️', 'level': 'critical',
+                'en': f"OBFR-EFFR at {current:.1f}bp is in the {pct:.0f}th percentile ({z:+.1f}σ). Severe Eurodollar stress detectec.",
+                'es': f"OBFR-EFFR de {current:.1f}bp en percentil {pct:.0f} ({z:+.1f}σ). Estrés severo detectado en Eurodólar."})
+        elif pct >= 75:
+            item.update({'icon': '⚡', 'level': 'warning',
+                'en': f"OBFR-EFFR at {current:.1f}bp is elevated ({pct:.0f}th percentile, {z:+.1f}σ). Increased funding pressure.",
+                'es': f"OBFR-EFFR de {current:.1f}bp está elevado (percentil {pct:.0f}, {z:+.1f}σ). Presión de financiación en aumento."})
+        elif pct <= 25:
+            item.update({'icon': '✅', 'level': 'success',
+                'en': f"OBFR-EFFR at {current:.1f}bp is low ({pct:.0f}th percentile). Funding markets remain relaxed.",
+                'es': f"OBFR-EFFR de {current:.1f}bp es bajo (percentil {pct:.0f}). Mercados de financiación relajados."})
+        else:
+            item.update({'icon': '📊', 'level': 'info',
+                'en': f"OBFR-EFFR at {current:.1f}bp is within normal historical range ({pct:.0f}th percentile).",
+                'es': f"OBFR-EFFR de {current:.1f}bp dentro del rango histórico normal (percentil {pct:.0f})."})
+        
+        items_en.append({'icon': item['icon'], 'title': item['title_en'], 'text': item['en'], 'level': item['level']})
+        items_es.append({'icon': item['icon'], 'title': item['title_es'], 'text': item['es'], 'level': item['level']})
+    
+    # CB Swaps Analysis
+    if swaps_stats and 'current' in swaps_stats:
+        current = swaps_stats['current']
+        item = {'title_en': 'CB Swap Lines', 'title_es': 'Líneas Swap BC'}
+        if current > 50:
+            item.update({'icon': '🚨', 'level': 'critical',
+                'en': f"Fed CB Swaps at ${current:.1f}B indicate major global liquidity stress. Intense USD demand.",
+                'es': f"Swaps BC a ${current:.1f}B indican gran estrés de liquidez global. Intensa demanda de USD."})
+        elif current > 1:
+            item.update({'icon': '⚡', 'level': 'warning',
+                'en': f"CB Swap Lines active at ${current:.1f}B. Foreign banks drawing USD liquidity.",
+                'es': f"Líneas Swap activas a ${current:.1f}B. Bancos extranjeros obteniendo liquidez USD."})
+        else:
+            item.update({'icon': '📉', 'level': 'info',
+                'en': f"CB Swap usage is minimal (${current:.1f}B). Global liquidity conditions are stable.",
+                'es': f"Uso de Swaps es mínimo (${current:.1f}B). Condiciones de liquidez global estables."})
+        
+        items_en.append({'icon': item['icon'], 'title': item['title_en'], 'text': item['en'], 'level': item['level']})
+        items_es.append({'icon': item['icon'], 'title': item['title_es'], 'text': item['es'], 'level': item['level']})
+
+    # XCCY Basis Analysis
+    if xccy_stats and 'percentile' in xccy_stats:
+        pct = xccy_stats['percentile']
+        current = xccy_stats['current']
+        item = {'title_en': 'XCCY Basis', 'title_es': 'Basis XCCY'}
+        
+        if pct >= 85:
+            item.update({'icon': '🌐', 'level': 'critical',
+                'en': f"XCCY Composite Stress at {current:.1f} ({pct:.0f}th percentile). Extreme USD scarcity in FX markets.",
+                'es': f"Estrés XCCY en {current:.1f} (percentil {pct:.0f}). Escasez extrema de USD en mercados FX."})
+        elif pct >= 70:
+            item.update({'icon': '⚠️', 'level': 'warning',
+                'en': f"XCCY Basis stress is elevated ({pct:.0f}th percentile). USD funding premium rising.",
+                'es': f"Estrés en Basis XCCY elevado (percentil {pct:.0f}). Prima de USD en aumento."})
+        else:
+            item.update({'icon': '📊', 'level': 'info',
+                'en': f"XCCY Basis at {current:.1f} is within normal levels ({pct:.0f}th percentile).",
+                'es': f"Basis XCCY en {current:.1f} está en niveles normales (percentil {pct:.0f})."})
+        
+        items_en.append({'icon': item['icon'], 'title': item['title_en'], 'text': item['en'], 'level': item['level']})
+        items_es.append({'icon': item['icon'], 'title': item['title_es'], 'text': item['es'], 'level': item['level']})
+    
+    return {'en': items_en, 'es': items_es}
+
+
+# ============================================================
 # MAIN DASHBOARD OUTPUT
 # ============================================================
 
@@ -633,9 +774,23 @@ def get_offshore_liquidity_output(
         if s is None or s.empty:
             return []
         return s.index.strftime('%Y-%m-%d').tolist()
+
+    # PROFESSIONAL STATS & ANALYSIS
+    print("  Calculating Statistics & Analysis...")
+    spread_stats = calculate_series_statistics(chart1['series']['obfr_effr_spread'])
+    swaps_stats = calculate_series_statistics(chart1['series']['cb_swaps_b'])
+    xccy_stats = calculate_series_statistics(chart2['series']['xccy_composite_stress']) if chart2 else None
+    
+    analysis = generate_stress_analysis(spread_stats, swaps_stats, xccy_stats)
     
     output = {
         'offshore_liquidity': {
+            'analysis': analysis,
+            'stats': {
+                'spread': spread_stats,
+                'swaps': swaps_stats,
+                'xccy': xccy_stats
+            },
             # Chart 1: FRED Proxy
             'chart1_fred_proxy': {
                 'obfr': clean_series_for_json(chart1['series']['obfr']),
@@ -644,7 +799,13 @@ def get_offshore_liquidity_output(
                 'cb_swaps_b': clean_series_for_json(chart1['series']['cb_swaps_b']),
                 'fred_proxy_stress': clean_series_for_json(chart1['series']['fred_proxy_stress']),
                 'dates': get_dates(chart1['series']['obfr_effr_spread']),
-                'latest': chart1['latest'],
+                'latest': {
+                    **chart1['latest'],
+                    'spread_zscore': spread_stats.get('zscore', 0),
+                    'spread_percentile': spread_stats.get('percentile', 0),
+                    'swaps_zscore': swaps_stats.get('zscore', 0),
+                    'swaps_percentile': swaps_stats.get('percentile', 0),
+                },
                 'signals': chart1['signals'],
                 'stress_level': chart1['stress_level'],
                 'stress_score': round(chart1['stress_score'], 2)
@@ -657,7 +818,11 @@ def get_offshore_liquidity_output(
                 'xccy_gbpusd': clean_series_for_json(chart2['series']['xccy_gbpusd']) if chart2 else [],
                 'xccy_composite_stress': clean_series_for_json(chart2['series']['xccy_composite_stress']) if chart2 else [],
                 'dates': get_dates(chart2['series']['xccy_eurusd']) if chart2 else [],
-                'latest': chart2['latest'] if chart2 else {},
+                'latest': {
+                    **(chart2['latest'] if chart2 else {}),
+                    'zscore': xccy_stats.get('zscore', 0) if xccy_stats else 0,
+                    'percentile': xccy_stats.get('percentile', 0) if xccy_stats else 0,
+                },
                 'signals': chart2['signals'] if chart2 else [],
                 'stress_level': chart2['stress_level'] if chart2 else 'unknown',
                 'stress_score': round(chart2['stress_score'], 2) if chart2 else 0
