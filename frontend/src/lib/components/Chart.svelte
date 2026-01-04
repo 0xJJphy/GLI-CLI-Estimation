@@ -51,11 +51,12 @@
                 showarrow: false,
                 font: {
                     size: 60,
+                    family: "'JetBrains Mono', monospace",
                     color: isDark
-                        ? "rgba(255,255,255,0.04)"
-                        : "rgba(0,0,0,0.03)",
+                        ? "rgba(255,255,255,0.05)"
+                        : "rgba(0,0,0,0.12)",
                 },
-                textangle: -30,
+                textangle: 0,
             },
         ],
     });

@@ -238,7 +238,11 @@
     <div class="tab-header">
         <div class="header-left">
             <span class="header-icon">🏛️</span>
-            <h2 class="header-title">
+            <h2
+                class="header-title glitch"
+                data-text={translations.treasury_maturity_tracker ||
+                    "Treasury Maturity Tracker"}
+            >
                 {translations.treasury_maturity_tracker ||
                     "Treasury Maturity Tracker"}
             </h2>
@@ -364,7 +368,11 @@
     <!-- Maturity Schedule Chart -->
     <div class="chart-card">
         <div class="chart-header">
-            <h3 class="chart-title">
+            <h3
+                class="chart-title glitch"
+                data-text={translations.maturity_schedule_title ||
+                    "Maturity Schedule by Security Type"}
+            >
                 {translations.maturity_schedule_title ||
                     "Maturity Schedule by Security Type"}
             </h3>
@@ -403,7 +411,11 @@
     <!-- Monthly Table -->
     <div class="table-card" style="margin-bottom: 30px;">
         <div class="table-header">
-            <h3 class="table-title">
+            <h3
+                class="table-title glitch"
+                data-text={translations.monthly_maturity_schedule ||
+                    "Monthly Maturity Schedule ($ Billions)"}
+            >
                 {translations.monthly_maturity_schedule ||
                     "Monthly Maturity Schedule ($ Billions)"}
             </h3>

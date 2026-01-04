@@ -2609,7 +2609,13 @@
               />
             </svg>
           </button>
-          <h1>
+          <h1
+            class="glitch"
+            data-text="{currentTab} {$currentTranslations.nav_dashboard ===
+            'Dashboard'
+              ? 'Overview'
+              : 'Resumen'}"
+          >
             {currentTab}
             {$currentTranslations.nav_dashboard === "Dashboard"
               ? "Overview"
@@ -2765,19 +2771,20 @@
   }
 
   :global([data-theme="dark"]) {
-    --bg-primary: #0f172a;
-    --bg-secondary: #1e293b;
-    --bg-tertiary: #334155;
+    --bg-primary: #050505;
+    --bg-secondary: #0a0a0a;
+    --bg-tertiary: #121212;
     --text-primary: #f8fafc;
     --text-secondary: #cbd5e1;
     --text-muted: #94a3b8;
-    --border-color: #334155;
+    --border-color: #1a1a1a;
     --accent-primary: #6366f1;
     --accent-secondary: #60a5fa;
-    --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-    --chart-description-bg: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+    --chart-description-bg: linear-gradient(135deg, #0a0a0a 0%, #121212 100%);
     --positive-color: #10b981;
     --negative-color: #f87171;
+    --font-mono: "JetBrains Mono", monospace;
   }
 
   :global(body) {
@@ -2790,6 +2797,7 @@
       -apple-system,
       system-ui,
       sans-serif;
+    --font-standard: "Inter", -apple-system, system-ui, sans-serif;
     overflow-x: hidden;
     transition:
       background-color 0.3s ease,
@@ -2832,6 +2840,97 @@
 
   :global([data-theme="dark"]) {
     scrollbar-color: rgba(148, 163, 184, 0.2) transparent;
+  }
+
+  /* Glitch Aesthetic */
+  :global(.glitch-container) {
+    position: relative;
+    display: inline-block;
+  }
+
+  :global(.glitch) {
+    position: relative;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+  }
+
+  :global(.glitch::before),
+  :global(.glitch::after) {
+    content: attr(data-text);
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.8;
+  }
+
+  :global(.glitch::before) {
+    color: var(--accent-secondary);
+    z-index: -1;
+    animation: glitch-anim 2.5s infinite linear alternate-reverse;
+    opacity: 0.5;
+  }
+
+  :global(.glitch::after) {
+    color: var(--accent-primary);
+    z-index: -2;
+    animation: glitch-anim2 2s infinite linear alternate-reverse;
+    opacity: 0.5;
+  }
+
+  @keyframes glitch-anim {
+    0% {
+      clip-path: inset(20% 0 50% 0);
+      transform: skew(0.5deg);
+    }
+    20% {
+      clip-path: inset(80% 0 10% 0);
+      transform: skew(-0.5deg);
+    }
+    40% {
+      clip-path: inset(10% 0 80% 0);
+      transform: skew(0.2deg);
+    }
+    60% {
+      clip-path: inset(50% 0 30% 0);
+      transform: skew(-0.2deg);
+    }
+    80% {
+      clip-path: inset(30% 0 60% 0);
+      transform: skew(0.3deg);
+    }
+    100% {
+      clip-path: inset(40% 0 40% 0);
+      transform: skew(-0.1deg);
+    }
+  }
+
+  @keyframes glitch-anim2 {
+    0% {
+      clip-path: inset(10% 0 85% 0);
+      transform: skew(-0.2deg);
+    }
+    20% {
+      clip-path: inset(60% 0 35% 0);
+      transform: skew(0.1deg);
+    }
+    40% {
+      clip-path: inset(30% 0 55% 0);
+      transform: skew(-0.3deg);
+    }
+    60% {
+      clip-path: inset(90% 0 5% 0);
+      transform: skew(0.2deg);
+    }
+    80% {
+      clip-path: inset(5% 0 90% 0);
+      transform: skew(-0.1deg);
+    }
+    100% {
+      clip-path: inset(45% 0 45% 0);
+      transform: skew(0.1deg);
+    }
   }
 
   .app-container {

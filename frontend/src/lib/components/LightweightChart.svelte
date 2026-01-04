@@ -151,9 +151,10 @@
             watermark: {
                 visible: true,
                 fontSize: 48,
+                fontFamily: "JetBrains Mono",
                 horzAlign: "center",
                 vertAlign: "center",
-                color: colors.text + "10", // Very low opacity (approx 6%)
+                color: colors.text + "20", // Increased opacity (approx 12.5%) for better visibility
                 text: "0xJJphy",
             },
         });
@@ -301,7 +302,7 @@
                 borderColor: colors.border,
             },
             watermark: {
-                color: colors.text + "10",
+                color: colors.text + "20",
             },
         });
     }

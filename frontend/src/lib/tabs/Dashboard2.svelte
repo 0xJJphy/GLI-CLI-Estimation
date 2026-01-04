@@ -1507,7 +1507,11 @@
         <!-- ================================================================== -->
         <div class="panel repo-panel">
             <div class="panel-header">
-                <h3>
+                <h3
+                    class="glitch"
+                    data-text="🏛️ {$currentTranslations.plumbing_title ||
+                        'Plumbing: Repo & Corridor'}"
+                >
                     🏛️ {$currentTranslations.plumbing_title ||
                         "Plumbing: Repo & Corridor"}
                 </h3>
@@ -1633,7 +1637,11 @@
         <!-- ================================================================== -->
         <div class="panel btc-panel">
             <div class="panel-header">
-                <h3>
+                <h3
+                    class="glitch"
+                    data-text="₿ {$currentTranslations.btc_fundamentals_title ||
+                        'BTC Fundamentals-Lite'}"
+                >
                     ₿ {$currentTranslations.btc_fundamentals_title ||
                         "BTC Fundamentals-Lite"}
                 </h3>
@@ -1706,7 +1714,11 @@
         <!-- ================================================================== -->
         <div class="panel inflation-panel wide">
             <div class="panel-header">
-                <h3>
+                <h3
+                    class="glitch"
+                    data-text="🔥 {$currentTranslations.inflation_expect_title ||
+                        'Inflation Expectations'}"
+                >
                     🔥 {$currentTranslations.inflation_expect_title ||
                         "Inflation Expectations"}
                 </h3>

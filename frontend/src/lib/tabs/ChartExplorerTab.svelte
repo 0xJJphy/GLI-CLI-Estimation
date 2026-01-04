@@ -263,7 +263,13 @@
     <div class="chart-card wide">
         <div class="chart-header">
             <div>
-                <h3>{translations.nav_chart_explorer || "Chart Explorer"}</h3>
+                <h3
+                    class="glitch"
+                    data-text={translations.nav_chart_explorer ||
+                        "Chart Explorer"}
+                >
+                    {translations.nav_chart_explorer || "Chart Explorer"}
+                </h3>
                 <p
                     class="description"
                     style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--text-muted);"
@@ -386,7 +392,13 @@
     <div class="chart-card wide">
         <div class="chart-header">
             <div>
-                <h3>{translations.abs_chart_title || "Absolute Explorer"}</h3>
+                <h3
+                    class="glitch"
+                    data-text={translations.abs_chart_title ||
+                        "Absolute Explorer"}
+                >
+                    {translations.abs_chart_title || "Absolute Explorer"}
+                </h3>
                 <p
                     class="description"
                     style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--text-muted);"
