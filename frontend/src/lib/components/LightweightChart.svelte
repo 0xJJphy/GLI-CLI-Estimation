@@ -83,14 +83,24 @@
 
         api.chart = createChart(container, {
             layout: {
-                background: { color: colors.background },
+                background: { color: darkMode ? "#050505" : "#ffffff" },
                 textColor: colors.text,
-                fontFamily: "Inter, -apple-system, system-ui, sans-serif",
+                fontFamily: "JetBrains Mono",
                 fontSize: 12,
             },
             grid: {
-                vertLines: { color: colors.grid },
-                horzLines: { color: colors.grid },
+                vertLines: {
+                    color: darkMode
+                        ? "rgba(255, 255, 255, 0.03)"
+                        : "rgba(0, 0, 0, 0.03)",
+                    style: 2,
+                },
+                horzLines: {
+                    color: darkMode
+                        ? "rgba(255, 255, 255, 0.03)"
+                        : "rgba(0, 0, 0, 0.03)",
+                    style: 2,
+                },
             },
             crosshair: {
                 mode: 0,

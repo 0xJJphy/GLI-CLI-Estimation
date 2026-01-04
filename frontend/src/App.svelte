@@ -2592,29 +2592,28 @@
             class="sidebar-toggle-btn"
             on:click={toggleSidebar}
             title={sidebarVisible ? "Hide Sidebar" : "Show Sidebar"}
+            class:collapsed={!sidebarVisible}
           >
             <svg
               viewBox="0 0 24 24"
-              width="20"
-              height="20"
-              class:rotated={!sidebarVisible}
+              width="22"
+              height="22"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
             >
-              <path
-                stroke="currentColor"
-                stroke-width="2.5"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                fill="none"
-                d="M15 18l-6-6 6-6"
-              />
+              <polyline points="15 18 9 12 15 6"></polyline>
             </svg>
           </button>
           <h1
-            class="glitch"
+            class="glitch-text"
             data-text="{currentTab} {$currentTranslations.nav_dashboard ===
             'Dashboard'
               ? 'Overview'
               : 'Resumen'}"
+            style="font-family: var(--font-mono);"
           >
             {currentTab}
             {$currentTranslations.nav_dashboard === "Dashboard"
@@ -2842,94 +2841,167 @@
     scrollbar-color: rgba(148, 163, 184, 0.2) transparent;
   }
 
-  /* Glitch Aesthetic */
-  :global(.glitch-container) {
+  /* Glitch Aesthetic - Quant.os Inspired */
+  :global(.glitch-text) {
     position: relative;
     display: inline-block;
-  }
-
-  :global(.glitch) {
-    position: relative;
     color: var(--text-primary);
-    font-family: var(--font-mono);
   }
 
-  :global(.glitch::before),
-  :global(.glitch::after) {
+  :global(.glitch-text::before),
+  :global(.glitch-text::after) {
     content: attr(data-text);
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    opacity: 0.8;
+    background: var(--bg-primary); /* Use dynamic background */
   }
 
-  :global(.glitch::before) {
-    color: var(--accent-secondary);
-    z-index: -1;
-    animation: glitch-anim 2.5s infinite linear alternate-reverse;
-    opacity: 0.5;
+  :global(.glitch-text::before) {
+    left: 2px;
+    text-shadow: -1px 0 #ff00c1;
+    clip: rect(44px, 450px, 56px, 0);
+    animation: glitch-anim 5s infinite linear alternate-reverse;
   }
 
-  :global(.glitch::after) {
-    color: var(--accent-primary);
-    z-index: -2;
-    animation: glitch-anim2 2s infinite linear alternate-reverse;
-    opacity: 0.5;
+  :global(.glitch-text::after) {
+    left: -2px;
+    text-shadow: -1px 0 #00fff9;
+    clip: rect(44px, 450px, 56px, 0);
+    animation: glitch-anim2 5s infinite linear alternate-reverse;
   }
 
   @keyframes glitch-anim {
     0% {
-      clip-path: inset(20% 0 50% 0);
-      transform: skew(0.5deg);
+      clip: rect(30px, 9999px, 10px, 0);
+    }
+    5% {
+      clip: rect(80px, 9999px, 5px, 0);
+    }
+    10% {
+      clip: rect(10px, 9999px, 90px, 0);
+    }
+    15% {
+      clip: rect(45px, 9999px, 40px, 0);
     }
     20% {
-      clip-path: inset(80% 0 10% 0);
-      transform: skew(-0.5deg);
+      clip: rect(90px, 9999px, 15px, 0);
+    }
+    25% {
+      clip: rect(5px, 9999px, 80px, 0);
+    }
+    30% {
+      clip: rect(60px, 9999px, 50px, 0);
+    }
+    35% {
+      clip: rect(25px, 9999px, 95px, 0);
     }
     40% {
-      clip-path: inset(10% 0 80% 0);
-      transform: skew(0.2deg);
+      clip: rect(75px, 9999px, 5px, 0);
+    }
+    45% {
+      clip: rect(15px, 9999px, 70px, 0);
+    }
+    50% {
+      clip: rect(40px, 9999px, 45px, 0);
+    }
+    55% {
+      clip: rect(85px, 9999px, 20px, 0);
     }
     60% {
-      clip-path: inset(50% 0 30% 0);
-      transform: skew(-0.2deg);
+      clip: rect(30px, 9999px, 60px, 0);
+    }
+    65% {
+      clip: rect(10px, 9999px, 35px, 0);
+    }
+    70% {
+      clip: rect(55px, 9999px, 90px, 0);
+    }
+    75% {
+      clip: rect(20px, 9999px, 10px, 0);
     }
     80% {
-      clip-path: inset(30% 0 60% 0);
-      transform: skew(0.3deg);
+      clip: rect(65px, 9999px, 75px, 0);
+    }
+    85% {
+      clip: rect(50px, 9999px, 40px, 0);
+    }
+    90% {
+      clip: rect(95px, 9999px, 15px, 0);
+    }
+    95% {
+      clip: rect(15px, 9999px, 85px, 0);
     }
     100% {
-      clip-path: inset(40% 0 40% 0);
-      transform: skew(-0.1deg);
+      clip: rect(60px, 9999px, 30px, 0);
     }
   }
 
   @keyframes glitch-anim2 {
     0% {
-      clip-path: inset(10% 0 85% 0);
-      transform: skew(-0.2deg);
+      clip: rect(10px, 9999px, 80px, 0);
+    }
+    5% {
+      clip: rect(90px, 9999px, 10px, 0);
+    }
+    10% {
+      clip: rect(50px, 9999px, 40px, 0);
+    }
+    15% {
+      clip: rect(20px, 9999px, 70px, 0);
     }
     20% {
-      clip-path: inset(60% 0 35% 0);
-      transform: skew(0.1deg);
+      clip: rect(65px, 9999px, 15px, 0);
+    }
+    25% {
+      clip: rect(35px, 9999px, 95px, 0);
+    }
+    30% {
+      clip: rect(80px, 9999px, 50px, 0);
+    }
+    35% {
+      clip: rect(10px, 9999px, 25px, 0);
     }
     40% {
-      clip-path: inset(30% 0 55% 0);
-      transform: skew(-0.3deg);
+      clip: rect(45px, 9999px, 80px, 0);
+    }
+    45% {
+      clip: rect(70px, 9999px, 10px, 0);
+    }
+    50% {
+      clip: rect(25px, 9999px, 65px, 0);
+    }
+    55% {
+      clip: rect(90px, 9999px, 40px, 0);
     }
     60% {
-      clip-path: inset(90% 0 5% 0);
-      transform: skew(0.2deg);
+      clip: rect(15px, 9999px, 30px, 0);
+    }
+    65% {
+      clip: rect(55px, 9999px, 85px, 0);
+    }
+    70% {
+      clip: rect(30px, 9999px, 15px, 0);
+    }
+    75% {
+      clip: rect(85px, 9999px, 90px, 0);
     }
     80% {
-      clip-path: inset(5% 0 90% 0);
-      transform: skew(-0.1deg);
+      clip: rect(40px, 9999px, 5px, 0);
+    }
+    85% {
+      clip: rect(60px, 9999px, 55px, 0);
+    }
+    90% {
+      clip: rect(10px, 9999px, 75px, 0);
+    }
+    95% {
+      clip: rect(75px, 9999px, 20px, 0);
     }
     100% {
-      clip-path: inset(45% 0 45% 0);
-      transform: skew(0.1deg);
+      clip: rect(20px, 9999px, 70px, 0);
     }
   }
 
@@ -3127,25 +3199,28 @@
   }
 
   .sidebar-toggle-btn {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-color);
-    color: var(--text-muted);
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s;
-    box-shadow: var(--card-shadow);
+    padding: 8px;
+    border-radius: 8px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-right: 12px;
+  }
+
+  .sidebar-toggle-btn:hover {
+    background: var(--bg-secondary);
   }
 
   .sidebar-toggle-btn svg {
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  .sidebar-toggle-btn svg.rotated {
+  .sidebar-toggle-btn.collapsed svg {
     transform: rotate(180deg);
   }
 

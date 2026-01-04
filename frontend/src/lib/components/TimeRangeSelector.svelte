@@ -36,32 +36,43 @@
 <style>
     .time-range-selector {
         display: flex;
-        gap: 4px;
-        padding: 4px;
-        background: rgba(241, 245, 249, 0.8);
-        border-radius: 8px;
+        gap: 2px;
+        padding: 2px;
+        background: rgba(15, 23, 42, 0.4);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+    }
+
+    :global([data-theme="light"]) .time-range-selector {
+        background: rgba(0, 0, 0, 0.03);
     }
 
     .range-btn {
-        padding: 4px 10px;
+        padding: 2px 8px;
         border: none;
         background: transparent;
-        color: #64748b;
-        font-size: 12px;
-        font-weight: 500;
+        color: var(--text-muted);
+        font-family: var(--font-mono);
+        font-size: 11px;
+        font-weight: 400;
         cursor: pointer;
-        border-radius: 6px;
-        transition: all 0.2s ease;
+        border-radius: 3px;
+        transition: all 0.15s ease;
+        text-transform: uppercase;
     }
 
     .range-btn:hover {
-        background: rgba(99, 102, 241, 0.1);
-        color: #6366f1;
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-primary);
+    }
+
+    :global([data-theme="light"]) .range-btn:hover {
+        background: rgba(0, 0, 0, 0.05);
     }
 
     .range-btn.active {
-        background: #6366f1;
+        background: var(--accent-primary);
         color: white;
-        box-shadow: 0 2px 4px rgba(99, 102, 241, 0.3);
+        font-weight: 600;
     }
 </style>

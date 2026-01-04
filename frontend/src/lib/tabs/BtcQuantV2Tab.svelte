@@ -27,7 +27,7 @@
     <div class="chart-card wide">
         <div class="chart-header">
             <h3
-                class="glitch"
+                class="glitch-text"
                 data-text="🧪 {translations.quant_v2_title ||
                     'Quant v2: Enhanced Bitcoin Fair Value Model'}"
             >
@@ -75,7 +75,7 @@
         <div class="chart-card premium purple">
             <div class="chart-header">
                 <h3
-                    class="glitch"
+                    class="glitch-text"
                     data-text="📈 {translations.oos_metrics ||
                         'Out-of-Sample Metrics'}"
                 >
@@ -126,7 +126,7 @@
         <div class="chart-card premium blue">
             <div class="chart-header">
                 <h3
-                    class="glitch"
+                    class="glitch-text"
                     data-text="⚙️ {translations.model_params ||
                         'Model Parameters'}"
                 >
@@ -172,7 +172,7 @@
         <div class="chart-card premium">
             <div class="chart-header">
                 <h3
-                    class="glitch"
+                    class="glitch-text"
                     data-text="🎯 {translations.active_features ||
                         'Active Features'}"
                 >
@@ -205,7 +205,7 @@
         >
             <div class="chart-header">
                 <h3
-                    class="glitch"
+                    class="glitch-text"
                     data-text="📊 {translations.current_valuation ||
                         'Current Valuation'}"
                 >
@@ -281,7 +281,7 @@
     <div class="chart-card wide premium">
         <div class="chart-header">
             <h3
-                class="glitch"
+                class="glitch-text"
                 data-text={translations.chart_quant_v2_cum ||
                     "Bitcoin: Quant v2 Fair Value (Weekly - Cumulative)"}
             >
@@ -306,7 +306,7 @@
     <div class="chart-card wide premium purple">
         <div class="chart-header">
             <h3
-                class="glitch"
+                class="glitch-text"
                 data-text={translations.chart_quant_v2_rebal ||
                     "Bitcoin: Rebalanced Fair Value (Quarterly Reset)"}
             >
@@ -331,7 +331,7 @@
     <div class="chart-card wide premium blue">
         <div class="chart-header">
             <h3
-                class="glitch"
+                class="glitch-text"
                 data-text={translations.chart_returns_comp ||
                     "Weekly Returns: Predicted vs Actual (%)"}
             >

@@ -1508,7 +1508,7 @@
         <div class="panel repo-panel">
             <div class="panel-header">
                 <h3
-                    class="glitch"
+                    class="glitch-text"
                     data-text="🏛️ {$currentTranslations.plumbing_title ||
                         'Plumbing: Repo & Corridor'}"
                 >
@@ -1638,7 +1638,7 @@
         <div class="panel btc-panel">
             <div class="panel-header">
                 <h3
-                    class="glitch"
+                    class="glitch-text"
                     data-text="₿ {$currentTranslations.btc_fundamentals_title ||
                         'BTC Fundamentals-Lite'}"
                 >
@@ -1715,7 +1715,7 @@
         <div class="panel inflation-panel wide">
             <div class="panel-header">
                 <h3
-                    class="glitch"
+                    class="glitch-text"
                     data-text="🔥 {$currentTranslations.inflation_expect_title ||
                         'Inflation Expectations'}"
                 >

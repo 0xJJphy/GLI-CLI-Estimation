@@ -264,7 +264,7 @@
         <div class="chart-header">
             <div>
                 <h3
-                    class="glitch"
+                    class="glitch-text"
                     data-text={translations.nav_chart_explorer ||
                         "Chart Explorer"}
                 >
@@ -393,7 +393,7 @@
         <div class="chart-header">
             <div>
                 <h3
-                    class="glitch"
+                    class="glitch-text"
                     data-text={translations.abs_chart_title ||
                         "Absolute Explorer"}
                 >

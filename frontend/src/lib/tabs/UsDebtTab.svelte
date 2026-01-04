@@ -239,7 +239,7 @@
         <div class="header-left">
             <span class="header-icon">🏛️</span>
             <h2
-                class="header-title glitch"
+                class="header-title glitch-text"
                 data-text={translations.treasury_maturity_tracker ||
                     "Treasury Maturity Tracker"}
             >
@@ -369,7 +369,7 @@
     <div class="chart-card">
         <div class="chart-header">
             <h3
-                class="chart-title glitch"
+                class="chart-title glitch-text"
                 data-text={translations.maturity_schedule_title ||
                     "Maturity Schedule by Security Type"}
             >
@@ -412,7 +412,7 @@
     <div class="table-card" style="margin-bottom: 30px;">
         <div class="table-header">
             <h3
-                class="table-title glitch"
+                class="table-title glitch-text"
                 data-text={translations.monthly_maturity_schedule ||
                     "Monthly Maturity Schedule ($ Billions)"}
             >
