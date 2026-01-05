@@ -680,8 +680,10 @@
                 <!-- ROC Indicators -->
                 <div class="metrics-footer">
                     <div class="roc-bar">
-                        class="roc-item" class:positive={rocs.w1 > 0}
-                        class:negative={rocs.w1 < 0}
+                        <div
+                            class="roc-item"
+                            class:positive={rocs.w1 > 0}
+                            class:negative={rocs.w1 < 0}
                         >
                         <span class="roc-label"
                             >{translations.val_1w || "1W"}</span
