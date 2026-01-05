@@ -685,56 +685,57 @@
                             class:positive={rocs.w1 > 0}
                             class:negative={rocs.w1 < 0}
                         >
-                        <span class="roc-label"
-                            >{translations.val_1w || "1W"}</span
+                            <span class="roc-label"
+                                >{translations.val_1w || "1W"}</span
+                            >
+                            <span class="roc-value"
+                                >{rocs.w1 !== null
+                                    ? rocs.w1.toFixed(1) + "%"
+                                    : translations.na || "N/A"}</span
+                            >
+                        </div>
+                        <div
+                            class="roc-item"
+                            class:positive={rocs.m1 > 0}
+                            class:negative={rocs.m1 < 0}
                         >
-                        <span class="roc-value"
-                            >{rocs.w1 !== null
-                                ? rocs.w1.toFixed(1) + "%"
-                                : translations.na || "N/A"}</span
+                            <span class="roc-label"
+                                >{translations.val_1m || "1M"}</span
+                            >
+                            <span class="roc-value"
+                                >{rocs.m1 !== null
+                                    ? rocs.m1.toFixed(1) + "%"
+                                    : translations.na || "N/A"}</span
+                            >
+                        </div>
+                        <div
+                            class="roc-item"
+                            class:positive={rocs.m3 > 0}
+                            class:negative={rocs.m3 < 0}
                         >
-                    </div>
-                    <div
-                        class="roc-item"
-                        class:positive={rocs.m1 > 0}
-                        class:negative={rocs.m1 < 0}
-                    >
-                        <span class="roc-label"
-                            >{translations.val_1m || "1M"}</span
+                            <span class="roc-label"
+                                >{translations.val_3m || "3M"}</span
+                            >
+                            <span class="roc-value"
+                                >{rocs.m3 !== null
+                                    ? rocs.m3.toFixed(1) + "%"
+                                    : translations.na || "N/A"}</span
+                            >
+                        </div>
+                        <div
+                            class="roc-item"
+                            class:positive={rocs.m6 > 0}
+                            class:negative={rocs.m6 < 0}
                         >
-                        <span class="roc-value"
-                            >{rocs.m1 !== null
-                                ? rocs.m1.toFixed(1) + "%"
-                                : translations.na || "N/A"}</span
-                        >
-                    </div>
-                    <div
-                        class="roc-item"
-                        class:positive={rocs.m3 > 0}
-                        class:negative={rocs.m3 < 0}
-                    >
-                        <span class="roc-label"
-                            >{translations.val_3m || "3M"}</span
-                        >
-                        <span class="roc-value"
-                            >{rocs.m3 !== null
-                                ? rocs.m3.toFixed(1) + "%"
-                                : translations.na || "N/A"}</span
-                        >
-                    </div>
-                    <div
-                        class="roc-item"
-                        class:positive={rocs.m6 > 0}
-                        class:negative={rocs.m6 < 0}
-                    >
-                        <span class="roc-label"
-                            >{translations.val_6m || "6M"}</span
-                        >
-                        <span class="roc-value"
-                            >{rocs.m6 !== null
-                                ? rocs.m6.toFixed(1) + "%"
-                                : translations.na || "N/A"}</span
-                        >
+                            <span class="roc-label"
+                                >{translations.val_6m || "6M"}</span
+                            >
+                            <span class="roc-value"
+                                >{rocs.m6 !== null
+                                    ? rocs.m6.toFixed(1) + "%"
+                                    : translations.na || "N/A"}</span
+                            >
+                        </div>
                     </div>
                 </div>
             </div>
