@@ -804,11 +804,13 @@
     }
 
     .chart-content {
-        min-height: 300px;
+        min-height: 400px;
+        height: 400px;
     }
 
     .chart-content.short {
-        min-height: 220px;
+        min-height: 320px;
+        height: 320px;
     }
 
     .gli-layout {
@@ -887,7 +889,7 @@
     .roc-bar {
         display: flex;
         justify-content: space-around;
-        margin-top: 12px;
+        margin-top: 20px;
         padding: 10px;
         background: var(--bg-tertiary);
         border-radius: 8px;

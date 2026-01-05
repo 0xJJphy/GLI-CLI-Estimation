@@ -24,7 +24,7 @@
             color: isDark ? "#cbd5e1" : "#1e293b",
             family: "'JetBrains Mono', monospace",
         },
-        margin: { t: 40, r: 20, l: 60, b: 40 },
+        margin: { t: 40, r: 20, l: 65, b: 60 },
         xaxis: {
             gridcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.05)",
             zeroline: false,
@@ -211,7 +211,6 @@
     .chart-wrapper {
         width: 100%;
         height: 100%;
-        min-height: 400px;
     }
 
     .chart-actions {
