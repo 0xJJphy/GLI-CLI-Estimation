@@ -453,57 +453,60 @@
                 />
             </div>
 
+            <div class="card-divider"></div>
             <!-- Aggregate ROC Indicators -->
             {#if dashboardData.gli?.rocs}
                 {@const totalRocs = getGliTotalRocs()}
-                <div class="roc-bar">
-                    <div
-                        class="roc-item"
-                        class:positive={totalRocs.m1 > 0}
-                        class:negative={totalRocs.m1 < 0}
-                    >
-                        <span class="roc-label">1M</span>
-                        <span class="roc-value"
-                            >{totalRocs.m1 !== null
-                                ? totalRocs.m1.toFixed(1) + "%"
-                                : "N/A"}</span
+                <div class="metrics-footer">
+                    <div class="roc-bar">
+                        <div
+                            class="roc-item"
+                            class:positive={totalRocs.m1 > 0}
+                            class:negative={totalRocs.m1 < 0}
                         >
-                    </div>
-                    <div
-                        class="roc-item"
-                        class:positive={totalRocs.m3 > 0}
-                        class:negative={totalRocs.m3 < 0}
-                    >
-                        <span class="roc-label">3M</span>
-                        <span class="roc-value"
-                            >{totalRocs.m3 !== null
-                                ? totalRocs.m3.toFixed(1) + "%"
-                                : "N/A"}</span
+                            <span class="roc-label">1M</span>
+                            <span class="roc-value"
+                                >{totalRocs.m1 !== null
+                                    ? totalRocs.m1.toFixed(1) + "%"
+                                    : "N/A"}</span
+                            >
+                        </div>
+                        <div
+                            class="roc-item"
+                            class:positive={totalRocs.m3 > 0}
+                            class:negative={totalRocs.m3 < 0}
                         >
-                    </div>
-                    <div
-                        class="roc-item"
-                        class:positive={totalRocs.m6 > 0}
-                        class:negative={totalRocs.m6 < 0}
-                    >
-                        <span class="roc-label">6M</span>
-                        <span class="roc-value"
-                            >{totalRocs.m6 !== null
-                                ? totalRocs.m6.toFixed(1) + "%"
-                                : "N/A"}</span
+                            <span class="roc-label">3M</span>
+                            <span class="roc-value"
+                                >{totalRocs.m3 !== null
+                                    ? totalRocs.m3.toFixed(1) + "%"
+                                    : "N/A"}</span
+                            >
+                        </div>
+                        <div
+                            class="roc-item"
+                            class:positive={totalRocs.m6 > 0}
+                            class:negative={totalRocs.m6 < 0}
                         >
-                    </div>
-                    <div
-                        class="roc-item"
-                        class:positive={totalRocs.y1 > 0}
-                        class:negative={totalRocs.y1 < 0}
-                    >
-                        <span class="roc-label">1Y</span>
-                        <span class="roc-value"
-                            >{totalRocs.y1 !== null
-                                ? totalRocs.y1.toFixed(1) + "%"
-                                : "N/A"}</span
+                            <span class="roc-label">6M</span>
+                            <span class="roc-value"
+                                >{totalRocs.m6 !== null
+                                    ? totalRocs.m6.toFixed(1) + "%"
+                                    : "N/A"}</span
+                            >
+                        </div>
+                        <div
+                            class="roc-item"
+                            class:positive={totalRocs.y1 > 0}
+                            class:negative={totalRocs.y1 < 0}
                         >
+                            <span class="roc-label">1Y</span>
+                            <span class="roc-value"
+                                >{totalRocs.y1 !== null
+                                    ? totalRocs.y1.toFixed(1) + "%"
+                                    : "N/A"}</span
+                            >
+                        </div>
                     </div>
                 </div>
             {/if}
@@ -582,63 +585,65 @@
                 <div class="chart-content short">
                     <Chart {darkMode} data={bankChartData[item.id]} />
                 </div>
-                <!-- ROC Indicators -->
-                <div class="roc-bar">
-                    <div
-                        class="roc-item"
-                        class:positive={rocs.w1 > 0}
-                        class:negative={rocs.w1 < 0}
-                    >
-                        <span class="roc-label"
-                            >{translations.val_1w || "1W"}</span
+                <div class="card-divider"></div>
+                <div class="metrics-footer">
+                    <div class="roc-bar">
+                        <div
+                            class="roc-item"
+                            class:positive={rocs.w1 > 0}
+                            class:negative={rocs.w1 < 0}
                         >
-                        <span class="roc-value"
-                            >{rocs.w1 !== null
-                                ? rocs.w1.toFixed(1) + "%"
-                                : translations.na || "N/A"}</span
+                            <span class="roc-label"
+                                >{translations.val_1w || "1W"}</span
+                            >
+                            <span class="roc-value"
+                                >{rocs.w1 !== null
+                                    ? rocs.w1.toFixed(1) + "%"
+                                    : translations.na || "N/A"}</span
+                            >
+                        </div>
+                        <div
+                            class="roc-item"
+                            class:positive={rocs.m1 > 0}
+                            class:negative={rocs.m1 < 0}
                         >
-                    </div>
-                    <div
-                        class="roc-item"
-                        class:positive={rocs.m1 > 0}
-                        class:negative={rocs.m1 < 0}
-                    >
-                        <span class="roc-label"
-                            >{translations.val_1m || "1M"}</span
+                            <span class="roc-label"
+                                >{translations.val_1m || "1M"}</span
+                            >
+                            <span class="roc-value"
+                                >{rocs.m1 !== null
+                                    ? rocs.m1.toFixed(1) + "%"
+                                    : translations.na || "N/A"}</span
+                            >
+                        </div>
+                        <div
+                            class="roc-item"
+                            class:positive={rocs.m3 > 0}
+                            class:negative={rocs.m3 < 0}
                         >
-                        <span class="roc-value"
-                            >{rocs.m1 !== null
-                                ? rocs.m1.toFixed(1) + "%"
-                                : translations.na || "N/A"}</span
+                            <span class="roc-label"
+                                >{translations.val_3m || "3M"}</span
+                            >
+                            <span class="roc-value"
+                                >{rocs.m3 !== null
+                                    ? rocs.m3.toFixed(1) + "%"
+                                    : translations.na || "N/A"}</span
+                            >
+                        </div>
+                        <div
+                            class="roc-item"
+                            class:positive={rocs.m6 > 0}
+                            class:negative={rocs.m6 < 0}
                         >
-                    </div>
-                    <div
-                        class="roc-item"
-                        class:positive={rocs.m3 > 0}
-                        class:negative={rocs.m3 < 0}
-                    >
-                        <span class="roc-label"
-                            >{translations.val_3m || "3M"}</span
-                        >
-                        <span class="roc-value"
-                            >{rocs.m3 !== null
-                                ? rocs.m3.toFixed(1) + "%"
-                                : translations.na || "N/A"}</span
-                        >
-                    </div>
-                    <div
-                        class="roc-item"
-                        class:positive={rocs.m6 > 0}
-                        class:negative={rocs.m6 < 0}
-                    >
-                        <span class="roc-label"
-                            >{translations.val_6m || "6M"}</span
-                        >
-                        <span class="roc-value"
-                            >{rocs.m6 !== null
-                                ? rocs.m6.toFixed(1) + "%"
-                                : translations.na || "N/A"}</span
-                        >
+                            <span class="roc-label"
+                                >{translations.val_6m || "6M"}</span
+                            >
+                            <span class="roc-value"
+                                >{rocs.m6 !== null
+                                    ? rocs.m6.toFixed(1) + "%"
+                                    : translations.na || "N/A"}</span
+                            >
+                        </div>
                     </div>
                 </div>
             </div>
@@ -725,14 +730,22 @@
         height: 400px;
     }
 
+    .card-divider {
+        height: 1px;
+        background: var(--border-color);
+        margin: 12px 0;
+        opacity: 0.5;
+    }
+
+    .metrics-footer {
+        width: 100%;
+    }
+
     /* ROC Indicator Bar */
     .roc-bar {
         display: flex;
         justify-content: space-around;
-        margin-top: 20px;
-        padding: 10px;
-        background: var(--bg-tertiary);
-        border-radius: 8px;
+        padding: 5px 0;
         gap: 8px;
     }
 
