@@ -30,6 +30,9 @@
     let btcOffsetDays = 0;
     let bestOffset = 0;
 
+    // Offset for Regime Score chart (shift background forward)
+    let regimeOffsetDays = 0;
+
     // Card container references for full-card download feature
     let regimeScoreCard;
     let cliComparisonCard;
@@ -305,8 +308,24 @@
         ];
     })();
 
+    // Extended X-range for regime score chart (allows showing future dates)
+    $: regimeXRange = (() => {
+        const dates = getFilteredDates(regimeScoreRange);
+        if (!dates || dates.length === 0) return undefined;
+        const startDate = dates[0];
+        const lastDate = new Date(dates[dates.length - 1]);
+        if (regimeOffsetDays > 0) {
+            lastDate.setDate(lastDate.getDate() + regimeOffsetDays);
+        }
+        return [startDate, lastDate.toISOString().split("T")[0]];
+    })();
+
     $: regimeScoreLayout = {
-        xaxis: { showgrid: false, color: darkMode ? "#94a3b8" : "#475569" },
+        xaxis: {
+            showgrid: false,
+            color: darkMode ? "#94a3b8" : "#475569",
+            range: regimeXRange,
+        },
         yaxis: {
             title: t("chart_score_y", "Score"),
             range: [0, 100],
@@ -317,34 +336,13 @@
                 : "rgba(71,85,105,0.1)",
         },
         shapes: [
-            {
-                type: "rect",
-                xref: "paper",
-                yref: "y",
-                x0: 0,
-                x1: 1,
-                y0: 0,
-                y1: 35,
-                fillcolor: darkMode
-                    ? "rgba(239, 68, 68, 0.15)"
-                    : "rgba(239, 68, 68, 0.18)",
-                line: { width: 0 },
-                layer: "below",
-            },
-            {
-                type: "rect",
-                xref: "paper",
-                yref: "y",
-                x0: 0,
-                x1: 1,
-                y0: 65,
-                y1: 100,
-                fillcolor: darkMode
-                    ? "rgba(16, 185, 129, 0.15)"
-                    : "rgba(16, 185, 129, 0.18)",
-                line: { width: 0 },
-                layer: "below",
-            },
+            ...createRegimeShapes(
+                currentRegime?.score,
+                regimeScoreRange,
+                darkMode,
+                regimeOffsetDays,
+            ),
+            // Static horizontal lines for reference
             {
                 type: "line",
                 xref: "paper",
@@ -958,12 +956,18 @@
     </div>
 </div>
 
-<!-- Offset Slider -->
+<!-- Offset Slider (controls both regime score and BTC charts) -->
 <div class="offset-panel" class:light={!darkMode}>
     <div class="offset-label">
         <span>{t("offset_days_label", "Offset (Days):")}</span>
-        <input type="range" min="0" max="120" bind:value={btcOffsetDays} />
-        <span class="offset-value">{btcOffsetDays}</span>
+        <input
+            type="range"
+            min="0"
+            max="120"
+            bind:value={regimeOffsetDays}
+            on:input={() => (btcOffsetDays = regimeOffsetDays)}
+        />
+        <span class="offset-value">{regimeOffsetDays}</span>
     </div>
     <button class="best-offset-btn" on:click={applyBestOffset}>
         {t("best_offset_label", "Best Offset")}: {bestOffset ||
