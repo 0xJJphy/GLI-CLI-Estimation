@@ -421,8 +421,8 @@
 </script>
 
 <div class="flows-container">
-    <!-- First Row: Aggregate GLI Chart (Full Width) -->
-    <div class="chart-card full-width" bind:this={gliAggregateCard}>
+    <!-- First Row: Aggregate GLI Chart -->
+    <div class="chart-card" bind:this={gliAggregateCard}>
         <div class="chart-header">
             <h3>{translations.chart_gli || "Global Liquidity Index (GLI)"}</h3>
             <div class="header-controls">
