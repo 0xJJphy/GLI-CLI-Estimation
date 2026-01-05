@@ -819,8 +819,8 @@
     }
 
     .chart-content.short {
-        min-height: 400px;
-        height: 400px;
+        min-height: 480px;
+        height: 480px;
         margin-bottom: 30px;
     }
 
