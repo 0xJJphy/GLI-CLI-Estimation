@@ -13,6 +13,7 @@
         getSignalWithFallback,
         calculateAggregateScore,
     } from "../utils/signalSchema.js";
+    import { downloadCardAsImage } from "../utils/downloadCard.js";
 
     // --- Background Shading Helpers ---
 
@@ -291,22 +292,31 @@
     let sofrVolumeViewMode = "raw"; // 'raw', 'roc_5d', 'roc_20d'
 
     // Card container references for full-card download feature
-    let repoCorridorCard;
-    let signalMatrixCard;
-    let divergenceCard;
-    let inflationSwapsCard;
-    let yieldCurveCard;
+    let inflationExpectCard;
+    let creditCompareCard;
     let cliCard;
     let tipsCard;
-    let creditSpreadsCard;
+    let repoCorridorCard;
+    let divergenceCard;
+    let signalMatrixCard;
+    let treasury10yCard;
+    let treasury5yCard;
+    let treasury2yCard;
     let sofrVolumeCard;
     let vixCard;
     let moveCard;
     let fxVolCard;
+    let stLouisStressCard;
+    let kansasCityStressCard;
+    let baaAaaCard;
     let nfpCard;
     let joltsCard;
-    let stLouisStressCard;
-    let kcStressCard;
+    let creditIndicatorCards = [];
+    let yieldCurve2y10yCard;
+    let yieldCurve5yCard;
+    let yieldCurve30y10yCard;
+    let yieldCurve30y2yCard;
+    let creditSpreadsCard;
 
     // --- Performance Optimization: Cached Indices ---
     import { getCutoffDate } from "../utils/helpers.js";
@@ -2527,13 +2537,24 @@
 <div class="main-charts">
     <div class="grid-2">
         <!-- Inflation Expectations (Swap Rates / Cleveland Fed) Chart -->
-        <div class="chart-card">
+        <div class="chart-card" bind:this={inflationExpectCard}>
             <div class="chart-header">
                 <h3>
                     {translations.chart_inflation_swap_title ||
                         "USD Inflation Swap Rates (Cleveland Fed)"}
                 </h3>
                 <div class="header-controls">
+                    <button
+                        class="download-card-btn"
+                        title="Download Full Card"
+                        on:click={() =>
+                            downloadCardAsImage(
+                                inflationExpectCard,
+                                "inflation_expectations",
+                            )}
+                    >
+                        📷
+                    </button>
                     <TimeRangeSelector
                         selectedRange={inflationExpectRange}
                         onRangeChange={(r) => (inflationExpectRange = r)}
@@ -2646,13 +2667,24 @@
         </div>
 
         <!-- TIPS / Inflation Expectations Chart -->
-        <div class="chart-card">
+        <div class="chart-card" bind:this={tipsCard}>
             <div class="chart-header">
                 <h3>
                     {translations.chart_inflation_exp ||
                         "Inflation Expectations (TIPS Market)"}
                 </h3>
                 <div class="header-controls">
+                    <button
+                        class="download-card-btn"
+                        title="Download Full Card"
+                        on:click={() =>
+                            downloadCardAsImage(
+                                tipsCard,
+                                "tips_market_expectations",
+                            )}
+                    >
+                        📷
+                    </button>
                     <TimeRangeSelector
                         selectedRange={tipsRange}
                         onRangeChange={(r) => (tipsRange = r)}
@@ -2794,6 +2826,14 @@
                         "Credit Liquidity Index (CLI Aggregate)"}
                 </h3>
                 <div class="header-controls">
+                    <button
+                        class="download-card-btn"
+                        title="Download Full Card"
+                        on:click={() =>
+                            downloadCardAsImage(cliCard, "cli_aggregate")}
+                    >
+                        📷
+                    </button>
                     <div class="view-mode-toggle">
                         <button
                             class:active={cliViewMode === "zscore"}
@@ -2871,13 +2911,24 @@
         </div>
 
         <!-- CLI-GLI Divergence Analysis (Macro Coupling) -->
-        <div class="chart-card">
+        <div class="chart-card" bind:this={divergenceCard}>
             <div class="chart-header">
                 <h3>
                     {translations.chart_divergence ||
                         "CLI-GLI Divergence (Macro Coupling)"}
                 </h3>
                 <div class="header-controls">
+                    <button
+                        class="download-card-btn"
+                        title="Download Full Card"
+                        on:click={() =>
+                            downloadCardAsImage(
+                                divergenceCard,
+                                "cli_gli_divergence",
+                            )}
+                    >
+                        📷
+                    </button>
                     <div class="mode-selector">
                         <button
                             class:active={divergenceViewMode === "raw"}
@@ -3078,6 +3129,17 @@
                         "Fed Rate Corridor (SOFR vs Bounds)"}
                 </h3>
                 <div class="header-controls">
+                    <button
+                        class="download-card-btn"
+                        title="Download Full Card"
+                        on:click={() =>
+                            downloadCardAsImage(
+                                repoCorridorCard,
+                                "fed_rate_corridor",
+                            )}
+                    >
+                        📷
+                    </button>
                     <TimeRangeSelector
                         selectedRange={repoStressRange}
                         onRangeChange={(r) => (repoStressRange = r)}
@@ -3285,13 +3347,21 @@
         </div>
 
         <!-- SOFR Volume Chart -->
-        <div class="chart-card">
+        <div class="chart-card" bind:this={sofrVolumeCard}>
             <div class="chart-header">
                 <h3>
                     {translations.chart_sofr_volume ||
                         "Repo Market Depth (SOFR Volume)"}
                 </h3>
                 <div class="header-controls">
+                    <button
+                        class="download-card-btn"
+                        title="Download Full Card"
+                        on:click={() =>
+                            downloadCardAsImage(sofrVolumeCard, "sofr_volume")}
+                    >
+                        📷
+                    </button>
                     <div class="mode-selector">
                         <button
                             class:active={sofrVolumeViewMode === "raw"}
@@ -3416,13 +3486,24 @@
         </div>
 
         <!-- Treasury 10Y Chart -->
-        <div class="chart-card">
+        <div class="chart-card" bind:this={treasury10yCard}>
             <div class="chart-header">
                 <h3>
                     {translations.chart_treasury_10y ||
                         "10-Year Treasury Yield"}
                 </h3>
                 <div class="header-controls">
+                    <button
+                        class="download-card-btn"
+                        title="Download Full Card"
+                        on:click={() =>
+                            downloadCardAsImage(
+                                treasury10yCard,
+                                "treasury_10y",
+                            )}
+                    >
+                        📷
+                    </button>
                     <div class="view-mode-toggle">
                         <button
                             class:active={treasury10yViewMode === "zscore"}
@@ -3517,12 +3598,20 @@
         </div>
 
         <!-- Treasury 2Y Chart -->
-        <div class="chart-card">
+        <div class="chart-card" bind:this={treasury2yCard}>
             <div class="chart-header">
                 <h3>
                     {translations.chart_treasury_2y || "2-Year Treasury Yield"}
                 </h3>
                 <div class="header-controls">
+                    <button
+                        class="download-card-btn"
+                        title="Download Full Card"
+                        on:click={() =>
+                            downloadCardAsImage(treasury2yCard, "treasury_2y")}
+                    >
+                        📷
+                    </button>
                     <div class="view-mode-toggle">
                         <button
                             class:active={treasury2yViewMode === "zscore"}
@@ -3616,13 +3705,24 @@
         </div>
 
         <!-- Yield Curve Spread (10Y - 2Y) Chart -->
-        <div class="chart-card">
+        <div class="chart-card" bind:this={yieldCurve2y10yCard}>
             <div class="chart-header">
                 <h3>
                     {translations.chart_yield_curve ||
                         "Yield Curve (10Y-2Y Spread)"}
                 </h3>
                 <div class="header-controls">
+                    <button
+                        class="download-card-btn"
+                        title="Download Full Card"
+                        on:click={() =>
+                            downloadCardAsImage(
+                                yieldCurve2y10yCard,
+                                "yield_curve_2y_10y",
+                            )}
+                    >
+                        📷
+                    </button>
                     <div class="mode-selector">
                         <button
                             class:active={yieldCurveViewMode === "raw"}
@@ -3862,10 +3962,21 @@
         </div>
 
         <!-- 30Y-10Y Yield Curve -->
-        <div class="chart-card">
+        <div class="chart-card" bind:this={yieldCurve30y10yCard}>
             <div class="chart-header">
                 <h3>Yield Curve (30Y-10Y Spread)</h3>
                 <div class="header-controls">
+                    <button
+                        class="download-card-btn"
+                        title="Download Full Card"
+                        on:click={() =>
+                            downloadCardAsImage(
+                                yieldCurve30y10yCard,
+                                "yield_curve_30y_10y",
+                            )}
+                    >
+                        📷
+                    </button>
                     <div class="mode-selector">
                         <button
                             class:active={yieldCurve30y10yViewMode === "raw"}
@@ -4000,10 +4111,21 @@
         </div>
 
         <!-- 30Y-2Y Yield Curve (Full Spread) -->
-        <div class="chart-card">
+        <div class="chart-card" bind:this={yieldCurve30y2yCard}>
             <div class="chart-header">
                 <h3>Yield Curve (30Y-2Y Full Spread)</h3>
                 <div class="header-controls">
+                    <button
+                        class="download-card-btn"
+                        title="Download Full Card"
+                        on:click={() =>
+                            downloadCardAsImage(
+                                yieldCurve30y2yCard,
+                                "yield_curve_30y_2y",
+                            )}
+                    >
+                        📷
+                    </button>
                     <div class="mode-selector">
                         <button
                             class:active={yieldCurve30y2yViewMode === "raw"}
@@ -4137,13 +4259,24 @@
             {/if}
         </div>
 
-        <div class="chart-card">
+        <div class="chart-card" bind:this={creditSpreadsCard}>
             <div class="chart-header">
                 <h3>
                     {translations.chart_credit_spreads ||
                         "Credit Spreads (HY vs IG)"}
                 </h3>
                 <div class="header-controls">
+                    <button
+                        class="download-card-btn"
+                        title="Download Full Card"
+                        on:click={() =>
+                            downloadCardAsImage(
+                                creditSpreadsCard,
+                                "credit_spreads_hy_ig",
+                            )}
+                    >
+                        📷
+                    </button>
                     <div class="mode-selector">
                         <button
                             class:active={creditSpreadsViewMode === "raw"}
@@ -4312,10 +4445,18 @@
         </div>
 
         <!-- NEW: NFP (Non-Farm Payrolls) Chart -->
-        <div class="chart-card">
+        <div class="chart-card" bind:this={nfpCard}>
             <div class="chart-header">
                 <h3>Non-Farm Payrolls (NFP)</h3>
                 <div class="header-controls">
+                    <button
+                        class="download-card-btn"
+                        title="Download Full Card"
+                        on:click={() =>
+                            downloadCardAsImage(nfpCard, "nfp_employment")}
+                    >
+                        📷
+                    </button>
                     <div class="view-mode-toggle">
                         <button
                             class:active={nfpViewMode === "raw"}
@@ -4400,10 +4541,21 @@
         </div>
 
         <!-- NEW: JOLTS Chart -->
-        <div class="chart-card">
+        <div class="chart-card" bind:this={joltsCard}>
             <div class="chart-header">
                 <h3>Job Openings (JOLTS)</h3>
                 <div class="header-controls">
+                    <button
+                        class="download-card-btn"
+                        title="Download Full Card"
+                        on:click={() =>
+                            downloadCardAsImage(
+                                joltsCard,
+                                "jolts_job_openings",
+                            )}
+                    >
+                        📷
+                    </button>
                     <div class="view-mode-toggle">
                         <button
                             class:active={joltsViewMode === "raw"}
@@ -4488,10 +4640,21 @@
         </div>
 
         <!-- NEW: Financial Stress Indices Section -->
-        <div class="chart-card">
+        <div class="chart-card" bind:this={stLouisStressCard}>
             <div class="chart-header">
                 <h3>St. Louis Financial Stress Index (STLFSI4)</h3>
                 <div class="header-controls">
+                    <button
+                        class="download-card-btn"
+                        title="Download Full Card"
+                        on:click={() =>
+                            downloadCardAsImage(
+                                stLouisStressCard,
+                                "st_louis_financial_stress",
+                            )}
+                    >
+                        📷
+                    </button>
                     <div class="view-mode-toggle">
                         <button
                             class:active={stLouisStressViewMode === "zscore"}
@@ -4577,10 +4740,21 @@
             {/if}
         </div>
 
-        <div class="chart-card">
+        <div class="chart-card" bind:this={kansasCityStressCard}>
             <div class="chart-header">
                 <h3>Kansas City Financial Stress Index (KCFSI)</h3>
                 <div class="header-controls">
+                    <button
+                        class="download-card-btn"
+                        title="Download Full Card"
+                        on:click={() =>
+                            downloadCardAsImage(
+                                kansasCityStressCard,
+                                "kansas_city_financial_stress",
+                            )}
+                    >
+                        📷
+                    </button>
                     <div class="view-mode-toggle">
                         <button
                             class:active={kansasCityStressViewMode === "zscore"}
@@ -4668,10 +4842,21 @@
         </div>
 
         <!-- NEW: Corporate Bond Yields (BAA/AAA) -->
-        <div class="chart-card">
+        <div class="chart-card" bind:this={baaAaaCard}>
             <div class="chart-header">
                 <h3>Corporate Yields (BAA/AAA) & Credit Quality Spread</h3>
                 <div class="header-controls">
+                    <button
+                        class="download-card-btn"
+                        title="Download Full Card"
+                        on:click={() =>
+                            downloadCardAsImage(
+                                baaAaaCard,
+                                "corp_yields_baa_aaa",
+                            )}
+                    >
+                        📷
+                    </button>
                     <div class="view-mode-toggle">
                         <button
                             class:active={baaAaaViewMode === "raw"}
@@ -4747,11 +4932,22 @@
         </div>
 
         <!-- Individual Indicators -->
-        {#each creditIndicators as item}
-            <div class="chart-card">
+        {#each creditIndicators as item, i}
+            <div class="chart-card" bind:this={creditIndicatorCards[i]}>
                 <div class="chart-header">
                     <h3>{item.name}</h3>
                     <div class="header-controls">
+                        <button
+                            class="download-card-btn"
+                            title="Download Full Card"
+                            on:click={() =>
+                                downloadCardAsImage(
+                                    creditIndicatorCards[i],
+                                    item.id,
+                                )}
+                        >
+                            📷
+                        </button>
                         <div class="view-mode-toggle">
                             <button
                                 class:active={item.viewMode === "zscore"}

@@ -1677,6 +1677,7 @@
     .offset-label input[type="range"] {
         width: 200px;
         cursor: pointer;
+        accent-color: #f97316;
     }
     .offset-value {
         font-weight: 600;
@@ -1721,6 +1722,7 @@
     .offset-inline input[type="range"] {
         width: 120px;
         cursor: pointer;
+        accent-color: #f97316;
     }
     .offset-inline .offset-value {
         font-weight: 600;

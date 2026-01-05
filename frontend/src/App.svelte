@@ -32,6 +32,8 @@
   import {
     darkMode,
     language,
+    showWatermark,
+    watermarkType,
     currentTranslations,
     toggleDarkMode,
     toggleLanguage,
@@ -2649,6 +2651,30 @@
         >
           <span class="toggle-icon">🌐</span>
           <span class="toggle-label">{$language === "en" ? "EN" : "ES"}</span>
+        </button>
+        <button
+          class="header-toggle"
+          on:click={() => showWatermark.update((v) => !v)}
+          title={$showWatermark ? "Hide Watermarks" : "Show Watermarks"}
+        >
+          <span class="toggle-icon">{$showWatermark ? "💧" : "🚫"}</span>
+          <span class="toggle-label">WM</span>
+        </button>
+        <button
+          class="header-toggle"
+          on:click={() =>
+            watermarkType.update((t) => (t === "text" ? "image" : "text"))}
+          title={$watermarkType === "image"
+            ? "Switch to Text Watermark"
+            : "Switch to Image Watermark"}
+          disabled={!$showWatermark}
+        >
+          <span class="toggle-icon"
+            >{$watermarkType === "image" ? "🖼️" : "📝"}</span
+          >
+          <span class="toggle-label"
+            >{$watermarkType === "image" ? "IMG" : "TXT"}</span
+          >
         </button>
         <button
           class="header-toggle"

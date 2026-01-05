@@ -1,11 +1,18 @@
 <script>
     import { onMount } from "svelte";
+    import { get } from "svelte/store";
     import {
         createChart,
         LineSeries,
         AreaSeries,
         HistogramSeries,
+        createTextWatermark,
+        createImageWatermark,
     } from "lightweight-charts";
+    import {
+        showWatermark,
+        watermarkType,
+    } from "../../stores/settingsStore.js";
 
     let {
         data = [],
@@ -63,6 +70,7 @@
     const api = {
         chart: null,
         seriesMap: new Map(),
+        watermark: null,
     };
 
     // Theme-aware colors
@@ -75,6 +83,62 @@
             ? "rgba(99, 102, 241, 0.5)"
             : "rgba(99, 102, 241, 0.4)",
         border: isDark ? "rgba(71, 85, 105, 0.5)" : "rgba(226, 232, 240, 0.8)",
+    });
+
+    // Helper to create watermark with current theme and type
+    const createWatermarkWithTheme = (isDark) => {
+        if (!api.chart) return;
+        if (api.watermark) {
+            api.watermark.detach();
+            api.watermark = null;
+        }
+        if (get(showWatermark)) {
+            const wmType = get(watermarkType);
+            if (wmType === "image") {
+                // Use image watermark with logo
+                const logoSrc = isDark ? "/logo-white.png" : "/logo.png";
+                api.watermark = createImageWatermark(
+                    api.chart.panes()[0],
+                    logoSrc,
+                    {
+                        alpha: isDark ? 0.15 : 0.12,
+                        padding: 20,
+                    },
+                );
+            } else {
+                // Use text watermark
+                api.watermark = createTextWatermark(api.chart.panes()[0], {
+                    horzAlign: "center",
+                    vertAlign: "center",
+                    lines: [
+                        {
+                            text: "0xJJphy",
+                            color: isDark
+                                ? "rgba(255, 255, 255, 0.18)"
+                                : "rgba(0, 0, 0, 0.10)",
+                            fontSize: 48,
+                            fontFamily: "JetBrains Mono",
+                        },
+                    ],
+                });
+            }
+        }
+    };
+
+    // Subscribe to watermark stores for reactivity
+    let watermarkVisible = true;
+    const unsubWatermark = showWatermark.subscribe((val) => {
+        watermarkVisible = val;
+        if (api.chart) {
+            createWatermarkWithTheme(currentDarkMode);
+        }
+    });
+
+    // Subscribe to watermark type changes
+    const unsubWatermarkType = watermarkType.subscribe(() => {
+        if (api.chart) {
+            createWatermarkWithTheme(currentDarkMode);
+        }
     });
 
     onMount(() => {
@@ -161,18 +225,8 @@
             },
         });
 
-        // Apply watermark separately if typing issues persist with createChart options in some versions
-        api.chart.applyOptions({
-            watermark: {
-                visible: true,
-                fontSize: 48,
-                fontFamily: "JetBrains Mono",
-                horzAlign: "center",
-                vertAlign: "center",
-                color: colors.text + "20",
-                text: "0xJJphy",
-            },
-        });
+        // Create watermark using new v5+ API
+        createWatermarkWithTheme(darkMode);
 
         currentData = data;
         currentLogScale = logScale;
@@ -198,6 +252,12 @@
 
         return () => {
             resizeObserver.disconnect();
+            unsubWatermark();
+            unsubWatermarkType();
+            if (api.watermark) {
+                api.watermark.detach();
+                api.watermark = null;
+            }
             if (api.chart) {
                 api.chart.remove();
                 api.chart = null;
@@ -316,10 +376,10 @@
             timeScale: {
                 borderColor: colors.border,
             },
-            watermark: {
-                color: colors.text + "20",
-            },
         });
+
+        // Recreate watermark with new theme colors
+        createWatermarkWithTheme(darkMode);
     }
 
     $effect.pre(() => {

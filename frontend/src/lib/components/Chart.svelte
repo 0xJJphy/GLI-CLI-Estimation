@@ -2,6 +2,11 @@
     import { onMount, afterUpdate } from "svelte";
     import Plotly from "plotly.js-dist-min";
     import { downloadCardAsImage } from "../utils/downloadCard.js";
+    import {
+        showWatermark,
+        watermarkType,
+    } from "../../stores/settingsStore.js";
+    import { get } from "svelte/store";
 
     export let data = [];
     export let layout = {};
@@ -16,54 +21,84 @@
 
     let chartContainer;
 
-    // Theme-aware colors
-    const getLayout = (isDark) => ({
-        paper_bgcolor: "rgba(0,0,0,0)",
-        plot_bgcolor: "rgba(0,0,0,0)",
-        font: {
-            color: isDark ? "#cbd5e1" : "#1e293b",
-            family: "'JetBrains Mono', monospace",
-        },
-        margin: { t: 40, r: 20, l: 65, b: 100 },
-        xaxis: {
-            gridcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.05)",
-            zeroline: false,
-            color: isDark ? "#94a3b8" : "#64748b",
-        },
-        yaxis: {
-            gridcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.05)",
-            zeroline: false,
-            color: isDark ? "#94a3b8" : "#64748b",
-        },
-        legend: {
-            orientation: "h",
-            yanchor: "bottom",
-            y: 1.02,
-            xanchor: "right",
-            x: 1,
+    // Theme-aware colors with optional watermark
+    const getLayout = (isDark, watermarkVisible) => {
+        const baseLayout = {
+            paper_bgcolor: "rgba(0,0,0,0)",
+            plot_bgcolor: "rgba(0,0,0,0)",
             font: {
                 color: isDark ? "#cbd5e1" : "#1e293b",
+                family: "'JetBrains Mono', monospace",
             },
-        },
-        annotations: [
-            {
-                text: "0xJJphy",
-                xref: "paper",
-                yref: "paper",
-                x: 0.5,
-                y: 0.5,
-                showarrow: false,
+            margin: { t: 40, r: 20, l: 65, b: 100 },
+            xaxis: {
+                gridcolor: isDark
+                    ? "rgba(255,255,255,0.03)"
+                    : "rgba(0,0,0,0.05)",
+                zeroline: false,
+                color: isDark ? "#94a3b8" : "#64748b",
+            },
+            yaxis: {
+                gridcolor: isDark
+                    ? "rgba(255,255,255,0.03)"
+                    : "rgba(0,0,0,0.05)",
+                zeroline: false,
+                color: isDark ? "#94a3b8" : "#64748b",
+            },
+            legend: {
+                orientation: "h",
+                yanchor: "bottom",
+                y: 1.02,
+                xanchor: "right",
+                x: 1,
                 font: {
-                    size: 60,
-                    family: "'JetBrains Mono', monospace",
-                    color: isDark
-                        ? "rgba(255,255,255,0.05)"
-                        : "rgba(0,0,0,0.12)",
+                    color: isDark ? "#cbd5e1" : "#1e293b",
                 },
-                textangle: 0,
             },
-        ],
-    });
+            annotations: [],
+            images: [],
+        };
+
+        if (watermarkVisible) {
+            const wmType = get(watermarkType);
+            if (wmType === "image") {
+                // Use logo image as watermark (white version for dark mode)
+                baseLayout.images.push({
+                    source: isDark ? "/logo-white.png" : "/logo.png",
+                    xref: "paper",
+                    yref: "paper",
+                    x: 0.5,
+                    y: 0.5,
+                    sizex: 0.3,
+                    sizey: 0.3,
+                    xanchor: "center",
+                    yanchor: "middle",
+                    opacity: isDark ? 0.15 : 0.12,
+                    layer: "below",
+                });
+            } else {
+                // Use text annotation as watermark
+                baseLayout.annotations.push({
+                    text: "0xJJphy",
+                    font: {
+                        color: isDark
+                            ? "rgba(255, 255, 255, 0.15)"
+                            : "rgba(0, 0, 0, 0.08)",
+                        size: 48,
+                        family: "JetBrains Mono",
+                    },
+                    xref: "paper",
+                    yref: "paper",
+                    x: 0.5,
+                    y: 0.5,
+                    showarrow: false,
+                    xanchor: "center",
+                    yanchor: "middle",
+                });
+            }
+        }
+        return baseLayout;
+    };
 
     onMount(() => {
         const processedData = data.map((trace) => ({
@@ -71,7 +106,7 @@
             connectgaps: true,
         }));
 
-        const defaultLayout = getLayout(darkMode);
+        const defaultLayout = getLayout(darkMode, $showWatermark);
 
         Plotly.newPlot(
             chartContainer,
@@ -89,8 +124,34 @@
         });
         resizeObserver.observe(chartContainer);
 
+        // Subscribe to watermarkType changes to trigger re-render
+        const unsubWatermarkType = watermarkType.subscribe(() => {
+            if (chartContainer) {
+                const processedData = data.map((trace) => ({
+                    ...trace,
+                    connectgaps: true,
+                }));
+                const defaultLayout = getLayout(darkMode, get(showWatermark));
+                Plotly.react(
+                    chartContainer,
+                    processedData,
+                    {
+                        ...defaultLayout,
+                        yaxis: {
+                            ...defaultLayout.yaxis,
+                            type: yType,
+                            autorange: true,
+                        },
+                        ...layout,
+                    },
+                    config,
+                );
+            }
+        });
+
         return () => {
             resizeObserver.disconnect();
+            unsubWatermarkType();
             Plotly.purge(chartContainer);
         };
     });
@@ -101,7 +162,7 @@
             connectgaps: true,
         }));
 
-        const defaultLayout = getLayout(darkMode);
+        const defaultLayout = getLayout(darkMode, $showWatermark);
 
         Plotly.react(
             chartContainer,

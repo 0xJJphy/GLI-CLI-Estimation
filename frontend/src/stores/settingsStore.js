@@ -10,6 +10,12 @@ export const darkMode = writable(false);
 // Language state (default: English)
 export const language = writable('en');
 
+// Watermark visibility (default: on)
+export const showWatermark = writable(true);
+
+// Watermark type: 'text' or 'image' (default: image)
+export const watermarkType = writable('image');
+
 // Translations dictionary
 const translations = {
     en: {

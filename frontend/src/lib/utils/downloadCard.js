@@ -17,8 +17,16 @@ export async function downloadCardAsImage(element, filename = 'chart_card', opti
     }
 
     try {
+        // Detect current theme from document body class or data attribute
+        const isDarkMode = document.documentElement.classList.contains('dark') ||
+            document.body.classList.contains('dark') ||
+            document.documentElement.getAttribute('data-theme') === 'dark' ||
+            window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+        const backgroundColor = isDarkMode ? '#050505' : '#ffffff';
+
         const canvas = await html2canvas(element, {
-            backgroundColor: '#050505', // Match ultra-dark theme
+            backgroundColor: backgroundColor,
             scale: 2, // Higher resolution for better quality
             useCORS: true, // Allow cross-origin images
             logging: false,

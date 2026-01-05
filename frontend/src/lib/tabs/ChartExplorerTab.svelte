@@ -548,6 +548,7 @@
     .styled-range {
         padding: 4px;
         width: 150px;
+        accent-color: #f97316;
     }
 
     .roc-buttons {

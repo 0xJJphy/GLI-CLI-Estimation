@@ -232,7 +232,10 @@
         [
             {
                 x: dashboardData.dates,
-                y: dashboardData.fed_forecasts?.inflation_expect_5y || [],
+                y:
+                    dashboardData.fed_forecasts?.inflation_expect_5y ||
+                    dashboardData.inflation_expect_5y ||
+                    [],
                 name: "5Y TIPS Breakeven",
                 type: "scatter",
                 mode: "lines",
@@ -240,7 +243,10 @@
             },
             {
                 x: dashboardData.dates,
-                y: dashboardData.fed_forecasts?.inflation_expect_10y || [],
+                y:
+                    dashboardData.fed_forecasts?.inflation_expect_10y ||
+                    dashboardData.inflation_expect_10y ||
+                    [],
                 name: "10Y TIPS Breakeven",
                 type: "scatter",
                 mode: "lines",
@@ -456,6 +462,7 @@
             range: [0, 105],
             title: "% Probability",
         },
+        annotations: [watermarkAnnotation],
     };
 
     // Dot Plot data - dynamically loaded from pipeline or fallback
@@ -600,11 +607,13 @@
     $: unemploymentLayout = {
         yaxis: { title: "Rate (%)", autorange: true },
         margin: { l: 50, r: 20, t: 20, b: 40 },
+        annotations: [watermarkAnnotation],
     };
 
     $: fedFundsLayout = {
         yaxis: { title: "Rate (%)", autorange: true },
         margin: { l: 50, r: 20, t: 20, b: 40 },
+        annotations: [watermarkAnnotation],
     };
 
     // Get latest values helper
@@ -650,10 +659,12 @@
     );
     $: latestFedFunds = getLatest(dashboardData.fed_forecasts?.fed_funds_rate);
     $: latestInflationExpect5Y = getLatest(
-        dashboardData.fed_forecasts?.inflation_expect_5y,
+        dashboardData.fed_forecasts?.inflation_expect_5y ||
+            dashboardData.inflation_expect_5y,
     );
     $: latestInflationExpect10Y = getLatest(
-        dashboardData.fed_forecasts?.inflation_expect_10y,
+        dashboardData.fed_forecasts?.inflation_expect_10y ||
+            dashboardData.inflation_expect_10y,
     );
 
     // ROC calculations (1 month = ~22 trading days for monthly data, use 1 for monthly)
@@ -1907,44 +1918,42 @@
                 >
             </div>
         </div>
-    </div>
-
-    <!-- Inflation Expectations Chart -->
-    <div class="chart-section">
-        <div class="chart-header">
-            <h3>
-                💹 {translations.inflation_expectations ||
-                    "Inflation Expectations (TIPS Breakeven)"}
-            </h3>
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3>
+                    💹 {translations.inflation_expectations ||
+                        "Inflation Expectations (TIPS Breakeven)"}
+                </h3>
+                <div class="header-controls">
+                    <TimeRangeSelector
+                        bind:selectedRange={inflationExpectationsRange}
+                    />
+                </div>
+            </div>
             <p class="chart-description">
                 {translations.inflation_expectations_description ||
                     "Market-implied inflation expectations vs actual CPI. Divergence signals potential policy shifts."}
             </p>
-        </div>
-        <div class="chart-container">
-            <TimeRangeSelector
-                bind:selectedRange={inflationExpectationsRange}
-            />
-            <Chart data={inflationExpectationsData} layout={cpiLayout} />
-            <div class="chart-footer">
-                <div class="latest-values">
-                    <div class="value-item">
-                        <span class="value-label">5Y Breakeven:</span>
-                        <span class="value-number">
-                            {latestInflationExpect5Y !== null
-                                ? `${latestInflationExpect5Y.toFixed(2)}%`
-                                : "N/A"}
-                        </span>
-                    </div>
-                    <div class="value-item">
-                        <span class="value-label">10Y Breakeven:</span>
-                        <span class="value-number">
-                            {latestInflationExpect10Y !== null
-                                ? `${latestInflationExpect10Y.toFixed(2)}%`
-                                : "N/A"}
-                        </span>
-                    </div>
-                </div>
+            <div class="chart-content">
+                <Chart data={inflationExpectationsData} layout={cpiLayout} />
+            </div>
+            <div class="latest-values">
+                <span
+                    >5Y Breakeven:
+                    <b
+                        >{latestInflationExpect5Y !== null
+                            ? `${latestInflationExpect5Y.toFixed(2)}%`
+                            : "N/A"}</b
+                    ></span
+                >
+                <span
+                    >10Y Breakeven:
+                    <b
+                        >{latestInflationExpect10Y !== null
+                            ? `${latestInflationExpect10Y.toFixed(2)}%`
+                            : "N/A"}</b
+                    ></span
+                >
             </div>
         </div>
     </div>
