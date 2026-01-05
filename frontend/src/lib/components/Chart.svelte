@@ -24,7 +24,7 @@
             color: isDark ? "#cbd5e1" : "#1e293b",
             family: "'JetBrains Mono', monospace",
         },
-        margin: { t: 40, r: 20, l: 65, b: 60 },
+        margin: { t: 40, r: 20, l: 65, b: 100 },
         xaxis: {
             gridcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.05)",
             zeroline: false,
