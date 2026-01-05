@@ -815,11 +815,13 @@
         min-height: 450px;
         height: 450px;
         flex-shrink: 0;
+        margin-bottom: 30px;
     }
 
     .chart-content.short {
         min-height: 400px;
         height: 400px;
+        margin-bottom: 30px;
     }
 
     .gli-layout {
@@ -897,7 +899,7 @@
     .card-divider {
         height: 1px;
         background: var(--border-color);
-        margin: 12px 0;
+        margin: 20px 0;
         opacity: 0.5;
     }
 
