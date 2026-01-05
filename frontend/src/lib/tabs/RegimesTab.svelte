@@ -1192,9 +1192,9 @@
         align-items: center;
         margin-bottom: 16px;
         padding: 16px 20px;
-        background: var(--card-bg, #1e293b);
+        background: var(--bg-secondary);
         border-radius: 12px;
-        border: 1px solid var(--border-color, #334155);
+        border: 1px solid var(--border-color);
     }
     .regime-header.light {
         background: #f8fafc;
@@ -1272,9 +1272,9 @@
         gap: 16px;
         margin-bottom: 20px;
         padding: 16px;
-        background: var(--card-bg, #050505);
+        background: var(--bg-secondary);
         border-radius: 12px;
-        border: 1px solid var(--border-color, #334155);
+        border: 1px solid var(--border-color);
     }
     .regime-detail-panel.light {
         background: #f8fafc;
@@ -1441,9 +1441,9 @@
         gap: 20px;
     }
     .chart-card {
-        background: var(--card-bg, #050505);
+        background: var(--bg-secondary);
         border-radius: 12px;
-        border: 1px solid var(--border-color, #334155);
+        border: 1px solid var(--border-color);
         padding: 16px;
     }
     .regimes-grid.light .chart-card {
