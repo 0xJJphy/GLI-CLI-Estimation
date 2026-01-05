@@ -3232,8 +3232,11 @@
   }
 
   .sidebar-toggle-btn {
-    background: transparent;
-    border: none;
+    position: fixed;
+    top: 20px;
+    left: 290px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
     color: var(--text-primary);
     cursor: pointer;
     display: flex;
@@ -3242,7 +3245,12 @@
     padding: 8px;
     border-radius: 8px;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    margin-right: 12px;
+    z-index: 1001;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  }
+
+  .sidebar-toggle-btn.collapsed {
+    left: 10px;
   }
 
   .sidebar-toggle-btn:hover {
@@ -3257,13 +3265,7 @@
     transform: rotate(180deg);
   }
 
-  .content {
-    flex: 1;
-    overflow-y: auto;
-    padding: 40px;
-    background: var(--bg-primary);
-    transition: padding 0.3s ease;
-  }
+  /* Removed duplicate .content - see definition above at line 3051 */
   .sidebar-footer {
     margin-top: auto;
     padding: 0 8px;
