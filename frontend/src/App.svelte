@@ -3049,17 +3049,20 @@
 
   /* Main content area - offset for fixed sidebar */
   .content {
-    margin-left: 280px;
+    margin-left: 300px;
     flex: 1;
-    transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition:
+      margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+      padding-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     overflow-y: auto;
     padding: 40px;
     background: var(--bg-primary);
   }
 
-  /* When sidebar is hidden, remove margin from content */
+  /* When sidebar is hidden, remove margin from content but add padding for toggle button */
   .content.sidebar-collapsed {
     margin-left: 0;
+    padding-left: 60px;
   }
 
   .brand {
@@ -3250,7 +3253,7 @@
   }
 
   .sidebar-toggle-btn.collapsed {
-    left: 10px;
+    left: 15px;
   }
 
   .sidebar-toggle-btn:hover {
