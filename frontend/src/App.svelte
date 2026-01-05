@@ -2596,7 +2596,7 @@
     <div class="sidebar-footer"></div>
   </aside>
 
-  <main class="content">
+  <main class="content" class:sidebar-collapsed={!sidebarVisible}>
     <header>
       <div class="content-header">
         <div class="header-main-title">
@@ -3024,7 +3024,11 @@
   }
 
   .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
     width: 280px;
+    height: 100vh;
     background: var(--bg-secondary);
     border-right: 1px solid var(--border-color);
     display: flex;
@@ -3032,13 +3036,30 @@
     padding: 40px 24px;
     flex-shrink: 0;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    z-index: 100;
+    z-index: 1000;
+    overflow-y: auto;
+    overflow-x: hidden;
   }
 
   .sidebar.hidden {
-    margin-left: -280px;
+    transform: translateX(-100%);
     opacity: 0;
     pointer-events: none;
+  }
+
+  /* Main content area - offset for fixed sidebar */
+  .content {
+    margin-left: 280px;
+    flex: 1;
+    transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow-y: auto;
+    padding: 40px;
+    background: var(--bg-primary);
+  }
+
+  /* When sidebar is hidden, remove margin from content */
+  .content.sidebar-collapsed {
+    margin-left: 0;
   }
 
   .brand {
