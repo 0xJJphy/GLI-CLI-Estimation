@@ -755,8 +755,10 @@
         background: var(--bg-secondary);
         border: 1px solid var(--border-color);
         border-radius: 16px;
-        padding: 20px;
+        padding: 24px;
         box-shadow: var(--card-shadow);
+        display: flex;
+        flex-direction: column;
     }
 
     .chart-card.wide {
@@ -804,13 +806,14 @@
     }
 
     .chart-content {
-        min-height: 400px;
-        height: 400px;
+        min-height: 450px;
+        height: 450px;
+        flex-shrink: 0;
     }
 
     .chart-content.short {
-        min-height: 320px;
-        height: 320px;
+        min-height: 400px;
+        height: 400px;
     }
 
     .gli-layout {
