@@ -12,7 +12,7 @@
     export let dashboardData = {};
     export let darkMode = true;
     export let translations = {};
-    export let language = "en";
+    // language prop is handled via translations internally
 
     // ============================================================
     // STATE VARIABLES
@@ -26,11 +26,14 @@
     let btcRegimeV2aRange = "5Y";
     let btcRegimeV2bRange = "5Y";
 
-    // Offset for BTC overlay (shift regime relative to BTC)
-    let btcOffsetDays = 0;
-    let bestOffset = 0;
+    // Independent offsets for each BTC+Regime chart (V2A and V2B)
+    // offset extends the regime background into the future (BTC stays static)
+    let v2aOffsetDays = 0;
+    let v2aBestOffset = 0;
+    let v2bOffsetDays = 0;
+    let v2bBestOffset = 0;
 
-    // Offset for Regime Score chart (shift background forward)
+    // Offset for Regime Score chart (uses currently selected version)
     let regimeOffsetDays = 0;
 
     // Card container references for full-card download feature
@@ -128,14 +131,10 @@
         return { text: t("stress_low", "LOW"), class: "low" };
     }
 
-    // Calculate best offset (correlation with BTC returns)
-    function calculateBestOffset() {
+    // Calculate best offset for V2A (correlation with BTC returns)
+    function calculateBestOffsetV2A() {
         const btcPrice = dashboardData.btc?.price;
-        const scores =
-            regimeVersion === "v2a"
-                ? dashboardData.regime_v2a?.score
-                : dashboardData.regime_v2b?.score;
-
+        const scores = dashboardData.regime_v2a?.score;
         if (!btcPrice || !scores || btcPrice.length < 100) return 0;
 
         let bestCorr = -Infinity;
@@ -190,14 +189,87 @@
         return bestOff;
     }
 
-    // Apply offset to set best value
-    function applyBestOffset() {
-        bestOffset = calculateBestOffset();
-        btcOffsetDays = bestOffset;
+    // Calculate best offset for V2B (correlation with BTC returns)
+    function calculateBestOffsetV2B() {
+        const btcPrice = dashboardData.btc?.price;
+        const scores = dashboardData.regime_v2b?.score;
+        if (!btcPrice || !scores || btcPrice.length < 100) return 0;
+
+        let bestCorr = -Infinity;
+        let bestOff = 0;
+
+        // Test offsets from 0 to 90 days
+        for (let off = 0; off <= 90; off += 5) {
+            let sumXY = 0,
+                sumX = 0,
+                sumY = 0,
+                sumX2 = 0,
+                sumY2 = 0,
+                n = 0;
+
+            for (
+                let i = off + 1;
+                i < Math.min(btcPrice.length, scores.length);
+                i++
+            ) {
+                const btcRet =
+                    btcPrice[i] && btcPrice[i - 1]
+                        ? (btcPrice[i] - btcPrice[i - 1]) / btcPrice[i - 1]
+                        : null;
+                const score = scores[i - off];
+
+                if (
+                    btcRet !== null &&
+                    score !== null &&
+                    !isNaN(btcRet) &&
+                    !isNaN(score)
+                ) {
+                    sumX += score;
+                    sumY += btcRet;
+                    sumXY += score * btcRet;
+                    sumX2 += score * score;
+                    sumY2 += btcRet * btcRet;
+                    n++;
+                }
+            }
+
+            if (n > 50) {
+                const corr =
+                    (n * sumXY - sumX * sumY) /
+                    (Math.sqrt(n * sumX2 - sumX * sumX) *
+                        Math.sqrt(n * sumY2 - sumY * sumY));
+                if (corr > bestCorr) {
+                    bestCorr = corr;
+                    bestOff = off;
+                }
+            }
+        }
+        return bestOff;
+    }
+
+    // Apply best offset for V2A chart
+    function applyBestOffsetV2A() {
+        v2aBestOffset = calculateBestOffsetV2A();
+        v2aOffsetDays = v2aBestOffset;
+    }
+
+    // Apply best offset for V2B chart
+    function applyBestOffsetV2B() {
+        v2bBestOffset = calculateBestOffsetV2B();
+        v2bOffsetDays = v2bBestOffset;
+    }
+
+    // Apply best offset for the standalone Regime Score chart (uses regimeVersion)
+    function applyBestOffsetGlobal() {
+        if (regimeVersion === "v2a") {
+            regimeOffsetDays = calculateBestOffsetV2A();
+        } else {
+            regimeOffsetDays = calculateBestOffsetV2B();
+        }
     }
 
     // Create regime shapes with SCORE-BASED INTENSITY
-    // offsetDays extends the LAST regime block into the future (not shifting all shapes)
+    // offsetDays SHIFTS all shapes forward in time (regime leads BTC by offsetDays)
     function createRegimeShapes(scores, range, isDarkMode, offsetDays = 0) {
         if (!scores || !dashboardData.dates) return [];
         const filteredDates = getFilteredDates(range);
@@ -205,12 +277,18 @@
         if (!filteredDates || !filteredScores || filteredDates.length === 0)
             return [];
 
+        // Helper to shift a date string by offsetDays
+        function shiftDate(dateStr, days) {
+            if (days === 0) return dateStr;
+            const d = new Date(dateStr);
+            d.setDate(d.getDate() + days);
+            return d.toISOString().split("T")[0];
+        }
+
         const shapes = [];
         let currentDirection = null;
         let blockStartIdx = 0;
         let blockScores = [];
-        let lastBlockDirection = null;
-        let lastBlockAvgScore = 50;
 
         for (let i = 0; i <= filteredDates.length; i++) {
             const score = i < filteredScores.length ? filteredScores[i] : null;
@@ -230,7 +308,7 @@
                         0.45,
                         0.1 + (distanceFrom50 / 50) * 0.35,
                     );
-                    const modeOpacity = isDarkMode ? opacity : opacity * 1.15;
+                    const modeOpacity = isDarkMode ? opacity : opacity * 1.6;
 
                     const color =
                         currentDirection === "bull"
@@ -238,12 +316,13 @@
                             : `rgba(239, 68, 68, ${modeOpacity.toFixed(2)})`;
 
                     if (d0 && d1) {
+                        // Shift both dates forward by offsetDays
                         shapes.push({
                             type: "rect",
                             xref: "x",
                             yref: "paper",
-                            x0: d0,
-                            x1: d1,
+                            x0: shiftDate(d0, offsetDays),
+                            x1: shiftDate(d1, offsetDays),
                             y0: 0,
                             y1: 1,
                             fillcolor: color,
@@ -251,10 +330,6 @@
                             layer: "below",
                         });
                     }
-
-                    // Track last block for future extension
-                    lastBlockDirection = currentDirection;
-                    lastBlockAvgScore = avgScore;
                 }
                 currentDirection = direction;
                 blockStartIdx = i;
@@ -262,34 +337,6 @@
             } else if (score !== null) {
                 blockScores.push(score);
             }
-        }
-
-        // Extend last block into future by offsetDays
-        if (offsetDays > 0 && lastBlockDirection !== null) {
-            const lastDate = new Date(filteredDates[filteredDates.length - 1]);
-            const futureDate = new Date(lastDate);
-            futureDate.setDate(futureDate.getDate() + offsetDays);
-
-            const distanceFrom50 = Math.abs(lastBlockAvgScore - 50);
-            const opacity = Math.min(0.45, 0.1 + (distanceFrom50 / 50) * 0.35);
-            const modeOpacity = isDarkMode ? opacity : opacity * 1.15;
-            const color =
-                lastBlockDirection === "bull"
-                    ? `rgba(16, 185, 129, ${modeOpacity.toFixed(2)})`
-                    : `rgba(239, 68, 68, ${modeOpacity.toFixed(2)})`;
-
-            shapes.push({
-                type: "rect",
-                xref: "x",
-                yref: "paper",
-                x0: lastDate.toISOString().split("T")[0],
-                x1: futureDate.toISOString().split("T")[0],
-                y0: 0,
-                y1: 1,
-                fillcolor: color,
-                line: { width: 0 },
-                layer: "below",
-            });
         }
 
         return shapes;
@@ -399,6 +446,7 @@
     };
 
     // BTC + Regime V2A with Score Subplot - reactive to darkMode and offset
+    // BTC trace remains static; only the regime background extends into future via v2aOffsetDays
     $: btcRegimeV2aData = (() => {
         const btcPrice = dashboardData.btc?.price;
         const score = dashboardData.regime_v2a?.score;
@@ -407,19 +455,10 @@
         const btc = filterByRange(btcPrice, btcRegimeV2aRange);
         const scoreFiltered = filterByRange(score, btcRegimeV2aRange);
 
-        // Extend dates for future projection when offset is applied
-        let extendedDates = [...dates];
-        if (btcOffsetDays > 0 && dates.length > 0) {
-            const lastDate = new Date(dates[dates.length - 1]);
-            for (let i = 1; i <= btcOffsetDays; i++) {
-                const futureDate = new Date(lastDate);
-                futureDate.setDate(futureDate.getDate() + i);
-                extendedDates.push(futureDate.toISOString().split("T")[0]);
-            }
-        }
-
+        // BTC trace uses original dates (no extension)
+        // Regime background shapes are extended via createRegimeShapes()
         return [
-            // BTC Price trace (on y2)
+            // BTC Price trace (on y2) - static, no future dates
             {
                 x: dates,
                 y: btc,
@@ -444,14 +483,14 @@
         ];
     })();
 
-    // Calculate extended range for x-axis
+    // Calculate extended range for x-axis (extends to show future regime projection)
     $: btcV2aXRange = (() => {
         const dates = getFilteredDates(btcRegimeV2aRange);
         if (!dates || dates.length === 0) return undefined;
         const startDate = dates[0];
         const lastDate = new Date(dates[dates.length - 1]);
-        if (btcOffsetDays > 0) {
-            lastDate.setDate(lastDate.getDate() + btcOffsetDays);
+        if (v2aOffsetDays > 0) {
+            lastDate.setDate(lastDate.getDate() + v2aOffsetDays);
         }
         return [startDate, lastDate.toISOString().split("T")[0]];
     })();
@@ -490,7 +529,7 @@
                 dashboardData.regime_v2a?.score,
                 btcRegimeV2aRange,
                 darkMode,
-                btcOffsetDays,
+                v2aOffsetDays,
             ),
             // 50 line on score subplot
             {
@@ -555,8 +594,8 @@
         if (!dates || dates.length === 0) return undefined;
         const startDate = dates[0];
         const lastDate = new Date(dates[dates.length - 1]);
-        if (btcOffsetDays > 0)
-            lastDate.setDate(lastDate.getDate() + btcOffsetDays);
+        if (v2bOffsetDays > 0)
+            lastDate.setDate(lastDate.getDate() + v2bOffsetDays);
         return [startDate, lastDate.toISOString().split("T")[0]];
     })();
 
@@ -594,7 +633,7 @@
                 dashboardData.regime_v2b?.score,
                 btcRegimeV2bRange,
                 darkMode,
-                btcOffsetDays,
+                v2bOffsetDays,
             ),
             {
                 type: "line",
@@ -987,22 +1026,15 @@
     </div>
 </div>
 
-<!-- Offset Slider (controls both regime score and BTC charts) -->
+<!-- Offset Slider for Regime Score chart only -->
 <div class="offset-panel" class:light={!darkMode}>
     <div class="offset-label">
-        <span>{t("offset_days_label", "Offset (Days):")}</span>
-        <input
-            type="range"
-            min="0"
-            max="120"
-            bind:value={regimeOffsetDays}
-            on:input={() => (btcOffsetDays = regimeOffsetDays)}
-        />
-        <span class="offset-value">{regimeOffsetDays}</span>
+        <span>{t("regime_score_offset_label", "Regime Score Offset:")}</span>
+        <input type="range" min="0" max="120" bind:value={regimeOffsetDays} />
+        <span class="offset-value">{regimeOffsetDays}d</span>
     </div>
-    <button class="best-offset-btn" on:click={applyBestOffset}>
-        {t("best_offset_label", "Best Offset")}: {bestOffset ||
-            t("calculate_label", "Calculate")}
+    <button class="best-offset-btn" on:click={applyBestOffsetGlobal}>
+        {t("best_offset_label", "Best Offset")}
     </button>
 </div>
 
@@ -1064,6 +1096,17 @@
                 />
             </div>
         </div>
+        <div class="offset-inline" class:light={!darkMode}>
+            <span>{t("offset_days_label", "Offset:")}</span>
+            <input type="range" min="0" max="120" bind:value={v2aOffsetDays} />
+            <span class="offset-value">{v2aOffsetDays}d</span>
+            <button
+                class="best-offset-btn-inline"
+                on:click={applyBestOffsetV2A}
+            >
+                {t("best_offset", "Best")}: {v2aBestOffset || "?"}
+            </button>
+        </div>
         <p class="chart-desc">
             {t(
                 "regime_btc_desc",
@@ -1093,6 +1136,17 @@
                     onRangeChange={(r) => (btcRegimeV2bRange = r)}
                 />
             </div>
+        </div>
+        <div class="offset-inline" class:light={!darkMode}>
+            <span>{t("offset_days_label", "Offset:")}</span>
+            <input type="range" min="0" max="120" bind:value={v2bOffsetDays} />
+            <span class="offset-value">{v2bOffsetDays}d</span>
+            <button
+                class="best-offset-btn-inline"
+                on:click={applyBestOffsetV2B}
+            >
+                {t("best_offset", "Best")}: {v2bBestOffset || "?"}
+            </button>
         </div>
         <p class="chart-desc">
             {t(
@@ -1467,6 +1521,51 @@
         transition: background 0.2s;
     }
     .best-offset-btn:hover {
+        background: #2563eb;
+    }
+
+    /* Inline offset controls for individual BTC+Regime charts */
+    .offset-inline {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        margin: 8px 0 4px 0;
+        background: rgba(59, 130, 246, 0.08);
+        border-radius: 6px;
+        border: 1px solid rgba(59, 130, 246, 0.15);
+        font-size: 0.8rem;
+        color: var(--text-secondary, #94a3b8);
+    }
+    .offset-inline.light {
+        background: rgba(59, 130, 246, 0.05);
+        border-color: rgba(59, 130, 246, 0.12);
+        color: #64748b;
+    }
+    .offset-inline input[type="range"] {
+        width: 120px;
+        cursor: pointer;
+    }
+    .offset-inline .offset-value {
+        font-weight: 600;
+        color: var(--text-primary, #f1f5f9);
+        min-width: 35px;
+    }
+    .offset-inline.light .offset-value {
+        color: #1e293b;
+    }
+    .best-offset-btn-inline {
+        padding: 4px 10px;
+        background: #3b82f6;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.75rem;
+        transition: background 0.2s;
+        white-space: nowrap;
+    }
+    .best-offset-btn-inline:hover {
         background: #2563eb;
     }
 
