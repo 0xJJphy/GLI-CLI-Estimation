@@ -292,6 +292,21 @@
 
     // Card container references for full-card download feature
     let repoCorridorCard;
+    let signalMatrixCard;
+    let divergenceCard;
+    let inflationSwapsCard;
+    let yieldCurveCard;
+    let cliCard;
+    let tipsCard;
+    let creditSpreadsCard;
+    let sofrVolumeCard;
+    let vixCard;
+    let moveCard;
+    let fxVolCard;
+    let nfpCard;
+    let joltsCard;
+    let stLouisStressCard;
+    let kcStressCard;
 
     // --- Performance Optimization: Cached Indices ---
     import { getCutoffDate } from "../utils/helpers.js";
@@ -2772,7 +2787,7 @@
         </div>
 
         <!-- CLI Aggregate Chart -->
-        <div class="chart-card">
+        <div class="chart-card" bind:this={cliCard}>
             <div class="chart-header">
                 <h3>
                     {translations.chart_cli_title ||
@@ -2808,7 +2823,13 @@
                     : ""}
             </p>
             <div class="chart-content">
-                <Chart {darkMode} data={cliChartData} layout={cliLayout} />
+                <Chart
+                    {darkMode}
+                    data={cliChartData}
+                    layout={cliLayout}
+                    cardContainer={cliCard}
+                    cardTitle="cli_aggregate"
+                />
             </div>
 
             <!-- Signal Box -->
