@@ -196,7 +196,8 @@
         btcOffsetDays = bestOffset;
     }
 
-    // Create regime shapes with SCORE-BASED INTENSITY and OFFSET
+    // Create regime shapes with SCORE-BASED INTENSITY
+    // offsetDays extends the LAST regime block into the future (not shifting all shapes)
     function createRegimeShapes(scores, range, isDarkMode, offsetDays = 0) {
         if (!scores || !dashboardData.dates) return [];
         const filteredDates = getFilteredDates(range);
@@ -208,14 +209,11 @@
         let currentDirection = null;
         let blockStartIdx = 0;
         let blockScores = [];
+        let lastBlockDirection = null;
+        let lastBlockAvgScore = 50;
 
         for (let i = 0; i <= filteredDates.length; i++) {
-            // Apply offset: use score from (i - offsetDays) position
-            const scoreIdx = Math.max(0, i - offsetDays);
-            const score =
-                i < filteredDates.length && scoreIdx < filteredScores.length
-                    ? filteredScores[scoreIdx]
-                    : null;
+            const score = i < filteredScores.length ? filteredScores[i] : null;
             const direction =
                 score === null ? null : score >= 50 ? "bull" : "bear";
 
@@ -253,6 +251,10 @@
                             layer: "below",
                         });
                     }
+
+                    // Track last block for future extension
+                    lastBlockDirection = currentDirection;
+                    lastBlockAvgScore = avgScore;
                 }
                 currentDirection = direction;
                 blockStartIdx = i;
@@ -261,6 +263,35 @@
                 blockScores.push(score);
             }
         }
+
+        // Extend last block into future by offsetDays
+        if (offsetDays > 0 && lastBlockDirection !== null) {
+            const lastDate = new Date(filteredDates[filteredDates.length - 1]);
+            const futureDate = new Date(lastDate);
+            futureDate.setDate(futureDate.getDate() + offsetDays);
+
+            const distanceFrom50 = Math.abs(lastBlockAvgScore - 50);
+            const opacity = Math.min(0.45, 0.1 + (distanceFrom50 / 50) * 0.35);
+            const modeOpacity = isDarkMode ? opacity : opacity * 1.15;
+            const color =
+                lastBlockDirection === "bull"
+                    ? `rgba(16, 185, 129, ${modeOpacity.toFixed(2)})`
+                    : `rgba(239, 68, 68, ${modeOpacity.toFixed(2)})`;
+
+            shapes.push({
+                type: "rect",
+                xref: "x",
+                yref: "paper",
+                x0: lastDate.toISOString().split("T")[0],
+                x1: futureDate.toISOString().split("T")[0],
+                y0: 0,
+                y1: 1,
+                fillcolor: color,
+                line: { width: 0 },
+                layer: "below",
+            });
+        }
+
         return shapes;
     }
 
