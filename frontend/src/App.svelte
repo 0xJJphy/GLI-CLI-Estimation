@@ -4182,6 +4182,8 @@
     align-items: center;
     margin-bottom: 20px;
     padding-bottom: 12px;
+    padding-left: 64px; /* Added padding-left */
+    padding-right: 40px; /* Added padding-right */
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   }
 

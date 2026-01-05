@@ -421,92 +421,94 @@
 </script>
 
 <div class="flows-container">
-    <!-- First Row: Aggregate GLI Chart -->
-    <div class="chart-card" bind:this={gliAggregateCard}>
-        <div class="chart-header">
-            <h3>{translations.chart_gli || "Global Liquidity Index (GLI)"}</h3>
-            <div class="header-controls">
-                <TimeRangeSelector
-                    selectedRange={gliRange}
-                    onRangeChange={(r) => setRangeForBank("gli", r)}
-                />
-                <span class="last-date"
-                    >{translations.last_data || "Last:"}
-                    {getLastDate("GLI")}</span
-                >
-            </div>
-        </div>
-        <p class="chart-description">
-            {translations.gli_desc ||
-                "Aggregate central bank balance sheets in USD. Larger = more weight in global liquidity."}
-        </p>
-        <div class="chart-content short">
-            <Chart
-                {darkMode}
-                data={gliTotalData}
-                cardContainer={gliAggregateCard}
-                cardTitle="global_liquidity_index"
-            />
-        </div>
-
-        <!-- Aggregate ROC Indicators -->
-        {#if dashboardData.gli?.rocs}
-            {@const totalRocs = getGliTotalRocs()}
-            <div class="roc-bar">
-                <div
-                    class="roc-item"
-                    class:positive={totalRocs.m1 > 0}
-                    class:negative={totalRocs.m1 < 0}
-                >
-                    <span class="roc-label">1M</span>
-                    <span class="roc-value"
-                        >{totalRocs.m1 !== null
-                            ? totalRocs.m1.toFixed(1) + "%"
-                            : "N/A"}</span
-                    >
-                </div>
-                <div
-                    class="roc-item"
-                    class:positive={totalRocs.m3 > 0}
-                    class:negative={totalRocs.m3 < 0}
-                >
-                    <span class="roc-label">3M</span>
-                    <span class="roc-value"
-                        >{totalRocs.m3 !== null
-                            ? totalRocs.m3.toFixed(1) + "%"
-                            : "N/A"}</span
-                    >
-                </div>
-                <div
-                    class="roc-item"
-                    class:positive={totalRocs.m6 > 0}
-                    class:negative={totalRocs.m6 < 0}
-                >
-                    <span class="roc-label">6M</span>
-                    <span class="roc-value"
-                        >{totalRocs.m6 !== null
-                            ? totalRocs.m6.toFixed(1) + "%"
-                            : "N/A"}</span
-                    >
-                </div>
-                <div
-                    class="roc-item"
-                    class:positive={totalRocs.y1 > 0}
-                    class:negative={totalRocs.y1 < 0}
-                >
-                    <span class="roc-label">1Y</span>
-                    <span class="roc-value"
-                        >{totalRocs.y1 !== null
-                            ? totalRocs.y1.toFixed(1) + "%"
-                            : "N/A"}</span
-                    >
-                </div>
-            </div>
-        {/if}
-    </div>
-
     <!-- All Charts in 2-column grid -->
     <div class="chart-grid">
+        <!-- First Row: Aggregate GLI Chart -->
+        <div class="chart-card wide" bind:this={gliAggregateCard}>
+            <div class="chart-header">
+                <h3>
+                    {translations.chart_gli || "Global Liquidity Index (GLI)"}
+                </h3>
+                <div class="header-controls">
+                    <TimeRangeSelector
+                        selectedRange={gliRange}
+                        onRangeChange={(r) => setRangeForBank("gli", r)}
+                    />
+                    <span class="last-date"
+                        >{translations.last_data || "Last:"}
+                        {getLastDate("GLI")}</span
+                    >
+                </div>
+            </div>
+            <p class="chart-description">
+                {translations.gli_desc ||
+                    "Aggregate central bank balance sheets in USD. Larger = more weight in global liquidity."}
+            </p>
+            <div class="chart-content short">
+                <Chart
+                    {darkMode}
+                    data={gliTotalData}
+                    cardContainer={gliAggregateCard}
+                    cardTitle="global_liquidity_index"
+                />
+            </div>
+
+            <!-- Aggregate ROC Indicators -->
+            {#if dashboardData.gli?.rocs}
+                {@const totalRocs = getGliTotalRocs()}
+                <div class="roc-bar">
+                    <div
+                        class="roc-item"
+                        class:positive={totalRocs.m1 > 0}
+                        class:negative={totalRocs.m1 < 0}
+                    >
+                        <span class="roc-label">1M</span>
+                        <span class="roc-value"
+                            >{totalRocs.m1 !== null
+                                ? totalRocs.m1.toFixed(1) + "%"
+                                : "N/A"}</span
+                        >
+                    </div>
+                    <div
+                        class="roc-item"
+                        class:positive={totalRocs.m3 > 0}
+                        class:negative={totalRocs.m3 < 0}
+                    >
+                        <span class="roc-label">3M</span>
+                        <span class="roc-value"
+                            >{totalRocs.m3 !== null
+                                ? totalRocs.m3.toFixed(1) + "%"
+                                : "N/A"}</span
+                        >
+                    </div>
+                    <div
+                        class="roc-item"
+                        class:positive={totalRocs.m6 > 0}
+                        class:negative={totalRocs.m6 < 0}
+                    >
+                        <span class="roc-label">6M</span>
+                        <span class="roc-value"
+                            >{totalRocs.m6 !== null
+                                ? totalRocs.m6.toFixed(1) + "%"
+                                : "N/A"}</span
+                        >
+                    </div>
+                    <div
+                        class="roc-item"
+                        class:positive={totalRocs.y1 > 0}
+                        class:negative={totalRocs.y1 < 0}
+                    >
+                        <span class="roc-label">1Y</span>
+                        <span class="roc-value"
+                            >{totalRocs.y1 !== null
+                                ? totalRocs.y1.toFixed(1) + "%"
+                                : "N/A"}</span
+                        >
+                    </div>
+                </div>
+            {/if}
+        </div>
+
         <!-- CB Breadth Chart -->
         <div class="chart-card" bind:this={cbBreadthCard}>
             <div class="chart-header">
@@ -660,8 +662,8 @@
         box-shadow: var(--card-shadow);
     }
 
-    .chart-card.full-width {
-        width: 100%;
+    .chart-card.wide {
+        grid-column: span 2;
     }
 
     .chart-grid {

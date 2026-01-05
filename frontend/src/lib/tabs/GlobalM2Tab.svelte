@@ -447,214 +447,215 @@
 </script>
 
 <div class="main-charts">
-    <!-- Aggregate M2 Chart with Weights Table -->
-    <div class="chart-card wide" bind:this={m2AggregateCard}>
-        <div class="gli-layout">
-            <div class="chart-main">
-                <div class="chart-header">
-                    <h3>
-                        {translations.chart_m2_aggregate ||
-                            "Global M2 Money Supply (Aggregate)"}
-                    </h3>
-                    <div class="header-controls">
-                        <TimeRangeSelector
-                            selectedRange={m2Range}
-                            onRangeChange={(r) => (m2Range = r)}
+    <div class="country-grid">
+        <!-- Aggregate M2 Chart with Weights Table -->
+        <div class="chart-card wide" bind:this={m2AggregateCard}>
+            <div class="gli-layout">
+                <div class="chart-main">
+                    <div class="chart-header">
+                        <h3>
+                            {translations.chart_m2_aggregate ||
+                                "Global M2 Money Supply (Aggregate)"}
+                        </h3>
+                        <div class="header-controls">
+                            <TimeRangeSelector
+                                selectedRange={m2Range}
+                                onRangeChange={(r) => (m2Range = r)}
+                            />
+                            <span class="last-date"
+                                >{translations.last || "Last:"}
+                                {getLastDate("M2_TOTAL")}</span
+                            >
+                        </div>
+                    </div>
+                    <p class="chart-description">
+                        {translations.m2_global ||
+                            "Global money supply in USD."}
+                    </p>
+                    <div class="chart-content">
+                        <Chart
+                            {darkMode}
+                            data={m2TotalData}
+                            cardContainer={m2AggregateCard}
+                            cardTitle="global_m2_aggregate"
                         />
-                        <span class="last-date"
-                            >{translations.last || "Last:"}
-                            {getLastDate("M2_TOTAL")}</span
-                        >
                     </div>
-                </div>
-                <p class="chart-description">
-                    {translations.m2_global || "Global money supply in USD."}
-                </p>
-                <div class="chart-content">
-                    <Chart
-                        {darkMode}
-                        data={m2TotalData}
-                        cardContainer={m2AggregateCard}
-                        cardTitle="global_m2_aggregate"
-                    />
+
+                    <!-- Aggregate ROC Indicators -->
+                    {#if dashboardData.m2?.rocs}
+                        {@const totalRocs = getM2TotalRocs()}
+                        <div class="roc-bar">
+                            <div
+                                class="roc-item"
+                                class:positive={totalRocs.m1 > 0}
+                                class:negative={totalRocs.m1 < 0}
+                            >
+                                <span class="roc-label"
+                                    >{translations.val_1m || "1M"}</span
+                                >
+                                <span class="roc-value"
+                                    >{totalRocs.m1 !== null
+                                        ? totalRocs.m1.toFixed(1) + "%"
+                                        : translations.na || "N/A"}</span
+                                >
+                            </div>
+                            <div
+                                class="roc-item"
+                                class:positive={totalRocs.m3 > 0}
+                                class:negative={totalRocs.m3 < 0}
+                            >
+                                <span class="roc-label"
+                                    >{translations.val_3m || "3M"}</span
+                                >
+                                <span class="roc-value"
+                                    >{totalRocs.m3 !== null
+                                        ? totalRocs.m3.toFixed(1) + "%"
+                                        : translations.na || "N/A"}</span
+                                >
+                            </div>
+                            <div
+                                class="roc-item"
+                                class:positive={totalRocs.m6 > 0}
+                                class:negative={totalRocs.m6 < 0}
+                            >
+                                <span class="roc-label"
+                                    >{translations.val_6m || "6M"}</span
+                                >
+                                <span class="roc-value"
+                                    >{totalRocs.m6 !== null
+                                        ? totalRocs.m6.toFixed(1) + "%"
+                                        : translations.na || "N/A"}</span
+                                >
+                            </div>
+                            <div
+                                class="roc-item"
+                                class:positive={totalRocs.y1 > 0}
+                                class:negative={totalRocs.y1 < 0}
+                            >
+                                <span class="roc-label"
+                                    >{translations.val_1y || "1Y"}</span
+                                >
+                                <span class="roc-value"
+                                    >{totalRocs.y1 !== null
+                                        ? totalRocs.y1.toFixed(1) + "%"
+                                        : translations.na || "N/A"}</span
+                                >
+                            </div>
+                        </div>
+                    {/if}
                 </div>
 
-                <!-- Aggregate ROC Indicators -->
-                {#if dashboardData.m2?.rocs}
-                    {@const totalRocs = getM2TotalRocs()}
-                    <div class="roc-bar">
-                        <div
-                            class="roc-item"
-                            class:positive={totalRocs.m1 > 0}
-                            class:negative={totalRocs.m1 < 0}
-                        >
-                            <span class="roc-label"
-                                >{translations.val_1m || "1M"}</span
-                            >
-                            <span class="roc-value"
-                                >{totalRocs.m1 !== null
-                                    ? totalRocs.m1.toFixed(1) + "%"
-                                    : translations.na || "N/A"}</span
-                            >
-                        </div>
-                        <div
-                            class="roc-item"
-                            class:positive={totalRocs.m3 > 0}
-                            class:negative={totalRocs.m3 < 0}
-                        >
-                            <span class="roc-label"
-                                >{translations.val_3m || "3M"}</span
-                            >
-                            <span class="roc-value"
-                                >{totalRocs.m3 !== null
-                                    ? totalRocs.m3.toFixed(1) + "%"
-                                    : translations.na || "N/A"}</span
-                            >
-                        </div>
-                        <div
-                            class="roc-item"
-                            class:positive={totalRocs.m6 > 0}
-                            class:negative={totalRocs.m6 < 0}
-                        >
-                            <span class="roc-label"
-                                >{translations.val_6m || "6M"}</span
-                            >
-                            <span class="roc-value"
-                                >{totalRocs.m6 !== null
-                                    ? totalRocs.m6.toFixed(1) + "%"
-                                    : translations.na || "N/A"}</span
-                            >
-                        </div>
-                        <div
-                            class="roc-item"
-                            class:positive={totalRocs.y1 > 0}
-                            class:negative={totalRocs.y1 < 0}
-                        >
-                            <span class="roc-label"
-                                >{translations.val_1y || "1Y"}</span
-                            >
-                            <span class="roc-value"
-                                >{totalRocs.y1 !== null
-                                    ? totalRocs.y1.toFixed(1) + "%"
-                                    : translations.na || "N/A"}</span
-                            >
-                        </div>
-                    </div>
-                {/if}
-            </div>
-
-            <div class="metrics-sidebar">
-                <div class="metrics-section">
-                    <h4>
-                        {translations.chart_m2_comp ||
-                            "M2 Composition & Performance"}
-                    </h4>
-                    <div class="metrics-table-container">
-                        <table class="metrics-table">
-                            <thead>
-                                <tr>
-                                    <th
-                                        >{translations.economy_col ||
-                                            "Economy"}</th
-                                    >
-                                    <th>{translations.wgt_col || "Wgt"}</th>
-                                    <th>{translations.val_1m || "1M"}</th>
-                                    <th
-                                        title={translations.impact_1m ||
-                                            "1M Global Impact"}
-                                        >{translations.imp_col || "Imp"}</th
-                                    >
-                                    <th>{translations.val_3m || "3M"}</th>
-                                    <th
-                                        title={translations.impact_3m ||
-                                            "3M Global Impact"}
-                                        >{translations.imp_col || "Imp"}</th
-                                    >
-                                    <th>{translations.val_1y || "1Y"}</th>
-                                    <th
-                                        title={translations.impact_1y ||
-                                            "1Y Global Impact"}
-                                        >{translations.imp_col || "Imp"}</th
-                                    >
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {#each m2Weights.slice(0, 10) as item}
+                <div class="metrics-sidebar">
+                    <div class="metrics-section">
+                        <h4>
+                            {translations.chart_m2_comp ||
+                                "M2 Composition & Performance"}
+                        </h4>
+                        <div class="metrics-table-container">
+                            <table class="metrics-table">
+                                <thead>
                                     <tr>
-                                        <td>{item.name}</td>
-                                        <td>{item.weight.toFixed(0)}%</td>
-                                        <td
-                                            class="roc-val"
-                                            class:positive={(!item.isLiability &&
-                                                item.m1 > 0) ||
-                                                (item.isLiability &&
-                                                    item.m1 < 0)}
-                                            class:negative={(!item.isLiability &&
-                                                item.m1 < 0) ||
-                                                (item.isLiability &&
-                                                    item.m1 > 0)}
-                                            >{item.m1.toFixed(1)}%</td
+                                        <th
+                                            >{translations.economy_col ||
+                                                "Economy"}</th
                                         >
-                                        <td
-                                            class="roc-val impact-cell"
-                                            class:positive={item.imp1 > 0}
-                                            class:negative={item.imp1 < 0}
-                                            >{item.imp1.toFixed(2)}%</td
+                                        <th>{translations.wgt_col || "Wgt"}</th>
+                                        <th>{translations.val_1m || "1M"}</th>
+                                        <th
+                                            title={translations.impact_1m ||
+                                                "1M Global Impact"}
+                                            >{translations.imp_col || "Imp"}</th
                                         >
-                                        <td
-                                            class="roc-val"
-                                            class:positive={(!item.isLiability &&
-                                                item.m3 > 0) ||
-                                                (item.isLiability &&
-                                                    item.m3 < 0)}
-                                            class:negative={(!item.isLiability &&
-                                                item.m3 < 0) ||
-                                                (item.isLiability &&
-                                                    item.m3 > 0)}
-                                            >{item.m3.toFixed(1)}%</td
+                                        <th>{translations.val_3m || "3M"}</th>
+                                        <th
+                                            title={translations.impact_3m ||
+                                                "3M Global Impact"}
+                                            >{translations.imp_col || "Imp"}</th
                                         >
-                                        <td
-                                            class="roc-val impact-cell"
-                                            class:positive={item.imp3 > 0}
-                                            class:negative={item.imp3 < 0}
-                                            >{item.imp3.toFixed(2)}%</td
-                                        >
-                                        <td
-                                            class="roc-val"
-                                            class:positive={(!item.isLiability &&
-                                                item.y1 > 0) ||
-                                                (item.isLiability &&
-                                                    item.y1 < 0)}
-                                            class:negative={(!item.isLiability &&
-                                                item.y1 < 0) ||
-                                                (item.isLiability &&
-                                                    item.y1 > 0)}
-                                            >{item.y1.toFixed(1)}%</td
-                                        >
-                                        <td
-                                            class="roc-val impact-cell"
-                                            class:positive={item.imp1y > 0}
-                                            class:negative={item.imp1y < 0}
-                                            >{item.imp1y.toFixed(2)}%</td
+                                        <th>{translations.val_1y || "1Y"}</th>
+                                        <th
+                                            title={translations.impact_1y ||
+                                                "1Y Global Impact"}
+                                            >{translations.imp_col || "Imp"}</th
                                         >
                                     </tr>
-                                {/each}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {#each m2Weights.slice(0, 10) as item}
+                                        <tr>
+                                            <td>{item.name}</td>
+                                            <td>{item.weight.toFixed(0)}%</td>
+                                            <td
+                                                class="roc-val"
+                                                class:positive={(!item.isLiability &&
+                                                    item.m1 > 0) ||
+                                                    (item.isLiability &&
+                                                        item.m1 < 0)}
+                                                class:negative={(!item.isLiability &&
+                                                    item.m1 < 0) ||
+                                                    (item.isLiability &&
+                                                        item.m1 > 0)}
+                                                >{item.m1.toFixed(1)}%</td
+                                            >
+                                            <td
+                                                class="roc-val impact-cell"
+                                                class:positive={item.imp1 > 0}
+                                                class:negative={item.imp1 < 0}
+                                                >{item.imp1.toFixed(2)}%</td
+                                            >
+                                            <td
+                                                class="roc-val"
+                                                class:positive={(!item.isLiability &&
+                                                    item.m3 > 0) ||
+                                                    (item.isLiability &&
+                                                        item.m3 < 0)}
+                                                class:negative={(!item.isLiability &&
+                                                    item.m3 < 0) ||
+                                                    (item.isLiability &&
+                                                        item.m3 > 0)}
+                                                >{item.m3.toFixed(1)}%</td
+                                            >
+                                            <td
+                                                class="roc-val impact-cell"
+                                                class:positive={item.imp3 > 0}
+                                                class:negative={item.imp3 < 0}
+                                                >{item.imp3.toFixed(2)}%</td
+                                            >
+                                            <td
+                                                class="roc-val"
+                                                class:positive={(!item.isLiability &&
+                                                    item.y1 > 0) ||
+                                                    (item.isLiability &&
+                                                        item.y1 < 0)}
+                                                class:negative={(!item.isLiability &&
+                                                    item.y1 < 0) ||
+                                                    (item.isLiability &&
+                                                        item.y1 > 0)}
+                                                >{item.y1.toFixed(1)}%</td
+                                            >
+                                            <td
+                                                class="roc-val impact-cell"
+                                                class:positive={item.imp1y > 0}
+                                                class:negative={item.imp1y < 0}
+                                                >{item.imp1y.toFixed(2)}%</td
+                                            >
+                                        </tr>
+                                    {/each}
+                                </tbody>
+                            </table>
+                        </div>
+                        <p
+                            style="font-size: 10px; color: #94a3b8; margin-top: 8px;"
+                        >
+                            * {translations.impact_note_m2 ||
+                                "Impact = % contribution of local M2 1M move to total Global M2."}
+                        </p>
                     </div>
-                    <p
-                        style="font-size: 10px; color: #94a3b8; margin-top: 8px;"
-                    >
-                        * {translations.impact_note_m2 ||
-                            "Impact = % contribution of local M2 1M move to total Global M2."}
-                    </p>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Individual Country M2 Charts in 2-column grid -->
-    <div class="country-grid">
+        <!-- Individual Country M2 Charts in 2-column grid -->
         {#each countryConfigs as item}
             {@const rocs = getM2Rocs(item.id)}
             <div class="chart-card">
@@ -759,7 +760,7 @@
     }
 
     .chart-card.wide {
-        width: 100%;
+        grid-column: span 2;
     }
 
     .chart-header {
