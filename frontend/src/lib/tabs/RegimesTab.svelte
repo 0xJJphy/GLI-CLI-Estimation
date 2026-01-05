@@ -268,6 +268,49 @@
         }
     }
 
+    /**
+     * Calculates rolling percentile for each value in the array based on a sliding window.
+     * @param {Array} arr - Numeric array
+     * @param {number} window - Window size for the historical reference
+     */
+    function calculateRollingPercentile(arr, window = 252) {
+        if (!arr || arr.length === 0) return [];
+        return arr.map((val, idx) => {
+            if (val === null || isNaN(val)) return null;
+            const start = Math.max(0, idx - window);
+            const slice = arr
+                .slice(start, idx + 1)
+                .filter((v) => v !== null && !isNaN(v));
+            if (slice.length < 5) return null;
+            const count = slice.filter((v) => v < val).length;
+            return (count / slice.length) * 100;
+        });
+    }
+
+    /**
+     * Calculates rolling Z-score (standardized score).
+     */
+    function calculateZScore(arr, window = 252) {
+        if (!arr || arr.length === 0) return [];
+        return arr.map((val, idx) => {
+            if (val === null || isNaN(val)) return null;
+            const start = Math.max(0, idx - window);
+            const slice = arr
+                .slice(start, idx + 1)
+                .filter((v) => v !== null && !isNaN(v));
+            if (slice.length < 10) return null;
+
+            const mean = slice.reduce((a, b) => a + b, 0) / slice.length;
+            const stdDev = Math.sqrt(
+                slice.reduce((a, b) => a + Math.pow(b - mean, 2), 0) /
+                    slice.length,
+            );
+
+            if (stdDev === 0) return 0;
+            return (val - mean) / stdDev;
+        });
+    }
+
     // Create regime shapes with SCORE-BASED INTENSITY
     // offsetDays SHIFTS all shapes forward in time (regime leads BTC by offsetDays)
     function createRegimeShapes(scores, range, isDarkMode, offsetDays = 0) {
@@ -798,102 +841,153 @@
         font: { color: darkMode ? "#e2e8f0" : "#1e293b" },
     };
 
-    // Historical Stress - reactive to darkMode
-    $: stressHistoricalData = (() => {
+    // Stress Percentiles - Normalizing the raw scores against their history
+    $: stressPercentiles = (() => {
+        const stress = dashboardData.stress_historical;
+        if (!stress)
+            return { inflation: [], liquidity: [], credit: [], volatility: [] };
+        // Using a 504-day window (approx 2 years) for normalization
+        return {
+            inflation: calculateRollingPercentile(stress.inflation_stress, 504),
+            liquidity: calculateRollingPercentile(stress.liquidity_stress, 504),
+            credit: calculateRollingPercentile(stress.credit_stress, 504),
+            volatility: calculateRollingPercentile(
+                stress.volatility_stress,
+                504,
+            ),
+        };
+    })();
+
+    // Heatmap - Driver Intensity over time
+    $: stressHeatmapData = (() => {
+        const dates = getFilteredDates(stressHistoricalRange);
+        const p = stressPercentiles;
+        if (!dates || dates.length === 0) return [];
+
+        return [
+            {
+                z: [
+                    filterByRange(p.volatility, stressHistoricalRange),
+                    filterByRange(p.credit, stressHistoricalRange),
+                    filterByRange(p.liquidity, stressHistoricalRange),
+                    filterByRange(p.inflation, stressHistoricalRange),
+                ],
+                x: dates,
+                y: [
+                    t("stress_volatility", "Volatility"),
+                    t("stress_credit", "Credit"),
+                    t("stress_liquidity", "Liquidity"),
+                    t("stress_inflation", "Inflation"),
+                ],
+                type: "heatmap",
+                colorscale: [
+                    [0, darkMode ? "#0f172a" : "#f8fafc"],
+                    [0.5, "#f59e0b"],
+                    [1, "#ef4444"],
+                ],
+                showscale: true,
+                colorbar: {
+                    title: "%",
+                    thickness: 10,
+                    len: 0.8,
+                },
+            },
+        ];
+    })();
+
+    $: stressHeatmapLayout = {
+        xaxis: { showgrid: false, color: darkMode ? "#94a3b8" : "#475569" },
+        yaxis: {
+            color: darkMode ? "#94a3b8" : "#475569",
+            automargin: true,
+        },
+        margin: { t: 10, b: 40, l: 100, r: 20 },
+        paper_bgcolor: "transparent",
+        plot_bgcolor: "transparent",
+        font: { color: darkMode ? "#e2e8f0" : "#1e293b" },
+    };
+
+    // Radar Chart - Current State Profile
+    $: stressRadarData = (() => {
+        const p = stressPercentiles;
+        const keys = ["volatility", "credit", "liquidity", "inflation"];
+        const currentVals = keys.map((k) => {
+            const vals = p[k].filter((v) => v !== null);
+            return vals.length > 0 ? vals[vals.length - 1] : 0;
+        });
+
+        return [
+            {
+                type: "scatterpolar",
+                r: currentVals,
+                theta: [
+                    t("stress_volatility", "Volatility"),
+                    t("stress_credit", "Credit"),
+                    t("stress_liquidity", "Liquidity"),
+                    t("stress_inflation", "Inflation"),
+                ],
+                fill: "toself",
+                fillcolor: "rgba(239, 68, 68, 0.3)",
+                line: { color: "#ef4444" },
+            },
+        ];
+    })();
+
+    $: stressRadarLayout = {
+        polar: {
+            radialaxis: {
+                visible: true,
+                range: [0, 100],
+                color: darkMode ? "#94a3b8" : "#475569",
+                gridcolor: darkMode
+                    ? "rgba(148,163,184,0.1)"
+                    : "rgba(71,85,105,0.1)",
+            },
+            angularaxis: {
+                color: darkMode ? "#94a3b8" : "#475569",
+                gridcolor: darkMode
+                    ? "rgba(148,163,184,0.1)"
+                    : "rgba(71,85,105,0.1)",
+            },
+        },
+        showlegend: false,
+        paper_bgcolor: "transparent",
+        margin: { t: 40, b: 40, l: 40, r: 40 },
+        font: { color: darkMode ? "#e2e8f0" : "#1e293b" },
+    };
+
+    // Keep the "Total Stress" as a simple line chart for trend analysis
+    $: stressTotalData = (() => {
         const stress = dashboardData.stress_historical;
         if (!stress?.total_stress) return [];
         const dates = getFilteredDates(stressHistoricalRange);
         return [
             {
                 x: dates,
-                y: filterByRange(
-                    stress.inflation_stress,
-                    stressHistoricalRange,
-                ),
-                name: t("stress_inflation", "Inflation"),
-                type: "bar",
-                marker: { color: "#f59e0b" },
-            },
-            {
-                x: dates,
-                y: filterByRange(
-                    stress.liquidity_stress,
-                    stressHistoricalRange,
-                ),
-                name: t("stress_liquidity", "Liquidity"),
-                type: "bar",
-                marker: { color: "#3b82f6" },
-            },
-            {
-                x: dates,
-                y: filterByRange(stress.credit_stress, stressHistoricalRange),
-                name: t("stress_credit", "Credit"),
-                type: "bar",
-                marker: { color: "#10b981" },
-            },
-            {
-                x: dates,
-                y: filterByRange(
-                    stress.volatility_stress,
-                    stressHistoricalRange,
-                ),
-                name: t("stress_volatility", "Volatility"),
-                type: "bar",
-                marker: { color: "#ef4444" },
+                y: filterByRange(stress.total_stress, stressHistoricalRange),
+                name: t("total_stress", "Total Stress"),
+                type: "scatter",
+                mode: "lines",
+                fill: "tozeroy",
+                line: { color: "#ef4444", width: 2 },
+                fillcolor: "rgba(239, 68, 68, 0.1)",
             },
         ];
     })();
 
-    $: stressHistoricalLayout = {
+    $: stressTotalLayout = {
         xaxis: { showgrid: false, color: darkMode ? "#94a3b8" : "#475569" },
         yaxis: {
-            title: t("stress_score_y", "Stress Score"),
+            title: t("stress_score_y", "Score"),
             range: [0, 27],
             color: darkMode ? "#94a3b8" : "#475569",
             gridcolor: darkMode
                 ? "rgba(148,163,184,0.1)"
                 : "rgba(71,85,105,0.1)",
         },
-        barmode: "stack",
-        shapes: [
-            {
-                type: "line",
-                xref: "paper",
-                yref: "y",
-                x0: 0,
-                x1: 1,
-                y0: 5,
-                y1: 5,
-                line: { color: "#f59e0b", width: 1, dash: "dash" },
-                layer: "above",
-            },
-            {
-                type: "line",
-                xref: "paper",
-                yref: "y",
-                x0: 0,
-                x1: 1,
-                y0: 10,
-                y1: 10,
-                line: { color: "#ef4444", width: 1, dash: "dash" },
-                layer: "above",
-            },
-            {
-                type: "line",
-                xref: "paper",
-                yref: "y",
-                x0: 0,
-                x1: 1,
-                y0: 15,
-                y1: 15,
-                line: { color: "#dc2626", width: 1, dash: "dash" },
-                layer: "above",
-            },
-        ],
-        margin: { t: 20, b: 40, l: 50, r: 20 },
+        margin: { t: 10, b: 40, l: 50, r: 20 },
         paper_bgcolor: "transparent",
         plot_bgcolor: "transparent",
-        legend: { orientation: "h", y: 1.1 },
         font: { color: darkMode ? "#e2e8f0" : "#1e293b" },
     };
 
@@ -1237,7 +1331,7 @@
         </div>
     </div>
 
-    <!-- Historical Stress Chart -->
+    <!-- Historical Stress Dashboard - Refactored -->
     <div class="chart-card full-width" bind:this={stressHistCard}>
         <div class="chart-header">
             <h3>
@@ -1248,28 +1342,108 @@
                     selectedRange={stressHistoricalRange}
                     onRangeChange={(r) => (stressHistoricalRange = r)}
                 />
-                <div
-                    class="stress-badge {getStressLevel(latestStress.score)
-                        .class}"
-                >
-                    {getStressLevel(latestStress.score).text} ({latestStress.score}/27)
-                </div>
             </div>
         </div>
         <p class="chart-desc">
             {t(
-                "stress_historical_desc",
-                "Inflation (7) + Liquidity (7) + Credit (7) + Volatility (6) = 27 max.",
+                "stress_historical_quant_desc",
+                "Intensity Heatmap (Rolling Percentiles) + Current Stress Profile + Historical Trend.",
             )}
         </p>
-        <div class="chart-content">
-            <Chart
-                data={stressHistoricalData}
-                layout={stressHistoricalLayout}
-                {darkMode}
-                cardContainer={stressHistCard}
-                cardTitle="historical_stress"
-            />
+
+        <div class="stress-dashboard-layout">
+            <div class="stress-main-panel">
+                <div class="sub-chart-title">
+                    {t(
+                        "stress_driver_intensity",
+                        "Driver Intensity Heatmap (0-100%)",
+                    )}
+                </div>
+                <div class="chart-content heatmap-container">
+                    <Chart
+                        data={stressHeatmapData}
+                        layout={stressHeatmapLayout}
+                        {darkMode}
+                        cardContainer={stressHistCard}
+                        cardTitle="stress_intensity_heatmap"
+                    />
+                </div>
+
+                <div class="stress-lower-grid">
+                    <div class="trend-panel">
+                        <div class="sub-chart-title">
+                            {t(
+                                "stress_total_trend",
+                                "Total Stress Trend (Raw Score)",
+                            )}
+                        </div>
+                        <div class="chart-content">
+                            <Chart
+                                data={stressTotalData}
+                                layout={stressTotalLayout}
+                                {darkMode}
+                                cardContainer={stressHistCard}
+                                cardTitle="stress_total_trend"
+                            />
+                        </div>
+                    </div>
+                    <div class="radar-panel">
+                        <div class="sub-chart-title">
+                            {t(
+                                "stress_current_profile",
+                                "Current Stress Profile",
+                            )}
+                        </div>
+                        <div class="chart-content radar-container">
+                            <Chart
+                                data={stressRadarData}
+                                layout={stressRadarLayout}
+                                {darkMode}
+                                cardContainer={stressHistCard}
+                                cardTitle="stress_current_radar"
+                            />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stress-sidebar">
+                <div class="stress-summary-badge">
+                    <div class="badge-label">
+                        {t("latest_stress_status", "Current Stress Status")}
+                    </div>
+                    <div
+                        class="badge-value {getStressLevel(latestStress.score)
+                            .class}"
+                    >
+                        {getStressLevel(latestStress.score).text}
+                    </div>
+                    <div class="badge-score">{latestStress.score} / 27</div>
+                </div>
+
+                <div class="driver-pills">
+                    {#each [{ key: "volatility", label: "Volatility", color: "#ef4444" }, { key: "credit", label: "Credit", color: "#10b981" }, { key: "liquidity", label: "Liquidity", color: "#3b82f6" }, { key: "inflation", label: "Inflation", color: "#f59e0b" }] as driver}
+                        {@const pArray = stressPercentiles[driver.key].filter(
+                            (v) => v !== null,
+                        )}
+                        {@const latestP =
+                            pArray.length > 0 ? pArray[pArray.length - 1] : 0}
+                        <div class="driver-pill">
+                            <span class="dot" style="background: {driver.color}"
+                            ></span>
+                            <span class="label"
+                                >{t("stress_" + driver.key, driver.label)}</span
+                            >
+                            <span
+                                class="value"
+                                class:high={latestP > 70}
+                                class:low={latestP < 30}
+                                >{latestP.toFixed(0)}%</span
+                            >
+                        </div>
+                    {/each}
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -1627,27 +1801,146 @@
     .btc-chart {
         height: 400px;
     }
-    .stress-badge {
-        padding: 4px 10px;
-        border-radius: 4px;
-        font-size: 0.75rem;
-        font-weight: 600;
+    /* Stress Dashboard Refactor Styles */
+    .stress-dashboard-layout {
+        display: grid;
+        grid-template-columns: 1fr 280px;
+        gap: 20px;
+        margin-top: 10px;
     }
-    .stress-badge.low {
-        background: rgba(16, 185, 129, 0.2);
+    .stress-main-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+    .sub-chart-title {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text-secondary, #94a3b8);
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .heatmap-container {
+        height: 220px !important;
+    }
+    .stress-lower-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        height: 250px;
+    }
+    .stress-sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        padding: 20px;
+        background: rgba(255, 255, 255, 0.02);
+        border-radius: 12px;
+        border: 1px solid var(--border-color);
+    }
+    .light .stress-sidebar {
+        background: rgba(0, 0, 0, 0.02);
+    }
+    .stress-summary-badge {
+        text-align: center;
+        padding: 15px;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .badge-label {
+        font-size: 0.75rem;
+        color: var(--text-muted, #64748b);
+        margin-bottom: 5px;
+    }
+    .badge-value {
+        font-size: 1.5rem;
+        font-weight: 800;
+        margin-bottom: 5px;
+    }
+    .badge-value.low {
         color: #10b981;
     }
-    .stress-badge.moderate {
-        background: rgba(245, 158, 11, 0.2);
+    .badge-value.moderate {
         color: #f59e0b;
     }
-    .stress-badge.high {
-        background: rgba(239, 68, 68, 0.2);
+    .badge-value.high {
         color: #ef4444;
     }
-    .stress-badge.critical {
-        background: rgba(220, 38, 38, 0.3);
+    .badge-value.critical {
         color: #dc2626;
+    }
+
+    .badge-score {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--text-secondary, #94a3b8);
+    }
+
+    .driver-pills {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    .driver-pill {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 14px;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 8px;
+        font-size: 0.85rem;
+    }
+    .driver-pill .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+    }
+    .driver-pill .label {
+        flex: 1;
+        color: var(--text-secondary, #94a3b8);
+    }
+    .driver-pill .value {
+        font-weight: 700;
+        font-family: monospace;
+    }
+    .driver-pill .value.high {
+        color: #ef4444;
+    }
+    .driver-pill .value.low {
+        color: #10b981;
+    }
+
+    .radar-container {
+        height: 100% !important;
+    }
+
+    @media (max-width: 1200px) {
+        .stress-dashboard-layout {
+            grid-template-columns: 1fr;
+        }
+        .stress-sidebar {
+            order: -1;
+            flex-direction: row;
+            flex-wrap: wrap;
+            justify-content: space-between;
+        }
+        .driver-pills {
+            flex-direction: row;
+            flex-wrap: wrap;
+            flex: 1;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .stress-lower-grid {
+            grid-template-columns: 1fr;
+            height: auto;
+        }
+        .stress-lower-grid > div {
+            height: 250px;
+        }
     }
 
     @media (max-width: 1024px) {
