@@ -554,6 +554,7 @@
             },
         ],
         annotations: [
+            watermarkAnnotation,
             {
                 y: 2,
                 xref: "paper",
@@ -581,6 +582,7 @@
             },
         ],
         annotations: [
+            watermarkAnnotation,
             {
                 x: 1.02,
                 y: 50,
@@ -659,6 +661,22 @@
     $: rocCorePCE = calcRoc(dashboardData.fed_forecasts?.core_pce_yoy, 1);
     $: rocUnemployment = calcRoc(dashboardData.fed_forecasts?.unemployment, 1);
     $: rocISMMfg = calcRoc(dashboardData.fed_forecasts?.ism_mfg, 1);
+
+    // Dynamic Watermark Annotation to be merged into custom layouts
+    $: watermarkAnnotation = {
+        text: "0xJJphy",
+        xref: "paper",
+        yref: "paper",
+        x: 0.5,
+        y: 0.5,
+        showarrow: false,
+        font: {
+            size: 60,
+            family: "'JetBrains Mono', monospace",
+            color: darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.12)",
+        },
+        textangle: 0,
+    };
 </script>
 
 <div class="fed-forecasts-tab">
@@ -1677,6 +1695,7 @@
                                         },
                                     ]
                                   : [],
+                        annotations: [watermarkAnnotation],
                         margin: { l: 50, r: 20, t: 20, b: 40 },
                     }}
                 />
@@ -1831,6 +1850,7 @@
                                         },
                                     ]
                                   : [],
+                        annotations: [watermarkAnnotation],
                         margin: { l: 50, r: 20, t: 20, b: 40 },
                     }}
                 />
