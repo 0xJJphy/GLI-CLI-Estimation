@@ -935,6 +935,7 @@
 
     $: stressRadarLayout = {
         polar: {
+            bgcolor: "transparent",
             radialaxis: {
                 visible: true,
                 range: [0, 100],
@@ -952,7 +953,8 @@
         },
         showlegend: false,
         paper_bgcolor: "transparent",
-        margin: { t: 40, b: 40, l: 40, r: 40 },
+        plot_bgcolor: "transparent",
+        margin: { t: 30, b: 30, l: 30, r: 30 },
         font: { color: darkMode ? "#e2e8f0" : "#1e293b" },
     };
 
@@ -1822,13 +1824,14 @@
         letter-spacing: 0.05em;
     }
     .heatmap-container {
-        height: 220px !important;
+        height: 250px !important;
     }
     .stress-lower-grid {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 1.2fr 1.1fr;
         gap: 20px;
-        height: 250px;
+        min-height: 250px;
+        overflow: hidden;
     }
     .stress-sidebar {
         display: flex;
@@ -1904,12 +1907,16 @@
     .driver-pill .value {
         font-weight: 700;
         font-family: monospace;
+        color: var(--text-primary, #f1f5f9);
+    }
+    .light .driver-pill .value {
+        color: #1e293b;
     }
     .driver-pill .value.high {
-        color: #ef4444;
+        color: #ef4444 !important;
     }
     .driver-pill .value.low {
-        color: #10b981;
+        color: #10b981 !important;
     }
 
     .radar-container {
