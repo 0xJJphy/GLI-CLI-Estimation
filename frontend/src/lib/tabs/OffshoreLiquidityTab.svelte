@@ -8,6 +8,7 @@
      */
     import LightweightChart from "../components/LightweightChart.svelte";
     import TimeRangeSelector from "../components/TimeRangeSelector.svelte";
+    import { downloadCardAsImage } from "../utils/downloadCard.js";
 
     export let darkMode = true;
     export let language = "en";
@@ -163,6 +164,10 @@
 
     // Show methodology toggle
     let showMethodology = false;
+
+    // Card container references for full-card download
+    let fredProxyCard;
+    let xccyCard;
 </script>
 
 <div class="offshore-tab" class:dark={darkMode}>
@@ -207,20 +212,33 @@
     {/if}
 
     <!-- Chart 1: FRED Proxy -->
-    <div class="chart-card">
+    <div class="chart-card" bind:this={fredProxyCard}>
         <div class="card-header">
             <div class="card-title-row">
                 <h3>
                     {translations.fred_proxy_title || "FRED Proxy Indicators"}
                 </h3>
-                <span
-                    class="stress-badge"
-                    style="background-color: {getStressColor(
-                        chart1.stress_level,
-                    )};"
-                >
-                    {getStressLabel(chart1.stress_level)}
-                </span>
+                <div class="title-actions">
+                    <button
+                        class="download-card-btn"
+                        title="Download Full Card"
+                        on:click={() =>
+                            downloadCardAsImage(
+                                fredProxyCard,
+                                "fred_proxy_indicators",
+                            )}
+                    >
+                        📷
+                    </button>
+                    <span
+                        class="stress-badge"
+                        style="background-color: {getStressColor(
+                            chart1.stress_level,
+                        )};"
+                    >
+                        {getStressLabel(chart1.stress_level)}
+                    </span>
+                </div>
             </div>
             <p class="card-desc">
                 {translations.obfr_effr_desc ||
@@ -305,18 +323,28 @@
 
     <!-- Chart 2: XCCY Basis (Conditional) -->
     {#if chart2 && xccyChartData && xccyChartData.length > 0 && xccyChartData[0].data.length > 0}
-        <div class="chart-card">
+        <div class="chart-card" bind:this={xccyCard}>
             <div class="card-header">
                 <div class="card-title-row">
                     <h3>{translations.xccy_title || "Cross-Currency Basis"}</h3>
-                    <span
-                        class="stress-badge"
-                        style="background-color: {getStressColor(
-                            chart2.stress_level,
-                        )};"
-                    >
-                        {getStressLabel(chart2.stress_level)}
-                    </span>
+                    <div class="title-actions">
+                        <button
+                            class="download-card-btn"
+                            title="Download Full Card"
+                            on:click={() =>
+                                downloadCardAsImage(xccyCard, "xccy_basis")}
+                        >
+                            📷
+                        </button>
+                        <span
+                            class="stress-badge"
+                            style="background-color: {getStressColor(
+                                chart2.stress_level,
+                            )};"
+                        >
+                            {getStressLabel(chart2.stress_level)}
+                        </span>
+                    </div>
                 </div>
                 <p class="card-desc">
                     {translations.xccy_desc ||
@@ -528,6 +556,29 @@
         justify-content: space-between;
         align-items: center;
         margin-bottom: 4px;
+    }
+
+    .title-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .download-card-btn {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 6px;
+        padding: 4px 8px;
+        cursor: pointer;
+        font-size: 14px;
+        opacity: 0.7;
+        transition: all 0.2s ease;
+    }
+
+    .download-card-btn:hover {
+        opacity: 1;
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.2);
     }
 
     /* Analysis Section & Grid */
