@@ -1252,7 +1252,7 @@
         gap: 16px;
         margin-bottom: 20px;
         padding: 16px;
-        background: var(--card-bg, #1e293b);
+        background: var(--card-bg, #050505);
         border-radius: 12px;
         border: 1px solid var(--border-color, #334155);
     }
@@ -1334,7 +1334,7 @@
         display: flex;
         justify-content: space-between;
         padding: 6px 8px;
-        background: rgba(15, 23, 42, 0.5);
+        background: rgba(255, 255, 255, 0.03);
         border-radius: 4px;
     }
     .light .value-item {
@@ -1371,7 +1371,7 @@
         gap: 20px;
         padding: 12px 16px;
         margin-bottom: 20px;
-        background: var(--card-bg, #1e293b);
+        background: var(--card-bg, #050505);
         border-radius: 8px;
         border: 1px solid var(--border-color, #334155);
     }
@@ -1421,7 +1421,7 @@
         gap: 20px;
     }
     .chart-card {
-        background: var(--card-bg, #1e293b);
+        background: var(--card-bg, #050505);
         border-radius: 12px;
         border: 1px solid var(--border-color, #334155);
         padding: 16px;

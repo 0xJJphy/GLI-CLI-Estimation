@@ -12,6 +12,7 @@
         title = "",
         logScale = false,
         darkMode = false,
+        showActions = true,
     } = $props();
 
     /**
@@ -66,7 +67,7 @@
 
     // Theme-aware colors
     const getColors = (isDark) => ({
-        background: isDark ? "#1e293b" : "#ffffff",
+        background: isDark ? "#050505" : "#ffffff",
         text: isDark ? "#cbd5e1" : "#475569",
         grid: isDark ? "rgba(71, 85, 105, 0.3)" : "rgba(226, 232, 240, 0.4)",
         crosshairLabel: isDark ? "#334155" : "#1e293b",
@@ -377,6 +378,36 @@
         <div class="chart-title">{title}</div>
     {/if}
     <div bind:this={container} class="chart-container"></div>
+
+    {#if showActions}
+        <div class="chart-actions">
+            <button
+                class="action-btn"
+                title="Download PNG"
+                onclick={downloadChart}
+            >
+                <svg viewBox="0 0 24 24" width="14" height="14">
+                    <path
+                        fill="currentColor"
+                        d="M12 16l-5-5h3V4h4v7h3l-5 5zm-9 4h18v-2H3v2z"
+                    />
+                </svg>
+            </button>
+            <button
+                class="action-btn"
+                title="Toggle Fullscreen"
+                onclick={toggleFullscreen}
+            >
+                <svg viewBox="0 0 24 24" width="14" height="14">
+                    <path
+                        fill="currentColor"
+                        d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"
+                    />
+                </svg>
+            </button>
+            <button class="reset-btn" onclick={resetScales}> Reset </button>
+        </div>
+    {/if}
 </div>
 
 <style>
@@ -392,7 +423,7 @@
     }
 
     .chart-container-wrapper.dark {
-        background: #1e293b;
+        background: #050505;
     }
 
     .chart-container {
@@ -406,6 +437,83 @@
         font-weight: 600;
         color: var(--text-primary, #1e293b);
         margin-bottom: 8px;
-        padding-left: 4px;
+    }
+
+    .chart-actions {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        display: flex;
+        gap: 6px;
+        z-index: 10;
+        background: rgba(15, 23, 42, 0.6);
+        padding: 4px;
+        border-radius: 6px;
+        backdrop-filter: blur(4px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+
+    .chart-container-wrapper:hover .chart-actions {
+        opacity: 1;
+    }
+
+    .action-btn {
+        background: transparent;
+        border: none;
+        color: rgba(255, 255, 255, 0.7);
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+    }
+
+    .action-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+    }
+
+    .reset-btn {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #6366f1;
+        padding: 2px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.7rem;
+        font-weight: 600;
+        transition: all 0.2s;
+        margin-left: 2px;
+    }
+
+    .reset-btn:hover {
+        background: #6366f1;
+        color: white;
+        border-color: #6366f1;
+    }
+
+    :global([data-theme="light"]) .chart-actions {
+        background: rgba(255, 255, 255, 0.8);
+        border-color: rgba(0, 0, 0, 0.1);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    :global([data-theme="light"]) .action-btn {
+        color: #64748b;
+    }
+
+    :global([data-theme="light"]) .action-btn:hover {
+        background: rgba(0, 0, 0, 0.05);
+        color: #1e293b;
+    }
+
+    :global([data-theme="light"]) .reset-btn {
+        background: rgba(0, 0, 0, 0.05);
+        border-color: rgba(0, 0, 0, 0.1);
     }
 </style>

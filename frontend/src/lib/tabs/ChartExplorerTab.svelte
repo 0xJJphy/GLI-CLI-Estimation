@@ -279,6 +279,35 @@
                     selectedRange={timeRange}
                     onRangeChange={(r) => (timeRange = r)}
                 />
+                <button
+                    class="action-btn"
+                    title={translations.download_chart}
+                    on:click={() =>
+                        momentumChart && momentumChart.downloadChart()}
+                >
+                    <svg viewBox="0 0 24 24" width="14" height="14">
+                        <path
+                            fill="currentColor"
+                            d="M12 16l-5-5h3V4h4v7h3l-5 5zm-9 4h18v-2H3v2z"
+                        />
+                    </svg>
+                </button>
+                <button
+                    class="action-btn"
+                    title={translations.fullscreen}
+                    on:click={() =>
+                        momentumChart && momentumChart.toggleFullscreen()}
+                >
+                    <svg viewBox="0 0 24 24" width="14" height="14">
+                        <path
+                            fill="currentColor"
+                            d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"
+                        />
+                    </svg>
+                </button>
+                <button class="reset-btn" on:click={resetMomentum}>
+                    {translations.reset_view || "Reset"}
+                </button>
             </div>
         </div>
 
@@ -351,36 +380,8 @@
                 {darkMode}
                 data={chartDataTV}
                 title={translations.momentum_vs_btc || "Momentum vs Bitcoin"}
+                showActions={false}
             />
-            <div class="chart-actions">
-                <button
-                    class="action-btn"
-                    title={translations.download_chart}
-                    on:click={() => downloadChart(momentumChart)}
-                >
-                    <svg viewBox="0 0 24 24" width="14" height="14">
-                        <path
-                            fill="currentColor"
-                            d="M12 16l-5-5h3V4h4v7h3l-5 5zm-9 4h18v-2H3v2z"
-                        />
-                    </svg>
-                </button>
-                <button
-                    class="action-btn"
-                    title={translations.fullscreen}
-                    on:click={() => toggleFullscreen(momentumChart)}
-                >
-                    <svg viewBox="0 0 24 24" width="14" height="14">
-                        <path
-                            fill="currentColor"
-                            d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"
-                        />
-                    </svg>
-                </button>
-                <button class="reset-btn" on:click={resetMomentum}>
-                    {translations.reset_view || "Reset"}
-                </button>
-            </div>
         </div>
     </div>
 
@@ -404,6 +405,35 @@
                     selectedRange={timeRangeAbs}
                     onRangeChange={(r) => (timeRangeAbs = r)}
                 />
+                <button
+                    class="action-btn"
+                    title={translations.download_chart}
+                    on:click={() =>
+                        absoluteChart && absoluteChart.downloadChart()}
+                >
+                    <svg viewBox="0 0 24 24" width="14" height="14">
+                        <path
+                            fill="currentColor"
+                            d="M12 16l-5-5h3V4h4v7h3l-5 5zm-9 4h18v-2H3v2z"
+                        />
+                    </svg>
+                </button>
+                <button
+                    class="action-btn"
+                    title={translations.fullscreen}
+                    on:click={() =>
+                        absoluteChart && absoluteChart.toggleFullscreen()}
+                >
+                    <svg viewBox="0 0 24 24" width="14" height="14">
+                        <path
+                            fill="currentColor"
+                            d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"
+                        />
+                    </svg>
+                </button>
+                <button class="reset-btn" on:click={resetAbsolute}>
+                    {translations.reset_view || "Reset"}
+                </button>
             </div>
         </div>
 
@@ -460,36 +490,8 @@
                 {darkMode}
                 data={chartDataAbsTV}
                 title={translations.abs_vs_btc || "Levels vs Bitcoin"}
+                showActions={false}
             />
-            <div class="chart-actions">
-                <button
-                    class="action-btn"
-                    title={translations.download_chart}
-                    on:click={() => downloadChart(absoluteChart)}
-                >
-                    <svg viewBox="0 0 24 24" width="14" height="14">
-                        <path
-                            fill="currentColor"
-                            d="M12 16l-5-5h3V4h4v7h3l-5 5zm-9 4h18v-2H3v2z"
-                        />
-                    </svg>
-                </button>
-                <button
-                    class="action-btn"
-                    title={translations.fullscreen}
-                    on:click={() => toggleFullscreen(absoluteChart)}
-                >
-                    <svg viewBox="0 0 24 24" width="14" height="14">
-                        <path
-                            fill="currentColor"
-                            d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"
-                        />
-                    </svg>
-                </button>
-                <button class="reset-btn" on:click={resetAbsolute}>
-                    {translations.reset_view || "Reset"}
-                </button>
-            </div>
         </div>
     </div>
 </div>
@@ -497,58 +499,6 @@
 <style>
     .chart-content.relative {
         position: relative;
-    }
-
-    .chart-actions {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        display: flex;
-        gap: 6px;
-        z-index: 10;
-        background: var(--bg-secondary);
-        padding: 4px;
-        border-radius: 6px;
-        backdrop-filter: blur(4px);
-        border: 1px solid var(--border-color);
-        box-shadow: var(--card-shadow);
-    }
-
-    .action-btn {
-        background: transparent;
-        border: none;
-        color: var(--text-muted);
-        cursor: pointer;
-        padding: 4px;
-        border-radius: 4px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.2s;
-    }
-
-    .action-btn:hover {
-        background: var(--bg-tertiary);
-        color: var(--text-primary);
-    }
-
-    .reset-btn {
-        background: var(--bg-tertiary);
-        border: 1px solid var(--border-color);
-        color: var(--accent-primary);
-        padding: 2px 10px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 0.75rem;
-        font-weight: 600;
-        transition: all 0.2s;
-        margin-left: 4px;
-    }
-
-    .reset-btn:hover {
-        background: var(--accent-primary);
-        color: white;
-        border-color: var(--accent-primary);
     }
 
     .explorer-controls {

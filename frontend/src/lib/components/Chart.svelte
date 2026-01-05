@@ -1,6 +1,7 @@
 <script>
     import { onMount, afterUpdate } from "svelte";
     import Plotly from "plotly.js-dist-min";
+    import { downloadCardAsImage } from "../utils/downloadCard.js";
 
     export let data = [];
     export let layout = {};
@@ -9,6 +10,9 @@
     export let darkMode = false;
     export let divId =
         "plotly-chart-" + Math.random().toString(36).substr(2, 9);
+    // Optional: Reference to the parent card container for "Download Card" feature
+    export let cardContainer = null;
+    export let cardTitle = "chart_card"; // Filename prefix for card download
 
     let chartContainer;
 
@@ -140,6 +144,16 @@
             "yaxis.autorange": true,
         });
     }
+
+    async function downloadCard() {
+        if (cardContainer) {
+            await downloadCardAsImage(cardContainer, cardTitle);
+        } else {
+            console.warn("[Chart] No cardContainer provided for card download");
+            // Fallback to chart download
+            downloadImage();
+        }
+    }
 </script>
 
 <div class="chart-content relative">
@@ -147,7 +161,7 @@
     <div class="chart-actions">
         <button
             class="action-btn"
-            title="Download PNG"
+            title="Download Chart PNG"
             on:click={downloadImage}
         >
             <svg viewBox="0 0 24 24" width="14" height="14">
@@ -157,6 +171,20 @@
                 />
             </svg>
         </button>
+        {#if cardContainer}
+            <button
+                class="action-btn"
+                title="Download Full Card"
+                on:click={downloadCard}
+            >
+                <svg viewBox="0 0 24 24" width="14" height="14">
+                    <path
+                        fill="currentColor"
+                        d="M3 3h18v18H3V3zm2 2v14h14V5H5zm2 2h10v2H7V7zm0 4h10v2H7v-2zm0 4h7v2H7v-2z"
+                    />
+                </svg>
+            </button>
+        {/if}
         <button
             class="action-btn"
             title="Toggle Fullscreen"

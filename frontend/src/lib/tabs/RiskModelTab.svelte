@@ -290,6 +290,9 @@
     let creditSpreadsViewMode = "raw"; // 'raw', 'zscore', 'percentile'
     let sofrVolumeViewMode = "raw"; // 'raw', 'roc_5d', 'roc_20d'
 
+    // Card container references for full-card download feature
+    let repoCorridorCard;
+
     // --- Performance Optimization: Cached Indices ---
     import { getCutoffDate } from "../utils/helpers.js";
 
@@ -1435,8 +1438,9 @@
         true,
     );
 
-    // SRF Usage separate panel data (indicator below main chart)
-    $: srfUsageData = filterWithCache(
+    // FUSED CHART: REPO RATES + SRF USAGE
+    // SRF Usage data (filtered separately to match the range)
+    $: srfUsageFiltered = filterWithCache(
         [
             {
                 x: dashboardData.dates,
@@ -1450,29 +1454,56 @@
                     ),
                 },
                 hovertemplate: "SRF Usage: $%{y:.1f}B<extra></extra>",
+                yaxis: "y2",
             },
         ],
         repoStressRange,
         true,
     );
 
-    $: srfUsageLayout = {
+    // Combine the already-filtered rate traces with the filtered SRF trace
+    $: repoFusedData = [
+        ...repoStressData.map((trace) => ({ ...trace, yaxis: "y" })),
+        ...(srfUsageFiltered || []),
+    ];
+
+    $: repoFusedLayout = {
+        title: "",
         xaxis: {
             gridcolor: darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
-            showticklabels: false,
+            showticklabels: true,
         },
+        // Main Rates Chart (Top ~75%)
         yaxis: {
-            title: "$B",
+            title: "Rate (%)",
+            domain: [0.28, 1],
+            anchor: "x",
+            gridcolor: darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
+            tickformat: ".2f",
+        },
+        // SRF Usage Bar Chart (Bottom ~20%)
+        yaxis2: {
+            title: "SRF ($B)",
+            domain: [0, 0.2],
+            anchor: "x",
             gridcolor: darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
             rangemode: "tozero",
             fixedrange: true,
         },
-        margin: { t: 5, r: 20, b: 20, l: 50 },
+        margin: { t: 10, r: 20, b: 30, l: 50 },
         paper_bgcolor: "transparent",
         plot_bgcolor: "transparent",
         font: { color: darkMode ? "#fff" : "#000" },
-        showlegend: false,
-        height: 80,
+        showlegend: true,
+        legend: {
+            orientation: "h",
+            yanchor: "bottom",
+            y: 1.02,
+            xanchor: "center",
+            x: 0.5,
+        },
+        height: 500, // Taller to accommodate both
+        shapes: [],
     };
 
     // SOFR Volume Chart Data (repo market depth indicator)
@@ -2161,31 +2192,6 @@
             : corridorStressLevel === "ELEVATED"
               ? "#f59e0b"
               : "#22c55e";
-
-    $: repoStressLayout = {
-        title: "",
-        xaxis: {
-            gridcolor: darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
-        },
-        yaxis: {
-            title: "Rate (%)",
-            gridcolor: darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
-            tickformat: ".2f",
-        },
-        margin: { t: 10, r: 20, b: 30, l: 50 },
-        paper_bgcolor: "transparent",
-        plot_bgcolor: "transparent",
-        font: { color: darkMode ? "#fff" : "#000" },
-        showlegend: true,
-        legend: {
-            orientation: "h",
-            yanchor: "bottom",
-            y: 1.02,
-            xanchor: "center",
-            x: 0.5,
-        },
-        shapes: [],
-    };
 
     // Credit indicators configuration - each chart has independent viewMode
     $: creditIndicators = [
@@ -3044,7 +3050,7 @@
         </div>
 
         <!-- Repo Stress Chart (Fed Rate Corridor) -->
-        <div class="chart-card">
+        <div class="chart-card" bind:this={repoCorridorCard}>
             <div class="chart-header">
                 <h3>
                     {translations.chart_repo_corridor ||
@@ -3132,39 +3138,14 @@
                 {translations.repo_corridor_desc ||
                     "SOFR should trade between IORB (floor) and SRF Rate (ceiling). Approaching ceiling or SRF usage signals funding stress."}
             </p>
-            <div class="chart-content" style="height: 280px;">
+            <div class="chart-content" style="height: 500px;">
                 <Chart
                     {darkMode}
-                    data={repoStressData}
-                    layout={repoStressLayout}
+                    data={repoFusedData}
+                    layout={repoFusedLayout}
+                    cardContainer={repoCorridorCard}
+                    cardTitle="fed_rate_corridor"
                 />
-            </div>
-
-            <!-- SRF Usage Indicator Panel (separate from main chart) -->
-            <div
-                class="srf-usage-panel"
-                style="margin-top: 0; border-top: 1px solid {darkMode
-                    ? 'rgba(255,255,255,0.1)'
-                    : 'rgba(0,0,0,0.1)'};"
-            >
-                <div
-                    style="display: flex; align-items: center; gap: 8px; padding: 4px 0;"
-                >
-                    <span
-                        style="font-size: 11px; font-weight: 600; color: #ef4444;"
-                        >SRF Usage ($B)</span
-                    >
-                    <span style="font-size: 10px; opacity: 0.6;"
-                        >Fed backstop operations</span
-                    >
-                </div>
-                <div style="height: 60px;">
-                    <Chart
-                        {darkMode}
-                        data={srfUsageData}
-                        layout={srfUsageLayout}
-                    />
-                </div>
             </div>
 
             <!-- Corridor Legend -->
