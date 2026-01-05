@@ -30,6 +30,14 @@
     let btcOffsetDays = 0;
     let bestOffset = 0;
 
+    // Card container references for full-card download feature
+    let regimeScoreCard;
+    let cliComparisonCard;
+    let blockDecompCard;
+    let stressHistCard;
+    let btcV2aCard;
+    let btcV2bCard;
+
     // ============================================================
     // REACTIVE TRANSLATION HELPER (fixes language switching)
     // ============================================================
@@ -966,7 +974,7 @@
 <!-- Main Content Grid -->
 <div class="regimes-grid" class:light={!darkMode}>
     <!-- Regime Score Chart -->
-    <div class="chart-card full-width">
+    <div class="chart-card full-width" bind:this={regimeScoreCard}>
         <div class="chart-header">
             <h3>
                 {regimeVersion === "v2a"
@@ -999,12 +1007,14 @@
                 data={regimeScoreData}
                 layout={regimeScoreLayout}
                 {darkMode}
+                cardContainer={regimeScoreCard}
+                cardTitle="regime_score"
             />
         </div>
     </div>
 
     <!-- BTC + Regime V2A Chart -->
-    <div class="chart-card full-width">
+    <div class="chart-card full-width" bind:this={btcV2aCard}>
         <div class="chart-header">
             <h3>
                 {t(
@@ -1030,12 +1040,14 @@
                 data={btcRegimeV2aData}
                 layout={btcRegimeV2aLayout}
                 {darkMode}
+                cardContainer={btcV2aCard}
+                cardTitle="btc_regime_v2a"
             />
         </div>
     </div>
 
     <!-- BTC + Regime V2B Chart -->
-    <div class="chart-card full-width">
+    <div class="chart-card full-width" bind:this={btcV2bCard}>
         <div class="chart-header">
             <h3>
                 {t("regime_btc_overlay_v2b", "BTC + Regime V2B (Growth-Aware)")}
@@ -1058,12 +1070,14 @@
                 data={btcRegimeV2bData}
                 layout={btcRegimeV2bLayout}
                 {darkMode}
+                cardContainer={btcV2bCard}
+                cardTitle="btc_regime_v2b"
             />
         </div>
     </div>
 
     <!-- CLI Comparison Chart -->
-    <div class="chart-card">
+    <div class="chart-card" bind:this={cliComparisonCard}>
         <div class="chart-header">
             <h3>{t("cli_comparison_title", "CLI V1 vs V2")}</h3>
             <div class="header-controls">
@@ -1098,12 +1112,14 @@
                 data={cliComparisonData}
                 layout={cliComparisonLayout}
                 {darkMode}
+                cardContainer={cliComparisonCard}
+                cardTitle="cli_comparison"
             />
         </div>
     </div>
 
     <!-- Block Decomposition Chart -->
-    <div class="chart-card">
+    <div class="chart-card" bind:this={blockDecompCard}>
         <div class="chart-header">
             <h3>
                 {t("block_decomposition_title", "Regime Block Decomposition")}
@@ -1126,12 +1142,14 @@
                 data={blockDecompData}
                 layout={blockDecompLayout}
                 {darkMode}
+                cardContainer={blockDecompCard}
+                cardTitle="block_decomposition"
             />
         </div>
     </div>
 
     <!-- Historical Stress Chart -->
-    <div class="chart-card full-width">
+    <div class="chart-card full-width" bind:this={stressHistCard}>
         <div class="chart-header">
             <h3>
                 {t("stress_historical_title", "Historical Stress Dashboard")}
@@ -1160,6 +1178,8 @@
                 data={stressHistoricalData}
                 layout={stressHistoricalLayout}
                 {darkMode}
+                cardContainer={stressHistCard}
+                cardTitle="historical_stress"
             />
         </div>
     </div>

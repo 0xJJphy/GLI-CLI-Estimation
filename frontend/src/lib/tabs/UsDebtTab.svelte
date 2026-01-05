@@ -18,6 +18,9 @@
 
     // Time range filter
     let selectedTimeRange = "1Y";
+
+    // Card container references for full-card download feature
+    let maturityChartCard;
     const debtRanges = [
         { value: "1M", label: "1M" },
         { value: "3M", label: "3M" },
@@ -366,7 +369,7 @@
     </div>
 
     <!-- Maturity Schedule Chart -->
-    <div class="chart-card">
+    <div class="chart-card" bind:this={maturityChartCard}>
         <div class="chart-header">
             <h3 class="chart-title" style="font-family: var(--font-mono);">
                 {translations.maturity_schedule_title ||
@@ -391,7 +394,13 @@
         </div>
         <div class="chart-content" style="height: 400px;">
             {#if schedule.months?.length > 0}
-                <Chart {darkMode} data={chartData} layout={chartLayout} />
+                <Chart
+                    {darkMode}
+                    data={chartData}
+                    layout={chartLayout}
+                    cardContainer={maturityChartCard}
+                    cardTitle="treasury_maturity"
+                />
             {:else}
                 <div class="no-data-placeholder">
                     <span>📊</span>

@@ -29,6 +29,9 @@
     let mxM2DataRange = "ALL";
     let myM2DataRange = "ALL";
 
+    // Card container references for full-card download feature
+    let m2AggregateCard;
+
     // --- Internal Helper Functions ---
     function getLastDate(seriesKey) {
         if (!dashboardData.last_dates) return "N/A";
@@ -445,7 +448,7 @@
 
 <div class="main-charts">
     <!-- Aggregate M2 Chart with Weights Table -->
-    <div class="chart-card wide">
+    <div class="chart-card wide" bind:this={m2AggregateCard}>
         <div class="gli-layout">
             <div class="chart-main">
                 <div class="chart-header">
@@ -468,7 +471,12 @@
                     {translations.m2_global || "Global money supply in USD."}
                 </p>
                 <div class="chart-content">
-                    <Chart {darkMode} data={m2TotalData} />
+                    <Chart
+                        {darkMode}
+                        data={m2TotalData}
+                        cardContainer={m2AggregateCard}
+                        cardTitle="global_m2_aggregate"
+                    />
                 </div>
 
                 <!-- Aggregate ROC Indicators -->

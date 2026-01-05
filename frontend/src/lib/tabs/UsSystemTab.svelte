@@ -21,6 +21,14 @@
     let tgaRange = "ALL";
     let netRepoRange = "2Y";
 
+    // Card container references for full-card download feature
+    let netLiqCard;
+    let reservesCard;
+    let fedAssetsCard;
+    let rrpCard;
+    let tgaCard;
+    let netRepoCard;
+
     // --- Internal Helper Functions ---
     function getLastDate(seriesKey) {
         if (!dashboardData.last_dates) return "N/A";
@@ -458,7 +466,7 @@
 
 <div class="main-charts">
     <!-- Net Liquidity Chart with Metrics Sidebar -->
-    <div class="chart-card wide">
+    <div class="chart-card wide" bind:this={netLiqCard}>
         <div class="gli-layout">
             <div class="chart-main">
                 <div class="chart-header">
@@ -488,7 +496,12 @@
                         "Fed Balance Sheet minus TGA and RRP."}
                 </p>
                 <div class="chart-content">
-                    <Chart {darkMode} data={netLiqData} />
+                    <Chart
+                        {darkMode}
+                        data={netLiqData}
+                        cardContainer={netLiqCard}
+                        cardTitle="us_net_liquidity"
+                    />
                 </div>
             </div>
 
@@ -849,7 +862,7 @@
     </div>
 
     <!-- Bank Reserves Chart -->
-    <div class="chart-card wide">
+    <div class="chart-card wide" bind:this={reservesCard}>
         <div class="gli-layout">
             <div class="chart-main">
                 <div class="chart-header">
@@ -883,6 +896,8 @@
                         {darkMode}
                         data={bankReservesData}
                         layout={bankReservesLayout}
+                        cardContainer={reservesCard}
+                        cardTitle="bank_reserves"
                     />
                 </div>
             </div>
@@ -1152,7 +1167,7 @@
     </div>
 
     <!-- Fed Assets Chart -->
-    <div class="chart-card">
+    <div class="chart-card" bind:this={fedAssetsCard}>
         <div class="chart-header">
             <h3>
                 {translations.chart_fed_assets || "Fed Assets (USD Trillion)"}
@@ -1178,7 +1193,12 @@
             {translations.gli_cb || "Fed balance sheet assets."}
         </p>
         <div class="chart-content">
-            <Chart {darkMode} data={fedData} />
+            <Chart
+                {darkMode}
+                data={fedData}
+                cardContainer={fedAssetsCard}
+                cardTitle="fed_assets"
+            />
         </div>
         <div
             class="roc-inline"
@@ -1225,7 +1245,7 @@
     </div>
 
     <!-- RRP Chart -->
-    <div class="chart-card">
+    <div class="chart-card" bind:this={rrpCard}>
         <div class="chart-header">
             <h3>
                 {translations.chart_rrp || "Fed RRP Facility"}
@@ -1251,7 +1271,12 @@
             {translations.rrp || "Reverse Repo drains liquidity."}
         </p>
         <div class="chart-content">
-            <Chart {darkMode} data={rrpData} />
+            <Chart
+                {darkMode}
+                data={rrpData}
+                cardContainer={rrpCard}
+                cardTitle="fed_rrp"
+            />
         </div>
         <div
             class="roc-inline"
@@ -1307,7 +1332,7 @@
     </div>
 
     <!-- TGA Chart -->
-    <div class="chart-card">
+    <div class="chart-card" bind:this={tgaCard}>
         <div class="chart-header">
             <h3>
                 {translations.chart_tga || "Treasury General Account (TGA)"}
@@ -1333,7 +1358,12 @@
             {translations.tga || "TGA spending = liquidity injection."}
         </p>
         <div class="chart-content">
-            <Chart {darkMode} data={tgaData} />
+            <Chart
+                {darkMode}
+                data={tgaData}
+                cardContainer={tgaCard}
+                cardTitle="treasury_tga"
+            />
         </div>
         <div
             class="roc-inline"
@@ -1389,7 +1419,7 @@
     </div>
 
     <!-- Net Repo Operations Chart -->
-    <div class="chart-card wide">
+    <div class="chart-card wide" bind:this={netRepoCard}>
         <div class="chart-header">
             <h3>
                 {translations.chart_net_repo_ops || "Fed Net Repo Operations"}
@@ -1492,7 +1522,13 @@
         </p>
 
         <div class="chart-content">
-            <Chart {darkMode} data={netRepoChartData} layout={netRepoLayout} />
+            <Chart
+                {darkMode}
+                data={netRepoChartData}
+                layout={netRepoLayout}
+                cardContainer={netRepoCard}
+                cardTitle="fed_net_repo"
+            />
         </div>
     </div>
 </div>

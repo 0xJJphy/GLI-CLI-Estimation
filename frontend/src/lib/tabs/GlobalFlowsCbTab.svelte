@@ -33,6 +33,11 @@
     let cbBreadthRange = "5Y";
     let cbConcentrationRange = "5Y";
 
+    // Card container references for full-card download feature
+    let gliAggregateCard;
+    let cbBreadthCard;
+    let cbConcentrationCard;
+
     // --- Internal Helper Functions ---
     function getLastDate(seriesKey) {
         if (!dashboardData.last_dates) return "N/A";
@@ -417,7 +422,7 @@
 
 <div class="flows-container">
     <!-- First Row: Aggregate GLI Chart (Full Width) -->
-    <div class="chart-card full-width">
+    <div class="chart-card full-width" bind:this={gliAggregateCard}>
         <div class="chart-header">
             <h3>{translations.chart_gli || "Global Liquidity Index (GLI)"}</h3>
             <div class="header-controls">
@@ -436,7 +441,12 @@
                 "Aggregate central bank balance sheets in USD. Larger = more weight in global liquidity."}
         </p>
         <div class="chart-content short">
-            <Chart {darkMode} data={gliTotalData} />
+            <Chart
+                {darkMode}
+                data={gliTotalData}
+                cardContainer={gliAggregateCard}
+                cardTitle="global_liquidity_index"
+            />
         </div>
 
         <!-- Aggregate ROC Indicators -->
@@ -498,7 +508,7 @@
     <!-- All Charts in 2-column grid -->
     <div class="chart-grid">
         <!-- CB Breadth Chart -->
-        <div class="chart-card">
+        <div class="chart-card" bind:this={cbBreadthCard}>
             <div class="chart-header">
                 <h3>
                     {translations.indicator_cb_breadth ||
@@ -516,12 +526,17 @@
                     "Percentage of CBs expanding (13-week basis). ↑ Bullish."}
             </p>
             <div class="chart-content short">
-                <Chart {darkMode} data={cbBreadthData} />
+                <Chart
+                    {darkMode}
+                    data={cbBreadthData}
+                    cardContainer={cbBreadthCard}
+                    cardTitle="cb_breadth"
+                />
             </div>
         </div>
 
         <!-- CB Concentration Chart -->
-        <div class="chart-card">
+        <div class="chart-card" bind:this={cbConcentrationCard}>
             <div class="chart-header">
                 <h3>
                     {translations.indicator_cb_hhi ||
@@ -539,7 +554,12 @@
                     "HHI Index. High = few banks drive liquidity."}
             </p>
             <div class="chart-content short">
-                <Chart {darkMode} data={cbConcentrationData} />
+                <Chart
+                    {darkMode}
+                    data={cbConcentrationData}
+                    cardContainer={cbConcentrationCard}
+                    cardTitle="cb_concentration"
+                />
             </div>
         </div>
 
