@@ -519,27 +519,35 @@
         background: rgba(255, 255, 255, 0.05);
         border: 1px solid rgba(255, 255, 255, 0.1);
         color: white;
-        padding: 4px 8px;
+        padding: 5px 30px 5px 10px;
         border-radius: 6px;
         font-size: 0.8rem;
         cursor: pointer;
         outline: none;
         transition: all 0.2s;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 8px center;
+        background-size: 14px;
+        color-scheme: dark;
     }
 
     .mode-selector:hover {
-        background: rgba(255, 255, 255, 0.1);
+        background-color: rgba(255, 255, 255, 0.1);
         border-color: rgba(255, 255, 255, 0.2);
     }
 
     .mode-selector.light {
-        background: rgba(0, 0, 0, 0.03);
+        background-color: rgba(0, 0, 0, 0.03);
         border-color: rgba(0, 0, 0, 0.1);
         color: #1e293b;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%231e293b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+        color-scheme: light;
     }
 
     .mode-selector.light:hover {
-        background: rgba(0, 0, 0, 0.05);
+        background-color: rgba(0, 0, 0, 0.05);
     }
 
     .download-btn {
