@@ -1643,9 +1643,10 @@ def fetch_tv_series(symbol, exchange, name, n_bars=1500, max_retries=3, return_o
         return pd.DataFrame() if return_ohlc else pd.Series(dtype=float, name=name)
 
     if exchange == 'ECONOMICS':
-        intervals = ['1M', '1W', '1D']
+        # ECONOMICS data is typically monthly, so we try monthly → weekly → daily
+        intervals = [Interval.in_monthly, Interval.in_weekly, Interval.in_daily]
     else:
-        intervals = ['1D']
+        intervals = [Interval.in_daily]
     last_err = None
 
     print(f"Fetching TradingView: {symbol} from {exchange} (as {name})...")
