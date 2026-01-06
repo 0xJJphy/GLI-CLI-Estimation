@@ -271,6 +271,9 @@
                                     on:click={() => selectMode(mode.value)}
                                 >
                                     {mode.label}
+                                    {#if aggregateMode === mode.value}
+                                        <span class="check">✓</span>
+                                    {/if}
                                 </button>
                             {/each}
                         </div>
@@ -565,54 +568,70 @@
     }
 
     .dropdown-trigger {
-        background: rgba(255, 255, 255, 0.05);
+        background: rgba(15, 23, 42, 0.4);
         border: 1px solid rgba(255, 255, 255, 0.1);
         color: white;
-        padding: 5px 12px;
-        border-radius: 6px;
-        font-size: 0.8rem;
+        padding: 6px 14px;
+        border-radius: 8px;
+        font-size: 0.85rem;
         cursor: pointer;
         display: flex;
         align-items: center;
-        gap: 8px;
-        transition: all 0.2s;
-        min-width: 110px;
+        gap: 10px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        min-width: 130px;
         justify-content: space-between;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
 
     .dropdown-trigger:hover {
-        background: rgba(255, 255, 255, 0.1);
-        border-color: rgba(255, 255, 255, 0.2);
+        background: rgba(15, 23, 42, 0.6);
+        border-color: rgba(99, 102, 241, 0.4);
+        box-shadow: 0 0 15px rgba(99, 102, 241, 0.1);
     }
 
     .dropdown-trigger.light {
-        background: rgba(0, 0, 0, 0.03);
-        border-color: rgba(0, 0, 0, 0.1);
+        background: white;
+        border-color: rgba(0, 0, 0, 0.08);
         color: #1e293b;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     }
 
     .dropdown-trigger.light:hover {
-        background: rgba(0, 0, 0, 0.05);
+        background: #f8fafc;
+        border-color: #cbd5e1;
     }
 
     .dropdown-menu {
         position: absolute;
-        top: calc(100% + 5px);
+        top: calc(100% + 8px);
         left: 0;
-        background: #0f172a;
+        background: rgba(15, 23, 42, 0.95);
         border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 8px;
-        padding: 4px;
-        min-width: 140px;
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+        border-radius: 10px;
+        padding: 6px;
+        min-width: 160px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
         display: flex;
         flex-direction: column;
-        gap: 2px;
-        backdrop-filter: blur(12px);
+        gap: 4px;
+        backdrop-filter: blur(16px);
+        animation: slideDown 0.2s ease-out;
+    }
+
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-5px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
     .dropdown-menu.light {
-        background: white;
+        background: rgba(255, 255, 255, 0.98);
         border-color: rgba(0, 0, 0, 0.1);
         box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
     }
@@ -621,22 +640,25 @@
         background: transparent;
         border: none;
         color: #94a3b8;
-        padding: 8px 12px;
-        border-radius: 4px;
-        font-size: 0.8rem;
+        padding: 10px 12px;
+        border-radius: 6px;
+        font-size: 0.85rem;
         text-align: left;
         cursor: pointer;
         transition: all 0.2s;
         white-space: nowrap;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
     }
 
     .dropdown-item:hover {
-        background: rgba(255, 255, 255, 0.05);
+        background: rgba(99, 102, 241, 0.1);
         color: white;
     }
 
     .dropdown-item.selected {
-        background: rgba(99, 102, 241, 0.1);
+        background: rgba(99, 102, 241, 0.15);
         color: #818cf8;
         font-weight: 600;
     }
@@ -646,23 +668,29 @@
     }
 
     .dropdown-menu.light .dropdown-item:hover {
-        background: rgba(0, 0, 0, 0.02);
-        color: #1e293b;
-    }
-
-    .dropdown-menu.light .dropdown-item.selected {
-        background: rgba(99, 102, 241, 0.05);
+        background: #f1f5f9;
         color: #4f46e5;
     }
 
+    .dropdown-menu.light .dropdown-item.selected {
+        background: rgba(99, 102, 241, 0.08);
+        color: #4f46e5;
+    }
+
+    .check {
+        font-size: 0.9rem;
+        font-weight: bold;
+    }
+
     .arrow {
-        font-size: 0.7rem;
-        transition: transform 0.2s;
-        opacity: 0.6;
+        font-size: 0.75rem;
+        transition: transform 0.3s;
+        opacity: 0.7;
     }
 
     .active .arrow {
         transform: rotate(180deg);
+        color: #818cf8;
     }
 
     .download-btn {

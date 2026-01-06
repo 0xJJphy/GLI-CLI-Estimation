@@ -2400,8 +2400,8 @@ def calculate_stablecoins(df: pd.DataFrame) -> dict:
     if available_mcaps:
         result['dates'] = df.index.strftime('%Y-%m-%d').tolist()
     
-    # Sort depeg events by date (descending)
-    result['depeg_events'].sort(key=lambda x: x['date'], reverse=True)
+    # Sort depeg events by date (ascending - natural order for time series)
+    result['depeg_events'].sort(key=lambda x: x['date'], reverse=False)
     
     return result
 
