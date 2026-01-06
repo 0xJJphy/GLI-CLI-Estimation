@@ -27,6 +27,7 @@
   import UsDebtTab from "./lib/tabs/UsDebtTab.svelte";
   import OffshoreLiquidityTab from "./lib/tabs/OffshoreLiquidityTab.svelte";
   import ChartExplorerTab from "./lib/tabs/ChartExplorerTab.svelte";
+  import StableCoinsTab from "./lib/tabs/StableCoinsTab.svelte";
 
   // Global Settings Store
   import {
@@ -2460,6 +2461,17 @@
                   >
                     {$currentTranslations.nav_offshore}
                   </div>
+                  <div
+                    class="nav-item sub"
+                    class:active={currentTab === "StableCoins"}
+                    on:click={() => setTab("StableCoins")}
+                    on:keydown={(e) =>
+                      e.key === "Enter" && setTab("StableCoins")}
+                    role="button"
+                    tabindex="0"
+                  >
+                    {$currentTranslations.nav_stablecoins || "Stablecoins"}
+                  </div>
                 </div>
               {/if}
             </div>
@@ -2780,6 +2792,12 @@
         />
       {:else if currentTab === "Chart Explorer"}
         <ChartExplorerTab
+          darkMode={$darkMode}
+          translations={$currentTranslations}
+          dashboardData={$dashboardData}
+        />
+      {:else if currentTab === "StableCoins"}
+        <StableCoinsTab
           darkMode={$darkMode}
           translations={$currentTranslations}
           dashboardData={$dashboardData}

@@ -47,6 +47,10 @@ def clean_for_json(obj):
         return {k: clean_for_json(v) for k, v in obj.items()}
     elif isinstance(obj, list):
         return [clean_for_json(x) for x in obj]
+    elif isinstance(obj, (float, np.float64, np.float32)):
+        if pd.isnull(obj) or not np.isfinite(obj):
+            return None
+        return float(obj)
     return obj
 
 def get_safe_last_date(series):
@@ -1585,6 +1589,32 @@ TV_CONFIG = {
     'DXY': ('TVC', 'DXY'),               # US Dollar Index
     'USBCOI': ('ECONOMICS', 'ISM_MFG'),   # US ISM Manufacturing PMI
     'USNMBA': ('ECONOMICS', 'ISM_SVC'),   # US ISM Non-Manufacturing (Services)
+    
+    # ==========================================================
+    # STABLECOINS - Market Caps (CRYPTOCAP)
+    # ==========================================================
+    'USDT': ('CRYPTOCAP', 'USDT_MCAP'),       # Tether Market Cap
+    'USDC': ('CRYPTOCAP', 'USDC_MCAP'),       # USD Coin Market Cap
+    'DAI': ('CRYPTOCAP', 'DAI_MCAP'),         # DAI Market Cap
+    'TUSD': ('CRYPTOCAP', 'TUSD_MCAP'),       # TrueUSD Market Cap
+    'USDD': ('CRYPTOCAP', 'USDD_MCAP'),       # USDD Market Cap
+    'USDP': ('CRYPTOCAP', 'USDP_MCAP'),       # Pax Dollar Market Cap
+    'USDEE': ('CRYPTOCAP', 'USDEE_MCAP'),     # Ethena USDe (ticker USDEE)
+    'PYUSD': ('CRYPTOCAP', 'PYUSD_MCAP'),     # PayPal USD
+    'USD1W': ('CRYPTOCAP', 'USD1W_MCAP'),     # USD1W
+    'RLUSD': ('CRYPTOCAP', 'RLUSD_MCAP'),     # Ripple USD
+    'USDGG': ('CRYPTOCAP', 'USDGG_MCAP'),     # Global Dollar (ticker USDGG)
+    'FDUSD': ('CRYPTOCAP', 'FDUSD_MCAP'),     # First Digital USD
+    
+    # ==========================================================
+    # STABLECOINS - Prices (for depeg detection)
+    # ==========================================================
+    'USDTUSD': ('KRAKEN', 'USDT_PRICE'),      # USDT/USD Price
+    'USDCUSD': ('KRAKEN', 'USDC_PRICE'),      # USDC/USD Price
+    'DAIUSD': ('COINBASE', 'DAI_PRICE'),      # DAI/USD Price
+    'PYUSDUSD': ('KRAKEN', 'PYUSD_PRICE'),    # PYUSD/USD Price
+    'FDUSDUSDT': ('BINANCE', 'FDUSD_PRICE'),  # FDUSD/USDT Price (proxy)
+    'USDEUSDT': ('BYBIT', 'USDE_PRICE'),      # USDE/USDT Price (proxy)
 }
 
 # ============================================================
@@ -1602,23 +1632,21 @@ def fetch_fred_series(series_id, name):
         print(f"Error fetching FRED {series_id} ({name}): {e}")
         return pd.Series(dtype=float, name=name)
 
-def fetch_tv_series(symbol, exchange, name, n_bars=1500, max_retries=3):
+def fetch_tv_series(symbol, exchange, name, n_bars=1500, max_retries=3, return_ohlc=False):
     """
     Fetches TradingView data with smart interval fallback for ECONOMICS.
     ECONOMICS data is typically monthly, so we try monthly → weekly → daily.
     Caps n_bars to avoid pre-1970 timestamps which cause OSError on Windows.
+    If return_ohlc is True, returns a DataFrame with OHLC columns.
     """
     if not tv:
-        return pd.Series(dtype=float, name=name)
+        return pd.DataFrame() if return_ohlc else pd.Series(dtype=float, name=name)
 
-    # ECONOMICS data: try daily first (highest resolution), then weekly, then monthly
-    if exchange == "ECONOMICS":
-        intervals = [Interval.in_daily, Interval.in_weekly, Interval.in_monthly]
-    else:
-        intervals = [Interval.in_daily]
-
+    # ... (intervals logic remains same)
     last_err = None
 
+    print(f"Fetching TradingView: {symbol} from {exchange} (as {name})...")
+    
     for interval in intervals:
         # Cap n_bars to avoid pre-1970 timestamps (causes OSError on Windows)
         if exchange == "ECONOMICS":
@@ -1631,14 +1659,20 @@ def fetch_tv_series(symbol, exchange, name, n_bars=1500, max_retries=3):
             try:
                 df = tv.get_hist(symbol=symbol, exchange=exchange, interval=interval, n_bars=effective_n)
                 
-                if df is not None and len(df) > 0 and "close" in df.columns:
-                    s = df["close"].copy()
-                    s.name = name
-                    return s
+                if df is not None and len(df) > 0:
+                    if return_ohlc:
+                        print(f"  OK (OHLC): {symbol}")
+                        return df[["open", "high", "low", "close"]].copy()
+                    
+                    if "close" in df.columns:
+                        s = df["close"].copy()
+                        s.name = name
+                        print(f"  OK: {symbol}")
+                        return s
                     
             except OSError as e:
+                # ... (error handling remains same)
                 last_err = e
-                # If Errno 22, try with even fewer bars (aggressive cap)
                 if getattr(e, "errno", None) == 22 and effective_n > 200:
                     effective_n = max(200, effective_n // 2)
                 time.sleep(1.5 * attempt)
@@ -1647,8 +1681,11 @@ def fetch_tv_series(symbol, exchange, name, n_bars=1500, max_retries=3):
                 time.sleep(1.5 * attempt)
 
     if last_err:
-        print(f"Error fetching TV {symbol} ({name}): {last_err}")
-    return pd.Series(dtype=float, name=name)
+        print(f"❌ FAILED to fetch TV {symbol} from {exchange} ({name}) after {max_retries} retries: {last_err}")
+    else:
+        print(f"⚠️ No data found for TV {symbol} from {exchange} ({name})")
+    
+    return pd.DataFrame() if return_ohlc else pd.Series(dtype=float, name=name)
 
 # ============================================================
 # CALCULATIONS & HELPERS
@@ -2222,6 +2259,149 @@ def calculate_flow_metrics(df):
             result[f'{cb.lower()}_contrib_13w'] = (cb_delta / gli_delta_13w.replace(0, np.nan)) * 100
     
     return result
+
+
+# ============================================
+# STABLECOIN ANALYTICS
+# ============================================
+
+def calculate_stablecoins(df: pd.DataFrame) -> dict:
+    """
+    Calculates stablecoin market caps, aggregate supply, growth metrics and depeg detection.
+    
+    Returns dict with:
+    - market_caps: Individual stablecoin market caps in billions
+    - total: Aggregate stablecoin market cap
+    - prices: Stablecoin prices for depeg monitoring
+    - growth: 7d, 30d, 90d growth percentages
+    - depeg_events: Historical depeg alerts
+    - dominance: Market share percentages
+    """
+    result = {
+        'market_caps': {},
+        'prices': {},
+        'total': [],
+        'growth': {},
+        'depeg_events': [],
+        'dominance': {},
+        'dates': []
+    }
+    
+    # Map internal names to display names
+    stablecoin_map = {
+        'USDT_MCAP': 'USDT',
+        'USDC_MCAP': 'USDC', 
+        'DAI_MCAP': 'DAI',
+        'TUSD_MCAP': 'TUSD',
+        'USDD_MCAP': 'USDD',
+        'USDP_MCAP': 'USDP',
+        'USDEE_MCAP': 'USDE',
+        'PYUSD_MCAP': 'PYUSD',
+        'USD1W_MCAP': 'USD1W',
+        'RLUSD_MCAP': 'RLUSD',
+        'USDGG_MCAP': 'USDG',
+        'FDUSD_MCAP': 'FDUSD',
+    }
+    
+    price_map = {
+        'USDT_PRICE': 'USDT',
+        'USDC_PRICE': 'USDC', 
+        'DAI_PRICE': 'DAI',
+        'PYUSD_PRICE': 'PYUSD',
+        'FDUSD_PRICE': 'FDUSD',
+        'USDEE_PRICE': 'USDE',
+    }
+    
+    # Collect available stablecoin market caps (convert to billions)
+    available_mcaps = {}
+    for col, name in stablecoin_map.items():
+        if col in df.columns and df[col].notna().sum() > 0:
+            # CRYPTOCAP data is typically in raw units, convert to billions
+            series = df[col].ffill() / 1e9
+            available_mcaps[name] = series
+            result['market_caps'][name] = series.tolist()
+    
+    # Calculate total stablecoin supply
+    if available_mcaps:
+        total_df = pd.DataFrame(available_mcaps)
+        result['total'] = total_df.sum(axis=1, min_count=1).tolist()
+        
+        # Calculate dominance (market share %)
+        total_series = total_df.sum(axis=1, min_count=1)
+        for name, series in available_mcaps.items():
+            dominance = (series / total_series.replace(0, np.nan)) * 100
+            result['dominance'][name] = dominance.tolist()
+            
+        # Add advanced aggregate metrics
+        # 1. Monthly and Quarterly ROC
+        result['total_roc_1m'] = ((total_series / total_series.shift(30) - 1) * 100).tolist()
+        result['total_roc_3m'] = ((total_series / total_series.shift(90) - 1) * 100).tolist()
+        
+        # 2. Year-over-Year Change
+        result['total_yoy'] = ((total_series / total_series.shift(365) - 1) * 100).tolist()
+        
+        # 3. Acceleration Z-Score (Abnormal Flows)
+        # Momentum = 30-day ROC
+        momentum = total_series.pct_change(30)
+        # Acceleration = change in momentum over last 7 days
+        accel = momentum.diff(7)
+        # Rolling Z-score of acceleration (90-day window)
+        rolling_mean = accel.rolling(90).mean()
+        rolling_std = accel.rolling(90).std()
+        # Avoid division by zero
+        result['total_accel_z'] = ((accel - rolling_mean) / rolling_std.replace(0, np.nan)).tolist()
+        
+        # Calculate growth rates
+        for name, series in available_mcaps.items():
+            growth = {}
+            if len(series) >= 7:
+                growth['7d'] = float(((series.iloc[-1] / series.iloc[-7]) - 1) * 100) if series.iloc[-7] != 0 else 0
+            if len(series) >= 30:
+                growth['30d'] = float(((series.iloc[-1] / series.iloc[-30]) - 1) * 100) if series.iloc[-30] != 0 else 0
+            if len(series) >= 90:
+                growth['90d'] = float(((series.iloc[-1] / series.iloc[-90]) - 1) * 100) if series.iloc[-90] != 0 else 0
+            result['growth'][name] = growth
+    
+    # Collect stablecoin prices for depeg detection
+    depeg_threshold = 0.01  # 1% deviation from $1.00
+    for col, name in price_map.items():
+        if col in df.columns and df[col].notna().sum() > 0:
+            price_series = df[col].ffill()
+            high_col = f"{col}_HIGH"
+            low_col = f"{col}_LOW"
+            
+            # Use intra-day extremes for depeg detection if available
+            if high_col in df.columns and low_col in df.columns:
+                high_series = df[high_col].ffill()
+                low_series = df[low_col].ffill()
+                # Determine max deviation (up or down)
+                dev_up = high_series - 1.0
+                dev_down = 1.0 - low_series
+                extreme_dev = pd.Series(np.where(dev_up > dev_down, dev_up, -dev_down), index=df.index)
+            else:
+                extreme_dev = price_series - 1.0
+                
+            result['prices'][name] = price_series.tolist()
+            
+            # Detect depeg events (price deviation > threshold)
+            deviations = abs(extreme_dev)
+            depeg_mask = deviations > depeg_threshold
+            if depeg_mask.any():
+                depeg_dates = extreme_dev.index[depeg_mask]
+                for date in depeg_dates:
+                    result['depeg_events'].append({
+                        'date': date.strftime('%Y-%m-%d'),
+                        'stablecoin': name,
+                        'price': float(1.0 + extreme_dev.loc[date]), # Extreme price reached intra-day
+                        'deviation_pct': float(extreme_dev.loc[date] * 100)
+                    })
+    
+    # Use common dates from the available data
+    if available_mcaps:
+        result['dates'] = df.index.strftime('%Y-%m-%d').tolist()
+    
+    return result
+
 
 # ============================================
 # PERCENTILE CALCULATIONS
@@ -3435,8 +3615,22 @@ def run_pipeline():
                 symbols_cached += 1
             else:
                 # Fetch fresh data
-                s = fetch_tv_series(symbol, exchange, name, n_bars=5000)
-                if not s.empty:
+                # Use OHLC for stablecoin prices to detect intra-day depegs
+                is_price = name.endswith("_PRICE")
+                s = fetch_tv_series(symbol, exchange, name, n_bars=5000, return_ohlc=is_price)
+                
+                if isinstance(s, pd.DataFrame) and not s.empty:
+                    # Store OHLC components separately for cache/pipeline
+                    for col in ["high", "low", "close"]:
+                        col_name = f"{name}_{col.upper()}" if col != "close" else name
+                        raw_tv[col_name] = s[col]
+                        update_cache_timestamp(col_name)
+                        cached_tv[col_name] = {
+                            'dates': s.index.strftime('%Y-%m-%d').tolist(),
+                            'values': s[col].tolist()
+                        }
+                    symbols_fetched += 1
+                elif not s.empty:
                     raw_tv[name] = s
                     update_cache_timestamp(name)
                     # Cache the data
@@ -3445,6 +3639,9 @@ def run_pipeline():
                         'values': s.tolist()
                     }
                     symbols_fetched += 1
+                
+                # Add small delay between TV requests to avoid rate limiting
+                time.sleep(0.5)
         
         # Save updated cache
         try:
@@ -3654,6 +3851,9 @@ def run_pipeline():
         
         # Historical Stress Dashboard
         stress_historical = calculate_stress_historical(df_t)
+
+        # Stablecoin Analytics
+        stablecoins_data = calculate_stablecoins(df_t)
 
         # Fed Forecasts: FOMC Calendar and Dot Plot
         fomc_dates = fetch_fomc_calendar()
@@ -4136,6 +4336,20 @@ def run_pipeline():
                 'volatility_stress': clean_for_json(stress_historical['volatility_stress']),
                 'total_stress': clean_for_json(stress_historical['total_stress']),
                 'total_stress_pct': clean_for_json(stress_historical['total_stress_pct']),
+            },
+            # Stablecoin Market Analytics
+            'stablecoins': {
+                'dates': stablecoins_data.get('dates', []),
+                'market_caps': {k: clean_for_json(v) for k, v in stablecoins_data.get('market_caps', {}).items()},
+                'total': clean_for_json(stablecoins_data.get('total', [])),
+                'total_roc_1m': clean_for_json(stablecoins_data.get('total_roc_1m', [])),
+                'total_roc_3m': clean_for_json(stablecoins_data.get('total_roc_3m', [])),
+                'total_yoy': clean_for_json(stablecoins_data.get('total_yoy', [])),
+                'total_accel_z': clean_for_json(stablecoins_data.get('total_accel_z', [])),
+                'prices': {k: clean_for_json(v) for k, v in stablecoins_data.get('prices', {}).items()},
+                'growth': clean_for_json(stablecoins_data.get('growth', {})),
+                'dominance': {k: clean_for_json(v) for k, v in stablecoins_data.get('dominance', {}).items()},
+                'depeg_events': clean_for_json(stablecoins_data.get('depeg_events', [])[:100]),  # Limit to last 100 events
             },
             'treasury_maturities': get_treasury_maturity_data(120),
             'treasury_auction_demand': fetch_treasury_auction_demand(silent=True),
