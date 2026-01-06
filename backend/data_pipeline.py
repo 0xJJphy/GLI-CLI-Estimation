@@ -2400,6 +2400,9 @@ def calculate_stablecoins(df: pd.DataFrame) -> dict:
     if available_mcaps:
         result['dates'] = df.index.strftime('%Y-%m-%d').tolist()
     
+    # Sort depeg events by date (descending)
+    result['depeg_events'].sort(key=lambda x: x['date'], reverse=True)
+    
     return result
 
 
@@ -4349,7 +4352,7 @@ def run_pipeline():
                 'prices': {k: clean_for_json(v) for k, v in stablecoins_data.get('prices', {}).items()},
                 'growth': clean_for_json(stablecoins_data.get('growth', {})),
                 'dominance': {k: clean_for_json(v) for k, v in stablecoins_data.get('dominance', {}).items()},
-                'depeg_events': clean_for_json(stablecoins_data.get('depeg_events', [])[:100]),  # Limit to last 100 events
+                'depeg_events': clean_for_json(stablecoins_data.get('depeg_events', [])[:1000]),  # Increase limit to show historical events
             },
             'treasury_maturities': get_treasury_maturity_data(120),
             'treasury_auction_demand': fetch_treasury_auction_demand(silent=True),

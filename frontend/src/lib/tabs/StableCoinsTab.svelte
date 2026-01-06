@@ -18,6 +18,35 @@
     let aggregateRange = "1Y";
     let individualRange = "1Y";
     let aggregateMode = "absolute"; // Modes: absolute, roc1m, roc3m, yoy, accel_z
+    let showModeDropdown = false;
+
+    const aggregateModes = [
+        { value: "absolute", label: "Absolute" },
+        { value: "roc1m", label: "ROC 1M" },
+        { value: "roc3m", label: "ROC 3M" },
+        { value: "yoy", label: "YoY %" },
+        { value: "accel_z", label: "Accel Z-Score" },
+    ];
+
+    function selectMode(mode) {
+        aggregateMode = mode;
+        showModeDropdown = false;
+    }
+
+    // Close dropdown on click outside
+    function handleClickOutside(event) {
+        if (showModeDropdown && !event.target.closest(".custom-dropdown")) {
+            showModeDropdown = false;
+        }
+    }
+
+    import { onMount as onSvelteMount } from "svelte";
+    onSvelteMount(() => {
+        window.addEventListener("click", handleClickOutside);
+        return () => window.removeEventListener("click", handleClickOutside);
+    });
+
+    // Existing aggregate chart logic...
 
     // Card container references for download feature
     let aggregateCard;
@@ -222,17 +251,31 @@
         <div class="chart-header">
             <h3>{t("stablecoins_aggregate", "Total Stablecoin Supply")}</h3>
             <div class="header-controls">
-                <select
-                    class="mode-selector"
-                    bind:value={aggregateMode}
-                    class:light={!darkMode}
-                >
-                    <option value="absolute">Absolute</option>
-                    <option value="roc1m">ROC 1M</option>
-                    <option value="roc3m">ROC 3M</option>
-                    <option value="yoy">YoY %</option>
-                    <option value="accel_z">Accel Z-Score</option>
-                </select>
+                <div class="custom-dropdown" class:active={showModeDropdown}>
+                    <button
+                        class="dropdown-trigger"
+                        class:light={!darkMode}
+                        on:click={() => (showModeDropdown = !showModeDropdown)}
+                    >
+                        {aggregateModes.find((m) => m.value === aggregateMode)
+                            ?.label}
+                        <span class="arrow">▾</span>
+                    </button>
+                    {#if showModeDropdown}
+                        <div class="dropdown-menu" class:light={!darkMode}>
+                            {#each aggregateModes as mode}
+                                <button
+                                    class="dropdown-item"
+                                    class:selected={aggregateMode ===
+                                        mode.value}
+                                    on:click={() => selectMode(mode.value)}
+                                >
+                                    {mode.label}
+                                </button>
+                            {/each}
+                        </div>
+                    {/if}
+                </div>
                 <TimeRangeSelector
                     selectedRange={aggregateRange}
                     onRangeChange={(r) => (aggregateRange = r)}
@@ -515,39 +558,111 @@
         align-items: center;
     }
 
-    .mode-selector {
+    /* Custom Dropdown */
+    .custom-dropdown {
+        position: relative;
+        z-index: 100;
+    }
+
+    .dropdown-trigger {
         background: rgba(255, 255, 255, 0.05);
         border: 1px solid rgba(255, 255, 255, 0.1);
         color: white;
-        padding: 5px 30px 5px 10px;
+        padding: 5px 12px;
         border-radius: 6px;
         font-size: 0.8rem;
         cursor: pointer;
-        outline: none;
+        display: flex;
+        align-items: center;
+        gap: 8px;
         transition: all 0.2s;
-        appearance: none;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 8px center;
-        background-size: 14px;
-        color-scheme: dark;
+        min-width: 110px;
+        justify-content: space-between;
     }
 
-    .mode-selector:hover {
-        background-color: rgba(255, 255, 255, 0.1);
+    .dropdown-trigger:hover {
+        background: rgba(255, 255, 255, 0.1);
         border-color: rgba(255, 255, 255, 0.2);
     }
 
-    .mode-selector.light {
-        background-color: rgba(0, 0, 0, 0.03);
+    .dropdown-trigger.light {
+        background: rgba(0, 0, 0, 0.03);
         border-color: rgba(0, 0, 0, 0.1);
         color: #1e293b;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%231e293b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
-        color-scheme: light;
     }
 
-    .mode-selector.light:hover {
-        background-color: rgba(0, 0, 0, 0.05);
+    .dropdown-trigger.light:hover {
+        background: rgba(0, 0, 0, 0.05);
+    }
+
+    .dropdown-menu {
+        position: absolute;
+        top: calc(100% + 5px);
+        left: 0;
+        background: #0f172a;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        padding: 4px;
+        min-width: 140px;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        backdrop-filter: blur(12px);
+    }
+
+    .dropdown-menu.light {
+        background: white;
+        border-color: rgba(0, 0, 0, 0.1);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    }
+
+    .dropdown-item {
+        background: transparent;
+        border: none;
+        color: #94a3b8;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        text-align: left;
+        cursor: pointer;
+        transition: all 0.2s;
+        white-space: nowrap;
+    }
+
+    .dropdown-item:hover {
+        background: rgba(255, 255, 255, 0.05);
+        color: white;
+    }
+
+    .dropdown-item.selected {
+        background: rgba(99, 102, 241, 0.1);
+        color: #818cf8;
+        font-weight: 600;
+    }
+
+    .dropdown-menu.light .dropdown-item {
+        color: #64748b;
+    }
+
+    .dropdown-menu.light .dropdown-item:hover {
+        background: rgba(0, 0, 0, 0.02);
+        color: #1e293b;
+    }
+
+    .dropdown-menu.light .dropdown-item.selected {
+        background: rgba(99, 102, 241, 0.05);
+        color: #4f46e5;
+    }
+
+    .arrow {
+        font-size: 0.7rem;
+        transition: transform 0.2s;
+        opacity: 0.6;
+    }
+
+    .active .arrow {
+        transform: rotate(180deg);
     }
 
     .download-btn {
