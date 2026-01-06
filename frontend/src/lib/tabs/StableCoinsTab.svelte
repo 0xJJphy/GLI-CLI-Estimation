@@ -5,8 +5,10 @@
      * Part of the Macro section under Liquidity.
      */
     import Chart from "../components/Chart.svelte";
+    import LightweightChart from "../components/LightweightChart.svelte";
+    import SFAIChart from "../components/SFAIChart.svelte";
     import TimeRangeSelector from "../components/TimeRangeSelector.svelte";
-    import { filterPlotlyData } from "../utils/helpers.js";
+    import { filterPlotlyData, getCutoffDate } from "../utils/helpers.js";
     import { downloadCardAsImage } from "../utils/downloadCard.js";
 
     // Core props
@@ -19,14 +21,39 @@
     let individualRange = "1Y";
     let aggregateMode = "absolute"; // Modes: absolute, roc1m, roc3m, yoy, accel_z
     let showModeDropdown = false;
+    let normMode = "raw"; // Normalization: raw, zscore, percentile
+    let showNormDropdown = false;
 
-    const aggregateModes = [
-        { value: "absolute", label: "Absolute" },
-        { value: "roc1m", label: "ROC 1M" },
-        { value: "roc3m", label: "ROC 3M" },
-        { value: "yoy", label: "YoY %" },
-        { value: "dominance", label: "Stables Dominance %" },
-        { value: "accel_z", label: "Accel Z-Score" },
+    // Check if current mode supports normalization
+    $: isRocMode = ["roc7d", "roc1m", "roc3m"].includes(aggregateMode);
+
+    // Normalization mode options
+    $: normModes = [
+        { value: "raw", label: t("raw_view", "Raw (%)") },
+        { value: "zscore", label: "Z-Score" },
+        { value: "percentile", label: t("percentile_view", "Percentile") },
+    ];
+
+    function selectNormMode(mode) {
+        normMode = mode;
+        showNormDropdown = false;
+    }
+
+    // Pagination for depegs
+    let currentPage = 1;
+    let itemsPerPage = 10;
+
+    $: aggregateModes = [
+        { value: "absolute", label: t("raw_view", "Absolute") },
+        { value: "roc7d", label: t("roc_7d_col", "ROC 7D") },
+        { value: "roc1m", label: t("roc_1m_col", "ROC 1M") },
+        { value: "roc3m", label: t("roc_3m_col", "ROC 3M") },
+        { value: "yoy", label: t("yoy_change", "YoY %") },
+        {
+            value: "dominance",
+            label: t("stablecoins_mkt_dom", "Stables Dominance %"),
+        },
+        { value: "accel_z", label: t("accel_col", "Accel Z-Score") },
     ];
 
     function selectMode(mode) {
@@ -55,7 +82,7 @@
     let depegCard;
 
     // Helper to get translation with fallback
-    const t = (key, fallback) => translations[key] || fallback;
+    $: t = (key, fallback) => translations[key] || fallback;
 
     // Stablecoin colors
     const stablecoinColors = {
@@ -84,6 +111,257 @@
     $: dominanceTotal = stablecoinsData.dominance_total || {};
     $: depegEvents = stablecoinsData.depeg_events || [];
 
+    // BTC data for SFAI chart
+    $: btcData = dashboardData.btc?.price || [];
+    $: btcDates = dashboardData.dates || [];
+
+    // SFAI Chart state
+    let sfaiRange = "1Y";
+    let sfaiMode = "regime"; // regime, index, velocity
+    let showSfaiModeDropdown = false;
+
+    $: sfaiModes = [
+        { value: "regime", label: "Regime" },
+        { value: "index", label: "SFAI Index" },
+        { value: "velocity", label: "Velocity" },
+    ];
+
+    function selectSfaiMode(mode) {
+        sfaiMode = mode;
+        showSfaiModeDropdown = false;
+    }
+
+    // SFAI Regime data
+    $: sfaiRegime = stablecoinsData.sfai_regime || [];
+    $: sfaiContinuous = stablecoinsData.sfai_continuous || [];
+    $: sfaiVelocity = stablecoinsData.sfai_velocity || [];
+
+    // Regime color mapping for backgrounds
+    const sfaiRegimeColors = {
+        0: { base: "rgba(107, 114, 128, 0.15)", solid: "#6b7280" }, // Neutral
+        1: { base: "rgba(34, 197, 94, 0.25)", solid: "#22c55e" }, // Fresh Inflow
+        2: { base: "rgba(239, 68, 68, 0.25)", solid: "#ef4444" }, // Profit Taking
+        3: { base: "rgba(59, 130, 246, 0.25)", solid: "#3b82f6" }, // Buying Pressure
+        4: { base: "rgba(139, 92, 246, 0.25)", solid: "#8b5cf6" }, // Capitulation
+    };
+
+    // Filter data by range (simplified)
+    function filterSfaiByRange(arr, range) {
+        if (!stableDates.length) return arr;
+        if (range === "ALL") return arr;
+        const cutoff = getCutoffDate(range);
+        if (!cutoff) return arr;
+        const indices = [];
+        for (let i = 0; i < stableDates.length; i++) {
+            if (new Date(stableDates[i]) >= cutoff) indices.push(i);
+        }
+        return indices.map((i) => arr[i]);
+    }
+
+    function getSfaiFilteredDates(range) {
+        return filterSfaiByRange(stableDates, range);
+    }
+
+    // Create SFAI regime background shapes (like RegimesTab)
+    function createSfaiShapes(regimes, range, isDarkMode) {
+        if (!regimes || !stableDates.length) return [];
+        const filteredDates = getSfaiFilteredDates(range);
+        const filteredRegimes = filterSfaiByRange(regimes, range);
+        if (!filteredDates.length || !filteredRegimes.length) return [];
+
+        // Find first valid BTC data point to start from
+        const btcFiltered = filterSfaiByRange(
+            btcData.slice(-stableDates.length),
+            range,
+        );
+        let firstValidIdx = 0;
+        for (let i = 0; i < btcFiltered.length; i++) {
+            if (
+                btcFiltered[i] !== null &&
+                btcFiltered[i] !== undefined &&
+                btcFiltered[i] > 0
+            ) {
+                firstValidIdx = i;
+                break;
+            }
+        }
+
+        const shapes = [];
+        let currentRegime = null;
+        let blockStartIdx = firstValidIdx;
+
+        for (let i = firstValidIdx; i <= filteredDates.length; i++) {
+            const regime =
+                i < filteredRegimes.length ? filteredRegimes[i] : null;
+
+            if (regime !== currentRegime || i === filteredDates.length) {
+                // Close previous block
+                if (currentRegime !== null && currentRegime !== 0) {
+                    const d0 = filteredDates[blockStartIdx];
+                    const d1 =
+                        filteredDates[
+                            Math.min(i - 1, filteredDates.length - 1)
+                        ];
+                    if (d0 && d1) {
+                        const color =
+                            sfaiRegimeColors[currentRegime]?.base ||
+                            sfaiRegimeColors[0].base;
+                        shapes.push({
+                            type: "rect",
+                            xref: "x",
+                            yref: "paper",
+                            x0: d0,
+                            x1: d1,
+                            y0: 0.25, // Start above the indicator panel
+                            y1: 1,
+                            fillcolor: color,
+                            line: { width: 0 },
+                            layer: "below",
+                        });
+                    }
+                }
+                currentRegime = regime;
+                blockStartIdx = i;
+            }
+        }
+        return shapes;
+    }
+
+    // Build Plotly SFAI chart data
+    $: sfaiPlotlyData = (() => {
+        if (!stableDates.length || !btcData.length) return [];
+
+        const filteredDates = getSfaiFilteredDates(sfaiRange);
+        const btcAligned = btcData.slice(-stableDates.length);
+        const btcFiltered = filterSfaiByRange(btcAligned, sfaiRange);
+
+        // Find first valid BTC index
+        let firstValidIdx = 0;
+        for (let i = 0; i < btcFiltered.length; i++) {
+            if (
+                btcFiltered[i] !== null &&
+                btcFiltered[i] !== undefined &&
+                btcFiltered[i] > 0
+            ) {
+                firstValidIdx = i;
+                break;
+            }
+        }
+
+        // Trim dates and data from first valid BTC
+        const trimmedDates = filteredDates.slice(firstValidIdx);
+        const trimmedBtc = btcFiltered.slice(firstValidIdx);
+
+        // BTC trace (upper panel, log scale)
+        const btcTrace = {
+            x: trimmedDates,
+            y: trimmedBtc,
+            name: "BTC Price",
+            type: "scatter",
+            mode: "lines",
+            line: { color: "#f7931a", width: 2 },
+            yaxis: "y2",
+            hovertemplate: "%{x}<br>BTC: $%{y:,.0f}<extra></extra>",
+        };
+
+        // Indicator trace (lower panel)
+        let indicatorTrace;
+        if (sfaiMode === "regime") {
+            const regimeFiltered = filterSfaiByRange(
+                sfaiRegime,
+                sfaiRange,
+            ).slice(firstValidIdx);
+            indicatorTrace = {
+                x: trimmedDates,
+                y: regimeFiltered,
+                name: "Regime",
+                type: "bar",
+                marker: {
+                    color: regimeFiltered.map(
+                        (r) => sfaiRegimeColors[r]?.solid || "#6b7280",
+                    ),
+                },
+                yaxis: "y3",
+                hovertemplate: "%{x}<br>Regime: %{y}<extra></extra>",
+            };
+        } else if (sfaiMode === "index") {
+            const indexFiltered = filterSfaiByRange(
+                sfaiContinuous,
+                sfaiRange,
+            ).slice(firstValidIdx);
+            indicatorTrace = {
+                x: trimmedDates,
+                y: indexFiltered,
+                name: "SFAI Index",
+                type: "bar",
+                marker: {
+                    color: indexFiltered.map((v) =>
+                        v >= 0 ? "#22c55e" : "#ef4444",
+                    ),
+                },
+                yaxis: "y3",
+                hovertemplate: "%{x}<br>SFAI: %{y:.2f}<extra></extra>",
+            };
+        } else {
+            const velocityFiltered = filterSfaiByRange(
+                sfaiVelocity,
+                sfaiRange,
+            ).slice(firstValidIdx);
+            indicatorTrace = {
+                x: trimmedDates,
+                y: velocityFiltered,
+                name: "Velocity",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#f97316", width: 1.5 },
+                fill: "tozeroy",
+                fillcolor: "rgba(249, 115, 22, 0.2)",
+                yaxis: "y3",
+                hovertemplate: "%{x}<br>Velocity: %{y:.2f}<extra></extra>",
+            };
+        }
+
+        return [btcTrace, indicatorTrace];
+    })();
+
+    // SFAI Plotly layout with dual-axis and background shapes
+    $: sfaiPlotlyLayout = {
+        xaxis: {
+            showgrid: false,
+            color: darkMode ? "#94a3b8" : "#475569",
+        },
+        yaxis: { visible: false, domain: [0.25, 1] },
+        yaxis2: {
+            title: "",
+            type: "log",
+            side: "right",
+            overlaying: "y",
+            showgrid: true,
+            gridcolor: darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
+            color: darkMode ? "#94a3b8" : "#475569",
+            domain: [0.25, 1],
+            tickformat: "$,.0f",
+        },
+        yaxis3: {
+            title: "",
+            side: "left",
+            anchor: "x",
+            domain: [0, 0.22],
+            color: darkMode ? "#94a3b8" : "#475569",
+            showgrid: false,
+            zeroline: false,
+        },
+        shapes:
+            sfaiMode === "regime"
+                ? createSfaiShapes(sfaiRegime, sfaiRange, darkMode)
+                : [],
+        margin: { t: 20, b: 40, l: 50, r: 60 },
+        paper_bgcolor: "transparent",
+        plot_bgcolor: "transparent",
+        showlegend: false,
+        font: { color: darkMode ? "#e2e8f0" : "#1e293b" },
+    };
+
     // Calculate latest values
     $: latestTotal =
         totalSupply.length > 0 ? totalSupply[totalSupply.length - 1] : 0;
@@ -104,25 +382,56 @@
                 let fill = "tozeroy";
                 let color = "#6366f1";
 
-                if (aggregateMode === "roc1m") {
-                    yData = stablecoinsData.total_roc_1m || [];
-                    name = "ROC 1M (%)";
+                if (aggregateMode === "roc7d") {
+                    if (normMode === "zscore") {
+                        yData = stablecoinsData.total_roc_7d_z || [];
+                        name = t("roc_7d_col", "ROC 7D") + " Z";
+                    } else if (normMode === "percentile") {
+                        yData = stablecoinsData.total_roc_7d_pct || [];
+                        name = t("roc_7d_col", "ROC 7D") + " Pctl";
+                    } else {
+                        yData = stablecoinsData.total_roc_7d || [];
+                        name = t("roc_7d_col", "ROC 7D (%)");
+                    }
+                    color = "#2DD4BF"; // teal
+                } else if (aggregateMode === "roc1m") {
+                    if (normMode === "zscore") {
+                        yData = stablecoinsData.total_roc_1m_z || [];
+                        name = t("roc_1m_col", "ROC 1M") + " Z";
+                    } else if (normMode === "percentile") {
+                        yData = stablecoinsData.total_roc_1m_pct || [];
+                        name = t("roc_1m_col", "ROC 1M") + " Pctl";
+                    } else {
+                        yData = stablecoinsData.total_roc_1m || [];
+                        name = t("roc_1m_col", "ROC 1M (%)");
+                    }
                     color = "#10b981"; // emerald
                 } else if (aggregateMode === "roc3m") {
-                    yData = stablecoinsData.total_roc_3m || [];
-                    name = "ROC 3M (%)";
+                    if (normMode === "zscore") {
+                        yData = stablecoinsData.total_roc_3m_z || [];
+                        name = t("roc_3m_col", "ROC 3M") + " Z";
+                    } else if (normMode === "percentile") {
+                        yData = stablecoinsData.total_roc_3m_pct || [];
+                        name = t("roc_3m_col", "ROC 3M") + " Pctl";
+                    } else {
+                        yData = stablecoinsData.total_roc_3m || [];
+                        name = t("roc_3m_col", "ROC 3M (%)");
+                    }
                     color = "#3b82f6"; // blue
                 } else if (aggregateMode === "yoy") {
                     yData = stablecoinsData.total_yoy || [];
-                    name = "YoY Change (%)";
+                    name = t("yoy_change", "YoY Change (%)");
                     color = "#f43f5e"; // rose
                 } else if (aggregateMode === "dominance") {
                     yData = stablecoinsData.total_dominance || [];
-                    name = "Total Stables Dominance (%)";
+                    name = t(
+                        "stablecoins_mkt_dom",
+                        "Total Stables Dominance (%)",
+                    );
                     color = "#fbbf24"; // amber
                 } else if (aggregateMode === "accel_z") {
                     yData = stablecoinsData.total_accel_z || [];
-                    name = "Acceleration Z-Score";
+                    name = t("accel_col", "Acceleration Z-Score");
                     type = "bar";
                     fill = "none";
                     color = "#8b5cf6"; // violet
@@ -217,8 +526,19 @@
         };
     });
 
-    // Recent depeg events (last 10)
-    $: recentDepegs = depegEvents.slice(-10).reverse();
+    // Recent depeg events (paginated)
+    $: sortedDepegs = [...depegEvents].reverse();
+    $: totalPages = Math.ceil(sortedDepegs.length / itemsPerPage);
+    $: paginatedDepegs = sortedDepegs.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage,
+    );
+
+    function setPage(page) {
+        if (page >= 1 && page <= totalPages) {
+            currentPage = page;
+        }
+    }
 
     // Format number with color
     const formatGrowth = (val) => {
@@ -289,6 +609,39 @@
                         </div>
                     {/if}
                 </div>
+                {#if isRocMode}
+                    <div
+                        class="custom-dropdown norm-dropdown"
+                        class:active={showNormDropdown}
+                    >
+                        <button
+                            class="dropdown-trigger small"
+                            class:light={!darkMode}
+                            on:click={() =>
+                                (showNormDropdown = !showNormDropdown)}
+                        >
+                            {normModes.find((m) => m.value === normMode)?.label}
+                            <span class="arrow">▾</span>
+                        </button>
+                        {#if showNormDropdown}
+                            <div class="dropdown-menu" class:light={!darkMode}>
+                                {#each normModes as mode}
+                                    <button
+                                        class="dropdown-item"
+                                        class:selected={normMode === mode.value}
+                                        on:click={() =>
+                                            selectNormMode(mode.value)}
+                                    >
+                                        {mode.label}
+                                        {#if normMode === mode.value}
+                                            <span class="check">✓</span>
+                                        {/if}
+                                    </button>
+                                {/each}
+                            </div>
+                        {/if}
+                    </div>
+                {/if}
                 <TimeRangeSelector
                     selectedRange={aggregateRange}
                     onRangeChange={(r) => (aggregateRange = r)}
@@ -314,7 +667,9 @@
                     {darkMode}
                 />
             {:else}
-                <div class="no-data">No stablecoin data available</div>
+                <div class="no-data">
+                    {t("stablecoins_no_data", "No stablecoin data available")}
+                </div>
             {/if}
         </div>
     </div>
@@ -338,7 +693,102 @@
                     {darkMode}
                 />
             {:else}
-                <div class="no-data">No individual stablecoin data</div>
+                <div class="no-data">
+                    {t(
+                        "stablecoins_no_individual_data",
+                        "No individual stablecoin data",
+                    )}
+                </div>
+            {/if}
+        </div>
+    </div>
+
+    <!-- SFAI Flow Attribution Chart -->
+    <div class="chart-card full-width sfai-card">
+        <div class="chart-header">
+            <h3>Flow Attribution (SFAI)</h3>
+            <div class="header-controls">
+                <!-- Mode dropdown -->
+                <div
+                    class="custom-dropdown"
+                    class:active={showSfaiModeDropdown}
+                >
+                    <button
+                        class="dropdown-trigger small"
+                        class:light={!darkMode}
+                        on:click={() =>
+                            (showSfaiModeDropdown = !showSfaiModeDropdown)}
+                    >
+                        {sfaiModes.find((m) => m.value === sfaiMode)?.label}
+                        <span class="arrow">▾</span>
+                    </button>
+                    {#if showSfaiModeDropdown}
+                        <div class="dropdown-menu" class:light={!darkMode}>
+                            {#each sfaiModes as mode}
+                                <button
+                                    class="dropdown-item"
+                                    class:selected={sfaiMode === mode.value}
+                                    on:click={() => selectSfaiMode(mode.value)}
+                                >
+                                    {mode.label}
+                                    {#if sfaiMode === mode.value}
+                                        <span class="check">✓</span>
+                                    {/if}
+                                </button>
+                            {/each}
+                        </div>
+                    {/if}
+                </div>
+                <!-- Time Range Selector -->
+                <TimeRangeSelector
+                    selectedRange={sfaiRange}
+                    onRangeChange={(r) => (sfaiRange = r)}
+                    ranges={[
+                        { value: "7D", label: "7D" },
+                        { value: "21D", label: "21D" },
+                        { value: "1M", label: "1M" },
+                        { value: "3M", label: "3M" },
+                        { value: "6M", label: "6M" },
+                        { value: "1Y", label: "1Y" },
+                        { value: "2Y", label: "2Y" },
+                        { value: "3Y", label: "3Y" },
+                        { value: "5Y", label: "5Y" },
+                        { value: "ALL", label: "ALL" },
+                    ]}
+                />
+            </div>
+        </div>
+        {#if sfaiMode === "regime"}
+            <div class="sfai-legend">
+                <span class="legend-item"
+                    ><span class="legend-dot" style="background:#22c55e"
+                    ></span>Fresh Inflow</span
+                >
+                <span class="legend-item"
+                    ><span class="legend-dot" style="background:#ef4444"
+                    ></span>Profit Taking</span
+                >
+                <span class="legend-item"
+                    ><span class="legend-dot" style="background:#3b82f6"
+                    ></span>Buying Pressure</span
+                >
+                <span class="legend-item"
+                    ><span class="legend-dot" style="background:#8b5cf6"
+                    ></span>Capitulation</span
+                >
+            </div>
+        {/if}
+        <div class="chart-content sfai-chart-content">
+            {#if sfaiPlotlyData.length > 0 && btcData.length > 0}
+                <Chart
+                    data={sfaiPlotlyData}
+                    layout={sfaiPlotlyLayout}
+                    {darkMode}
+                />
+            {:else}
+                <div class="no-data">
+                    {t("stablecoins_no_data", "No SFAI data available")}
+                </div>
             {/if}
         </div>
     </div>
@@ -364,8 +814,10 @@
                         <th>{t("stablecoins_market_cap", "Market Cap")}</th>
                         <th>{t("stablecoins_dominance", "Dom.")}</th>
                         <th
-                            title="Dominance relative to Total Crypto Market Cap"
-                            >Mkt Dom %</th
+                            title={t(
+                                "stablecoins_mkt_dom_desc",
+                                "Dominance relative to Total Crypto Market Cap",
+                            )}>{t("stablecoins_mkt_dom", "Mkt Dom %")}</th
                         >
                         <th>{t("stablecoins_7d_change", "7D")}</th>
                         <th>{t("stablecoins_30d_change", "30D")}</th>
@@ -399,8 +851,11 @@
                         </tr>
                     {:else}
                         <tr
-                            ><td colspan="6" class="no-data"
-                                >No growth data available</td
+                            ><td colspan="7" class="no-data"
+                                >{t(
+                                    "stablecoins_no_growth_data",
+                                    "No growth data available",
+                                )}</td
                             ></tr
                         >
                     {/each}
@@ -450,19 +905,57 @@
                             </span>
                         </div>
                     {:else}
-                        <div class="no-data">No price data available</div>
+                        <div class="no-data">
+                            {t(
+                                "stablecoins_no_price_data",
+                                "No price data available",
+                            )}
+                        </div>
                     {/each}
                 </div>
             </div>
 
             <!-- Recent Events -->
-            {#if recentDepegs.length > 0}
+            {#if paginatedDepegs.length > 0}
                 <div class="depeg-history">
-                    <h4>
-                        {t("stablecoins_recent_events", "Recent Depeg Events")}
-                    </h4>
+                    <div class="history-header">
+                        <h4>
+                            {t(
+                                "stablecoins_recent_events",
+                                "Recent Depeg Events",
+                            )}
+                        </h4>
+
+                        <!-- Pagination Controls -->
+                        {#if totalPages > 1}
+                            <div
+                                class="pagination-controls"
+                                class:light={!darkMode}
+                            >
+                                <button
+                                    class="page-btn"
+                                    disabled={currentPage === 1}
+                                    on:click={() => setPage(currentPage - 1)}
+                                >
+                                    {t("pagination_prev", "Prev")}
+                                </button>
+                                <span class="page-info">
+                                    {t("pagination_page", "Page")}
+                                    {currentPage} / {totalPages}
+                                </span>
+                                <button
+                                    class="page-btn"
+                                    disabled={currentPage === totalPages}
+                                    on:click={() => setPage(currentPage + 1)}
+                                >
+                                    {t("pagination_next", "Next")}
+                                </button>
+                            </div>
+                        {/if}
+                    </div>
+
                     <div class="events-list">
-                        {#each recentDepegs as event}
+                        {#each paginatedDepegs as event}
                             <div class="event-item">
                                 <span class="event-date">{event.date}</span>
                                 <span
@@ -482,6 +975,15 @@
                                 </span>
                             </div>
                         {/each}
+                    </div>
+                </div>
+            {:else}
+                <div class="depeg-history">
+                    <h4>
+                        {t("stablecoins_recent_events", "Recent Depeg Events")}
+                    </h4>
+                    <div class="no-data">
+                        {t("stablecoins_no_events", "No depeg events detected")}
                     </div>
                 </div>
             {/if}
@@ -710,6 +1212,17 @@
         color: #818cf8;
     }
 
+    /* Normalization Dropdown (smaller trigger) */
+    .dropdown-trigger.small {
+        padding: 5px 10px;
+        font-size: 0.8rem;
+        min-width: 100px;
+    }
+
+    .norm-dropdown {
+        z-index: 15;
+    }
+
     .download-btn {
         background: transparent;
         border: 1px solid var(--border-color);
@@ -734,6 +1247,35 @@
         min-height: 200px;
         color: var(--text-muted);
         font-style: italic;
+    }
+
+    /* SFAI Chart Styles */
+    .sfai-card .chart-header {
+        flex-wrap: wrap;
+    }
+
+    .sfai-legend {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+    }
+
+    .legend-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 3px;
+    }
+
+    .sfai-chart-content {
+        min-height: 400px;
     }
 
     /* Growth Table */
@@ -787,12 +1329,33 @@
         flex-direction: column;
         gap: 20px;
     }
-    .depeg-current h4,
-    .depeg-history h4 {
+    .depeg-current h4 {
         margin: 0 0 12px 0;
         font-size: 0.9rem;
         color: var(--text-secondary);
     }
+
+    .depeg-history {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        margin-top: 10px;
+    }
+
+    .history-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .history-header h4 {
+        margin: 0;
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+    }
+
     .depeg-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -829,12 +1392,60 @@
         margin-top: 4px;
     }
 
+    .pagination-controls {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: rgba(255, 255, 255, 0.05);
+        padding: 4px 12px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .pagination-controls.light {
+        background: rgba(0, 0, 0, 0.05);
+        border-color: rgba(0, 0, 0, 0.1);
+    }
+
+    .page-btn {
+        background: transparent;
+        border: none;
+        color: #6366f1;
+        font-weight: 600;
+        font-size: 0.85rem;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+    }
+
+    .page-btn:hover:not(:disabled) {
+        background: rgba(99, 102, 241, 0.1);
+    }
+
+    .page-btn:disabled {
+        color: #64748b;
+        cursor: not-allowed;
+        opacity: 0.5;
+    }
+
+    .page-info {
+        font-size: 0.85rem;
+        color: #94a3b8;
+        font-family: var(--font-mono, monospace);
+    }
+
+    .pagination-controls.light .page-info {
+        color: #64748b;
+    }
+
     .events-list {
         display: flex;
         flex-direction: column;
         gap: 8px;
-        max-height: 200px;
+        max-height: 480px;
         overflow-y: auto;
+        padding-right: 4px;
     }
     .event-item {
         display: flex;

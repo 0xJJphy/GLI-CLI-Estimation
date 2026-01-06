@@ -52,13 +52,17 @@ export const getChange = (arr, period = 7) => {
 
 /**
  * Get cutoff date based on time range string.
- * @param {string} range - "1M", "3M", "6M", "1Y", "3Y", "5Y", or "ALL"
+ * @param {string} range - "7D", "21D", "1M", "3M", "6M", "1Y", "2Y", "3Y", "5Y", or "ALL"
  * @returns {Date|null}
  */
 export const getCutoffDate = (range) => {
     if (range === "ALL") return null;
     const now = new Date();
     switch (range) {
+        case "7D":
+            return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        case "21D":
+            return new Date(now.getTime() - 21 * 24 * 60 * 60 * 1000);
         case "1M":
             return new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
         case "3M":
@@ -67,6 +71,8 @@ export const getCutoffDate = (range) => {
             return new Date(now.getFullYear(), now.getMonth() - 6, now.getDate());
         case "1Y":
             return new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+        case "2Y":
+            return new Date(now.getFullYear() - 2, now.getMonth(), now.getDate());
         case "3Y":
             return new Date(now.getFullYear() - 3, now.getMonth(), now.getDate());
         case "5Y":

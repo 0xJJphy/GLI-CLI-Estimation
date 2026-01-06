@@ -1616,6 +1616,11 @@ TV_CONFIG = {
     'PYUSDUSD': ('KRAKEN', 'PYUSD_PRICE'),    # PYUSD/USD Price
     'FDUSDUSDT': ('BINANCE', 'FDUSD_PRICE'),  # FDUSD/USDT Price (proxy)
     'USDEUSDT': ('BYBIT', 'USDE_PRICE'),      # USDE/USDT Price (proxy)
+    'USDDUSDT': ('HTX', 'USDD_PRICE'),        # USDD/USDT Price
+    'USD1USD': ('KRAKEN', 'USD1W_PRICE'),    # World Liberty Financial (USD1)
+    'RLUSDUSD': ('KRAKEN', 'RLUSD_PRICE'),    # Ripple USD
+    'USDGUSD': ('KRAKEN', 'USDG_PRICE'),      # Global Dollar
+
 }
 
 # ============================================================
@@ -2314,7 +2319,11 @@ def calculate_stablecoins(df: pd.DataFrame) -> dict:
         'DAI_PRICE': 'DAI',
         'PYUSD_PRICE': 'PYUSD',
         'FDUSD_PRICE': 'FDUSD',
-        'USDEE_PRICE': 'USDE',
+        'USDE_PRICE': 'USDE',
+        'USDD_PRICE': 'USDD',
+        'USD1W_PRICE': 'USD1W',
+        'RLUSD_PRICE': 'RLUSD',
+        'USDG_PRICE': 'USDG',
     }
     
     # Collect available stablecoin market caps (convert to billions)
@@ -2354,9 +2363,44 @@ def calculate_stablecoins(df: pd.DataFrame) -> dict:
             result['total_dominance'] = (total_series / total_crypto_mcap.replace(0, np.nan) * 100).tolist()
             
         # Add advanced aggregate metrics
-        # 1. Monthly and Quarterly ROC
+        # 1. Weekly, Monthly and Quarterly ROC
+        result['total_roc_7d'] = ((total_series / total_series.shift(7) - 1) * 100).tolist()
         result['total_roc_1m'] = ((total_series / total_series.shift(30) - 1) * 100).tolist()
         result['total_roc_3m'] = ((total_series / total_series.shift(90) - 1) * 100).tolist()
+        
+        # Z-scores for ROC metrics (normalized against historical distribution)
+        roc_7d = (total_series / total_series.shift(7) - 1) * 100
+        roc_1m = (total_series / total_series.shift(30) - 1) * 100
+        roc_3m = (total_series / total_series.shift(90) - 1) * 100
+        
+        # 252-day rolling window for 7D and 1M, 504-day for 3M
+        def calc_zscore(series, window):
+            mean = series.rolling(window, min_periods=window//2).mean()
+            std = series.rolling(window, min_periods=window//2).std()
+            return ((series - mean) / std.replace(0, np.nan)).tolist()
+        
+        result['total_roc_7d_z'] = calc_zscore(roc_7d, 252)
+        result['total_roc_1m_z'] = calc_zscore(roc_1m, 252)
+        result['total_roc_3m_z'] = calc_zscore(roc_3m, 504)
+        
+        # Percentile ranks for ROC metrics (0-100 scale)
+        def calc_percentile(series, window):
+            def percentile_rank(arr):
+                if len(arr) < window // 2:
+                    return np.nan
+                current = arr[-1]
+                if np.isnan(current):
+                    return np.nan
+                valid = arr[~np.isnan(arr)]
+                if len(valid) < window // 2:
+                    return np.nan
+                rank = (valid < current).sum() + 0.5 * (valid == current).sum()
+                return 100 * rank / len(valid)
+            return series.rolling(window, min_periods=window//2).apply(percentile_rank, raw=True).tolist()
+        
+        result['total_roc_7d_pct'] = calc_percentile(roc_7d, 252)
+        result['total_roc_1m_pct'] = calc_percentile(roc_1m, 252)
+        result['total_roc_3m_pct'] = calc_percentile(roc_3m, 504)
         
         # 2. Year-over-Year Change
         result['total_yoy'] = ((total_series / total_series.shift(365) - 1) * 100).tolist()
@@ -2371,6 +2415,61 @@ def calculate_stablecoins(df: pd.DataFrame) -> dict:
         rolling_std = accel.rolling(90).std()
         # Avoid division by zero
         result['total_accel_z'] = ((accel - rolling_mean) / rolling_std.replace(0, np.nan)).tolist()
+        
+        # 4. Stablecoin Flow Attribution Index (SFAI)
+        # Determines if stablecoin changes represent: fresh inflows, profit-taking, or buying pressure
+        if total_crypto_mcap is not None:
+            # Non-stablecoin crypto market cap
+            non_stable_mcap = total_crypto_mcap - total_series
+            
+            # Changes (7-day)
+            delta_stable = total_series.pct_change(7) * 100
+            delta_crypto = non_stable_mcap.pct_change(7) * 100
+            
+            # Rolling correlation (30-day window)
+            rolling_corr = delta_stable.rolling(30, min_periods=15).corr(delta_crypto)
+            
+            # Z-score of stablecoin change
+            stable_mean = delta_stable.rolling(90, min_periods=45).mean()
+            stable_std = delta_stable.rolling(90, min_periods=45).std()
+            stable_z = (delta_stable - stable_mean) / stable_std.replace(0, np.nan)
+            
+            # SFAI Continuous Index: combines magnitude, direction, and correlation
+            # Range approximately -2 to +2, but can exceed in extreme cases
+            crypto_sign = np.sign(delta_crypto)
+            sfai_continuous = stable_z * crypto_sign * (1 + rolling_corr.abs().fillna(0))
+            result['sfai_continuous'] = sfai_continuous.tolist()
+            
+            # Discrete Regime Classification
+            # 0 = Neutral, 1 = Fresh Inflow, 2 = Profit Taking, 3 = Buying Pressure, 4 = Capitulation
+            def classify_regime(ds, dc):
+                if pd.isna(ds) or pd.isna(dc):
+                    return 0
+                if ds > 0 and dc > 0:
+                    return 1  # Fresh Inflow
+                elif ds > 0 and dc < 0:
+                    return 2  # Profit Taking (bearish)
+                elif ds < 0 and dc > 0:
+                    return 3  # Buying Pressure (bullish)
+                elif ds < 0 and dc < 0:
+                    return 4  # Capitulation
+                else:
+                    return 0  # Neutral
+            
+            regime = pd.Series([classify_regime(s, c) for s, c in zip(delta_stable, delta_crypto)], index=total_series.index)
+            result['sfai_regime'] = regime.tolist()
+            
+            # Component metrics
+            # Velocity: current change vs average change (normalized)
+            avg_change = delta_stable.rolling(30, min_periods=15).mean().abs()
+            velocity = delta_stable / avg_change.replace(0, np.nan)
+            result['sfai_velocity'] = velocity.tolist()
+            
+            # Crypto Beta: sensitivity of stables to crypto market
+            cov_rolling = delta_stable.rolling(30, min_periods=15).cov(delta_crypto)
+            var_crypto = delta_crypto.rolling(30, min_periods=15).var()
+            beta = cov_rolling / var_crypto.replace(0, np.nan)
+            result['sfai_beta'] = beta.tolist()
         
         # Calculate growth rates
         for name, series in available_mcaps.items():
@@ -4366,17 +4465,28 @@ def run_pipeline():
                 'dates': stablecoins_data.get('dates', []),
                 'market_caps': {k: clean_for_json(v) for k, v in stablecoins_data.get('market_caps', {}).items()},
                 'total': clean_for_json(stablecoins_data.get('total', [])),
+                'total_roc_7d': clean_for_json(stablecoins_data.get('total_roc_7d', [])),
                 'total_roc_1m': clean_for_json(stablecoins_data.get('total_roc_1m', [])),
                 'total_roc_3m': clean_for_json(stablecoins_data.get('total_roc_3m', [])),
+                'total_roc_7d_z': clean_for_json(stablecoins_data.get('total_roc_7d_z', [])),
+                'total_roc_1m_z': clean_for_json(stablecoins_data.get('total_roc_1m_z', [])),
+                'total_roc_3m_z': clean_for_json(stablecoins_data.get('total_roc_3m_z', [])),
+                'total_roc_7d_pct': clean_for_json(stablecoins_data.get('total_roc_7d_pct', [])),
+                'total_roc_1m_pct': clean_for_json(stablecoins_data.get('total_roc_1m_pct', [])),
+                'total_roc_3m_pct': clean_for_json(stablecoins_data.get('total_roc_3m_pct', [])),
                 'total_yoy': clean_for_json(stablecoins_data.get('total_yoy', [])),
                 'total_accel_z': clean_for_json(stablecoins_data.get('total_accel_z', [])),
+                'sfai_continuous': clean_for_json(stablecoins_data.get('sfai_continuous', [])),
+                'sfai_regime': stablecoins_data.get('sfai_regime', []),
+                'sfai_velocity': clean_for_json(stablecoins_data.get('sfai_velocity', [])),
+                'sfai_beta': clean_for_json(stablecoins_data.get('sfai_beta', [])),
                 'total_dominance': clean_for_json(stablecoins_data.get('total_dominance', [])),
                 'total_crypto_mcap': clean_for_json(stablecoins_data.get('total_crypto_mcap', [])),
                 'prices': {k: clean_for_json(v) for k, v in stablecoins_data.get('prices', {}).items()},
                 'growth': clean_for_json(stablecoins_data.get('growth', {})),
                 'dominance': {k: clean_for_json(v) for k, v in stablecoins_data.get('dominance', {}).items()},
                 'dominance_total': {k: clean_for_json(v) for k, v in stablecoins_data.get('dominance_total', {}).items()},
-                'depeg_events': clean_for_json(stablecoins_data.get('depeg_events', [])[:1000]),  # Increase limit to show historical events
+                'depeg_events': clean_for_json(stablecoins_data.get('depeg_events', [])[-1000:]),  # Take LATEST 1000 events
             },
             'treasury_maturities': get_treasury_maturity_data(120),
             'treasury_auction_demand': fetch_treasury_auction_demand(silent=True),
