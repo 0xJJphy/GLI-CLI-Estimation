@@ -93,27 +93,31 @@
                     color = "#8b5cf6"; // violet
                 }
 
-                return {
+                const trace = {
                     x: stableDates,
                     y: yData,
                     name: name,
                     type: type,
-                    mode: type === "bar" ? undefined : "lines",
-                    fill: fill,
-                    line:
-                        type === "bar"
-                            ? undefined
-                            : { color: color, width: 2, shape: "spline" },
-                    marker: type === "bar" ? { color: color } : undefined,
-                    fillcolor:
-                        type === "bar"
-                            ? undefined
-                            : darkMode
-                              ? color
-                                    .replace(")", ", 0.15)")
-                                    .replace("#", "rgba(") // Simplified color handle
-                              : "rgba(99, 102, 241, 0.1)", // Fallback to primary color fill
                 };
+
+                if (type === "bar") {
+                    trace.marker = { color: color };
+                } else {
+                    trace.mode = "lines";
+                    trace.fill = fill;
+                    trace.line = { color: color, width: 2, shape: "spline" };
+                    if (darkMode) {
+                        // Simple hex to rgba conversion for the fill
+                        const r = parseInt(color.slice(1, 3), 16);
+                        const g = parseInt(color.slice(3, 5), 16);
+                        const b = parseInt(color.slice(5, 7), 16);
+                        trace.fillcolor = `rgba(${r}, ${g}, ${b}, 0.15)`;
+                    } else {
+                        trace.fillcolor = "rgba(99, 102, 241, 0.1)";
+                    }
+                }
+
+                return trace;
             })(),
         ],
         stableDates,
