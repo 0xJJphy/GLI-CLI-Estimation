@@ -1605,6 +1605,7 @@ TV_CONFIG = {
     'RLUSD': ('CRYPTOCAP', 'RLUSD_MCAP'),     # Ripple USD
     'USDGG': ('CRYPTOCAP', 'USDGG_MCAP'),     # Global Dollar (ticker USDGG)
     'FDUSD': ('CRYPTOCAP', 'FDUSD_MCAP'),     # First Digital USD
+    'TOTAL': ('CRYPTOCAP', 'TOTAL_MCAP'),     # Total Crypto Market Cap
     
     # ==========================================================
     # STABLECOINS - Prices (for depeg detection)
@@ -2325,6 +2326,11 @@ def calculate_stablecoins(df: pd.DataFrame) -> dict:
             available_mcaps[name] = series
             result['market_caps'][name] = series.tolist()
     
+    # New: Total Crypto Market Cap for general dominance
+    total_crypto_mcap = df['TOTAL_MCAP'].ffill() / 1e9 if 'TOTAL_MCAP' in df.columns else None
+    if total_crypto_mcap is not None:
+        result['total_crypto_mcap'] = total_crypto_mcap.tolist()
+    
     # Calculate total stablecoin supply
     if available_mcaps:
         total_df = pd.DataFrame(available_mcaps)
@@ -2333,8 +2339,19 @@ def calculate_stablecoins(df: pd.DataFrame) -> dict:
         # Calculate dominance (market share %)
         total_series = total_df.sum(axis=1, min_count=1)
         for name, series in available_mcaps.items():
-            dominance = (series / total_series.replace(0, np.nan)) * 100
-            result['dominance'][name] = dominance.tolist()
+            # Local dominance (share of stablecoins)
+            dominance_stables = (series / total_series.replace(0, np.nan)) * 100
+            result['dominance'][name] = dominance_stables.tolist()
+            
+            # Global dominance (share of total crypto market)
+            if total_crypto_mcap is not None:
+                dominance_total = (series / total_crypto_mcap.replace(0, np.nan)) * 100
+                if 'dominance_total' not in result: result['dominance_total'] = {}
+                result['dominance_total'][name] = dominance_total.tolist()
+
+        # Aggregate dominance of all stables vs. total crypto
+        if total_crypto_mcap is not None:
+            result['total_dominance'] = (total_series / total_crypto_mcap.replace(0, np.nan) * 100).tolist()
             
         # Add advanced aggregate metrics
         # 1. Monthly and Quarterly ROC
@@ -4353,9 +4370,12 @@ def run_pipeline():
                 'total_roc_3m': clean_for_json(stablecoins_data.get('total_roc_3m', [])),
                 'total_yoy': clean_for_json(stablecoins_data.get('total_yoy', [])),
                 'total_accel_z': clean_for_json(stablecoins_data.get('total_accel_z', [])),
+                'total_dominance': clean_for_json(stablecoins_data.get('total_dominance', [])),
+                'total_crypto_mcap': clean_for_json(stablecoins_data.get('total_crypto_mcap', [])),
                 'prices': {k: clean_for_json(v) for k, v in stablecoins_data.get('prices', {}).items()},
                 'growth': clean_for_json(stablecoins_data.get('growth', {})),
                 'dominance': {k: clean_for_json(v) for k, v in stablecoins_data.get('dominance', {}).items()},
+                'dominance_total': {k: clean_for_json(v) for k, v in stablecoins_data.get('dominance_total', {}).items()},
                 'depeg_events': clean_for_json(stablecoins_data.get('depeg_events', [])[:1000]),  # Increase limit to show historical events
             },
             'treasury_maturities': get_treasury_maturity_data(120),

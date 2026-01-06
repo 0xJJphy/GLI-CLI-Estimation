@@ -25,6 +25,7 @@
         { value: "roc1m", label: "ROC 1M" },
         { value: "roc3m", label: "ROC 3M" },
         { value: "yoy", label: "YoY %" },
+        { value: "dominance", label: "Stables Dominance %" },
         { value: "accel_z", label: "Accel Z-Score" },
     ];
 
@@ -80,6 +81,7 @@
     $: prices = stablecoinsData.prices || {};
     $: growth = stablecoinsData.growth || {};
     $: dominance = stablecoinsData.dominance || {};
+    $: dominanceTotal = stablecoinsData.dominance_total || {};
     $: depegEvents = stablecoinsData.depeg_events || [];
 
     // Calculate latest values
@@ -114,6 +116,10 @@
                     yData = stablecoinsData.total_yoy || [];
                     name = "YoY Change (%)";
                     color = "#f43f5e"; // rose
+                } else if (aggregateMode === "dominance") {
+                    yData = stablecoinsData.total_dominance || [];
+                    name = "Total Stables Dominance (%)";
+                    color = "#fbbf24"; // amber
                 } else if (aggregateMode === "accel_z") {
                     yData = stablecoinsData.total_accel_z || [];
                     name = "Acceleration Z-Score";
@@ -185,6 +191,10 @@
             dom:
                 dominance[name]?.length > 0
                     ? dominance[name][dominance[name].length - 1]
+                    : 0,
+            domTotal:
+                dominanceTotal[name]?.length > 0
+                    ? dominanceTotal[name][dominanceTotal[name].length - 1]
                     : 0,
             growth7d: g["7d"] || 0,
             growth30d: g["30d"] || 0,
@@ -353,6 +363,10 @@
                         <th>{t("stablecoins_name", "Stablecoin")}</th>
                         <th>{t("stablecoins_market_cap", "Market Cap")}</th>
                         <th>{t("stablecoins_dominance", "Dom.")}</th>
+                        <th
+                            title="Dominance relative to Total Crypto Market Cap"
+                            >Mkt Dom %</th
+                        >
                         <th>{t("stablecoins_7d_change", "7D")}</th>
                         <th>{t("stablecoins_30d_change", "30D")}</th>
                         <th>{t("stablecoins_90d_change", "90D")}</th>
@@ -370,6 +384,9 @@
                             </td>
                             <td>${item.mcap?.toFixed(1) || 0}B</td>
                             <td>{item.dom?.toFixed(1) || 0}%</td>
+                            <td style="color: #94a3b8; font-size: 0.85rem;"
+                                >{item.domTotal?.toFixed(2) || 0}%</td
+                            >
                             <td class={getGrowthClass(item.growth7d)}
                                 >{formatGrowth(item.growth7d)}</td
                             >
