@@ -6,6 +6,7 @@
      */
     import Chart from "../components/Chart.svelte";
     import TimeRangeSelector from "../components/TimeRangeSelector.svelte";
+    import Dropdown from "../components/Dropdown.svelte";
     import { getCutoffDate } from "../utils/helpers.js";
     import { downloadCardAsImage } from "../utils/downloadCard.js";
 
@@ -419,6 +420,7 @@
                 line: { color: "#3b82f6", width: 1.5 },
                 fill: "tozeroy",
                 fillcolor: "rgba(59, 130, 246, 0.1)",
+                yaxis: "y",
                 hovertemplate: "%{x|%b %d, %Y}<br>CAI: %{y:.1f}<extra></extra>",
             });
         }
@@ -463,11 +465,17 @@
     // CHART: Fear & Greed with ROC/Z-Score/Percentile
     // ============================================================
     let fngRange = "1Y";
+    let fngDataSource = "absolute"; // absolute (F&G), cai (Altseason Index)
     let fngMetricType = "absolute"; // absolute, roc_7d, roc_30d, roc_90d, roc_180d, roc_365d
     let fngTransform = "raw"; // raw, zscore, percentile
 
+    const fngDataSourceOptions = [
+        { value: "absolute", label: "Fear & Greed Index" },
+        { value: "cai", label: "Altseason Index (CAI)" },
+    ];
+
     const fngMetricOptions = [
-        { value: "absolute", label: "F&G Index" },
+        { value: "absolute", label: "Main Series" },
         { value: "roc_7d", label: "ROC 7D" },
         { value: "roc_30d", label: "ROC 1M" },
         { value: "roc_90d", label: "ROC 3M" },
@@ -481,40 +489,44 @@
         { value: "percentile", label: "Percentile" },
     ];
 
-    function getFngSeriesData(metric, transform) {
-        if (metric === "absolute") return data.fear_greed;
+    function getFngSeriesData(metric, transform, dataSource) {
+        const isCai = dataSource === "cai";
+        if (metric === "absolute") return isCai ? data.cai : data.fear_greed;
+
+        // Prefix for CAI specific metrics
+        const prefix = isCai ? "cai_" : "fng_";
 
         // Map metric to data keys
         const rocMap = {
             roc_7d: {
-                raw: data.fng_roc_7d,
-                z: data.fng_roc_7d_z,
-                pct: data.fng_roc_7d_pct,
+                raw: data[`${prefix}roc_7d`],
+                z: data[`${prefix}roc_7d_z`],
+                pct: data[`${prefix}roc_7d_pct`],
             },
             roc_30d: {
-                raw: data.fng_roc_30d,
-                z: data.fng_roc_30d_z,
-                pct: data.fng_roc_30d_pct,
+                raw: data[`${prefix}roc_30d`],
+                z: data[`${prefix}roc_30d_z`],
+                pct: data[`${prefix}roc_30d_pct`],
             },
             roc_90d: {
-                raw: data.fng_roc_90d,
-                z: data.fng_roc_90d_z,
-                pct: data.fng_roc_90d_pct,
+                raw: data[`${prefix}roc_90d`],
+                z: data[`${prefix}roc_90d_z`],
+                pct: data[`${prefix}roc_90d_pct`],
             },
             roc_180d: {
-                raw: data.fng_roc_180d,
-                z: data.fng_roc_180d_z,
-                pct: data.fng_roc_180d_pct,
+                raw: data[`${prefix}roc_180d`],
+                z: data[`${prefix}roc_180d_z`],
+                pct: data[`${prefix}roc_180d_pct`],
             },
             roc_365d: {
-                raw: data.fng_roc_365d,
-                z: data.fng_roc_365d_z,
-                pct: data.fng_roc_365d_pct,
+                raw: data[`${prefix}roc_365d`],
+                z: data[`${prefix}roc_365d_z`],
+                pct: data[`${prefix}roc_365d_pct`],
             },
         };
 
         const rocData = rocMap[metric];
-        if (!rocData) return data.fear_greed;
+        if (!rocData) return isCai ? data.cai : data.fear_greed;
 
         if (transform === "zscore") return rocData.z;
         if (transform === "percentile") return rocData.pct;
@@ -528,9 +540,16 @@
         return "#10b981"; // Green
     }
 
-    function getFngSeriesLabel(metric, transform) {
+    function getFngSeriesLabel(metric, transform, dataSource) {
+        const isCai = dataSource === "cai";
         const base =
-            fngMetricOptions.find((o) => o.value === metric)?.label || "F&G";
+            metric === "absolute"
+                ? isCai
+                    ? "CAI"
+                    : "F&G"
+                : fngMetricOptions.find((o) => o.value === metric)?.label ||
+                  "Metric";
+
         if (metric === "absolute") return base;
         const suffix =
             fngTransformOptions.find((o) => o.value === transform)?.label || "";
@@ -582,8 +601,9 @@
 
     $: fngChartData = (() => {
         const filteredDates = getFilteredDates(fngRange);
+        // Explicitly pass fngDataSource to ensure reactivity
         const seriesData = filterByRange(
-            getFngSeriesData(fngMetricType, fngTransform),
+            getFngSeriesData(fngMetricType, fngTransform, fngDataSource),
             fngRange,
         );
         const color = getFngSeriesColor(fngMetricType, fngTransform);
@@ -592,7 +612,11 @@
             {
                 x: filteredDates,
                 y: seriesData,
-                name: getFngSeriesLabel(fngMetricType, fngTransform),
+                name: getFngSeriesLabel(
+                    fngMetricType,
+                    fngTransform,
+                    fngDataSource,
+                ),
                 type: "scatter",
                 mode: "lines",
                 line: { color, width: 2 },
@@ -1057,19 +1081,31 @@
     <!-- Fear & Greed Chart -->
     <div class="chart-card">
         <div class="chart-header">
-            <h3>{t("fng_chart_title", "Fear & Greed Analysis")}</h3>
+            <h3>
+                {fngDataSource === "absolute"
+                    ? t("fng_chart_title", "Fear & Greed Index Analysis")
+                    : t("cai_chart_title", "Altseason Index (CAI) Analysis")}
+            </h3>
             <div class="header-controls">
-                <select bind:value={fngMetricType} class="series-select">
-                    {#each fngMetricOptions as opt}
-                        <option value={opt.value}>{opt.label}</option>
-                    {/each}
-                </select>
+                <Dropdown
+                    options={fngDataSourceOptions}
+                    bind:value={fngDataSource}
+                    {darkMode}
+                    small={true}
+                />
+                <Dropdown
+                    options={fngMetricOptions}
+                    bind:value={fngMetricType}
+                    {darkMode}
+                    small={true}
+                />
                 {#if fngMetricType !== "absolute"}
-                    <select bind:value={fngTransform} class="series-select">
-                        {#each fngTransformOptions as opt}
-                            <option value={opt.value}>{opt.label}</option>
-                        {/each}
-                    </select>
+                    <Dropdown
+                        options={fngTransformOptions}
+                        bind:value={fngTransform}
+                        {darkMode}
+                        small={true}
+                    />
                 {/if}
                 <TimeRangeSelector bind:selectedRange={fngRange} />
             </div>
@@ -1081,36 +1117,12 @@
 </div>
 
 <style>
-    /* Theme Variables */
+    /* Main Layout */
     .narratives-content {
-        --bg-secondary: rgba(15, 23, 42, 0.4);
-        --border-color: rgba(255, 255, 255, 0.08);
-        --text-primary: #e2e8f0;
-        --text-secondary: #94a3b8;
-        --text-muted: #64748b;
-    }
-    .narratives-content.light {
-        --bg-secondary: #ffffff;
-        --border-color: #e2e8f0;
-        --text-primary: #1e293b;
-        --text-secondary: #475569;
-        --text-muted: #94a3b8;
-    }
-
-    /* Tab Header */
-    .tab-header {
         display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 20px 24px;
-        margin-bottom: 20px;
-        background: var(--bg-secondary);
-        border-radius: 12px;
-        border: 1px solid var(--border-color);
-    }
-    .tab-header.light {
-        background: #f8fafc;
-        border-color: #e2e8f0;
+        flex-direction: column;
+        gap: 24px;
+        padding-bottom: 40px;
     }
     .header-content h2 {
         margin: 0 0 8px 0;
@@ -1129,38 +1141,22 @@
         font-size: 0.9rem;
     }
 
-    /* Main Layout */
-    .narratives-content {
-        --bg-secondary: rgba(15, 23, 42, 0.4);
-        --border-color: rgba(255, 255, 255, 0.08);
-        --text-primary: #e2e8f0;
-        --text-secondary: #94a3b8;
-        --text-muted: #64748b;
-        display: flex;
-        flex-direction: column;
-        gap: 24px;
-        padding-bottom: 40px;
-    }
-    .narratives-content.light {
-        --bg-secondary: #ffffff;
-        --border-color: #e2e8f0;
-        --text-primary: #1e293b;
-        --text-secondary: #475569;
-        --text-muted: #94a3b8;
-    }
-
     /* Tab Header */
     .tab-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 20px 24px;
+        padding: 24px;
         background: var(--bg-secondary);
-        border-radius: 12px;
+        border-radius: 16px;
         border: 1px solid var(--border-color);
+        box-shadow: var(--card-shadow);
+        margin-bottom: 32px;
     }
-    .tab-header.light {
+
+    .light .tab-header {
         background: #f8fafc;
+        backdrop-filter: none;
         border-color: #e2e8f0;
     }
 
@@ -1185,6 +1181,12 @@
         flex-direction: column;
         align-items: center;
         text-align: center;
+        box-shadow: var(--card-shadow);
+        transition: transform 0.2s ease;
+    }
+    .light .stat-card {
+        background: #f8fafc;
+        border-color: #e2e8f0;
     }
     .stat-label {
         font-size: 0.7rem;
@@ -1311,9 +1313,9 @@
         margin-top: 12px;
         padding-top: 12px;
         border-top: 1px solid var(--border-color);
-        width: 100%;
-        justify-content: center;
     }
+    /* Selects / Dropdowns */
+    /* Removing duplicated/conflicting select styles - handled by Dropdown component */
     .roc-item {
         display: flex;
         flex-direction: column;
@@ -1375,16 +1377,18 @@
         width: 100%;
     }
     .metric-item {
-        background: rgba(255, 255, 255, 0.03);
+        background: var(--bg-tertiary);
         padding: 10px;
         border-radius: 8px;
         cursor: help;
         display: flex;
         flex-direction: column;
         gap: 2px;
+        border: 1px solid transparent;
     }
     .light .metric-item {
-        background: rgba(0, 0, 0, 0.03);
+        background: #f1f5f9;
+        border-color: #e2e8f0;
     }
     .metric-label {
         display: block;
@@ -1428,11 +1432,16 @@
     .chart-card {
         background: var(--bg-secondary);
         border: 1px solid var(--border-color);
-        border-radius: 12px;
-        padding: 20px;
+        border-radius: 16px;
+        padding: 24px;
         display: flex;
         flex-direction: column;
-        min-height: 480px; /* Ensure enough height for chart + legend */
+        min-height: 480px;
+        box-shadow: var(--card-shadow);
+    }
+    .light .chart-card {
+        background: #ffffff;
+        border-color: #e2e8f0;
     }
     .chart-header {
         display: flex;
@@ -1509,11 +1518,16 @@
     .narratives-grid-row {
         background: var(--bg-secondary);
         border: 1px solid var(--border-color);
-        border-radius: 12px;
+        border-radius: 16px;
         padding: 24px;
         display: flex;
         flex-direction: column;
         gap: 20px;
+        box-shadow: var(--card-shadow);
+    }
+    .light .narratives-grid-row {
+        background: #f8fafc;
+        border-color: #e2e8f0;
     }
     .grid-header h3 {
         margin: 0;
@@ -1523,25 +1537,36 @@
 
     .narratives-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
         gap: 20px;
+        justify-content: center;
+        justify-items: center;
     }
     .narrative-card {
-        background: rgba(255, 255, 255, 0.03);
+        background: var(--bg-secondary);
         border: 1px solid var(--border-color);
-        border-radius: 10px;
+        border-radius: 12px;
         padding: 20px;
         text-align: center;
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        min-width: 180px;
+        width: 100%;
+        max-width: 240px;
+        box-shadow: var(--card-shadow);
     }
     .light .narrative-card {
-        background: rgba(0, 0, 0, 0.02);
+        background: #ffffff;
+        border-color: #e2e8f0;
     }
     .narrative-card:hover {
         transform: translateY(-4px);
         background: rgba(255, 255, 255, 0.05);
         border-color: #6366f1;
         box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+    }
+    .light .narrative-card:hover {
+        background: #f1f5f9;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
     }
     .narrative-header {
         display: flex;
@@ -1597,28 +1622,39 @@
     /* Crypto Stats Cards Row */
     .stats-cards-row {
         display: grid;
-        grid-template-columns: repeat(7, 1fr);
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
         gap: 12px;
+        justify-content: center;
     }
     @media (max-width: 1200px) {
         .stats-cards-row {
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
         }
     }
     @media (max-width: 768px) {
         .stats-cards-row {
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
         }
     }
     .mini-card {
         background: var(--bg-secondary);
         border: 1px solid var(--border-color);
-        border-radius: 10px;
+        border-radius: 12px;
         padding: 16px;
         text-align: center;
         display: flex;
         flex-direction: column;
         gap: 6px;
+        box-shadow: var(--card-shadow);
+        transition: transform 0.2s ease;
+    }
+    .light .mini-card {
+        background: #f8fafc;
+        border-color: #e2e8f0;
+    }
+    .mini-card:hover {
+        transform: translateY(-2px);
+        border-color: #6366f1;
     }
     .mini-label {
         font-size: 0.6rem;
@@ -1656,55 +1692,30 @@
         accent-color: #3b82f6;
     }
 
-    /* Series Select - Premium Styling */
-    .series-select {
-        padding: 8px 14px;
-        border-radius: 8px;
-        background: linear-gradient(
-            135deg,
-            rgba(99, 102, 241, 0.1),
-            rgba(139, 92, 246, 0.1)
-        );
-        border: 1px solid rgba(99, 102, 241, 0.3);
-        color: var(--text-primary);
-        font-size: 0.72rem;
-        font-weight: 600;
-        cursor: pointer;
-        outline: none;
-        min-width: 110px;
-        transition: all 0.2s ease;
-        appearance: none;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236366f1' stroke-width='2'%3E%3Cpolyline points='6,9 12,15 18,9'%3E%3C/polyline%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 10px center;
-        padding-right: 30px;
-    }
-    .series-select:hover {
-        border-color: rgba(99, 102, 241, 0.5);
-        background: linear-gradient(
-            135deg,
-            rgba(99, 102, 241, 0.15),
-            rgba(139, 92, 246, 0.15)
-        );
-    }
-    .series-select:focus {
-        border-color: #6366f1;
-        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
-    }
-    .series-select option {
-        background: var(--bg-secondary);
-        color: var(--text-primary);
-        padding: 8px;
-    }
+    /* Removing legacy dropdown styles */
 
     /* Divergence Card */
     .divergence-card {
-        background: linear-gradient(
-            135deg,
-            rgba(99, 102, 241, 0.05),
-            rgba(139, 92, 246, 0.05)
-        );
-        border: 1px solid rgba(99, 102, 241, 0.2);
+        background: var(--bg-secondary);
+        border: 1px solid rgba(99, 102, 241, 0.3);
+        border-radius: 16px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: var(--card-shadow);
+        transition: transform 0.2s ease;
+    }
+    .light .divergence-card {
+        background: #f8fafc;
+        border-color: rgba(99, 102, 241, 0.2);
+    }
+    .divergence-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #6366f1, #8b5cf6);
     }
     .divergence-display {
         display: flex;

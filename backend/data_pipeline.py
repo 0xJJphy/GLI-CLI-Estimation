@@ -4186,6 +4186,8 @@ def run_pipeline():
         custom_stables_series = stablecoins_data.get('total_series')
         crypto_analytics = calculate_crypto_regimes(df_t, custom_stables=custom_stables_series)
         narratives_data = calculate_narratives(df_t, crypto_analytics['m_risk'])
+        cai_analytics = crypto_analytics.get('cai_analytics', {})
+        
         fng_series = fetch_fear_and_greed()
         
         # Align F&G with df_t index
@@ -4556,6 +4558,33 @@ def run_pipeline():
                     'roc_30d_z': fng_analytics.get('current_roc_30d_z'),
                     'roc_7d_pct': fng_analytics.get('current_roc_7d_pct'),
                     'roc_30d_pct': fng_analytics.get('current_roc_30d_pct'),
+                },
+                # CAI Analytics Parity
+                'cai_roc_7d': clean_for_json(cai_analytics.get('roc_7d', pd.Series(dtype=float))),
+                'cai_roc_30d': clean_for_json(cai_analytics.get('roc_30d', pd.Series(dtype=float))),
+                'cai_roc_90d': clean_for_json(cai_analytics.get('roc_90d', pd.Series(dtype=float))),
+                'cai_roc_180d': clean_for_json(cai_analytics.get('roc_180d', pd.Series(dtype=float))),
+                'cai_roc_365d': clean_for_json(cai_analytics.get('roc_365d', pd.Series(dtype=float))),
+                'cai_roc_7d_z': clean_for_json(cai_analytics.get('roc_7d_z', pd.Series(dtype=float))),
+                'cai_roc_30d_z': clean_for_json(cai_analytics.get('roc_30d_z', pd.Series(dtype=float))),
+                'cai_roc_90d_z': clean_for_json(cai_analytics.get('roc_90d_z', pd.Series(dtype=float))),
+                'cai_roc_180d_z': clean_for_json(cai_analytics.get('roc_180d_z', pd.Series(dtype=float))),
+                'cai_roc_365d_z': clean_for_json(cai_analytics.get('roc_365d_z', pd.Series(dtype=float))),
+                'cai_roc_7d_pct': clean_for_json(cai_analytics.get('roc_7d_pct', pd.Series(dtype=float))),
+                'cai_roc_30d_pct': clean_for_json(cai_analytics.get('roc_30d_pct', pd.Series(dtype=float))),
+                'cai_roc_90d_pct': clean_for_json(cai_analytics.get('roc_90d_pct', pd.Series(dtype=float))),
+                'cai_roc_180d_pct': clean_for_json(cai_analytics.get('roc_180d_pct', pd.Series(dtype=float))),
+                'cai_roc_365d_pct': clean_for_json(cai_analytics.get('roc_365d_pct', pd.Series(dtype=float))),
+                'cai_current': {
+                    'roc_7d': cai_analytics.get('current_roc_7d'),
+                    'roc_30d': cai_analytics.get('current_roc_30d'),
+                    'roc_90d': cai_analytics.get('current_roc_90d'),
+                    'roc_180d': cai_analytics.get('current_roc_180d'),
+                    'roc_365d': cai_analytics.get('current_roc_365d'),
+                    'roc_7d_z': cai_analytics.get('current_roc_7d_z'),
+                    'roc_30d_z': cai_analytics.get('current_roc_30d_z'),
+                    'roc_7d_pct': cai_analytics.get('current_roc_7d_pct'),
+                    'roc_30d_pct': cai_analytics.get('current_roc_30d_pct'),
                 },
                 'rs_risk_btc': clean_for_json(crypto_analytics['rs_risk_btc']),
                 'delta_rs_risk': clean_for_json(crypto_analytics['delta_rs_risk']),

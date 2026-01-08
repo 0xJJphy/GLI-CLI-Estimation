@@ -417,6 +417,12 @@
         if (api.chart && dataKey !== currentDataKey) {
             currentData = currentDataValue;
             updateSeries();
+
+            // Automatically fit content when data changes (e.g. range switch)
+            // We use a small timeout to ensure series data is processed
+            setTimeout(() => {
+                if (api.chart) api.chart.timeScale().fitContent();
+            }, 50);
         }
 
         if (api.chart && currentLogScaleValue !== currentLogScale) {

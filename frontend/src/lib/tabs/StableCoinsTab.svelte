@@ -8,6 +8,7 @@
     import LightweightChart from "../components/LightweightChart.svelte";
     import SFAIChart from "../components/SFAIChart.svelte";
     import TimeRangeSelector from "../components/TimeRangeSelector.svelte";
+    import Dropdown from "../components/Dropdown.svelte";
     import { filterPlotlyData, getCutoffDate } from "../utils/helpers.js";
     import { downloadCardAsImage } from "../utils/downloadCard.js";
 
@@ -20,9 +21,7 @@
     let aggregateRange = "1Y";
     let individualRange = "1Y";
     let aggregateMode = "absolute"; // Modes: absolute, roc1m, roc3m, yoy, accel_z
-    let showModeDropdown = false;
     let normMode = "raw"; // Normalization: raw, zscore, percentile
-    let showNormDropdown = false;
 
     // Check if current mode supports normalization
     $: isRocMode = ["roc7d", "roc1m", "roc3m"].includes(aggregateMode);
@@ -36,7 +35,6 @@
 
     function selectNormMode(mode) {
         normMode = mode;
-        showNormDropdown = false;
     }
 
     // Pagination for depegs
@@ -58,21 +56,9 @@
 
     function selectMode(mode) {
         aggregateMode = mode;
-        showModeDropdown = false;
     }
 
-    // Close dropdown on click outside
-    function handleClickOutside(event) {
-        if (showModeDropdown && !event.target.closest(".custom-dropdown")) {
-            showModeDropdown = false;
-        }
-    }
-
-    import { onMount as onSvelteMount } from "svelte";
-    onSvelteMount(() => {
-        window.addEventListener("click", handleClickOutside);
-        return () => window.removeEventListener("click", handleClickOutside);
-    });
+    // Existing aggregate chart logic...
 
     // Existing aggregate chart logic...
 
@@ -178,17 +164,13 @@
 
     let selectedDomRocPeriod = "absolute"; // absolute, 7d, 30d, 90d, 180d, yoy
     let selectedDomRocViewMode = "raw"; // raw, zscore, percentile
-    let showDomRocPeriodDropdown = false;
-    let showDomRocViewModeDropdown = false;
 
     function selectDomRocPeriod(period) {
         selectedDomRocPeriod = period;
-        showDomRocPeriodDropdown = false;
     }
 
     function selectDomRocViewMode(mode) {
         selectedDomRocViewMode = mode;
-        showDomRocViewModeDropdown = false;
     }
 
     // BTC data for SFAI chart
@@ -198,7 +180,6 @@
     // SFAI Chart state
     let sfaiRange = "1Y";
     let sfaiMode = "regime"; // regime, index, velocity
-    let showSfaiModeDropdown = false;
 
     $: sfaiModes = [
         { value: "regime", label: "Regime" },
@@ -208,7 +189,6 @@
 
     function selectSfaiMode(mode) {
         sfaiMode = mode;
-        showSfaiModeDropdown = false;
     }
 
     // SFAI Regime data
@@ -785,66 +765,21 @@
         <div class="chart-header">
             <h3>{t("stablecoins_aggregate", "Total Stablecoin Supply")}</h3>
             <div class="header-controls">
-                <div class="custom-dropdown" class:active={showModeDropdown}>
-                    <button
-                        class="dropdown-trigger"
-                        class:light={!darkMode}
-                        on:click={() => (showModeDropdown = !showModeDropdown)}
-                    >
-                        {aggregateModes.find((m) => m.value === aggregateMode)
-                            ?.label}
-                        <span class="arrow">▾</span>
-                    </button>
-                    {#if showModeDropdown}
-                        <div class="dropdown-menu" class:light={!darkMode}>
-                            {#each aggregateModes as mode}
-                                <button
-                                    class="dropdown-item"
-                                    class:selected={aggregateMode ===
-                                        mode.value}
-                                    on:click={() => selectMode(mode.value)}
-                                >
-                                    {mode.label}
-                                    {#if aggregateMode === mode.value}
-                                        <span class="check">✓</span>
-                                    {/if}
-                                </button>
-                            {/each}
-                        </div>
-                    {/if}
-                </div>
+                <Dropdown
+                    options={aggregateModes}
+                    bind:value={aggregateMode}
+                    onSelect={selectMode}
+                    {darkMode}
+                    small={true}
+                />
                 {#if isRocMode}
-                    <div
-                        class="custom-dropdown norm-dropdown"
-                        class:active={showNormDropdown}
-                    >
-                        <button
-                            class="dropdown-trigger small"
-                            class:light={!darkMode}
-                            on:click={() =>
-                                (showNormDropdown = !showNormDropdown)}
-                        >
-                            {normModes.find((m) => m.value === normMode)?.label}
-                            <span class="arrow">▾</span>
-                        </button>
-                        {#if showNormDropdown}
-                            <div class="dropdown-menu" class:light={!darkMode}>
-                                {#each normModes as mode}
-                                    <button
-                                        class="dropdown-item"
-                                        class:selected={normMode === mode.value}
-                                        on:click={() =>
-                                            selectNormMode(mode.value)}
-                                    >
-                                        {mode.label}
-                                        {#if normMode === mode.value}
-                                            <span class="check">✓</span>
-                                        {/if}
-                                    </button>
-                                {/each}
-                            </div>
-                        {/if}
-                    </div>
+                    <Dropdown
+                        options={normModes}
+                        bind:value={normMode}
+                        onSelect={selectNormMode}
+                        {darkMode}
+                        small={true}
+                    />
                 {/if}
                 <TimeRangeSelector
                     selectedRange={aggregateRange}
@@ -917,78 +852,22 @@
             </h3>
             <div class="header-controls">
                 <!-- Data Mode Dropdown (Absolute vs ROC) -->
-                <div
-                    class="custom-dropdown"
-                    class:active={showDomRocPeriodDropdown}
-                >
-                    <button
-                        class="dropdown-trigger small"
-                        class:light={!darkMode}
-                        on:click={() =>
-                            (showDomRocPeriodDropdown =
-                                !showDomRocPeriodDropdown)}
-                    >
-                        {domRocPeriods.find(
-                            (p) => p.value === selectedDomRocPeriod,
-                        )?.label}
-                        <span class="arrow">▾</span>
-                    </button>
-                    {#if showDomRocPeriodDropdown}
-                        <div class="dropdown-menu" class:light={!darkMode}>
-                            {#each domRocPeriods as period}
-                                <button
-                                    class="dropdown-item"
-                                    class:selected={selectedDomRocPeriod ===
-                                        period.value}
-                                    on:click={() =>
-                                        selectDomRocPeriod(period.value)}
-                                >
-                                    {period.label}
-                                    {#if selectedDomRocPeriod === period.value}
-                                        <span class="check">✓</span>
-                                    {/if}
-                                </button>
-                            {/each}
-                        </div>
-                    {/if}
-                </div>
+                <Dropdown
+                    options={domRocPeriods}
+                    bind:value={selectedDomRocPeriod}
+                    onSelect={selectDomRocPeriod}
+                    {darkMode}
+                    small={true}
+                />
                 <!-- View Mode Dropdown (Raw, Z-Score, Percentile) - Only for ROC modes -->
                 {#if selectedDomRocPeriod !== "absolute"}
-                    <div
-                        class="custom-dropdown"
-                        class:active={showDomRocViewModeDropdown}
-                    >
-                        <button
-                            class="dropdown-trigger small"
-                            class:light={!darkMode}
-                            on:click={() =>
-                                (showDomRocViewModeDropdown =
-                                    !showDomRocViewModeDropdown)}
-                        >
-                            {domRocViewModes.find(
-                                (m) => m.value === selectedDomRocViewMode,
-                            )?.label}
-                            <span class="arrow">▾</span>
-                        </button>
-                        {#if showDomRocViewModeDropdown}
-                            <div class="dropdown-menu" class:light={!darkMode}>
-                                {#each domRocViewModes as mode}
-                                    <button
-                                        class="dropdown-item"
-                                        class:selected={selectedDomRocViewMode ===
-                                            mode.value}
-                                        on:click={() =>
-                                            selectDomRocViewMode(mode.value)}
-                                    >
-                                        {mode.label}
-                                        {#if selectedDomRocViewMode === mode.value}
-                                            <span class="check">✓</span>
-                                        {/if}
-                                    </button>
-                                {/each}
-                            </div>
-                        {/if}
-                    </div>
+                    <Dropdown
+                        options={domRocViewModes}
+                        bind:value={selectedDomRocViewMode}
+                        onSelect={selectDomRocViewMode}
+                        {darkMode}
+                        small={true}
+                    />
                 {/if}
                 <TimeRangeSelector
                     selectedRange={indexDomRocRange}
@@ -1020,36 +899,13 @@
             <h3>Flow Attribution (SFAI)</h3>
             <div class="header-controls">
                 <!-- Mode dropdown -->
-                <div
-                    class="custom-dropdown"
-                    class:active={showSfaiModeDropdown}
-                >
-                    <button
-                        class="dropdown-trigger small"
-                        class:light={!darkMode}
-                        on:click={() =>
-                            (showSfaiModeDropdown = !showSfaiModeDropdown)}
-                    >
-                        {sfaiModes.find((m) => m.value === sfaiMode)?.label}
-                        <span class="arrow">▾</span>
-                    </button>
-                    {#if showSfaiModeDropdown}
-                        <div class="dropdown-menu" class:light={!darkMode}>
-                            {#each sfaiModes as mode}
-                                <button
-                                    class="dropdown-item"
-                                    class:selected={sfaiMode === mode.value}
-                                    on:click={() => selectSfaiMode(mode.value)}
-                                >
-                                    {mode.label}
-                                    {#if sfaiMode === mode.value}
-                                        <span class="check">✓</span>
-                                    {/if}
-                                </button>
-                            {/each}
-                        </div>
-                    {/if}
-                </div>
+                <Dropdown
+                    options={sfaiModes}
+                    bind:value={sfaiMode}
+                    onSelect={selectSfaiMode}
+                    {darkMode}
+                    small={true}
+                />
                 <!-- Time Range Selector -->
                 <TimeRangeSelector
                     selectedRange={sfaiRange}
@@ -1391,148 +1247,7 @@
         align-items: center;
     }
 
-    /* Custom Dropdown */
-    .custom-dropdown {
-        position: relative;
-        z-index: 100;
-    }
-
-    .dropdown-trigger {
-        background: rgba(15, 23, 42, 0.4);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        color: white;
-        padding: 6px 14px;
-        border-radius: 8px;
-        font-size: 0.85rem;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        min-width: 130px;
-        justify-content: space-between;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    }
-
-    .dropdown-trigger:hover {
-        background: rgba(15, 23, 42, 0.6);
-        border-color: rgba(99, 102, 241, 0.4);
-        box-shadow: 0 0 15px rgba(99, 102, 241, 0.1);
-    }
-
-    .dropdown-trigger.light {
-        background: white;
-        border-color: rgba(0, 0, 0, 0.08);
-        color: #1e293b;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    }
-
-    .dropdown-trigger.light:hover {
-        background: #f8fafc;
-        border-color: #cbd5e1;
-    }
-
-    .dropdown-menu {
-        position: absolute;
-        top: calc(100% + 8px);
-        left: 0;
-        background: rgba(15, 23, 42, 0.95);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 10px;
-        padding: 6px;
-        min-width: 160px;
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-        backdrop-filter: blur(16px);
-        animation: slideDown 0.2s ease-out;
-    }
-
-    @keyframes slideDown {
-        from {
-            opacity: 0;
-            transform: translateY(-5px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    .dropdown-menu.light {
-        background: rgba(255, 255, 255, 0.98);
-        border-color: rgba(0, 0, 0, 0.1);
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-    }
-
-    .dropdown-item {
-        background: transparent;
-        border: none;
-        color: #94a3b8;
-        padding: 10px 12px;
-        border-radius: 6px;
-        font-size: 0.85rem;
-        text-align: left;
-        cursor: pointer;
-        transition: all 0.2s;
-        white-space: nowrap;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .dropdown-item:hover {
-        background: rgba(99, 102, 241, 0.1);
-        color: white;
-    }
-
-    .dropdown-item.selected {
-        background: rgba(99, 102, 241, 0.15);
-        color: #818cf8;
-        font-weight: 600;
-    }
-
-    .dropdown-menu.light .dropdown-item {
-        color: #64748b;
-    }
-
-    .dropdown-menu.light .dropdown-item:hover {
-        background: #f1f5f9;
-        color: #4f46e5;
-    }
-
-    .dropdown-menu.light .dropdown-item.selected {
-        background: rgba(99, 102, 241, 0.08);
-        color: #4f46e5;
-    }
-
-    .check {
-        font-size: 0.9rem;
-        font-weight: bold;
-    }
-
-    .arrow {
-        font-size: 0.75rem;
-        transition: transform 0.3s;
-        opacity: 0.7;
-    }
-
-    .active .arrow {
-        transform: rotate(180deg);
-        color: #818cf8;
-    }
-
-    /* Normalization Dropdown (smaller trigger) */
-    .dropdown-trigger.small {
-        padding: 5px 10px;
-        font-size: 0.8rem;
-        min-width: 100px;
-    }
-
-    .norm-dropdown {
-        z-index: 15;
-    }
+    /* Removing legacy custom dropdown styles - now handled by Dropdown component */
 
     .download-btn {
         background: transparent;

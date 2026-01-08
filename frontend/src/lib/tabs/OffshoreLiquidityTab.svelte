@@ -9,6 +9,7 @@
     import LightweightChart from "../components/LightweightChart.svelte";
     import TimeRangeSelector from "../components/TimeRangeSelector.svelte";
     import { downloadCardAsImage } from "../utils/downloadCard.js";
+    import { getCutoffDate } from "../utils/helpers.js";
 
     export let darkMode = true;
     export let language = "en";
@@ -22,28 +23,27 @@
     $: thresholds = offshoreData.thresholds || {};
 
     // Time range state
-    let selectedRange = "365";
+    let selectedRange = "1Y";
     const timeRanges = [
-        { label: "30D", value: "30" },
-        { label: "90D", value: "90" },
-        { label: "1Y", value: "365" },
-        { label: "2Y", value: "730" },
-        { label: "All", value: "9999" },
+        { value: "1M", label: "1M" },
+        { value: "3M", label: "3M" },
+        { value: "6M", label: "6M" },
+        { value: "1Y", label: "1Y" },
+        { value: "3Y", label: "3Y" },
+        { value: "5Y", label: "5Y" },
+        { value: "ALL", label: "ALL" },
     ];
 
     // Filter and transform function
     function getFilteredData(dates, values, rangeStr) {
         if (!dates || !values || dates.length === 0) return [];
 
-        const range = parseInt(rangeStr);
+        const cutoff = getCutoffDate(rangeStr);
         let startIndex = 0;
-        if (range < 9999) {
-            const lastDate = new Date(dates[dates.length - 1]);
-            const cutoffDate = new Date(lastDate);
-            cutoffDate.setDate(cutoffDate.getDate() - range);
-            const cutoffStr = cutoffDate.toISOString().split("T")[0];
+        if (cutoff) {
+            const cutoffStr = cutoff.toISOString().split("T")[0];
             startIndex = dates.findIndex((d) => d >= cutoffStr);
-            if (startIndex === -1) startIndex = 0;
+            if (startIndex === -1) startIndex = dates.length; // No data after cutoff
         }
 
         const filteredDates = dates.slice(startIndex);

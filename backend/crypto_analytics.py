@@ -174,64 +174,118 @@ def calculate_narratives(df: pd.DataFrame, m_risk: pd.Series) -> Dict[str, Any]:
     return results
 
 
-def calculate_fng_analytics(fng_series: pd.Series) -> Dict[str, Any]:
+def calculate_series_analytics(s: pd.Series, window_z: int = 90, window_pct: int = 365) -> Dict[str, Any]:
     """
-    Calculates Fear & Greed analytics: ROCs, Z-Scores and Percentiles.
-    The velocity of sentiment change is as important as the level itself.
+    Generalized analytics for any sentiment or momentum series.
+    Calculates ROCs, Z-Scores, and Percentiles for 7d, 30d, 90d, 180d, and 365d.
     """
-    if fng_series.empty:
+    if s.empty:
         return {}
-    
-    # 1. ROCs (absolute change, not %)
-    roc_7d = fng_series.diff(7)
-    roc_30d = fng_series.diff(30)
-    roc_90d = fng_series.diff(90)   # 3M
-    roc_180d = fng_series.diff(180)  # 6M
-    roc_365d = fng_series.diff(365)  # YoY
-    
-    # 2. Z-Scores (is this change normal?)
-    roc_7d_z = _zscore_roll_safe(roc_7d, window=90, min_periods=30)
-    roc_30d_z = _zscore_roll_safe(roc_30d, window=90, min_periods=30)
-    roc_90d_z = _zscore_roll_safe(roc_90d, window=180, min_periods=60)
-    roc_180d_z = _zscore_roll_safe(roc_180d, window=365, min_periods=90)
-    roc_365d_z = _zscore_roll_safe(roc_365d, window=365, min_periods=180)
-    
-    # 3. Percentiles (how does this rank historically?)
-    roc_7d_pct = _percentile_rank_roll(roc_7d, window=365)
-    roc_30d_pct = _percentile_rank_roll(roc_30d, window=365)
-    roc_90d_pct = _percentile_rank_roll(roc_90d, window=730)
-    roc_180d_pct = _percentile_rank_roll(roc_180d, window=730)
-    roc_365d_pct = _percentile_rank_roll(roc_365d, window=1095)
-    
-    # 4. Current values for quick display
-    def safe_last(s):
-        vals = s.dropna()
+
+    # 1. ROCs (absolute change)
+    rocs = {
+        "7d": s.diff(7),
+        "30d": s.diff(30),
+        "90d": s.diff(90),
+        "180d": s.diff(180),
+        "365d": s.diff(365),
+    }
+
+    # 2. Z-Scores and Percentiles
+    results = {}
+    for period, roc in rocs.items():
+        w_z = window_z if period in ["7d", "30d"] else (window_z * 2 if period == "90d" else window_pct)
+        w_p = window_pct if period in ["7d", "30d"] else (window_pct * 2 if period == "90d" else window_pct * 3)
+        
+        results[f"roc_{period}"] = roc
+        results[f"roc_{period}_z"] = _zscore_roll_safe(roc, window=w_z, min_periods=max(14, w_z // 3))
+        results[f"roc_{period}_pct"] = _percentile_rank_roll(roc, window=w_p)
+
+    # 3. Current values
+    def safe_last(series):
+        vals = series.dropna()
         return float(vals.iloc[-1]) if len(vals) > 0 else None
+
+    for k in list(results.keys()):
+        results[f"current_{k}"] = safe_last(results[k])
+
+    return results
+
+def calculate_fng_analytics(fng_series: pd.Series) -> Dict[str, Any]:
+    """Fear & Greed specific analytics wrapper."""
+    return calculate_series_analytics(fng_series)
+
+def calculate_crypto_regimes(df: pd.DataFrame, custom_stables: pd.Series = None) -> Dict[str, Any]:
+    """
+    Calculates crypto market regimes based on capital rotation.
+    Expects df with columns: TOTAL_MCAP, BTC_MCAP, TOTAL3_MCAP
+    Can use custom_stables (Series) for better historical coverage.
+    """
+    # 1. Data Prep (Convert to Billions)
+    m_total = df['TOTAL_MCAP'].ffill() / 1e9
+    m_btc = df['BTC_MCAP'].ffill() / 1e9
     
+    # Use custom aggregates if provided, otherwise fallback to STABLE.C
+    if custom_stables is not None:
+        m_stable = custom_stables.ffill().reindex(df.index).fillna(0)
+    else:
+        m_stable = (df['STABLE_INDEX_MCAP'].ffill() / 1e9) if 'STABLE_INDEX_MCAP' in df.columns else pd.Series(0, index=df.index)
+    
+    # Calculate m_risk (Pure Risk Assets: Alts excluding Stables)
+    m_risk = (m_total - m_btc - m_stable).clip(lower=0.1)
+
+    # 2. Transformations (Log-Ratios)
+    rs_risk_btc = np.log(m_risk / m_btc)
+    rs_stable_risk = np.log(m_stable / m_risk)
+
+    # 3. Momentum (30-day change in log-ratios)
+    delta_rs_risk = rs_risk_btc.diff(30)
+    delta_rs_stable = rs_stable_risk.diff(30)
+    
+    # 4. Returns (30-day ROC)
+    r_total = m_total.pct_change(30)
+    r_stable = m_stable.pct_change(30)
+    r_btc = m_btc.pct_change(30)
+
+    # 5. Hierarchical Regime Classification
+    T_CAPITULATION_TOTAL = -0.15
+    T_CAPITULATION_STABLE = -0.01
+    T_MOMENTUM = 0.005
+
+    is_capitulation = (r_total < T_CAPITULATION_TOTAL) & (r_stable < T_CAPITULATION_STABLE)
+    is_stable_refuge = (r_total < 0) & (delta_rs_stable > T_MOMENTUM)
+    is_flight_to_quality = (r_total < 0) & (delta_rs_risk < -T_MOMENTUM)
+    is_alt_season = (delta_rs_risk > T_MOMENTUM) & (r_stable >= 0)
+    is_btc_season = (delta_rs_risk < -T_MOMENTUM) & (r_btc > 0)
+
+    regime = np.where(is_capitulation, "Capitulation",
+             np.where(is_stable_refuge, "Stable Refuge",
+             np.where(is_flight_to_quality, "Flight to Quality",
+             np.where(is_alt_season, "Alt Season",
+             np.where(is_btc_season, "BTC Season", "Side-ways/Neutral")))))
+    
+    regime_series = pd.Series(regime, index=df.index)
+
+    # 6. Altseason Index (CAI)
+    rs_90 = rs_risk_btc.diff(90)
+    rs_90_clean = rs_90.astype(float).replace([np.inf, -np.inf], np.nan)
+    
+    mu = rs_90_clean.expanding(min_periods=90).mean()
+    sd = rs_90_clean.expanding(min_periods=90).std().replace(0, np.nan)
+    z_rs_90 = (rs_90_clean - mu) / sd
+    
+    from scipy.stats import norm
+    cai_raw = pd.Series(norm.cdf(z_rs_90) * 100, index=df.index)
+    cai = cai_raw.rolling(7, min_periods=1).mean()
+
+    # Expand CAI analytics (ROCs, Z-Scores, etc)
+    cai_analytics = calculate_series_analytics(cai)
+
     return {
-        "roc_7d": roc_7d,
-        "roc_30d": roc_30d,
-        "roc_90d": roc_90d,
-        "roc_180d": roc_180d,
-        "roc_365d": roc_365d,
-        "roc_7d_z": roc_7d_z,
-        "roc_30d_z": roc_30d_z,
-        "roc_90d_z": roc_90d_z,
-        "roc_180d_z": roc_180d_z,
-        "roc_365d_z": roc_365d_z,
-        "roc_7d_pct": roc_7d_pct,
-        "roc_30d_pct": roc_30d_pct,
-        "roc_90d_pct": roc_90d_pct,
-        "roc_180d_pct": roc_180d_pct,
-        "roc_365d_pct": roc_365d_pct,
-        # Current values
-        "current_roc_7d": safe_last(roc_7d),
-        "current_roc_30d": safe_last(roc_30d),
-        "current_roc_90d": safe_last(roc_90d),
-        "current_roc_180d": safe_last(roc_180d),
-        "current_roc_365d": safe_last(roc_365d),
-        "current_roc_7d_z": safe_last(roc_7d_z),
-        "current_roc_30d_z": safe_last(roc_30d_z),
-        "current_roc_7d_pct": safe_last(roc_7d_pct),
-        "current_roc_30d_pct": safe_last(roc_30d_pct),
+        "regime": regime_series,
+        "cai": cai,
+        "cai_analytics": cai_analytics,
+        "rs_risk_btc": rs_risk_btc,
+        "delta_rs_risk": delta_rs_risk,
+        "m_risk": m_risk
     }
