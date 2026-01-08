@@ -30,3 +30,4 @@ build/
 plain_txt/
 scripts/
 find_duplicates.js
+.agent/
