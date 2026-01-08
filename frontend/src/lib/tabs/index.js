@@ -14,3 +14,4 @@ export { default as ChartExplorerTab } from './ChartExplorerTab.svelte';
 export { default as FedForecastsTab } from './FedForecastsTab.svelte';
 export { default as RegimesTab } from './RegimesTab.svelte';
 export { default as StableCoinsTab } from './StableCoinsTab.svelte';
+export { default as NarrativesTab } from './NarrativesTab.svelte';

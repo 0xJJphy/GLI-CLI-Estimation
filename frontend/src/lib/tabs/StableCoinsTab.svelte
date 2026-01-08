@@ -111,6 +111,86 @@
     $: dominanceTotal = stablecoinsData.dominance_total || {};
     $: depegEvents = stablecoinsData.depeg_events || [];
 
+    // Dominance data (STABLE.C.D and custom)
+    $: stableIndexDom = stablecoinsData.stable_index_dom || [];
+    $: customStablesDom = stablecoinsData.custom_stables_dom || [];
+    $: individualDoms = stablecoinsData.individual_doms || {};
+
+    // STABLE.C.D Dominance ROCs
+    $: stableIndexDomRoc7d = stablecoinsData.stable_index_dom_roc_7d || [];
+    $: stableIndexDomRoc30d = stablecoinsData.stable_index_dom_roc_30d || [];
+    $: stableIndexDomRoc90d = stablecoinsData.stable_index_dom_roc_90d || [];
+    $: stableIndexDomRoc180d = stablecoinsData.stable_index_dom_roc_180d || [];
+    $: stableIndexDomRocYoy = stablecoinsData.stable_index_dom_roc_yoy || [];
+    // STABLE.C.D Dominance ROC Z-scores and Percentiles
+    $: stableIndexDomRoc7dZ = stablecoinsData.stable_index_dom_roc_7d_z || [];
+    $: stableIndexDomRoc30dZ = stablecoinsData.stable_index_dom_roc_30d_z || [];
+    $: stableIndexDomRoc90dZ = stablecoinsData.stable_index_dom_roc_90d_z || [];
+    $: stableIndexDomRoc7dPct =
+        stablecoinsData.stable_index_dom_roc_7d_pct || [];
+    $: stableIndexDomRoc30dPct =
+        stablecoinsData.stable_index_dom_roc_30d_pct || [];
+    $: stableIndexDomRoc90dPct =
+        stablecoinsData.stable_index_dom_roc_90d_pct || [];
+
+    // Custom Stables Dominance ROCs
+    $: customStablesDomRoc7d = stablecoinsData.custom_stables_dom_roc_7d || [];
+    $: customStablesDomRoc30d =
+        stablecoinsData.custom_stables_dom_roc_30d || [];
+    $: customStablesDomRoc90d =
+        stablecoinsData.custom_stables_dom_roc_90d || [];
+    $: customStablesDomRoc180d =
+        stablecoinsData.custom_stables_dom_roc_180d || [];
+    $: customStablesDomRocYoy =
+        stablecoinsData.custom_stables_dom_roc_yoy || [];
+    // Custom Dominance ROC Z-scores and Percentiles
+    $: customStablesDomRoc7dZ =
+        stablecoinsData.custom_stables_dom_roc_7d_z || [];
+    $: customStablesDomRoc30dZ =
+        stablecoinsData.custom_stables_dom_roc_30d_z || [];
+    $: customStablesDomRoc90dZ =
+        stablecoinsData.custom_stables_dom_roc_90d_z || [];
+    $: customStablesDomRoc7dPct =
+        stablecoinsData.custom_stables_dom_roc_7d_pct || [];
+    $: customStablesDomRoc30dPct =
+        stablecoinsData.custom_stables_dom_roc_30d_pct || [];
+    $: customStablesDomRoc90dPct =
+        stablecoinsData.custom_stables_dom_roc_90d_pct || [];
+
+    let indexDomRocRange = "1Y";
+
+    // Dominance ROC chart state - Two selectors like Total Stablecoin Supply
+    // Dominance Analytics chart state - Two selectors like Total Stablecoin Supply
+    $: domRocPeriods = [
+        { value: "absolute", label: "Dominance (%)" },
+        { value: "7d", label: "ROC 7D" },
+        { value: "30d", label: "ROC 30D" },
+        { value: "90d", label: "ROC 90D" },
+        { value: "180d", label: "ROC 180D" },
+        { value: "yoy", label: "YoY" },
+    ];
+
+    $: domRocViewModes = [
+        { value: "raw", label: t("raw_view", "Raw (%)") },
+        { value: "zscore", label: "Z-Score" },
+        { value: "percentile", label: "Percentile" },
+    ];
+
+    let selectedDomRocPeriod = "absolute"; // absolute, 7d, 30d, 90d, 180d, yoy
+    let selectedDomRocViewMode = "raw"; // raw, zscore, percentile
+    let showDomRocPeriodDropdown = false;
+    let showDomRocViewModeDropdown = false;
+
+    function selectDomRocPeriod(period) {
+        selectedDomRocPeriod = period;
+        showDomRocPeriodDropdown = false;
+    }
+
+    function selectDomRocViewMode(mode) {
+        selectedDomRocViewMode = mode;
+        showDomRocViewModeDropdown = false;
+    }
+
     // BTC data for SFAI chart
     $: btcData = dashboardData.btc?.price || [];
     $: btcDates = dashboardData.dates || [];
@@ -488,6 +568,130 @@
         individualRange,
     );
 
+    // Dominance ROC Chart (based on selected period and view mode)
+    // Helper to get the right data based on period and view mode
+    $: getStableIndexDomData = (period, viewMode) => {
+        if (period === "absolute") return stableIndexDom;
+        if (viewMode === "raw") {
+            return period === "7d"
+                ? stableIndexDomRoc7d
+                : period === "30d"
+                  ? stableIndexDomRoc30d
+                  : period === "90d"
+                    ? stableIndexDomRoc90d
+                    : period === "180d"
+                      ? stableIndexDomRoc180d
+                      : stableIndexDomRocYoy;
+        } else if (viewMode === "zscore") {
+            // Z-scores only available for 7d, 30d, 90d
+            return period === "7d"
+                ? stableIndexDomRoc7dZ
+                : period === "90d"
+                  ? stableIndexDomRoc90dZ
+                  : stableIndexDomRoc30dZ; // default to 30d for 180d/yoy
+        } else {
+            // Percentiles only available for 7d, 30d, 90d
+            return period === "7d"
+                ? stableIndexDomRoc7dPct
+                : period === "90d"
+                  ? stableIndexDomRoc90dPct
+                  : stableIndexDomRoc30dPct; // default to 30d for 180d/yoy
+        }
+    };
+
+    $: getCustomStablesDomData = (period, viewMode) => {
+        if (period === "absolute") return customStablesDom;
+        if (viewMode === "raw") {
+            return period === "7d"
+                ? customStablesDomRoc7d
+                : period === "30d"
+                  ? customStablesDomRoc30d
+                  : period === "90d"
+                    ? customStablesDomRoc90d
+                    : period === "180d"
+                      ? customStablesDomRoc180d
+                      : customStablesDomRocYoy;
+        } else if (viewMode === "zscore") {
+            return period === "7d"
+                ? customStablesDomRoc7dZ
+                : period === "90d"
+                  ? customStablesDomRoc90dZ
+                  : customStablesDomRoc30dZ;
+        } else {
+            return period === "7d"
+                ? customStablesDomRoc7dPct
+                : period === "90d"
+                  ? customStablesDomRoc90dPct
+                  : customStablesDomRoc30dPct;
+        }
+    };
+
+    $: selectedStableRoc = getStableIndexDomData(
+        selectedDomRocPeriod,
+        selectedDomRocViewMode,
+    );
+    $: selectedCustomStablesRoc = getCustomStablesDomData(
+        selectedDomRocPeriod,
+        selectedDomRocViewMode,
+    );
+
+    $: domRocYAxisLabel =
+        selectedDomRocPeriod === "absolute"
+            ? "Dominance (%)"
+            : selectedDomRocViewMode === "zscore"
+              ? "Z-Score"
+              : selectedDomRocViewMode === "percentile"
+                ? "Percentile"
+                : "%";
+
+    $: domRocPeriodLabel =
+        domRocPeriods.find((p) => p.value === selectedDomRocPeriod)?.label ||
+        "";
+
+    $: indexDomRocChartData = filterPlotlyData(
+        [
+            {
+                x: stableDates,
+                y: selectedStableRoc,
+                name:
+                    selectedDomRocPeriod === "absolute"
+                        ? "STABLE.C.D (%)"
+                        : `STABLE.C.D ${domRocPeriodLabel}`,
+                type: "scatter",
+                mode: "lines",
+                line: {
+                    color: "#6366f1",
+                    width: selectedDomRocPeriod === "absolute" ? 2.5 : 2,
+                    shape: "spline",
+                },
+                fill:
+                    selectedDomRocPeriod === "absolute" ? undefined : "tozeroy",
+                fillcolor:
+                    selectedDomRocPeriod === "absolute"
+                        ? undefined
+                        : "rgba(99, 102, 241, 0.1)",
+                visible: "legendonly",
+            },
+            {
+                x: stableDates,
+                y: selectedCustomStablesRoc,
+                name:
+                    selectedDomRocPeriod === "absolute"
+                        ? "Custom Stables Dom (%)"
+                        : `Custom Dom ${domRocPeriodLabel}`,
+                type: "scatter",
+                mode: "lines",
+                line: {
+                    color: "#10b981",
+                    width: selectedDomRocPeriod === "absolute" ? 2.5 : 2,
+                    shape: "spline",
+                },
+            },
+        ],
+        stableDates,
+        indexDomRocRange,
+    );
+
     // Growth table data (sorted by 30d growth)
     $: growthTableData = Object.entries(growth)
         .map(([name, g]) => ({
@@ -698,6 +902,113 @@
                         "stablecoins_no_individual_data",
                         "No individual stablecoin data",
                     )}
+                </div>
+            {/if}
+        </div>
+    </div>
+
+    <!-- Dominance Analytics Chart -->
+    <div class="chart-card full-width">
+        <div class="chart-header">
+            <h3>
+                {selectedDomRocPeriod === "absolute"
+                    ? t("stablecoins_index_dom", "Stablecoin Index Dominance")
+                    : t("stablecoins_dom_roc", "Dominance Rate of Change")}
+            </h3>
+            <div class="header-controls">
+                <!-- Data Mode Dropdown (Absolute vs ROC) -->
+                <div
+                    class="custom-dropdown"
+                    class:active={showDomRocPeriodDropdown}
+                >
+                    <button
+                        class="dropdown-trigger small"
+                        class:light={!darkMode}
+                        on:click={() =>
+                            (showDomRocPeriodDropdown =
+                                !showDomRocPeriodDropdown)}
+                    >
+                        {domRocPeriods.find(
+                            (p) => p.value === selectedDomRocPeriod,
+                        )?.label}
+                        <span class="arrow">▾</span>
+                    </button>
+                    {#if showDomRocPeriodDropdown}
+                        <div class="dropdown-menu" class:light={!darkMode}>
+                            {#each domRocPeriods as period}
+                                <button
+                                    class="dropdown-item"
+                                    class:selected={selectedDomRocPeriod ===
+                                        period.value}
+                                    on:click={() =>
+                                        selectDomRocPeriod(period.value)}
+                                >
+                                    {period.label}
+                                    {#if selectedDomRocPeriod === period.value}
+                                        <span class="check">✓</span>
+                                    {/if}
+                                </button>
+                            {/each}
+                        </div>
+                    {/if}
+                </div>
+                <!-- View Mode Dropdown (Raw, Z-Score, Percentile) - Only for ROC modes -->
+                {#if selectedDomRocPeriod !== "absolute"}
+                    <div
+                        class="custom-dropdown"
+                        class:active={showDomRocViewModeDropdown}
+                    >
+                        <button
+                            class="dropdown-trigger small"
+                            class:light={!darkMode}
+                            on:click={() =>
+                                (showDomRocViewModeDropdown =
+                                    !showDomRocViewModeDropdown)}
+                        >
+                            {domRocViewModes.find(
+                                (m) => m.value === selectedDomRocViewMode,
+                            )?.label}
+                            <span class="arrow">▾</span>
+                        </button>
+                        {#if showDomRocViewModeDropdown}
+                            <div class="dropdown-menu" class:light={!darkMode}>
+                                {#each domRocViewModes as mode}
+                                    <button
+                                        class="dropdown-item"
+                                        class:selected={selectedDomRocViewMode ===
+                                            mode.value}
+                                        on:click={() =>
+                                            selectDomRocViewMode(mode.value)}
+                                    >
+                                        {mode.label}
+                                        {#if selectedDomRocViewMode === mode.value}
+                                            <span class="check">✓</span>
+                                        {/if}
+                                    </button>
+                                {/each}
+                            </div>
+                        {/if}
+                    </div>
+                {/if}
+                <TimeRangeSelector
+                    selectedRange={indexDomRocRange}
+                    onRangeChange={(r) => (indexDomRocRange = r)}
+                />
+            </div>
+        </div>
+        <div class="chart-content">
+            {#if indexDomRocChartData && indexDomRocChartData.length > 0}
+                <Chart
+                    data={indexDomRocChartData}
+                    layout={{
+                        title: "",
+                        yaxis: { title: domRocYAxisLabel },
+                    }}
+                    {darkMode}
+                />
+            {:else}
+                <div class="no-data">
+                    {t("stablecoins_no_roc_data", "No data available")}
                 </div>
             {/if}
         </div>

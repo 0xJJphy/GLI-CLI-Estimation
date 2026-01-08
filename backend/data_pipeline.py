@@ -38,10 +38,21 @@ from treasury_refinancing_signal import get_treasury_refinancing_signal
 # Import Offshore Dollar Liquidity module
 from offshore_liquidity import get_offshore_liquidity_output
 
+# Import Crypto Narratives & Rotation module
+from crypto_analytics import (
+    fetch_fear_and_greed,
+    calculate_crypto_regimes,
+    calculate_narratives,
+    calculate_fng_analytics
+)
+
 # Helper functions for JSON serialization and date handling
 def clean_for_json(obj):
     if isinstance(obj, pd.Series):
-        # Return None (null in JSON) instead of 0 for NaN/Inf to avoid invalid JSON
+        # Handle string/object series separately
+        if obj.dtype == object:
+            return [x if pd.notnull(x) else None for x in obj.tolist()]
+        # Return None (null in JSON) instead of 0 for NaN/Inf to avoid invalid JSON for numeric series
         return [float(x) if pd.notnull(x) and np.isfinite(x) else None for x in obj.tolist()]
     elif isinstance(obj, dict):
         return {k: clean_for_json(v) for k, v in obj.items()}
@@ -1608,6 +1619,24 @@ TV_CONFIG = {
     'TOTAL': ('CRYPTOCAP', 'TOTAL_MCAP'),     # Total Crypto Market Cap
     
     # ==========================================================
+    # STABLECOIN INDICES (TradingView Aggregated)
+    # ==========================================================
+    'STABLE.C': ('CRYPTOCAP', 'STABLE_INDEX_MCAP'),           # Top 100 Stablecoins Market Cap
+    'FIATSTABLE.C': ('CRYPTOCAP', 'FIATSTABLE_INDEX_MCAP'),   # Top 100 Fiat-Backed Stablecoins Market Cap
+    'STABLE.C.D': ('CRYPTOCAP', 'STABLE_INDEX_DOM'),          # STABLE.C Dominance %
+    
+    # ==========================================================
+    # STABLECOIN DOMINANCE (Individual .D symbols for custom index)
+    # ==========================================================
+    'USDT.D': ('CRYPTOCAP', 'USDT_DOM'),       # Tether Dominance
+    'USDC.D': ('CRYPTOCAP', 'USDC_DOM'),       # USD Coin Dominance
+    'DAI.D': ('CRYPTOCAP', 'DAI_DOM'),         # DAI Dominance
+    'FDUSD.D': ('CRYPTOCAP', 'FDUSD_DOM'),     # First Digital USD Dominance
+    'USDEE.D': ('CRYPTOCAP', 'USDEE_DOM'),     # Ethena USDe Dominance (ticker USDEE)
+    'USDD.D': ('CRYPTOCAP', 'USDD_DOM'),       # USDD Dominance
+    'PYUSD.D': ('CRYPTOCAP', 'PYUSD_DOM'),     # PayPal USD Dominance
+    
+    # ==========================================================
     # STABLECOINS - Prices (for depeg detection)
     # ==========================================================
     'USDTUSD': ('KRAKEN', 'USDT_PRICE'),      # USDT/USD Price
@@ -1620,8 +1649,35 @@ TV_CONFIG = {
     'USD1USD': ('KRAKEN', 'USD1W_PRICE'),    # World Liberty Financial (USD1)
     'RLUSDUSD': ('KRAKEN', 'RLUSD_PRICE'),    # Ripple USD
     'USDGUSD': ('KRAKEN', 'USDG_PRICE'),      # Global Dollar
+    'USDGG.D': ('CRYPTOCAP', 'USDG_DOM'),      # Global Dollar Dominance
 
+    # ==========================================================
+    # MARKET CAPS & DOMINANCE (Narratives & Ecosystems)
+    # ==========================================================
+    'BTC': ('CRYPTOCAP', 'BTC_MCAP'),         # Bitcoin Market Cap
+    'ETH': ('CRYPTOCAP', 'ETH_MCAP'),         # Ethereum Market Cap
+    'TOTAL2': ('CRYPTOCAP', 'TOTAL2_MCAP'),   # Total Excluding BTC
+    'TOTAL3': ('CRYPTOCAP', 'TOTAL3_MCAP'),   # Total Excluding BTC/ETH
+    'BTC.D': ('CRYPTOCAP', 'BTC_DOM'),         # BTC Dominance
+    'ETH.D': ('CRYPTOCAP', 'ETH_DOM'),         # ETH Dominance
+    'OTHERS.D': ('CRYPTOCAP', 'OTHERS_DOM'),   # Others Dominance
+    
+    # Narratives
+    'TOTALDEFI': ('CRYPTOCAP', 'DEFI_MCAP'),   # DeFi Index
+    'TOTALDEFI.D': ('CRYPTOCAP', 'DEFI_DOM'),  # DeFi Dominance
+    'MEME.C': ('CRYPTOCAP', 'MEME_MCAP'),      # Meme Coins Index
+    'AI.C': ('CRYPTOCAP', 'AI_MCAP'),          # AI Index
+    'LAYER1.C': ('CRYPTOCAP', 'LAYER1_MCAP'),  # Layer 1 Index
+    'DEPIN.C': ('CRYPTOCAP', 'DEPIN_MCAP'),    # DePIN Index
+    'RWA.C': ('CRYPTOCAP', 'RWA_MCAP'),        # RWA Index
+    
+    # Ecosystems
+    'ETHEREUM.C': ('CRYPTOCAP', 'ETH_ECO_MCAP'), # Ethereum Ecosystem
+    'SOLANA.C': ('CRYPTOCAP', 'SOL_ECO_MCAP'),   # Solana Ecosystem
+    'BNBCHAIN.C': ('CRYPTOCAP', 'BNB_ECO_MCAP'), # BNB Ecosystem
+    'POLKADOT.C': ('CRYPTOCAP', 'DOT_ECO_MCAP'), # Polkadot Ecosystem
 }
+
 
 # ============================================================
 # DATA FETCHING
@@ -2343,10 +2399,11 @@ def calculate_stablecoins(df: pd.DataFrame) -> dict:
     # Calculate total stablecoin supply
     if available_mcaps:
         total_df = pd.DataFrame(available_mcaps)
-        result['total'] = total_df.sum(axis=1, min_count=1).tolist()
+        total_series = total_df.sum(axis=1, min_count=1)
+        result['total'] = total_series.tolist()
+        result['total_series'] = total_series # For internal use in regimes
         
         # Calculate dominance (market share %)
-        total_series = total_df.sum(axis=1, min_count=1)
         for name, series in available_mcaps.items():
             # Local dominance (share of stablecoins)
             dominance_stables = (series / total_series.replace(0, np.nan)) * 100
@@ -2522,6 +2579,153 @@ def calculate_stablecoins(df: pd.DataFrame) -> dict:
     
     # Sort depeg events by date (ascending - natural order for time series)
     result['depeg_events'].sort(key=lambda x: x['date'], reverse=False)
+    
+    # ========================================
+    # STABLECOIN INDICES (TradingView STABLE.C, FIATSTABLE.C)
+    # ========================================
+    
+    # Helper function to calculate ROC series
+    def calc_roc(series, period):
+        """Calculate Rate of Change as percentage."""
+        return ((series / series.shift(period) - 1) * 100)
+    
+    # Helper function for Z-score
+    def calc_zscore(series, window=252):
+        mean = series.rolling(window, min_periods=window//2).mean()
+        std = series.rolling(window, min_periods=window//2).std()
+        return ((series - mean) / std.replace(0, np.nan))
+    
+    # Helper for percentile rank
+    def calc_percentile(series, window=252):
+        def percentile_rank(arr):
+            if len(arr) < window // 2:
+                return np.nan
+            current = arr[-1]
+            if np.isnan(current):
+                return np.nan
+            valid = arr[~np.isnan(arr)]
+            if len(valid) < window // 2:
+                return np.nan
+            rank = (valid < current).sum() + 0.5 * (valid == current).sum()
+            return 100 * rank / len(valid)
+        return series.rolling(window, min_periods=window//2).apply(percentile_rank, raw=True)
+    
+    # STABLE.C Index (Top 100 Stablecoins)
+    if 'STABLE_INDEX_MCAP' in df.columns and df['STABLE_INDEX_MCAP'].notna().sum() > 0:
+        stable_index = df['STABLE_INDEX_MCAP'].ffill() / 1e9  # Convert to billions
+        result['stable_index'] = stable_index.tolist()
+        
+        # ROC metrics for STABLE.C (like Total Supply)
+        result['stable_index_roc_7d'] = calc_roc(stable_index, 7).tolist()
+        result['stable_index_roc_30d'] = calc_roc(stable_index, 30).tolist()
+        result['stable_index_roc_90d'] = calc_roc(stable_index, 90).tolist()
+        result['stable_index_roc_180d'] = calc_roc(stable_index, 180).tolist()
+        result['stable_index_roc_yoy'] = calc_roc(stable_index, 365).tolist()
+        
+        # Z-scores for STABLE.C ROCs
+        result['stable_index_roc_7d_z'] = calc_zscore(calc_roc(stable_index, 7), 252).tolist()
+        result['stable_index_roc_30d_z'] = calc_zscore(calc_roc(stable_index, 30), 252).tolist()
+        result['stable_index_roc_90d_z'] = calc_zscore(calc_roc(stable_index, 90), 504).tolist()
+        
+        # Percentiles for STABLE.C ROCs
+        result['stable_index_roc_7d_pct'] = calc_percentile(calc_roc(stable_index, 7), 252).tolist()
+        result['stable_index_roc_30d_pct'] = calc_percentile(calc_roc(stable_index, 30), 252).tolist()
+        result['stable_index_roc_90d_pct'] = calc_percentile(calc_roc(stable_index, 90), 504).tolist()
+    
+    # FIATSTABLE.C Index (Top 100 Fiat-Backed Stablecoins) - Market Cap only
+    if 'FIATSTABLE_INDEX_MCAP' in df.columns and df['FIATSTABLE_INDEX_MCAP'].notna().sum() > 0:
+        fiatstable_index = df['FIATSTABLE_INDEX_MCAP'].ffill() / 1e9  # Convert to billions
+        result['fiatstable_index'] = fiatstable_index.tolist()
+        
+        # ROC metrics for FIATSTABLE.C
+        result['fiatstable_index_roc_7d'] = calc_roc(fiatstable_index, 7).tolist()
+        result['fiatstable_index_roc_30d'] = calc_roc(fiatstable_index, 30).tolist()
+        result['fiatstable_index_roc_90d'] = calc_roc(fiatstable_index, 90).tolist()
+        result['fiatstable_index_roc_180d'] = calc_roc(fiatstable_index, 180).tolist()
+        result['fiatstable_index_roc_yoy'] = calc_roc(fiatstable_index, 365).tolist()
+        
+        # Z-scores for FIATSTABLE.C ROCs
+        result['fiatstable_index_roc_7d_z'] = calc_zscore(calc_roc(fiatstable_index, 7), 252).tolist()
+        result['fiatstable_index_roc_30d_z'] = calc_zscore(calc_roc(fiatstable_index, 30), 252).tolist()
+        result['fiatstable_index_roc_90d_z'] = calc_zscore(calc_roc(fiatstable_index, 90), 504).tolist()
+        
+        # Percentiles for FIATSTABLE.C ROCs
+        result['fiatstable_index_roc_7d_pct'] = calc_percentile(calc_roc(fiatstable_index, 7), 252).tolist()
+        result['fiatstable_index_roc_30d_pct'] = calc_percentile(calc_roc(fiatstable_index, 30), 252).tolist()
+        result['fiatstable_index_roc_90d_pct'] = calc_percentile(calc_roc(fiatstable_index, 90), 504).tolist()
+    
+    # STABLE.C.D Dominance (pre-calculated by TradingView)
+    if 'STABLE_INDEX_DOM' in df.columns and df['STABLE_INDEX_DOM'].notna().sum() > 0:
+        stable_dom = df['STABLE_INDEX_DOM'].ffill()
+        result['stable_index_dom'] = stable_dom.tolist()
+        
+        # Calculate ROCs for STABLE.C dominance
+        stable_dom_roc_7d = calc_roc(stable_dom, 7)
+        stable_dom_roc_30d = calc_roc(stable_dom, 30)
+        stable_dom_roc_90d = calc_roc(stable_dom, 90)
+        stable_dom_roc_180d = calc_roc(stable_dom, 180)
+        stable_dom_roc_yoy = calc_roc(stable_dom, 365)
+        
+        result['stable_index_dom_roc_7d'] = stable_dom_roc_7d.tolist()
+        result['stable_index_dom_roc_30d'] = stable_dom_roc_30d.tolist()
+        result['stable_index_dom_roc_90d'] = stable_dom_roc_90d.tolist()
+        result['stable_index_dom_roc_180d'] = stable_dom_roc_180d.tolist()
+        result['stable_index_dom_roc_yoy'] = stable_dom_roc_yoy.tolist()
+        
+        # Z-scores for STABLE.C.D ROCs
+        result['stable_index_dom_roc_7d_z'] = calc_zscore(stable_dom_roc_7d, 252).tolist()
+        result['stable_index_dom_roc_30d_z'] = calc_zscore(stable_dom_roc_30d, 252).tolist()
+        result['stable_index_dom_roc_90d_z'] = calc_zscore(stable_dom_roc_90d, 504).tolist()
+        
+        # Percentiles for STABLE.C.D ROCs
+        result['stable_index_dom_roc_7d_pct'] = calc_percentile(stable_dom_roc_7d, 252).tolist()
+        result['stable_index_dom_roc_30d_pct'] = calc_percentile(stable_dom_roc_30d, 252).tolist()
+        result['stable_index_dom_roc_90d_pct'] = calc_percentile(stable_dom_roc_90d, 504).tolist()
+    
+    # ========================================
+    # CUSTOM DOMINANCE INDEX (Sum of individual stablecoin .D symbols)
+    # ========================================
+    dom_symbols = ['USDT_DOM', 'USDC_DOM', 'DAI_DOM', 'FDUSD_DOM', 'USDEE_DOM', 'USDD_DOM', 'PYUSD_DOM']
+    available_doms = {}
+    
+    for col in dom_symbols:
+        if col in df.columns and df[col].notna().sum() > 0:
+            available_doms[col] = df[col].ffill()
+    
+    if available_doms:
+        # Custom dominance = sum of individual stablecoin dominances
+        custom_dom_df = pd.DataFrame(available_doms)
+        custom_dom = custom_dom_df.sum(axis=1, min_count=1)
+        result['custom_stables_dom'] = custom_dom.tolist()
+        
+        # Individual dominance breakdown
+        result['individual_doms'] = {
+            name.replace('_DOM', ''): values.tolist() 
+            for name, values in available_doms.items()
+        }
+        
+        # Calculate ROCs for custom dominance
+        custom_dom_roc_7d = calc_roc(custom_dom, 7)
+        custom_dom_roc_30d = calc_roc(custom_dom, 30)
+        custom_dom_roc_90d = calc_roc(custom_dom, 90)
+        custom_dom_roc_180d = calc_roc(custom_dom, 180)
+        custom_dom_roc_yoy = calc_roc(custom_dom, 365)
+        
+        result['custom_stables_dom_roc_7d'] = custom_dom_roc_7d.tolist()
+        result['custom_stables_dom_roc_30d'] = custom_dom_roc_30d.tolist()
+        result['custom_stables_dom_roc_90d'] = custom_dom_roc_90d.tolist()
+        result['custom_stables_dom_roc_180d'] = custom_dom_roc_180d.tolist()
+        result['custom_stables_dom_roc_yoy'] = custom_dom_roc_yoy.tolist()
+        
+        # Z-scores for custom dominance ROCs
+        result['custom_stables_dom_roc_7d_z'] = calc_zscore(custom_dom_roc_7d, 252).tolist()
+        result['custom_stables_dom_roc_30d_z'] = calc_zscore(custom_dom_roc_30d, 252).tolist()
+        result['custom_stables_dom_roc_90d_z'] = calc_zscore(custom_dom_roc_90d, 504).tolist()
+        
+        # Percentiles for custom dominance ROCs
+        result['custom_stables_dom_roc_7d_pct'] = calc_percentile(custom_dom_roc_7d, 252).tolist()
+        result['custom_stables_dom_roc_30d_pct'] = calc_percentile(custom_dom_roc_30d, 252).tolist()
+        result['custom_stables_dom_roc_90d_pct'] = calc_percentile(custom_dom_roc_90d, 504).tolist()
     
     return result
 
@@ -3775,9 +3979,8 @@ def run_pipeline():
         
         print(f"  -> Fetched {symbols_fetched} symbols, used cache for {symbols_cached} symbols")
     
-    df_tv_t = pd.DataFrame(index=pd.concat(raw_tv.values()).index.unique() if raw_tv else []).sort_index()
-    if raw_tv:
-        for name, s in raw_tv.items(): df_tv_t[name] = s
+    df_tv_t = pd.DataFrame(raw_tv).sort_index() if raw_tv else pd.DataFrame()
+    if not df_tv_t.empty:
         
         # Only ffill for most series. bfill ONLY for FX rates as they are denominators.
         # All FX rates from TV_CONFIG matching PineScript
@@ -3977,6 +4180,22 @@ def run_pipeline():
 
         # Stablecoin Analytics
         stablecoins_data = calculate_stablecoins(df_t)
+
+        # Crypto Narratives & Market Regimes
+        # Pass custom aggregate stablecoin supply Series for better historical regimes
+        custom_stables_series = stablecoins_data.get('total_series')
+        crypto_analytics = calculate_crypto_regimes(df_t, custom_stables=custom_stables_series)
+        narratives_data = calculate_narratives(df_t, crypto_analytics['m_risk'])
+        fng_series = fetch_fear_and_greed()
+        
+        # Align F&G with df_t index
+        if not fng_series.empty:
+            df_t['FEAR_GREED'] = fng_series.reindex(df_t.index).ffill()
+        else:
+            df_t['FEAR_GREED'] = pd.Series(np.nan, index=df_t.index)
+        
+        # F&G Analytics (ROCs, Z-Scores, Percentiles)
+        fng_analytics = calculate_fng_analytics(df_t['FEAR_GREED'])
 
         # Fed Forecasts: FOMC Calendar and Dot Plot
         fomc_dates = fetch_fomc_calendar()
@@ -4307,6 +4526,51 @@ def run_pipeline():
             'baa_yield': clean_for_json(df_t.get('BAA_YIELD', pd.Series(dtype=float))),
             'aaa_yield': clean_for_json(df_t.get('AAA_YIELD', pd.Series(dtype=float))),
             'baa_aaa_spread': clean_for_json(df_t.get('BAA_YIELD', 0) - df_t.get('AAA_YIELD', 0)),
+            # Crypto Narratives & Market Regimes
+            'crypto_narratives': {
+                'regimes': clean_for_json(crypto_analytics['regime']),
+                'cai': clean_for_json(crypto_analytics['cai']),
+                'fear_greed': clean_for_json(df_t['FEAR_GREED']),
+                'fng_roc_7d': clean_for_json(fng_analytics.get('roc_7d', pd.Series(dtype=float))),
+                'fng_roc_30d': clean_for_json(fng_analytics.get('roc_30d', pd.Series(dtype=float))),
+                'fng_roc_90d': clean_for_json(fng_analytics.get('roc_90d', pd.Series(dtype=float))),
+                'fng_roc_180d': clean_for_json(fng_analytics.get('roc_180d', pd.Series(dtype=float))),
+                'fng_roc_365d': clean_for_json(fng_analytics.get('roc_365d', pd.Series(dtype=float))),
+                'fng_roc_7d_z': clean_for_json(fng_analytics.get('roc_7d_z', pd.Series(dtype=float))),
+                'fng_roc_30d_z': clean_for_json(fng_analytics.get('roc_30d_z', pd.Series(dtype=float))),
+                'fng_roc_90d_z': clean_for_json(fng_analytics.get('roc_90d_z', pd.Series(dtype=float))),
+                'fng_roc_180d_z': clean_for_json(fng_analytics.get('roc_180d_z', pd.Series(dtype=float))),
+                'fng_roc_365d_z': clean_for_json(fng_analytics.get('roc_365d_z', pd.Series(dtype=float))),
+                'fng_roc_7d_pct': clean_for_json(fng_analytics.get('roc_7d_pct', pd.Series(dtype=float))),
+                'fng_roc_30d_pct': clean_for_json(fng_analytics.get('roc_30d_pct', pd.Series(dtype=float))),
+                'fng_roc_90d_pct': clean_for_json(fng_analytics.get('roc_90d_pct', pd.Series(dtype=float))),
+                'fng_roc_180d_pct': clean_for_json(fng_analytics.get('roc_180d_pct', pd.Series(dtype=float))),
+                'fng_roc_365d_pct': clean_for_json(fng_analytics.get('roc_365d_pct', pd.Series(dtype=float))),
+                'fng_current': {
+                    'roc_7d': fng_analytics.get('current_roc_7d'),
+                    'roc_30d': fng_analytics.get('current_roc_30d'),
+                    'roc_90d': fng_analytics.get('current_roc_90d'),
+                    'roc_180d': fng_analytics.get('current_roc_180d'),
+                    'roc_365d': fng_analytics.get('current_roc_365d'),
+                    'roc_7d_z': fng_analytics.get('current_roc_7d_z'),
+                    'roc_30d_z': fng_analytics.get('current_roc_30d_z'),
+                    'roc_7d_pct': fng_analytics.get('current_roc_7d_pct'),
+                    'roc_30d_pct': fng_analytics.get('current_roc_30d_pct'),
+                },
+                'rs_risk_btc': clean_for_json(crypto_analytics['rs_risk_btc']),
+                'delta_rs_risk': clean_for_json(crypto_analytics['delta_rs_risk']),
+                'narratives': clean_for_json(narratives_data),
+                'defi_dominance': clean_for_json(df_t.get('DEFI_DOM', pd.Series(dtype=float))),
+                # Crypto Stats for Cards
+                'total_mcap': clean_for_json(df_t.get('TOTAL_MCAP', pd.Series(dtype=float)) / 1e9),  # Billions
+                'btc_mcap': clean_for_json(df_t.get('BTC_MCAP', pd.Series(dtype=float)) / 1e9),
+                'eth_mcap': clean_for_json(df_t.get('ETH_MCAP', pd.Series(dtype=float)) / 1e9),
+                'btc_dom': clean_for_json(df_t.get('BTC_DOM', pd.Series(dtype=float))),
+                'eth_dom': clean_for_json(df_t.get('ETH_DOM', pd.Series(dtype=float))),
+                'others_dom': clean_for_json(df_t.get('OTHERS_DOM', pd.Series(dtype=float))),
+                'stablecoin_supply': clean_for_json(stablecoins_data.get('total', [])),
+                'stablecoin_dominance': clean_for_json(stablecoins_data.get('total_dominance', [])),
+            },
             # Central Bank Liquidity Swaps
             'cb_liq_swaps': clean_for_json(df_t.get('CB_LIQ_SWAPS', pd.Series(dtype=float))),
             # TIPS / Inflation Expectations
@@ -4487,6 +4751,62 @@ def run_pipeline():
                 'dominance': {k: clean_for_json(v) for k, v in stablecoins_data.get('dominance', {}).items()},
                 'dominance_total': {k: clean_for_json(v) for k, v in stablecoins_data.get('dominance_total', {}).items()},
                 'depeg_events': clean_for_json(stablecoins_data.get('depeg_events', [])[-1000:]),  # Take LATEST 1000 events
+                # TradingView Stablecoin Indices (STABLE.C, FIATSTABLE.C)
+                'stable_index': clean_for_json(stablecoins_data.get('stable_index', [])),
+                'fiatstable_index': clean_for_json(stablecoins_data.get('fiatstable_index', [])),
+                # STABLE.C ROC metrics (like Total Supply)
+                'stable_index_roc_7d': clean_for_json(stablecoins_data.get('stable_index_roc_7d', [])),
+                'stable_index_roc_30d': clean_for_json(stablecoins_data.get('stable_index_roc_30d', [])),
+                'stable_index_roc_90d': clean_for_json(stablecoins_data.get('stable_index_roc_90d', [])),
+                'stable_index_roc_180d': clean_for_json(stablecoins_data.get('stable_index_roc_180d', [])),
+                'stable_index_roc_yoy': clean_for_json(stablecoins_data.get('stable_index_roc_yoy', [])),
+                'stable_index_roc_7d_z': clean_for_json(stablecoins_data.get('stable_index_roc_7d_z', [])),
+                'stable_index_roc_30d_z': clean_for_json(stablecoins_data.get('stable_index_roc_30d_z', [])),
+                'stable_index_roc_90d_z': clean_for_json(stablecoins_data.get('stable_index_roc_90d_z', [])),
+                'stable_index_roc_7d_pct': clean_for_json(stablecoins_data.get('stable_index_roc_7d_pct', [])),
+                'stable_index_roc_30d_pct': clean_for_json(stablecoins_data.get('stable_index_roc_30d_pct', [])),
+                'stable_index_roc_90d_pct': clean_for_json(stablecoins_data.get('stable_index_roc_90d_pct', [])),
+                # FIATSTABLE.C ROC metrics
+                'fiatstable_index_roc_7d': clean_for_json(stablecoins_data.get('fiatstable_index_roc_7d', [])),
+                'fiatstable_index_roc_30d': clean_for_json(stablecoins_data.get('fiatstable_index_roc_30d', [])),
+                'fiatstable_index_roc_90d': clean_for_json(stablecoins_data.get('fiatstable_index_roc_90d', [])),
+                'fiatstable_index_roc_180d': clean_for_json(stablecoins_data.get('fiatstable_index_roc_180d', [])),
+                'fiatstable_index_roc_yoy': clean_for_json(stablecoins_data.get('fiatstable_index_roc_yoy', [])),
+                'fiatstable_index_roc_7d_z': clean_for_json(stablecoins_data.get('fiatstable_index_roc_7d_z', [])),
+                'fiatstable_index_roc_30d_z': clean_for_json(stablecoins_data.get('fiatstable_index_roc_30d_z', [])),
+                'fiatstable_index_roc_90d_z': clean_for_json(stablecoins_data.get('fiatstable_index_roc_90d_z', [])),
+                'fiatstable_index_roc_7d_pct': clean_for_json(stablecoins_data.get('fiatstable_index_roc_7d_pct', [])),
+                'fiatstable_index_roc_30d_pct': clean_for_json(stablecoins_data.get('fiatstable_index_roc_30d_pct', [])),
+                'fiatstable_index_roc_90d_pct': clean_for_json(stablecoins_data.get('fiatstable_index_roc_90d_pct', [])),
+                # STABLE.C.D Dominance (from TradingView)
+                'stable_index_dom': clean_for_json(stablecoins_data.get('stable_index_dom', [])),
+                'stable_index_dom_roc_7d': clean_for_json(stablecoins_data.get('stable_index_dom_roc_7d', [])),
+                'stable_index_dom_roc_30d': clean_for_json(stablecoins_data.get('stable_index_dom_roc_30d', [])),
+                'stable_index_dom_roc_90d': clean_for_json(stablecoins_data.get('stable_index_dom_roc_90d', [])),
+                'stable_index_dom_roc_180d': clean_for_json(stablecoins_data.get('stable_index_dom_roc_180d', [])),
+                'stable_index_dom_roc_yoy': clean_for_json(stablecoins_data.get('stable_index_dom_roc_yoy', [])),
+                # STABLE.C.D dominance ROC Z-scores and percentiles
+                'stable_index_dom_roc_7d_z': clean_for_json(stablecoins_data.get('stable_index_dom_roc_7d_z', [])),
+                'stable_index_dom_roc_30d_z': clean_for_json(stablecoins_data.get('stable_index_dom_roc_30d_z', [])),
+                'stable_index_dom_roc_90d_z': clean_for_json(stablecoins_data.get('stable_index_dom_roc_90d_z', [])),
+                'stable_index_dom_roc_7d_pct': clean_for_json(stablecoins_data.get('stable_index_dom_roc_7d_pct', [])),
+                'stable_index_dom_roc_30d_pct': clean_for_json(stablecoins_data.get('stable_index_dom_roc_30d_pct', [])),
+                'stable_index_dom_roc_90d_pct': clean_for_json(stablecoins_data.get('stable_index_dom_roc_90d_pct', [])),
+                # Custom Stables Dominance (sum of individual .D symbols)
+                'custom_stables_dom': clean_for_json(stablecoins_data.get('custom_stables_dom', [])),
+                'individual_doms': {k: clean_for_json(v) for k, v in stablecoins_data.get('individual_doms', {}).items()},
+                'custom_stables_dom_roc_7d': clean_for_json(stablecoins_data.get('custom_stables_dom_roc_7d', [])),
+                'custom_stables_dom_roc_30d': clean_for_json(stablecoins_data.get('custom_stables_dom_roc_30d', [])),
+                'custom_stables_dom_roc_90d': clean_for_json(stablecoins_data.get('custom_stables_dom_roc_90d', [])),
+                'custom_stables_dom_roc_180d': clean_for_json(stablecoins_data.get('custom_stables_dom_roc_180d', [])),
+                'custom_stables_dom_roc_yoy': clean_for_json(stablecoins_data.get('custom_stables_dom_roc_yoy', [])),
+                # Custom dominance ROC Z-scores and percentiles
+                'custom_stables_dom_roc_7d_z': clean_for_json(stablecoins_data.get('custom_stables_dom_roc_7d_z', [])),
+                'custom_stables_dom_roc_30d_z': clean_for_json(stablecoins_data.get('custom_stables_dom_roc_30d_z', [])),
+                'custom_stables_dom_roc_90d_z': clean_for_json(stablecoins_data.get('custom_stables_dom_roc_90d_z', [])),
+                'custom_stables_dom_roc_7d_pct': clean_for_json(stablecoins_data.get('custom_stables_dom_roc_7d_pct', [])),
+                'custom_stables_dom_roc_30d_pct': clean_for_json(stablecoins_data.get('custom_stables_dom_roc_30d_pct', [])),
+                'custom_stables_dom_roc_90d_pct': clean_for_json(stablecoins_data.get('custom_stables_dom_roc_90d_pct', [])),
             },
             'treasury_maturities': get_treasury_maturity_data(120),
             'treasury_auction_demand': fetch_treasury_auction_demand(silent=True),
