@@ -1163,10 +1163,10 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 20px 24px;
-        margin-bottom: 20px;
+        padding: 24px;
+        margin-bottom: 32px;
         background: var(--bg-secondary);
-        border-radius: 12px;
+        border-radius: 16px;
         border: 1px solid var(--border-color);
     }
     .tab-header.light {
@@ -1211,20 +1211,12 @@
         display: grid;
         grid-template-columns: repeat(2, 1fr);
         gap: 20px;
+        padding: 0;
     }
 
-    .chart-card {
-        background: var(--bg-secondary);
-        border: 1px solid var(--border-color);
-        border-radius: 12px;
-        padding: 20px;
-    }
+    /* Use global .chart-card styles */
     .chart-card.full-width {
         grid-column: 1 / -1;
-    }
-    .light .chart-card {
-        background: #ffffff;
-        border-color: #e2e8f0;
     }
 
     .chart-header {
@@ -1500,7 +1492,7 @@
         }
         .tab-header {
             flex-direction: column;
-            align-items: flex-start;
+            align-items: flex-start !important;
             gap: 16px;
         }
         .header-stats {

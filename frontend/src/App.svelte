@@ -2732,92 +2732,118 @@
 
     <div class="dashboard-grid">
       {#if currentTab === "Dashboard"}
-        <DashboardTab />
+        <div class="tab-content"><DashboardTab /></div>
       {:else if currentTab === "Global Flows CB"}
-        <GlobalFlowsCbTab
-          darkMode={$darkMode}
-          translations={$currentTranslations}
-          dashboardData={$dashboardData}
-        />
+        <div class="tab-content">
+          <GlobalFlowsCbTab
+            darkMode={$darkMode}
+            translations={$currentTranslations}
+            dashboardData={$dashboardData}
+          />
+        </div>
       {:else if currentTab === "Global M2"}
-        <GlobalM2Tab
-          darkMode={$darkMode}
-          translations={$currentTranslations}
-          dashboardData={$dashboardData}
-        />
+        <div class="tab-content">
+          <GlobalM2Tab
+            darkMode={$darkMode}
+            translations={$currentTranslations}
+            dashboardData={$dashboardData}
+          />
+        </div>
       {:else if currentTab === "US System"}
-        <UsSystemTab
-          darkMode={$darkMode}
-          language={$language}
-          translations={$currentTranslations}
-          dashboardData={$dashboardData}
-        />
+        <div class="tab-content">
+          <UsSystemTab
+            darkMode={$darkMode}
+            language={$language}
+            translations={$currentTranslations}
+            dashboardData={$dashboardData}
+          />
+        </div>
       {:else if currentTab === "US Debt"}
-        <UsDebtTab
-          darkMode={$darkMode}
-          translations={$currentTranslations}
-          dashboardData={$dashboardData}
-        />
+        <div class="tab-content">
+          <UsDebtTab
+            darkMode={$darkMode}
+            translations={$currentTranslations}
+            dashboardData={$dashboardData}
+          />
+        </div>
       {:else if currentTab === "Risk Model"}
-        <RiskModelTab
-          darkMode={$darkMode}
-          language={$language}
-          translations={$currentTranslations}
-          dashboardData={$dashboardData}
-        />
+        <div class="tab-content">
+          <RiskModelTab
+            darkMode={$darkMode}
+            language={$language}
+            translations={$currentTranslations}
+            dashboardData={$dashboardData}
+          />
+        </div>
       {:else if currentTab === "BTC Analysis"}
-        <BtcAnalysisTab
-          darkMode={$darkMode}
-          translations={$currentTranslations}
-          dashboardData={$dashboardData}
-        />
+        <div class="tab-content">
+          <BtcAnalysisTab
+            darkMode={$darkMode}
+            translations={$currentTranslations}
+            dashboardData={$dashboardData}
+          />
+        </div>
       {:else if currentTab === "BTC Quant v2"}
-        <BtcQuantV2Tab
-          darkMode={$darkMode}
-          translations={$currentTranslations}
-          dashboardData={$dashboardData}
-          {quantV2ChartData}
-          {quantV2RebalancedData}
-          {quantV2ReturnsData}
-          {getLatestValue}
-        />
+        <div class="tab-content">
+          <BtcQuantV2Tab
+            darkMode={$darkMode}
+            translations={$currentTranslations}
+            dashboardData={$dashboardData}
+            {quantV2ChartData}
+            {quantV2RebalancedData}
+            {quantV2ReturnsData}
+            {getLatestValue}
+          />
+        </div>
       {:else if currentTab === "Fed Forecasts"}
-        <FedForecastsTab
-          darkMode={$darkMode}
-          translations={$currentTranslations}
-          dashboardData={$dashboardData}
-        />
+        <div class="tab-content">
+          <FedForecastsTab
+            darkMode={$darkMode}
+            translations={$currentTranslations}
+            dashboardData={$dashboardData}
+          />
+        </div>
       {:else if currentTab === "Regimes"}
-        <RegimesTab
-          darkMode={$darkMode}
-          translations={$currentTranslations}
-          dashboardData={$dashboardData}
-        />
+        <div class="tab-content">
+          <RegimesTab
+            darkMode={$darkMode}
+            translations={$currentTranslations}
+            dashboardData={$dashboardData}
+          />
+        </div>
       {:else if currentTab === "Offshore Liquidity"}
-        <OffshoreLiquidityTab
-          darkMode={$darkMode}
-          language={$language}
-          translations={$currentTranslations}
-          dashboardData={$dashboardData}
-        />
+        <div class="tab-content">
+          <OffshoreLiquidityTab
+            darkMode={$darkMode}
+            language={$language}
+            translations={$currentTranslations}
+            dashboardData={$dashboardData}
+          />
+        </div>
       {:else if currentTab === "Chart Explorer"}
-        <ChartExplorerTab
-          darkMode={$darkMode}
-          translations={$currentTranslations}
-          dashboardData={$dashboardData}
-        />
+        <div class="tab-content">
+          <ChartExplorerTab
+            darkMode={$darkMode}
+            translations={$currentTranslations}
+            dashboardData={$dashboardData}
+          />
+        </div>
       {:else if currentTab === "StableCoins"}
-        <StableCoinsTab
-          darkMode={$darkMode}
-          translations={$currentTranslations}
-          dashboardData={$dashboardData}
-        />
+        <div class="tab-content">
+          <StableCoinsTab
+            darkMode={$darkMode}
+            translations={$currentTranslations}
+            dashboardData={$dashboardData}
+          />
+        </div>
       {:else if currentTab === "Narratives"}
-        <NarrativesTab
-          darkMode={$darkMode}
-          translations={$currentTranslations}
-          dashboardData={$dashboardData}
-        />
+        <div class="tab-content">
+          <NarrativesTab
+            darkMode={$darkMode}
+            translations={$currentTranslations}
+            dashboardData={$dashboardData}
+          />
+        </div>
       {/if}
     </div>
   </main>
@@ -2839,6 +2865,10 @@
     --chart-description-bg: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
     --positive-color: #059669;
     --negative-color: #dc2626;
+    /* Global Padding Logic */
+    --content-base-padding: 40px;
+    --content-inner-padding: 24px;
+    --content-gap: 24px;
   }
 
   :global([data-theme="dark"]) {
@@ -3114,8 +3144,7 @@
     transition:
       margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1),
       padding-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    overflow-y: auto;
-    padding: 40px;
+    padding: var(--content-base-padding);
     background: var(--bg-primary);
   }
 
@@ -3376,6 +3405,7 @@
     align-items: center;
     margin-bottom: 32px;
     width: 100%;
+    padding: 0 var(--content-inner-padding);
   }
 
   .content-header h1 {
@@ -3477,11 +3507,16 @@
     width: 100%;
   }
 
+  /* GLOBAL TAB PADDING - Apply to all tab content wrappers */
+  .tab-content {
+    padding: 0 var(--content-inner-padding);
+  }
+
   :global(.chart-card) {
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
-    border-radius: 24px;
-    padding: 32px;
+    border-radius: 16px;
+    padding: 24px;
     display: flex;
     flex-direction: column;
     box-shadow: var(--card-shadow);

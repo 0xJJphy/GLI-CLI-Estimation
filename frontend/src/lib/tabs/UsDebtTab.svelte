@@ -236,7 +236,7 @@
     };
 </script>
 
-<div class="us-debt-tab" class:dark={darkMode}>
+<div class="tab-container us-debt-tab" class:dark={darkMode}>
     <!-- Header Section -->
     <div class="tab-header">
         <div class="header-left">
@@ -553,7 +553,7 @@
 
 <style>
     .us-debt-tab {
-        padding: 20px;
+        padding: 0;
         color: var(--text-primary);
     }
 
@@ -692,14 +692,9 @@
         color: var(--text-muted);
     }
 
-    /* Chart Card */
+    /* Use global .chart-card styles, only override margin-bottom */
     .chart-card {
-        background: var(--bg-secondary);
-        border: 1px solid var(--border-color);
-        border-radius: 12px;
-        padding: 20px;
         margin-bottom: 24px;
-        box-shadow: var(--card-shadow);
     }
 
     .chart-header {

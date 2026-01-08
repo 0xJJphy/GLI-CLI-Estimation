@@ -1133,7 +1133,7 @@
         color: #1e293b;
     }
     .narratives-tab {
-        padding: 24px 0;
+        padding-bottom: 40px;
     }
     .description {
         margin: 0;
@@ -1165,6 +1165,7 @@
         display: grid;
         grid-template-columns: repeat(4, 1fr);
         gap: 20px;
+        padding: 0;
     }
     @media (max-width: 1024px) {
         .top-row {
@@ -1429,19 +1430,9 @@
         }
     }
 
+    /* Use global .chart-card styles, only override min-height */
     .chart-card {
-        background: var(--bg-secondary);
-        border: 1px solid var(--border-color);
-        border-radius: 16px;
-        padding: 24px;
-        display: flex;
-        flex-direction: column;
         min-height: 480px;
-        box-shadow: var(--card-shadow);
-    }
-    .light .chart-card {
-        background: #ffffff;
-        border-color: #e2e8f0;
     }
     .chart-header {
         display: flex;

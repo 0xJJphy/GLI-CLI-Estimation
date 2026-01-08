@@ -1001,449 +1001,493 @@
     })();
 </script>
 
-<!-- Header with Version Toggle and Signal -->
-<div class="regime-header" class:light={!darkMode}>
-    <div class="header-left">
-        <h2>{t("regimes_header", "Macro Regimes")}</h2>
-        <div class="version-selector">
-            <button
-                class:active={regimeVersion === "v2a"}
-                on:click={() => (regimeVersion = "v2a")}
-            >
-                {t("regime_v2a_title", "V2A: Inflation-Aware")}
-            </button>
-            <button
-                class:active={regimeVersion === "v2b"}
-                on:click={() => (regimeVersion = "v2b")}
-            >
-                {t("regime_v2b_title", "V2B: Growth-Aware")}
-            </button>
+<div class="tab-container regimes-tab" class:light={!darkMode}>
+    <!-- Header with Version Toggle and Signal -->
+    <div class="regime-header" class:light={!darkMode}>
+        <div class="header-left">
+            <h2>{t("regimes_header", "Macro Regimes")}</h2>
+            <div class="version-selector">
+                <button
+                    class:active={regimeVersion === "v2a"}
+                    on:click={() => (regimeVersion = "v2a")}
+                >
+                    {t("regime_v2a_title", "V2A: Inflation-Aware")}
+                </button>
+                <button
+                    class:active={regimeVersion === "v2b"}
+                    on:click={() => (regimeVersion = "v2b")}
+                >
+                    {t("regime_v2b_title", "V2B: Growth-Aware")}
+                </button>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="regime-badge {getSignalLabel(latestRegimeCode).class}">
+                <span class="emoji"
+                    >{getSignalLabel(latestRegimeCode).emoji}</span
+                >
+                <span class="label"
+                    >{getSignalLabel(latestRegimeCode).text}</span
+                >
+                <span class="score"
+                    >{t("regime_score_label", "SCORE")}: {latestScore}</span
+                >
+            </div>
         </div>
     </div>
-    <div class="header-right">
-        <div class="regime-badge {getSignalLabel(latestRegimeCode).class}">
-            <span class="emoji">{getSignalLabel(latestRegimeCode).emoji}</span>
-            <span class="label">{getSignalLabel(latestRegimeCode).text}</span>
-            <span class="score"
-                >{t("regime_score_label", "SCORE")}: {latestScore}</span
-            >
-        </div>
-    </div>
-</div>
 
-<!-- Regime Description Panel with CURRENT VALUES -->
-<div class="regime-detail-panel" class:light={!darkMode}>
-    <div class="regime-description">
-        <h4>
-            {getSignalLabel(latestRegimeCode).text}
-            {t("regime_formula_title", "Regime")}
-        </h4>
-        <p class="desc-text">{getSignalLabel(latestRegimeCode).desc}</p>
-    </div>
-    <div class="regime-formula">
-        <h5>{t("regime_formula_title", "Regime Formula")}</h5>
-        <p class="formula-text {regimeVersion === 'v2a' ? 'v2a' : 'v2b'}">
-            {regimeVersion === "v2a"
-                ? t(
-                      "regime_v2a_formula",
-                      "Score = 50×Liquidity + 25×Credit + 25×Brakes",
-                  )
-                : t(
-                      "regime_v2b_formula",
-                      "Score = 40×Liquidity + 25×Credit + 20×Growth + 15×Brakes",
-                  )}
-        </p>
-        <ul class="formula-legend">
-            <li>
-                <span class="dot green"></span> Score &gt; 50: {t(
-                    "regime_bullish_label",
-                    "Bullish",
-                )}
-            </li>
-            <li>
-                <span class="dot red"></span> Score &lt; 50: {t(
-                    "regime_bearish_label",
-                    "Bearish",
-                )}
-            </li>
-        </ul>
-    </div>
-    <div class="current-values">
-        <h5>{t("regime_current_values", "Current Values")}</h5>
-        <div class="values-grid">
-            <div class="value-item">
-                <span class="value-label"
-                    >{t("regime_liquidity", "Liquidity")}</span
-                >
-                <span
-                    class="value-num"
-                    class:positive={Number(latestLiquidity) > 0}
-                    class:negative={Number(latestLiquidity) < 0}
-                    >{latestLiquidity}</span
-                >
-            </div>
-            <div class="value-item">
-                <span class="value-label">{t("regime_credit", "Credit")}</span>
-                <span
-                    class="value-num"
-                    class:positive={Number(latestCredit) > 0}
-                    class:negative={Number(latestCredit) < 0}
-                    >{latestCredit}</span
-                >
-            </div>
-            {#if regimeVersion === "v2b"}
+    <!-- Regime Description Panel with CURRENT VALUES -->
+    <div class="regime-detail-panel" class:light={!darkMode}>
+        <div class="regime-description">
+            <h4>
+                {getSignalLabel(latestRegimeCode).text}
+                {t("regime_formula_title", "Regime")}
+            </h4>
+            <p class="desc-text">{getSignalLabel(latestRegimeCode).desc}</p>
+        </div>
+        <div class="regime-formula">
+            <h5>{t("regime_formula_title", "Regime Formula")}</h5>
+            <p class="formula-text {regimeVersion === 'v2a' ? 'v2a' : 'v2b'}">
+                {regimeVersion === "v2a"
+                    ? t(
+                          "regime_v2a_formula",
+                          "Score = 50×Liquidity + 25×Credit + 25×Brakes",
+                      )
+                    : t(
+                          "regime_v2b_formula",
+                          "Score = 40×Liquidity + 25×Credit + 20×Growth + 15×Brakes",
+                      )}
+            </p>
+            <ul class="formula-legend">
+                <li>
+                    <span class="dot green"></span> Score &gt; 50: {t(
+                        "regime_bullish_label",
+                        "Bullish",
+                    )}
+                </li>
+                <li>
+                    <span class="dot red"></span> Score &lt; 50: {t(
+                        "regime_bearish_label",
+                        "Bearish",
+                    )}
+                </li>
+            </ul>
+        </div>
+        <div class="current-values">
+            <h5>{t("regime_current_values", "Current Values")}</h5>
+            <div class="values-grid">
                 <div class="value-item">
                     <span class="value-label"
-                        >{t("regime_growth", "Growth")}</span
+                        >{t("regime_liquidity", "Liquidity")}</span
                     >
                     <span
                         class="value-num"
-                        class:positive={Number(latestGrowth) > 0}
-                        class:negative={Number(latestGrowth) < 0}
-                        >{latestGrowth}</span
+                        class:positive={Number(latestLiquidity) > 0}
+                        class:negative={Number(latestLiquidity) < 0}
+                        >{latestLiquidity}</span
                     >
                 </div>
-            {/if}
-            <div class="value-item">
-                <span class="value-label">{t("regime_brakes", "Brakes")}</span>
-                <span
-                    class="value-num"
-                    class:positive={Number(latestBrakes) > 0}
-                    class:negative={Number(latestBrakes) < 0}
-                    >{latestBrakes}</span
-                >
-            </div>
-            <div class="value-item total">
-                <span class="value-label">{t("regime_total_z", "Total Z")}</span
-                >
-                <span class="value-num">{latestScore}</span>
+                <div class="value-item">
+                    <span class="value-label"
+                        >{t("regime_credit", "Credit")}</span
+                    >
+                    <span
+                        class="value-num"
+                        class:positive={Number(latestCredit) > 0}
+                        class:negative={Number(latestCredit) < 0}
+                        >{latestCredit}</span
+                    >
+                </div>
+                {#if regimeVersion === "v2b"}
+                    <div class="value-item">
+                        <span class="value-label"
+                            >{t("regime_growth", "Growth")}</span
+                        >
+                        <span
+                            class="value-num"
+                            class:positive={Number(latestGrowth) > 0}
+                            class:negative={Number(latestGrowth) < 0}
+                            >{latestGrowth}</span
+                        >
+                    </div>
+                {/if}
+                <div class="value-item">
+                    <span class="value-label"
+                        >{t("regime_brakes", "Brakes")}</span
+                    >
+                    <span
+                        class="value-num"
+                        class:positive={Number(latestBrakes) > 0}
+                        class:negative={Number(latestBrakes) < 0}
+                        >{latestBrakes}</span
+                    >
+                </div>
+                <div class="value-item total">
+                    <span class="value-label"
+                        >{t("regime_total_z", "Total Z")}</span
+                    >
+                    <span class="value-num">{latestScore}</span>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-<!-- Offset Slider for Regime Score chart only -->
-<div class="offset-panel" class:light={!darkMode}>
-    <div class="offset-label">
-        <span>{t("regime_score_offset_label", "Regime Score Offset:")}</span>
-        <input type="range" min="0" max="120" bind:value={regimeOffsetDays} />
-        <span class="offset-value">{regimeOffsetDays}d</span>
+    <!-- Offset Slider for Regime Score chart only -->
+    <div class="offset-panel" class:light={!darkMode}>
+        <div class="offset-label">
+            <span>{t("regime_score_offset_label", "Regime Score Offset:")}</span
+            >
+            <input
+                type="range"
+                min="0"
+                max="120"
+                bind:value={regimeOffsetDays}
+            />
+            <span class="offset-value">{regimeOffsetDays}d</span>
+        </div>
+        <button class="best-offset-btn" on:click={applyBestOffsetGlobal}>
+            {t("best_offset_label", "Best Offset")}
+        </button>
     </div>
-    <button class="best-offset-btn" on:click={applyBestOffsetGlobal}>
-        {t("best_offset_label", "Best Offset")}
-    </button>
-</div>
 
-<!-- Main Content Grid -->
-<div class="regimes-grid" class:light={!darkMode}>
-    <!-- Regime Score Chart -->
-    <div class="chart-card full-width" bind:this={regimeScoreCard}>
-        <div class="chart-header">
-            <h3>
+    <!-- Main Content Grid -->
+    <div class="regimes-grid" class:light={!darkMode}>
+        <!-- Regime Score Chart -->
+        <div class="chart-card full-width" bind:this={regimeScoreCard}>
+            <div class="chart-header">
+                <h3>
+                    {regimeVersion === "v2a"
+                        ? t("regime_v2a_score_title", "Macro Regime V2A Score")
+                        : t("regime_v2b_score_title", "Macro Regime V2B Score")}
+                </h3>
+                <div class="header-controls">
+                    <TimeRangeSelector
+                        selectedRange={regimeScoreRange}
+                        onRangeChange={(r) => (regimeScoreRange = r)}
+                    />
+                    <span class="last-date"
+                        >{t("last_data", "Last Data:")} {getLastDate()}</span
+                    >
+                </div>
+            </div>
+            <p class="chart-desc">
                 {regimeVersion === "v2a"
-                    ? t("regime_v2a_score_title", "Macro Regime V2A Score")
-                    : t("regime_v2b_score_title", "Macro Regime V2B Score")}
-            </h3>
-            <div class="header-controls">
-                <TimeRangeSelector
-                    selectedRange={regimeScoreRange}
-                    onRangeChange={(r) => (regimeScoreRange = r)}
-                />
-                <span class="last-date"
-                    >{t("last_data", "Last Data:")} {getLastDate()}</span
-                >
-            </div>
-        </div>
-        <p class="chart-desc">
-            {regimeVersion === "v2a"
-                ? t(
-                      "regime_v2a_desc",
-                      "Focuses on inflation pressures via monetary brakes.",
-                  )
-                : t(
-                      "regime_v2b_desc",
-                      "Balances growth momentum with credit conditions.",
-                  )}
-        </p>
-        <div class="chart-content">
-            <Chart
-                data={regimeScoreData}
-                layout={regimeScoreLayout}
-                {darkMode}
-                cardContainer={regimeScoreCard}
-                cardTitle="regime_score"
-            />
-        </div>
-    </div>
-
-    <!-- BTC + Regime V2A Chart -->
-    <div class="chart-card full-width" bind:this={btcV2aCard}>
-        <div class="chart-header">
-            <h3>
-                {t(
-                    "regime_btc_overlay_v2a",
-                    "BTC + Regime V2A (Inflation-Aware)",
-                )}
-            </h3>
-            <div class="header-controls">
-                <TimeRangeSelector
-                    selectedRange={btcRegimeV2aRange}
-                    onRangeChange={(r) => (btcRegimeV2aRange = r)}
+                    ? t(
+                          "regime_v2a_desc",
+                          "Focuses on inflation pressures via monetary brakes.",
+                      )
+                    : t(
+                          "regime_v2b_desc",
+                          "Balances growth momentum with credit conditions.",
+                      )}
+            </p>
+            <div class="chart-content">
+                <Chart
+                    data={regimeScoreData}
+                    layout={regimeScoreLayout}
+                    {darkMode}
+                    cardContainer={regimeScoreCard}
+                    cardTitle="regime_score"
                 />
             </div>
         </div>
-        <div class="offset-inline" class:light={!darkMode}>
-            <span>{t("offset_days_label", "Offset:")}</span>
-            <input type="range" min="0" max="120" bind:value={v2aOffsetDays} />
-            <span class="offset-value">{v2aOffsetDays}d</span>
-            <button
-                class="best-offset-btn-inline"
-                on:click={applyBestOffsetV2A}
-            >
-                {t("best_offset", "Best")}: {v2aBestOffset || "?"}
-            </button>
-        </div>
-        <p class="chart-desc">
-            {t(
-                "regime_btc_desc",
-                "Log-scale BTC Price overlaid on Macro Regime. Green: Bullish. Red: Bearish.",
-            )}
-        </p>
-        <div class="chart-content btc-chart">
-            <Chart
-                data={btcRegimeV2aData}
-                layout={btcRegimeV2aLayout}
-                {darkMode}
-                cardContainer={btcV2aCard}
-                cardTitle="btc_regime_v2a"
-            />
-        </div>
-    </div>
 
-    <!-- BTC + Regime V2B Chart -->
-    <div class="chart-card full-width" bind:this={btcV2bCard}>
-        <div class="chart-header">
-            <h3>
-                {t("regime_btc_overlay_v2b", "BTC + Regime V2B (Growth-Aware)")}
-            </h3>
-            <div class="header-controls">
-                <TimeRangeSelector
-                    selectedRange={btcRegimeV2bRange}
-                    onRangeChange={(r) => (btcRegimeV2bRange = r)}
-                />
-            </div>
-        </div>
-        <div class="offset-inline" class:light={!darkMode}>
-            <span>{t("offset_days_label", "Offset:")}</span>
-            <input type="range" min="0" max="120" bind:value={v2bOffsetDays} />
-            <span class="offset-value">{v2bOffsetDays}d</span>
-            <button
-                class="best-offset-btn-inline"
-                on:click={applyBestOffsetV2B}
-            >
-                {t("best_offset", "Best")}: {v2bBestOffset || "?"}
-            </button>
-        </div>
-        <p class="chart-desc">
-            {t(
-                "regime_btc_desc",
-                "Log-scale BTC Price overlaid on Macro Regime. Green: Bullish. Red: Bearish.",
-            )}
-        </p>
-        <div class="chart-content btc-chart">
-            <Chart
-                data={btcRegimeV2bData}
-                layout={btcRegimeV2bLayout}
-                {darkMode}
-                cardContainer={btcV2bCard}
-                cardTitle="btc_regime_v2b"
-            />
-        </div>
-    </div>
-
-    <!-- CLI Comparison Chart -->
-    <div class="chart-card" bind:this={cliComparisonCard}>
-        <div class="chart-header">
-            <h3>{t("cli_comparison_title", "CLI V1 vs V2")}</h3>
-            <div class="header-controls">
-                <div class="cli-selector">
-                    <button
-                        class:active={cliVersion === "v1"}
-                        on:click={() => (cliVersion = "v1")}>V1</button
-                    >
-                    <button
-                        class:active={cliVersion === "v2"}
-                        on:click={() => (cliVersion = "v2")}>V2</button
-                    >
-                    <button
-                        class:active={cliVersion === "both"}
-                        on:click={() => (cliVersion = "both")}>Both</button
-                    >
-                </div>
-                <TimeRangeSelector
-                    selectedRange={cliComparisonRange}
-                    onRangeChange={(r) => (cliComparisonRange = r)}
-                />
-            </div>
-        </div>
-        <p class="chart-desc">
-            {t(
-                "cli_v2_formula",
-                "CLI V2: HY Spread + HY Momentum + IG + NFCI + MOVE + FX Vol",
-            )}
-        </p>
-        <div class="chart-content">
-            <Chart
-                data={cliComparisonData}
-                layout={cliComparisonLayout}
-                {darkMode}
-                cardContainer={cliComparisonCard}
-                cardTitle="cli_comparison"
-            />
-        </div>
-    </div>
-
-    <!-- Block Decomposition Chart -->
-    <div class="chart-card" bind:this={blockDecompCard}>
-        <div class="chart-header">
-            <h3>
-                {t("block_decomposition_title", "Regime Block Decomposition")}
-            </h3>
-            <div class="header-controls">
-                <TimeRangeSelector
-                    selectedRange={blockDecompRange}
-                    onRangeChange={(r) => (blockDecompRange = r)}
-                />
-            </div>
-        </div>
-        <p class="chart-desc">
-            {t(
-                "block_decomp_desc",
-                "Contribution of each block (Liquidity, Credit, Growth, Brakes) to the total score.",
-            )}
-        </p>
-        <div class="chart-content">
-            <Chart
-                data={blockDecompData}
-                layout={blockDecompLayout}
-                {darkMode}
-                cardContainer={blockDecompCard}
-                cardTitle="block_decomposition"
-            />
-        </div>
-    </div>
-
-    <!-- Historical Stress Dashboard - Refactored -->
-    <div class="chart-card full-width" bind:this={stressHistCard}>
-        <div class="chart-header">
-            <h3>
-                {t("stress_historical_title", "Historical Stress Dashboard")}
-            </h3>
-            <div class="header-controls">
-                <TimeRangeSelector
-                    selectedRange={stressHistoricalRange}
-                    onRangeChange={(r) => (stressHistoricalRange = r)}
-                />
-            </div>
-        </div>
-        <p class="chart-desc">
-            {t(
-                "stress_historical_quant_desc",
-                "Intensity Heatmap (Rolling Percentiles) + Current Stress Profile + Historical Trend.",
-            )}
-        </p>
-
-        <div class="stress-dashboard-layout">
-            <div class="stress-main-panel">
-                <div class="sub-chart-title">
+        <!-- BTC + Regime V2A Chart -->
+        <div class="chart-card full-width" bind:this={btcV2aCard}>
+            <div class="chart-header">
+                <h3>
                     {t(
-                        "stress_driver_intensity",
-                        "Driver Intensity Heatmap (0-100%)",
+                        "regime_btc_overlay_v2a",
+                        "BTC + Regime V2A (Inflation-Aware)",
                     )}
-                </div>
-                <div class="chart-content heatmap-container">
-                    <Chart
-                        data={stressHeatmapData}
-                        layout={stressHeatmapLayout}
-                        {darkMode}
-                        cardContainer={stressHistCard}
-                        cardTitle="stress_intensity_heatmap"
+                </h3>
+                <div class="header-controls">
+                    <TimeRangeSelector
+                        selectedRange={btcRegimeV2aRange}
+                        onRangeChange={(r) => (btcRegimeV2aRange = r)}
                     />
                 </div>
+            </div>
+            <div class="offset-inline" class:light={!darkMode}>
+                <span>{t("offset_days_label", "Offset:")}</span>
+                <input
+                    type="range"
+                    min="0"
+                    max="120"
+                    bind:value={v2aOffsetDays}
+                />
+                <span class="offset-value">{v2aOffsetDays}d</span>
+                <button
+                    class="best-offset-btn-inline"
+                    on:click={applyBestOffsetV2A}
+                >
+                    {t("best_offset", "Best")}: {v2aBestOffset || "?"}
+                </button>
+            </div>
+            <p class="chart-desc">
+                {t(
+                    "regime_btc_desc",
+                    "Log-scale BTC Price overlaid on Macro Regime. Green: Bullish. Red: Bearish.",
+                )}
+            </p>
+            <div class="chart-content btc-chart">
+                <Chart
+                    data={btcRegimeV2aData}
+                    layout={btcRegimeV2aLayout}
+                    {darkMode}
+                    cardContainer={btcV2aCard}
+                    cardTitle="btc_regime_v2a"
+                />
+            </div>
+        </div>
 
-                <div class="stress-lower-grid">
-                    <div class="trend-panel">
-                        <div class="sub-chart-title">
-                            {t(
-                                "stress_total_trend",
-                                "Total Stress Trend (Raw Score)",
-                            )}
-                        </div>
-                        <div class="chart-content">
-                            <Chart
-                                data={stressTotalData}
-                                layout={stressTotalLayout}
-                                {darkMode}
-                                cardContainer={stressHistCard}
-                                cardTitle="stress_total_trend"
-                            />
-                        </div>
-                    </div>
-                    <div class="radar-panel">
-                        <div class="sub-chart-title">
-                            {t(
-                                "stress_current_profile",
-                                "Current Stress Profile",
-                            )}
-                        </div>
-                        <div class="chart-content radar-container">
-                            <Chart
-                                data={stressRadarData}
-                                layout={stressRadarLayout}
-                                {darkMode}
-                                cardContainer={stressHistCard}
-                                cardTitle="stress_current_radar"
-                            />
-                        </div>
-                    </div>
+        <!-- BTC + Regime V2B Chart -->
+        <div class="chart-card full-width" bind:this={btcV2bCard}>
+            <div class="chart-header">
+                <h3>
+                    {t(
+                        "regime_btc_overlay_v2b",
+                        "BTC + Regime V2B (Growth-Aware)",
+                    )}
+                </h3>
+                <div class="header-controls">
+                    <TimeRangeSelector
+                        selectedRange={btcRegimeV2bRange}
+                        onRangeChange={(r) => (btcRegimeV2bRange = r)}
+                    />
                 </div>
             </div>
+            <div class="offset-inline" class:light={!darkMode}>
+                <span>{t("offset_days_label", "Offset:")}</span>
+                <input
+                    type="range"
+                    min="0"
+                    max="120"
+                    bind:value={v2bOffsetDays}
+                />
+                <span class="offset-value">{v2bOffsetDays}d</span>
+                <button
+                    class="best-offset-btn-inline"
+                    on:click={applyBestOffsetV2B}
+                >
+                    {t("best_offset", "Best")}: {v2bBestOffset || "?"}
+                </button>
+            </div>
+            <p class="chart-desc">
+                {t(
+                    "regime_btc_desc",
+                    "Log-scale BTC Price overlaid on Macro Regime. Green: Bullish. Red: Bearish.",
+                )}
+            </p>
+            <div class="chart-content btc-chart">
+                <Chart
+                    data={btcRegimeV2bData}
+                    layout={btcRegimeV2bLayout}
+                    {darkMode}
+                    cardContainer={btcV2bCard}
+                    cardTitle="btc_regime_v2b"
+                />
+            </div>
+        </div>
 
-            <div class="stress-sidebar">
-                <div class="stress-summary-badge">
-                    <div class="badge-label">
-                        {t("latest_stress_status", "Current Stress Status")}
+        <!-- CLI Comparison Chart -->
+        <div class="chart-card" bind:this={cliComparisonCard}>
+            <div class="chart-header">
+                <h3>{t("cli_comparison_title", "CLI V1 vs V2")}</h3>
+                <div class="header-controls">
+                    <div class="cli-selector">
+                        <button
+                            class:active={cliVersion === "v1"}
+                            on:click={() => (cliVersion = "v1")}>V1</button
+                        >
+                        <button
+                            class:active={cliVersion === "v2"}
+                            on:click={() => (cliVersion = "v2")}>V2</button
+                        >
+                        <button
+                            class:active={cliVersion === "both"}
+                            on:click={() => (cliVersion = "both")}>Both</button
+                        >
                     </div>
-                    <div
-                        class="badge-value {getStressLevel(latestStress.score)
-                            .class}"
-                    >
-                        {getStressLevel(latestStress.score).text}
+                    <TimeRangeSelector
+                        selectedRange={cliComparisonRange}
+                        onRangeChange={(r) => (cliComparisonRange = r)}
+                    />
+                </div>
+            </div>
+            <p class="chart-desc">
+                {t(
+                    "cli_v2_formula",
+                    "CLI V2: HY Spread + HY Momentum + IG + NFCI + MOVE + FX Vol",
+                )}
+            </p>
+            <div class="chart-content">
+                <Chart
+                    data={cliComparisonData}
+                    layout={cliComparisonLayout}
+                    {darkMode}
+                    cardContainer={cliComparisonCard}
+                    cardTitle="cli_comparison"
+                />
+            </div>
+        </div>
+
+        <!-- Block Decomposition Chart -->
+        <div class="chart-card" bind:this={blockDecompCard}>
+            <div class="chart-header">
+                <h3>
+                    {t(
+                        "block_decomposition_title",
+                        "Regime Block Decomposition",
+                    )}
+                </h3>
+                <div class="header-controls">
+                    <TimeRangeSelector
+                        selectedRange={blockDecompRange}
+                        onRangeChange={(r) => (blockDecompRange = r)}
+                    />
+                </div>
+            </div>
+            <p class="chart-desc">
+                {t(
+                    "block_decomp_desc",
+                    "Contribution of each block (Liquidity, Credit, Growth, Brakes) to the total score.",
+                )}
+            </p>
+            <div class="chart-content">
+                <Chart
+                    data={blockDecompData}
+                    layout={blockDecompLayout}
+                    {darkMode}
+                    cardContainer={blockDecompCard}
+                    cardTitle="block_decomposition"
+                />
+            </div>
+        </div>
+
+        <!-- Historical Stress Dashboard - Refactored -->
+        <div class="chart-card full-width" bind:this={stressHistCard}>
+            <div class="chart-header">
+                <h3>
+                    {t(
+                        "stress_historical_title",
+                        "Historical Stress Dashboard",
+                    )}
+                </h3>
+                <div class="header-controls">
+                    <TimeRangeSelector
+                        selectedRange={stressHistoricalRange}
+                        onRangeChange={(r) => (stressHistoricalRange = r)}
+                    />
+                </div>
+            </div>
+            <p class="chart-desc">
+                {t(
+                    "stress_historical_quant_desc",
+                    "Intensity Heatmap (Rolling Percentiles) + Current Stress Profile + Historical Trend.",
+                )}
+            </p>
+
+            <div class="stress-dashboard-layout">
+                <div class="stress-main-panel">
+                    <div class="sub-chart-title">
+                        {t(
+                            "stress_driver_intensity",
+                            "Driver Intensity Heatmap (0-100%)",
+                        )}
                     </div>
-                    <div class="badge-score">{latestStress.score} / 27</div>
+                    <div class="chart-content heatmap-container">
+                        <Chart
+                            data={stressHeatmapData}
+                            layout={stressHeatmapLayout}
+                            {darkMode}
+                            cardContainer={stressHistCard}
+                            cardTitle="stress_intensity_heatmap"
+                        />
+                    </div>
+
+                    <div class="stress-lower-grid">
+                        <div class="trend-panel">
+                            <div class="sub-chart-title">
+                                {t(
+                                    "stress_total_trend",
+                                    "Total Stress Trend (Raw Score)",
+                                )}
+                            </div>
+                            <div class="chart-content">
+                                <Chart
+                                    data={stressTotalData}
+                                    layout={stressTotalLayout}
+                                    {darkMode}
+                                    cardContainer={stressHistCard}
+                                    cardTitle="stress_total_trend"
+                                />
+                            </div>
+                        </div>
+                        <div class="radar-panel">
+                            <div class="sub-chart-title">
+                                {t(
+                                    "stress_current_profile",
+                                    "Current Stress Profile",
+                                )}
+                            </div>
+                            <div class="chart-content radar-container">
+                                <Chart
+                                    data={stressRadarData}
+                                    layout={stressRadarLayout}
+                                    {darkMode}
+                                    cardContainer={stressHistCard}
+                                    cardTitle="stress_current_radar"
+                                />
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="driver-pills">
-                    {#each [{ key: "volatility", label: "Volatility", color: "#ef4444" }, { key: "credit", label: "Credit", color: "#10b981" }, { key: "liquidity", label: "Liquidity", color: "#3b82f6" }, { key: "inflation", label: "Inflation", color: "#f59e0b" }] as driver}
-                        {@const pArray = stressPercentiles[driver.key].filter(
-                            (v) => v !== null,
-                        )}
-                        {@const latestP =
-                            pArray.length > 0 ? pArray[pArray.length - 1] : 0}
-                        <div class="driver-pill">
-                            <span class="dot" style="background: {driver.color}"
-                            ></span>
-                            <span class="label"
-                                >{t("stress_" + driver.key, driver.label)}</span
-                            >
-                            <span
-                                class="value"
-                                class:high={latestP > 70}
-                                class:low={latestP < 30}
-                                >{latestP.toFixed(0)}%</span
-                            >
+                <div class="stress-sidebar">
+                    <div class="stress-summary-badge">
+                        <div class="badge-label">
+                            {t("latest_stress_status", "Current Stress Status")}
                         </div>
-                    {/each}
+                        <div
+                            class="badge-value {getStressLevel(
+                                latestStress.score,
+                            ).class}"
+                        >
+                            {getStressLevel(latestStress.score).text}
+                        </div>
+                        <div class="badge-score">{latestStress.score} / 27</div>
+                    </div>
+
+                    <div class="driver-pills">
+                        {#each [{ key: "volatility", label: "Volatility", color: "#ef4444" }, { key: "credit", label: "Credit", color: "#10b981" }, { key: "liquidity", label: "Liquidity", color: "#3b82f6" }, { key: "inflation", label: "Inflation", color: "#f59e0b" }] as driver}
+                            {@const pArray = stressPercentiles[
+                                driver.key
+                            ].filter((v) => v !== null)}
+                            {@const latestP =
+                                pArray.length > 0
+                                    ? pArray[pArray.length - 1]
+                                    : 0}
+                            <div class="driver-pill">
+                                <span
+                                    class="dot"
+                                    style="background: {driver.color}"
+                                ></span>
+                                <span class="label"
+                                    >{t(
+                                        "stress_" + driver.key,
+                                        driver.label,
+                                    )}</span
+                                >
+                                <span
+                                    class="value"
+                                    class:high={latestP > 70}
+                                    class:low={latestP < 30}
+                                    >{latestP.toFixed(0)}%</span
+                                >
+                            </div>
+                        {/each}
+                    </div>
                 </div>
             </div>
         </div>
@@ -1455,8 +1499,8 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 16px;
-        padding: 16px 20px;
+        padding: 24px;
+        margin-bottom: 32px;
         background: var(--bg-secondary);
         border-radius: 12px;
         border: 1px solid var(--border-color);
@@ -1536,7 +1580,7 @@
         grid-template-columns: 1.5fr 1fr 1fr;
         gap: 16px;
         margin-bottom: 20px;
-        padding: 16px;
+        padding: 16px var(--content-inner-padding);
         background: var(--bg-secondary);
         border-radius: 12px;
         border: 1px solid var(--border-color);
@@ -1654,7 +1698,7 @@
         display: flex;
         align-items: center;
         gap: 20px;
-        padding: 12px 16px;
+        padding: 12px var(--content-inner-padding);
         margin-bottom: 20px;
         background: var(--card-bg, #050505);
         border-radius: 8px;
@@ -1751,17 +1795,10 @@
         display: grid;
         grid-template-columns: repeat(2, 1fr);
         gap: 20px;
+        padding: 20px 0;
     }
-    .chart-card {
-        background: var(--bg-secondary);
-        border-radius: 12px;
-        border: 1px solid var(--border-color);
-        padding: 16px;
-    }
-    .regimes-grid.light .chart-card {
-        background: #ffffff;
-        border-color: #e2e8f0;
-    }
+
+    /* Use global .chart-card styles */
     .chart-card.full-width {
         grid-column: 1 / -1;
     }

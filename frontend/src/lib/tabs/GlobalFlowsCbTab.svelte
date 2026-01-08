@@ -656,22 +656,10 @@
         display: flex;
         flex-direction: column;
         gap: 20px;
-        padding: 24px;
+        padding-bottom: 40px;
     }
 
-    .chart-card {
-        background: var(--bg-secondary);
-        border: 1px solid var(--border-color);
-        border-radius: 16px;
-        padding: 24px;
-        box-shadow: var(--card-shadow);
-        display: flex;
-        flex-direction: column;
-    }
-
-    .chart-card.wide {
-        grid-column: span 2;
-    }
+    /* Use global .chart-card styles */
 
     .chart-grid {
         display: grid;

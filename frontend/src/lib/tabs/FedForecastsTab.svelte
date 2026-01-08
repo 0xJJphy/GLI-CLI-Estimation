@@ -1961,7 +1961,7 @@
 
 <style>
     .fed-forecasts-tab {
-        padding: 20px;
+        padding-bottom: 40px;
     }
 
     .metrics-row {
@@ -2448,12 +2448,7 @@
         gap: 20px;
     }
 
-    .chart-card {
-        background: var(--bg-secondary);
-        border-radius: 12px;
-        padding: 20px;
-        border: 1px solid var(--border-color);
-    }
+    /* Use global .chart-card styles */
 
     .chart-header {
         display: flex;

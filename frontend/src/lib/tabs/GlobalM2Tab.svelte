@@ -748,7 +748,7 @@
         display: flex;
         flex-direction: column;
         gap: 20px;
-        padding: 24px;
+        /* Padding handled globally in App.svelte */
     }
 
     .country-grid {
@@ -757,19 +757,7 @@
         gap: 20px;
     }
 
-    .chart-card {
-        background: var(--bg-secondary);
-        border: 1px solid var(--border-color);
-        border-radius: 16px;
-        padding: 24px;
-        box-shadow: var(--card-shadow);
-        display: flex;
-        flex-direction: column;
-    }
-
-    .chart-card.wide {
-        grid-column: span 2;
-    }
+    /* Use global .chart-card styles */
 
     .chart-header {
         display: flex;

@@ -502,7 +502,7 @@
 
 <style>
     .offshore-tab {
-        padding: 24px;
+        padding-bottom: 40px;
         color: #f1f5f9;
         min-height: 100vh;
     }
@@ -539,11 +539,8 @@
         margin: 4px 0 0 0;
     }
 
+    /* Use global .chart-card styles, only override margin-bottom */
     .chart-card {
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 16px;
-        padding: 24px;
         margin-bottom: 24px;
     }
 

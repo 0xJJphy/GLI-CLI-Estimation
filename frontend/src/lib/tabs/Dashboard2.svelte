@@ -1804,7 +1804,7 @@
 
 <style>
     .dashboard-quant {
-        padding: 16px;
+        padding: 0 0 40px 0;
         display: flex;
         flex-direction: column;
         gap: 20px;
