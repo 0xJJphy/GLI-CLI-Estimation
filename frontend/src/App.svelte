@@ -2779,7 +2779,6 @@
       {:else if currentTab === "Regimes"}
         <RegimesTab
           darkMode={$darkMode}
-          language={$language}
           translations={$currentTranslations}
           dashboardData={$dashboardData}
         />
