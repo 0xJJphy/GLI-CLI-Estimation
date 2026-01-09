@@ -5,7 +5,14 @@
      */
     import Chart from "../components/Chart.svelte";
     import TimeRangeSelector from "../components/TimeRangeSelector.svelte";
-    import { filterPlotlyData } from "../utils/helpers.js";
+    import Dropdown from "../components/Dropdown.svelte";
+    import {
+        filterPlotlyData,
+        calculateZScore,
+        calculatePercentile,
+        calculateRollingZScore,
+    } from "../utils/helpers.js";
+    import { downloadCardAsImage } from "../utils/downloadCard.js";
 
     // Core props only
     export let darkMode = false;
@@ -32,6 +39,55 @@
     // Card container references for full-card download feature
     let m2AggregateCard;
 
+    // M2 Aggregate chart state - similar to StableCoinsTab
+    let m2AggregateMode = "absolute"; // Modes: absolute, roc1m, roc3m, roc6m, yoy
+    let m2NormMode = "raw"; // Normalization: raw, zscore, percentile
+    let m2LookbackWindow = 252; // Lookback window for rolling calculations: 63, 126, 252
+
+    // Helper to get translation with fallback
+    $: t = (key, fallback) => translations[key] || fallback;
+
+    // Check if current mode supports normalization
+    $: isM2RocMode = ["roc1m", "roc3m", "roc6m"].includes(m2AggregateMode);
+    // Check if normalization mode requires lookback window
+    $: showM2LookbackWindow =
+        isM2RocMode && (m2NormMode === "zscore" || m2NormMode === "percentile");
+
+    // M2 Aggregate mode options
+    $: m2AggregateModes = [
+        { value: "absolute", label: t("raw_view", "Absolute") },
+        { value: "roc1m", label: t("roc_1m_col", "ROC 1M") },
+        { value: "roc3m", label: t("roc_3m_col", "ROC 3M") },
+        { value: "roc6m", label: t("roc_6m_col", "ROC 6M") },
+        { value: "yoy", label: t("yoy_change", "YoY %") },
+    ];
+
+    // Normalization mode options
+    $: m2NormModes = [
+        { value: "raw", label: t("raw_view", "Raw (%)") },
+        { value: "zscore", label: "Z-Score" },
+        { value: "percentile", label: t("percentile_view", "Percentile") },
+    ];
+
+    // Lookback window options for rolling calculations
+    $: m2LookbackOptions = [
+        { value: 63, label: "63d (1Q)" },
+        { value: 126, label: "126d (6M)" },
+        { value: 252, label: "252d (1Y)" },
+    ];
+
+    function selectM2Mode(mode) {
+        m2AggregateMode = mode;
+    }
+
+    function selectM2NormMode(mode) {
+        m2NormMode = mode;
+    }
+
+    function selectM2LookbackWindow(value) {
+        m2LookbackWindow = value;
+    }
+
     // --- Internal Helper Functions ---
     function getLastDate(seriesKey) {
         if (!dashboardData.last_dates) return "N/A";
@@ -46,13 +102,71 @@
 
     // --- Internal Chart Data Processing ---
 
+    // Get M2 data based on selected mode
+    function getM2DataForMode(mode, normMode, data, lookbackWindow) {
+        const m2 = data.m2 || {};
+        const rocs = m2.rocs || {};
+
+        let rawData;
+        switch (mode) {
+            case "roc1m":
+                rawData = rocs["1M"] || [];
+                break;
+            case "roc3m":
+                rawData = rocs["3M"] || [];
+                break;
+            case "roc6m":
+                rawData = rocs["6M"] || [];
+                break;
+            case "yoy":
+                rawData = rocs["1Y"] || [];
+                break;
+            default:
+                return m2.total || [];
+        }
+
+        // Apply normalization if in ROC mode
+        if (normMode === "zscore") {
+            return calculateRollingZScore(rawData, lookbackWindow);
+        } else if (normMode === "percentile") {
+            return calculatePercentile(rawData, lookbackWindow);
+        }
+        return rawData;
+    }
+
+    // Get chart label based on mode
+    function getM2ChartLabel(mode, normMode) {
+        const base = translations.chart_m2_aggregate || "Global M2 Total";
+        switch (mode) {
+            case "roc1m":
+                return `${base} - ROC 1M ${normMode !== "raw" ? `(${normMode})` : ""}`;
+            case "roc3m":
+                return `${base} - ROC 3M ${normMode !== "raw" ? `(${normMode})` : ""}`;
+            case "roc6m":
+                return `${base} - ROC 6M ${normMode !== "raw" ? `(${normMode})` : ""}`;
+            case "yoy":
+                return `${base} - YoY`;
+            default:
+                return base;
+        }
+    }
+
+    // Reactive data based on mode selection - explicitly depends on m2AggregateMode, m2NormMode, and m2LookbackWindow
+    $: m2ChartData = getM2DataForMode(
+        m2AggregateMode,
+        m2NormMode,
+        dashboardData,
+        m2LookbackWindow,
+    );
+    $: m2ChartLabel = getM2ChartLabel(m2AggregateMode, m2NormMode);
+
     // M2 Total (Aggregate)
     $: m2TotalData = filterPlotlyData(
         [
             {
                 x: dashboardData.dates,
-                y: dashboardData.m2?.total,
-                name: translations.chart_m2_aggregate || "Global M2 Total",
+                y: m2ChartData,
+                name: m2ChartLabel,
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#6366f1", width: 3, shape: "spline" },
@@ -458,14 +572,46 @@
                                 "Global M2 Money Supply (Aggregate)"}
                         </h3>
                         <div class="header-controls">
+                            <Dropdown
+                                options={m2AggregateModes}
+                                bind:value={m2AggregateMode}
+                                onSelect={selectM2Mode}
+                                {darkMode}
+                                small={true}
+                            />
+                            {#if isM2RocMode}
+                                <Dropdown
+                                    options={m2NormModes}
+                                    bind:value={m2NormMode}
+                                    onSelect={selectM2NormMode}
+                                    {darkMode}
+                                    small={true}
+                                />
+                            {/if}
+                            {#if showM2LookbackWindow}
+                                <Dropdown
+                                    options={m2LookbackOptions}
+                                    bind:value={m2LookbackWindow}
+                                    onSelect={selectM2LookbackWindow}
+                                    {darkMode}
+                                    small={true}
+                                />
+                            {/if}
                             <TimeRangeSelector
                                 selectedRange={m2Range}
                                 onRangeChange={(r) => (m2Range = r)}
                             />
-                            <span class="last-date"
-                                >{translations.last || "Last:"}
-                                {getLastDate("M2_TOTAL")}</span
+                            <button
+                                class="download-btn"
+                                title="Download Chart"
+                                on:click={() =>
+                                    downloadCardAsImage(
+                                        m2AggregateCard,
+                                        "global_m2_aggregate",
+                                    )}
                             >
+                                📥
+                            </button>
                         </div>
                     </div>
                     <p class="chart-description">
@@ -955,5 +1101,19 @@
         .country-grid {
             grid-template-columns: 1fr;
         }
+    }
+
+    .download-btn {
+        background: transparent;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        padding: 4px 8px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        transition: all 0.2s ease;
+    }
+    .download-btn:hover {
+        background: var(--accent-primary);
+        border-color: var(--accent-primary);
     }
 </style>

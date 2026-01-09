@@ -270,6 +270,8 @@ export function findOptimalLag(dates, signalValues, btcRocValues, minLag = -15, 
 
 /**
  * Calculate Z-score for an array of values.
+ * Uses global mean and std dev (for backward compatibility).
+ * For time-series analysis, prefer calculateRollingZScore.
  * @param {number[]} values 
  * @returns {number[]}
  */
@@ -285,6 +287,65 @@ export function calculateZScore(values) {
     if (stdDev === 0) return values.map(() => 0);
 
     return values.map((v) => (v === null || v === undefined ? null : (v - mean) / stdDev));
+}
+
+/**
+ * Calculate ROLLING Z-score for time-series data.
+ * For each point, calculates Z-score using only historical data within the lookback window.
+ * This avoids look-ahead bias and captures regime changes.
+ * 
+ * @param {number[]} values - Array of values
+ * @param {number} window - Lookback window in periods (e.g., 252 for 1 year of daily data)
+ * @returns {number[]} Array of rolling Z-scores
+ */
+export function calculateRollingZScore(values, window = 252) {
+    if (!values || values.length === 0) return [];
+
+    return values.map((v, i) => {
+        if (v === null || v === undefined) return null;
+
+        // Get historical values within the lookback window (including current)
+        const lookbackStart = Math.max(0, i + 1 - window);
+        const historical = values.slice(lookbackStart, i + 1).filter(x => x !== null && x !== undefined);
+
+        // Need minimum 20 data points for meaningful statistics
+        if (historical.length < 20) return null;
+
+        // Calculate mean and std dev of the historical window
+        const mean = historical.reduce((a, b) => a + b, 0) / historical.length;
+        const variance = historical.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / historical.length;
+        const stdDev = Math.sqrt(variance);
+
+        if (stdDev === 0) return 0;
+
+        return (v - mean) / stdDev;
+    });
+}
+
+/**
+ * Calculate rolling percentile rank for an array of values.
+ * For each value, computes what percentage of historical values are below it.
+ * @param {number[]} values 
+ * @param {number} window - Lookback window for percentile calculation (default: all history)
+ * @returns {number[]} Array of percentile values (0-100)
+ */
+export function calculatePercentile(values, window = null) {
+    if (!values || values.length === 0) return [];
+
+    return values.map((v, i) => {
+        if (v === null || v === undefined) return null;
+
+        // Get historical values up to current point
+        const lookback = window ? Math.min(window, i + 1) : i + 1;
+        const historicalStart = Math.max(0, i + 1 - lookback);
+        const historical = values.slice(historicalStart, i + 1).filter(x => x !== null && x !== undefined);
+
+        if (historical.length < 2) return 50; // Default to 50th percentile if not enough data
+
+        // Count how many values are below current value
+        const below = historical.filter(x => x < v).length;
+        return (below / (historical.length - 1)) * 100;
+    });
 }
 
 /**

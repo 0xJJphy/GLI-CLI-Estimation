@@ -6,7 +6,15 @@
     import Chart from "../components/Chart.svelte";
     import LightweightChart from "../components/LightweightChart.svelte";
     import TimeRangeSelector from "../components/TimeRangeSelector.svelte";
-    import { filterPlotlyData, getCutoffDate } from "../utils/helpers.js";
+    import Dropdown from "../components/Dropdown.svelte";
+    import {
+        filterPlotlyData,
+        getCutoffDate,
+        calculateZScore,
+        calculatePercentile,
+        calculateRollingZScore,
+    } from "../utils/helpers.js";
+    import { downloadCardAsImage } from "../utils/downloadCard.js";
 
     // Core props only
     export let darkMode = false;
@@ -38,6 +46,56 @@
     let cbBreadthCard;
     let cbConcentrationCard;
 
+    // GLI Aggregate chart state - similar to StableCoinsTab
+    let gliAggregateMode = "absolute"; // Modes: absolute, roc1m, roc3m, roc6m, yoy
+    let gliNormMode = "raw"; // Normalization: raw, zscore, percentile
+    let gliLookbackWindow = 252; // Lookback window for rolling calculations: 63, 126, 252
+
+    // Helper to get translation with fallback
+    $: t = (key, fallback) => translations[key] || fallback;
+
+    // Check if current mode supports normalization
+    $: isGliRocMode = ["roc1m", "roc3m", "roc6m"].includes(gliAggregateMode);
+    // Check if normalization mode requires lookback window
+    $: showGliLookbackWindow =
+        isGliRocMode &&
+        (gliNormMode === "zscore" || gliNormMode === "percentile");
+
+    // GLI Aggregate mode options
+    $: gliAggregateModes = [
+        { value: "absolute", label: t("raw_view", "Absolute") },
+        { value: "roc1m", label: t("roc_1m_col", "ROC 1M") },
+        { value: "roc3m", label: t("roc_3m_col", "ROC 3M") },
+        { value: "roc6m", label: t("roc_6m_col", "ROC 6M") },
+        { value: "yoy", label: t("yoy_change", "YoY %") },
+    ];
+
+    // Normalization mode options
+    $: gliNormModes = [
+        { value: "raw", label: t("raw_view", "Raw (%)") },
+        { value: "zscore", label: "Z-Score" },
+        { value: "percentile", label: t("percentile_view", "Percentile") },
+    ];
+
+    // Lookback window options for rolling calculations
+    $: gliLookbackOptions = [
+        { value: 63, label: "63d (1Q)" },
+        { value: 126, label: "126d (6M)" },
+        { value: 252, label: "252d (1Y)" },
+    ];
+
+    function selectGliMode(mode) {
+        gliAggregateMode = mode;
+    }
+
+    function selectGliNormMode(mode) {
+        gliNormMode = mode;
+    }
+
+    function selectGliLookbackWindow(value) {
+        gliLookbackWindow = value;
+    }
+
     // --- Internal Helper Functions ---
     function getLastDate(seriesKey) {
         if (!dashboardData.last_dates) return "N/A";
@@ -51,21 +109,79 @@
     }
 
     // --- Internal Chart Data Processing ---
+
+    // Get GLI data based on selected mode
+    function getGliDataForMode(mode, normMode, data, lookbackWindow) {
+        const gli = data.gli || {};
+        const rocs = gli.rocs || {};
+
+        let rawData;
+        switch (mode) {
+            case "roc1m":
+                rawData = rocs["1M"] || [];
+                break;
+            case "roc3m":
+                rawData = rocs["3M"] || [];
+                break;
+            case "roc6m":
+                rawData = rocs["6M"] || [];
+                break;
+            case "yoy":
+                rawData = rocs["1Y"] || [];
+                break;
+            default:
+                return gli.total || [];
+        }
+
+        // Apply normalization if in ROC mode
+        if (normMode === "zscore") {
+            return calculateRollingZScore(rawData, lookbackWindow);
+        } else if (normMode === "percentile") {
+            return calculatePercentile(rawData, lookbackWindow);
+        }
+        return rawData;
+    }
+
+    // Get chart label based on mode
+    function getGliChartLabel(mode, normMode) {
+        const base =
+            translations.chart_gli_aggregate || "Global Liquidity Index (GLI)";
+        switch (mode) {
+            case "roc1m":
+                return `${base} - ROC 1M ${normMode !== "raw" ? `(${normMode})` : ""}`;
+            case "roc3m":
+                return `${base} - ROC 3M ${normMode !== "raw" ? `(${normMode})` : ""}`;
+            case "roc6m":
+                return `${base} - ROC 6M ${normMode !== "raw" ? `(${normMode})` : ""}`;
+            case "yoy":
+                return `${base} - YoY`;
+            default:
+                return base;
+        }
+    }
+
+    // Reactive data based on mode selection - explicitly depends on gliAggregateMode, gliNormMode, and gliLookbackWindow
+    $: gliChartData = getGliDataForMode(
+        gliAggregateMode,
+        gliNormMode,
+        dashboardData,
+        gliLookbackWindow,
+    );
+    $: gliChartLabel = getGliChartLabel(gliAggregateMode, gliNormMode);
+
     $: gliTotalData = filterPlotlyData(
         [
             {
                 x: dashboardData.dates,
-                y: dashboardData.gli?.total,
-                name:
-                    translations.chart_gli_aggregate ||
-                    "Global Liquidity Index (GLI)",
+                y: gliChartData,
+                name: gliChartLabel,
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#6366f1", width: 3, shape: "spline" },
             },
         ],
         dashboardData.dates,
-        gliRange, // Using gliRange independently
+        gliRange,
     );
 
     $: fedData = filterPlotlyData(
@@ -430,14 +546,46 @@
                     {translations.chart_gli || "Global Liquidity Index (GLI)"}
                 </h3>
                 <div class="header-controls">
+                    <Dropdown
+                        options={gliAggregateModes}
+                        bind:value={gliAggregateMode}
+                        onSelect={selectGliMode}
+                        {darkMode}
+                        small={true}
+                    />
+                    {#if isGliRocMode}
+                        <Dropdown
+                            options={gliNormModes}
+                            bind:value={gliNormMode}
+                            onSelect={selectGliNormMode}
+                            {darkMode}
+                            small={true}
+                        />
+                    {/if}
+                    {#if showGliLookbackWindow}
+                        <Dropdown
+                            options={gliLookbackOptions}
+                            bind:value={gliLookbackWindow}
+                            onSelect={selectGliLookbackWindow}
+                            {darkMode}
+                            small={true}
+                        />
+                    {/if}
                     <TimeRangeSelector
                         selectedRange={gliRange}
                         onRangeChange={(r) => setRangeForBank("gli", r)}
                     />
-                    <span class="last-date"
-                        >{translations.last_data || "Last:"}
-                        {getLastDate("GLI")}</span
+                    <button
+                        class="download-btn"
+                        title="Download Chart"
+                        on:click={() =>
+                            downloadCardAsImage(
+                                gliAggregateCard,
+                                "global_liquidity_index",
+                            )}
                     >
+                        📥
+                    </button>
                 </div>
             </div>
             <p class="chart-description">
@@ -785,5 +933,19 @@
         .chart-grid {
             grid-template-columns: 1fr;
         }
+    }
+
+    .download-btn {
+        background: transparent;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        padding: 4px 8px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        transition: all 0.2s ease;
+    }
+    .download-btn:hover {
+        background: var(--accent-primary);
+        border-color: var(--accent-primary);
     }
 </style>

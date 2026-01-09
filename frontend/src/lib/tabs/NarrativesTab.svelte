@@ -7,7 +7,11 @@
     import Chart from "../components/Chart.svelte";
     import TimeRangeSelector from "../components/TimeRangeSelector.svelte";
     import Dropdown from "../components/Dropdown.svelte";
-    import { getCutoffDate } from "../utils/helpers.js";
+    import {
+        getCutoffDate,
+        calculateRollingZScore,
+        calculatePercentile,
+    } from "../utils/helpers.js";
     import { downloadCardAsImage } from "../utils/downloadCard.js";
 
     export let dashboardData = {};
@@ -468,6 +472,13 @@
     let fngDataSource = "absolute"; // absolute (F&G), cai (Altseason Index)
     let fngMetricType = "absolute"; // absolute, roc_7d, roc_30d, roc_90d, roc_180d, roc_365d
     let fngTransform = "raw"; // raw, zscore, percentile
+    let fngLookbackWindow = 252; // Lookback window for rolling calculations: 63, 126, 252
+
+    // Check if transform requires lookback window
+    $: isFngRocMode = fngMetricType !== "absolute";
+    $: showFngLookbackWindow =
+        isFngRocMode &&
+        (fngTransform === "zscore" || fngTransform === "percentile");
 
     const fngDataSourceOptions = [
         { value: "absolute", label: "Fear & Greed Index" },
@@ -489,48 +500,44 @@
         { value: "percentile", label: "Percentile" },
     ];
 
-    function getFngSeriesData(metric, transform, dataSource) {
+    // Lookback window options for rolling calculations
+    const fngLookbackOptions = [
+        { value: 63, label: "63d (1Q)" },
+        { value: 126, label: "126d (6M)" },
+        { value: 252, label: "252d (1Y)" },
+    ];
+
+    function selectFngLookbackWindow(value) {
+        fngLookbackWindow = value;
+    }
+
+    function getFngSeriesData(metric, transform, dataSource, lookbackWindow) {
         const isCai = dataSource === "cai";
         if (metric === "absolute") return isCai ? data.cai : data.fear_greed;
 
         // Prefix for CAI specific metrics
         const prefix = isCai ? "cai_" : "fng_";
 
-        // Map metric to data keys
-        const rocMap = {
-            roc_7d: {
-                raw: data[`${prefix}roc_7d`],
-                z: data[`${prefix}roc_7d_z`],
-                pct: data[`${prefix}roc_7d_pct`],
-            },
-            roc_30d: {
-                raw: data[`${prefix}roc_30d`],
-                z: data[`${prefix}roc_30d_z`],
-                pct: data[`${prefix}roc_30d_pct`],
-            },
-            roc_90d: {
-                raw: data[`${prefix}roc_90d`],
-                z: data[`${prefix}roc_90d_z`],
-                pct: data[`${prefix}roc_90d_pct`],
-            },
-            roc_180d: {
-                raw: data[`${prefix}roc_180d`],
-                z: data[`${prefix}roc_180d_z`],
-                pct: data[`${prefix}roc_180d_pct`],
-            },
-            roc_365d: {
-                raw: data[`${prefix}roc_365d`],
-                z: data[`${prefix}roc_365d_z`],
-                pct: data[`${prefix}roc_365d_pct`],
-            },
+        // Map metric to raw data keys
+        const rawRocMap = {
+            roc_7d: data[`${prefix}roc_7d`],
+            roc_30d: data[`${prefix}roc_30d`],
+            roc_90d: data[`${prefix}roc_90d`],
+            roc_180d: data[`${prefix}roc_180d`],
+            roc_365d: data[`${prefix}roc_365d`],
         };
 
-        const rocData = rocMap[metric];
-        if (!rocData) return isCai ? data.cai : data.fear_greed;
+        const rawData = rawRocMap[metric];
+        if (!rawData) return isCai ? data.cai : data.fear_greed;
 
-        if (transform === "zscore") return rocData.z;
-        if (transform === "percentile") return rocData.pct;
-        return rocData.raw;
+        // Apply rolling normalization using frontend calculations
+        if (transform === "zscore") {
+            return calculateRollingZScore(rawData, lookbackWindow);
+        }
+        if (transform === "percentile") {
+            return calculatePercentile(rawData, lookbackWindow);
+        }
+        return rawData;
     }
 
     function getFngSeriesColor(metric, transform) {
@@ -601,9 +608,14 @@
 
     $: fngChartData = (() => {
         const filteredDates = getFilteredDates(fngRange);
-        // Explicitly pass fngDataSource to ensure reactivity
+        // Explicitly pass fngDataSource and fngLookbackWindow to ensure reactivity
         const seriesData = filterByRange(
-            getFngSeriesData(fngMetricType, fngTransform, fngDataSource),
+            getFngSeriesData(
+                fngMetricType,
+                fngTransform,
+                fngDataSource,
+                fngLookbackWindow,
+            ),
             fngRange,
         );
         const color = getFngSeriesColor(fngMetricType, fngTransform);

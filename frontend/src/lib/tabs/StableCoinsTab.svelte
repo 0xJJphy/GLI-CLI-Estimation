@@ -9,7 +9,12 @@
     import SFAIChart from "../components/SFAIChart.svelte";
     import TimeRangeSelector from "../components/TimeRangeSelector.svelte";
     import Dropdown from "../components/Dropdown.svelte";
-    import { filterPlotlyData, getCutoffDate } from "../utils/helpers.js";
+    import {
+        filterPlotlyData,
+        getCutoffDate,
+        calculateRollingZScore,
+        calculatePercentile,
+    } from "../utils/helpers.js";
     import { downloadCardAsImage } from "../utils/downloadCard.js";
 
     // Core props
@@ -22,9 +27,13 @@
     let individualRange = "1Y";
     let aggregateMode = "absolute"; // Modes: absolute, roc1m, roc3m, yoy, accel_z
     let normMode = "raw"; // Normalization: raw, zscore, percentile
+    let lookbackWindow = 252; // Lookback window for rolling calculations: 63, 126, 252
 
     // Check if current mode supports normalization
     $: isRocMode = ["roc7d", "roc1m", "roc3m"].includes(aggregateMode);
+    // Check if normalization mode requires lookback window
+    $: showLookbackWindow =
+        isRocMode && (normMode === "zscore" || normMode === "percentile");
 
     // Normalization mode options
     $: normModes = [
@@ -33,8 +42,19 @@
         { value: "percentile", label: t("percentile_view", "Percentile") },
     ];
 
+    // Lookback window options for rolling calculations
+    $: lookbackOptions = [
+        { value: 63, label: "63d (1Q)" },
+        { value: 126, label: "126d (6M)" },
+        { value: 252, label: "252d (1Y)" },
+    ];
+
     function selectNormMode(mode) {
         normMode = mode;
+    }
+
+    function selectLookbackWindow(value) {
+        lookbackWindow = value;
     }
 
     // Pagination for depegs
@@ -443,38 +463,41 @@
                 let color = "#6366f1";
 
                 if (aggregateMode === "roc7d") {
+                    const rawRoc = stablecoinsData.total_roc_7d || [];
                     if (normMode === "zscore") {
-                        yData = stablecoinsData.total_roc_7d_z || [];
+                        yData = calculateRollingZScore(rawRoc, lookbackWindow);
                         name = t("roc_7d_col", "ROC 7D") + " Z";
                     } else if (normMode === "percentile") {
-                        yData = stablecoinsData.total_roc_7d_pct || [];
+                        yData = calculatePercentile(rawRoc, lookbackWindow);
                         name = t("roc_7d_col", "ROC 7D") + " Pctl";
                     } else {
-                        yData = stablecoinsData.total_roc_7d || [];
+                        yData = rawRoc;
                         name = t("roc_7d_col", "ROC 7D (%)");
                     }
                     color = "#2DD4BF"; // teal
                 } else if (aggregateMode === "roc1m") {
+                    const rawRoc = stablecoinsData.total_roc_1m || [];
                     if (normMode === "zscore") {
-                        yData = stablecoinsData.total_roc_1m_z || [];
+                        yData = calculateRollingZScore(rawRoc, lookbackWindow);
                         name = t("roc_1m_col", "ROC 1M") + " Z";
                     } else if (normMode === "percentile") {
-                        yData = stablecoinsData.total_roc_1m_pct || [];
+                        yData = calculatePercentile(rawRoc, lookbackWindow);
                         name = t("roc_1m_col", "ROC 1M") + " Pctl";
                     } else {
-                        yData = stablecoinsData.total_roc_1m || [];
+                        yData = rawRoc;
                         name = t("roc_1m_col", "ROC 1M (%)");
                     }
                     color = "#10b981"; // emerald
                 } else if (aggregateMode === "roc3m") {
+                    const rawRoc = stablecoinsData.total_roc_3m || [];
                     if (normMode === "zscore") {
-                        yData = stablecoinsData.total_roc_3m_z || [];
+                        yData = calculateRollingZScore(rawRoc, lookbackWindow);
                         name = t("roc_3m_col", "ROC 3M") + " Z";
                     } else if (normMode === "percentile") {
-                        yData = stablecoinsData.total_roc_3m_pct || [];
+                        yData = calculatePercentile(rawRoc, lookbackWindow);
                         name = t("roc_3m_col", "ROC 3M") + " Pctl";
                     } else {
-                        yData = stablecoinsData.total_roc_3m || [];
+                        yData = rawRoc;
                         name = t("roc_3m_col", "ROC 3M (%)");
                     }
                     color = "#3b82f6"; // blue
@@ -777,6 +800,15 @@
                         options={normModes}
                         bind:value={normMode}
                         onSelect={selectNormMode}
+                        {darkMode}
+                        small={true}
+                    />
+                {/if}
+                {#if showLookbackWindow}
+                    <Dropdown
+                        options={lookbackOptions}
+                        bind:value={lookbackWindow}
+                        onSelect={selectLookbackWindow}
                         {darkMode}
                         small={true}
                     />

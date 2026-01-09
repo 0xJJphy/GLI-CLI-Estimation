@@ -5,6 +5,7 @@
      */
     import LightweightChart from "../components/LightweightChart.svelte";
     import TimeRangeSelector from "../components/TimeRangeSelector.svelte";
+    import Dropdown from "../components/Dropdown.svelte";
     import {
         calculateROC,
         alignSeries,
@@ -35,14 +36,33 @@
     let momentumChart;
     let absoluteChart;
 
-    // Sources configuration
-    const sources = [
+    // Sources configuration - compatible with Dropdown component
+    const sourcesConfig = [
         { id: "us_net_liq", name: "US Net Liquidity", color: "#10b981" },
         { id: "us_net_liq_reserves", name: "Bank Reserves", color: "#22c55e" },
         { id: "gli_fed", name: "Fed Assets", color: "#3b82f6" },
         { id: "us_net_liq_tga", name: "Treasury TGA", color: "#f59e0b" },
         { id: "us_net_liq_rrp", name: "Fed RRP", color: "#ef4444" },
     ];
+
+    // Dropdown options format
+    $: sourceOptions = sourcesConfig.map((s) => ({
+        value: s.id,
+        label: s.name,
+    }));
+
+    // Helper to get source config by id
+    function getSourceConfig(id) {
+        return sourcesConfig.find((s) => s.id === id) || sourcesConfig[0];
+    }
+
+    function selectSource(value) {
+        selectedSource = value;
+    }
+
+    function selectSourceAbs(value) {
+        selectedSourceAbs = value;
+    }
 
     const rocPeriods = [
         { label: "7D", value: 7 },
@@ -55,7 +75,7 @@
     ];
 
     // Reactive calculations
-    $: sourceConfig = sources.find((s) => s.id === selectedSource);
+    $: sourceConfig = getSourceConfig(selectedSource);
 
     $: rawSourceData = (() => {
         let values = [];
@@ -187,7 +207,7 @@
     $: filteredIndicesAbs = getFilteredIndices(masterDatesAbs, timeRangeAbs);
 
     $: chartDataAbsTV = (() => {
-        const sourceCfg = sources.find((s) => s.id === selectedSourceAbs);
+        const sourceCfg = getSourceConfig(selectedSourceAbs);
 
         // Aligned Source Data
         const alignedSource = alignSeries(
@@ -316,15 +336,13 @@
                 <label for="explorer-source">
                     {translations.source_label || "Source"}
                 </label>
-                <select
-                    id="explorer-source"
+                <Dropdown
+                    options={sourceOptions}
                     bind:value={selectedSource}
-                    class="styled-select"
-                >
-                    {#each sources as source}
-                        <option value={source.id}>{source.name}</option>
-                    {/each}
-                </select>
+                    onSelect={selectSource}
+                    {darkMode}
+                    small={true}
+                />
             </div>
 
             <div class="control-group">
@@ -442,15 +460,13 @@
                 <label for="explorer-source-abs">
                     {translations.source_label || "Source"}
                 </label>
-                <select
-                    id="explorer-source-abs"
+                <Dropdown
+                    options={sourceOptions}
                     bind:value={selectedSourceAbs}
-                    class="styled-select"
-                >
-                    {#each sources as source}
-                        <option value={source.id}>{source.name}</option>
-                    {/each}
-                </select>
+                    onSelect={selectSourceAbs}
+                    {darkMode}
+                    small={true}
+                />
             </div>
 
             <div class="control-group">
