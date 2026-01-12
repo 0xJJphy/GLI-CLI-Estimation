@@ -196,11 +196,22 @@
             yaxis: "y2",
             line: { color: "#10b981", width: 3 },
         },
-        ...(showBtcOverlay && $dashboardData.btc.price
+        ...(showBtcOverlay && $dashboardData.btc?.price && dates.length > 0
             ? [
                   {
-                      x: $dashboardData.dates,
-                      y: $dashboardData.btc.price,
+                      x: dates,
+                      y: (() => {
+                          const btcPrices = $dashboardData.btc.price;
+                          const gDates = $dashboardData.dates;
+                          const firstEtfDate = dates[0];
+                          const startIdx = gDates.indexOf(firstEtfDate);
+                          if (startIdx === -1)
+                              return btcPrices.slice(-dates.length);
+                          return btcPrices.slice(
+                              startIdx,
+                              startIdx + dates.length,
+                          );
+                      })(),
                       name: "BTC Price",
                       type: "scatter",
                       mode: "lines",
@@ -358,33 +369,41 @@
         </div>
     {:else}
         <!-- Summary Header -->
-        <div class="stats-grid">
-            <div class="stat-card main">
-                <span class="label">{t($currentTranslations, "etf_aum")}</span>
-                <span class="value">${formatNumber(totalAUM)}</span>
-                <span class="sub-label"
-                    >{t($currentTranslations, "etf_holdings")}</span
-                >
+        <div class="tab-header" class:light={!$darkMode}>
+            <div class="header-content">
+                <h2>{t($currentTranslations, "etf_title")}</h2>
+                <p class="description">
+                    Track Spot Bitcoin ETF flows, AUM growth, and market
+                    premiums.
+                </p>
             </div>
-            {#each statsCards as card}
-                <div class="stat-card">
-                    <span class="label">{card.label}</span>
-                    <span
-                        class="value"
-                        class:pos={card.value > 0}
-                        class:neg={card.value < 0}
+            <div class="header-stats">
+                <div class="stat-item main">
+                    <span class="stat-label"
+                        >{t($currentTranslations, "etf_aum")}</span
                     >
-                        {card.isCurrency ? "$" : ""}{formatNumber(
-                            card.value,
-                            card.isPct ? 2 : 0,
-                        )}{card.isPct ? "%" : ""}
-                    </span>
+                    <span class="stat-value">${formatNumber(totalAUM)}</span>
                 </div>
-            {/each}
+                {#each statsCards as card}
+                    <div class="stat-item">
+                        <span class="stat-label">{card.label}</span>
+                        <span
+                            class="stat-value"
+                            class:pos={card.value > 0}
+                            class:neg={card.value < 0}
+                        >
+                            {card.isCurrency ? "$" : ""}{formatNumber(
+                                card.value,
+                                card.isPct ? 2 : 0,
+                            )}{card.isPct ? "%" : ""}
+                        </span>
+                    </div>
+                {/each}
+            </div>
         </div>
 
         <!-- Main Chart Section -->
-        <div class="card chart-card">
+        <div class="chart-card full-width" class:light={!$darkMode}>
             <div class="chart-header">
                 <div class="timeframe-toggles">
                     <button
@@ -606,34 +625,57 @@
         }
     }
 
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-        gap: 1rem;
+    /* Dashboard Standard Styles */
+    .tab-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--border-color);
     }
 
-    .stat-card {
-        background: var(--card-bg);
-        padding: 1.5rem;
-        border-radius: 0.75rem;
-        border: 1px solid var(--border-color);
+    .header-content h2 {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+    .header-content .description {
+        margin: 4px 0 0 0;
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+    }
+
+    .header-stats {
+        display: flex;
+        gap: 20px;
+    }
+
+    .stat-item {
         display: flex;
         flex-direction: column;
-        gap: 0.5rem;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        align-items: flex-end;
     }
 
-    .stat-card .label {
-        font-size: 0.75rem;
+    .stat-item.main .stat-value {
+        color: #3b82f6;
+        font-size: 1.5rem;
+    }
+
+    .stat-label {
+        font-size: 0.7rem;
         font-weight: 600;
         color: var(--text-muted);
         text-transform: uppercase;
         letter-spacing: 0.05em;
     }
 
-    .stat-card .value {
-        font-size: 1.75rem;
+    .stat-value {
+        font-size: 1.1rem;
         font-weight: 700;
+        color: var(--text-primary);
     }
 
     .pos {
@@ -643,12 +685,24 @@
         color: #ef4444;
     }
 
+    .chart-card {
+        background: var(--card-bg);
+        border-radius: 12px;
+        border: 1px solid var(--border-color);
+        padding: 20px;
+        margin-bottom: 24px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .full-width {
+        grid-column: 1 / -1;
+    }
+
     .card {
         background: var(--card-bg);
-        border-radius: 0.75rem;
+        border-radius: 12px;
         border: 1px solid var(--border-color);
-        padding: 1.25rem;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        padding: 20px;
     }
 
     .card-header {
@@ -726,10 +780,10 @@
         color: var(--text-muted);
     }
 
-    :global(.dark) .stat-card,
+    :global(.dark) .chart-card,
     :global(.dark) .card {
-        background: #1e293b;
-        border-color: #334155;
+        background: #0f172a;
+        border-color: #1e293b;
     }
 
     :global(.dark) .ticker-badge {
@@ -837,64 +891,5 @@
 
     .ticker-chart-wrapper {
         min-height: 380px;
-    }
-
-    .chart-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1rem;
-    }
-
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-        gap: 1rem;
-        margin-bottom: 1.5rem;
-    }
-
-    .stat-card {
-        background: var(--card-bg);
-        border: 1px solid var(--border-color);
-        padding: 1rem;
-        border-radius: 0.75rem;
-        display: flex;
-        flex-direction: column;
-        gap: 0.25rem;
-        transition: transform 0.2s;
-    }
-
-    .stat-card:hover {
-        transform: translateY(-2px);
-    }
-
-    .stat-card.main {
-        border-right: 3px solid #3b82f6;
-    }
-
-    .stat-card .label {
-        font-size: 0.65rem;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: var(--text-muted);
-        font-weight: 700;
-    }
-
-    .stat-card .value {
-        font-size: 1.1rem;
-        font-weight: 800;
-        color: var(--text-color);
-    }
-
-    .stat-card .value.pos {
-        color: #10b981;
-    }
-    .stat-card .value.neg {
-        color: #ef4444;
-    }
-
-    .stat-card .sub-label {
-        font-size: 0.6rem;
-        color: var(--text-muted);
     }
 </style>
