@@ -84,26 +84,6 @@
         { value: 20, label: "20d" },
     ];
 
-    /**
-     * Helper to calculate simple moving average
-     */
-    function calculateSMA(data, window) {
-        if (!data || data.length === 0) return [];
-        let results = [];
-        for (let i = 0; i < data.length; i++) {
-            if (i < window - 1) {
-                results.push(null);
-                continue;
-            }
-            let sum = 0;
-            for (let j = 0; j < window; j++) {
-                sum += data[i - j] || 0;
-            }
-            results.push(sum / window);
-        }
-        return results;
-    }
-
     $: tickerOptions = summary.map((s) => ({
         value: s.ticker,
         label: s.ticker,
@@ -178,8 +158,10 @@
         if (rocMetric === "flows") {
             // Use Flow ROC (more volatile, better for trading signals)
             if (chartTimeframe === "7D") rawRoc = flowsAgg.flow_roc_7d || [];
-            else if (chartTimeframe === "30D") rawRoc = flowsAgg.flow_roc_30d || [];
-            else if (chartTimeframe === "90D") rawRoc = flowsAgg.flow_roc_90d || [];
+            else if (chartTimeframe === "30D")
+                rawRoc = flowsAgg.flow_roc_30d || [];
+            else if (chartTimeframe === "90D")
+                rawRoc = flowsAgg.flow_roc_90d || [];
             else if (chartTimeframe === "YOY") {
                 rawRoc = cumFlow.map((v, i) => {
                     const prevYearIdx = i - 252;
@@ -193,8 +175,10 @@
         } else {
             // Use AUM ROC (more stable, shows total market growth)
             if (chartTimeframe === "7D") rawRoc = flowsAgg.aum_roc_7d || [];
-            else if (chartTimeframe === "30D") rawRoc = flowsAgg.aum_roc_30d || [];
-            else if (chartTimeframe === "90D") rawRoc = flowsAgg.aum_roc_90d || [];
+            else if (chartTimeframe === "30D")
+                rawRoc = flowsAgg.aum_roc_30d || [];
+            else if (chartTimeframe === "90D")
+                rawRoc = flowsAgg.aum_roc_90d || [];
             else if (chartTimeframe === "YOY") {
                 rawRoc = cumFlow.map((v, i) => {
                     const prevYearIdx = i - 252;
@@ -216,7 +200,7 @@
 
         return {
             y: finalY,
-            name: `${chartTimeframe} ROC ${rocMetric === "flows" ? "Flows" : "AUM"} ${aggNormMode !== "raw" ? `(${aggNormMode.toUpperCase()})` : ""}`,
+            name: `${chartTimeframe} ${rocMetric === "flows" ? "Flow ROC" : "AUM ROC"} ${aggNormMode !== "raw" ? `(${aggNormMode.toUpperCase()})` : ""}`,
             type: "scatter",
         };
     })();
@@ -269,14 +253,19 @@
     // --- BTC Price Overlay Logic ---
     // Efficiently map BTC prices from global dashboard data into ETF-specific date space
     // using a lookup dictionary to handle gaps (weekends/holidays) correctly.
+    // Normalized to YYYY-MM-DD to avoid time-offset mismatches.
     $: btcDatesMap = $dashboardData?.dates || [];
     $: btcRawPrices = $dashboardData?.btc?.price || [];
     $: btcLookup = btcDatesMap.reduce((acc, date, i) => {
-        acc[date] = btcRawPrices[i];
+        const normalized = date.split("T")[0];
+        acc[normalized] = btcRawPrices[i];
         return acc;
     }, {});
 
-    $: btcPricesMapped = dates.map((d) => btcLookup[d] || null);
+    $: btcPricesMapped = dates.map((d) => {
+        const normalized = d.split("T")[0];
+        return btcLookup[normalized] || null;
+    });
 
     $: mainChartData = [
         {
@@ -358,7 +347,7 @@
         title: {
             text:
                 aggChartMode === "roc"
-                    ? `${rocMetric === "flows" ? "Flow" : "AUM"} Rate of Change (ROC) - ${chartTimeframe} ${aggNormMode !== "raw" ? `(${aggNormMode.toUpperCase()})` : ""}`
+                    ? `${chartTimeframe} ${rocMetric === "flows" ? "Flow" : "AUM"} Rate of Change (ROC) ${aggNormMode !== "raw" ? `(${aggNormMode.toUpperCase()})` : ""}`
                     : `ETF Net Flows - ${chartTimeframe}`,
             font: { color: $darkMode ? "#e2e8f0" : "#1e293b", size: 16 },
         },
@@ -421,13 +410,17 @@
         // Then apply normalization if needed
         if (normalizationMode === "zscore") {
             // Apply smoothing to z-score output for cleaner signals
-            const zscore = tickerDataRaw.pd_zscore_1y || calculateRollingZScore(rawPD, 126);
+            const zscore =
+                tickerDataRaw.pd_zscore_1y ||
+                calculateRollingZScore(rawPD, 126);
             return pdSmoothType !== "raw"
                 ? applySmoothing(zscore, pdSmoothType, pdSmoothWindow)
                 : zscore;
         } else if (normalizationMode === "percentile") {
             // Apply smoothing to percentile output for cleaner signals
-            const pctile = tickerDataRaw.pd_percentile_1y || calculatePercentile(rawPD, 126);
+            const pctile =
+                tickerDataRaw.pd_percentile_1y ||
+                calculatePercentile(rawPD, 126);
             return pdSmoothType !== "raw"
                 ? applySmoothing(pctile, pdSmoothType, pdSmoothWindow)
                 : pctile;
@@ -476,96 +469,98 @@
     ];
 
     // Z-Score reference bands (horizontal lines at -2, -1, 0, +1, +2)
-    $: zscoreShapes = normalizationMode === "zscore" && tickerMetric === "prem_disc"
-        ? [
-              // +2 band (overbought extreme)
-              {
-                  type: "line",
-                  x0: 0,
-                  x1: 1,
-                  xref: "paper",
-                  y0: 2,
-                  y1: 2,
-                  line: { color: "#10b981", width: 1, dash: "dash" },
-              },
-              // +1 band
-              {
-                  type: "line",
-                  x0: 0,
-                  x1: 1,
-                  xref: "paper",
-                  y0: 1,
-                  y1: 1,
-                  line: { color: "#86efac", width: 1, dash: "dot" },
-              },
-              // 0 band (neutral)
-              {
-                  type: "line",
-                  x0: 0,
-                  x1: 1,
-                  xref: "paper",
-                  y0: 0,
-                  y1: 0,
-                  line: { color: "#64748b", width: 2 },
-              },
-              // -1 band
-              {
-                  type: "line",
-                  x0: 0,
-                  x1: 1,
-                  xref: "paper",
-                  y0: -1,
-                  y1: -1,
-                  line: { color: "#fca5a5", width: 1, dash: "dot" },
-              },
-              // -2 band (oversold extreme)
-              {
-                  type: "line",
-                  x0: 0,
-                  x1: 1,
-                  xref: "paper",
-                  y0: -2,
-                  y1: -2,
-                  line: { color: "#ef4444", width: 1, dash: "dash" },
-              },
-          ]
-        : [];
+    $: zscoreShapes =
+        normalizationMode === "zscore" && tickerMetric === "prem_disc"
+            ? [
+                  // +2 band (overbought extreme)
+                  {
+                      type: "line",
+                      x0: 0,
+                      x1: 1,
+                      xref: "paper",
+                      y0: 2,
+                      y1: 2,
+                      line: { color: "#10b981", width: 1, dash: "dash" },
+                  },
+                  // +1 band
+                  {
+                      type: "line",
+                      x0: 0,
+                      x1: 1,
+                      xref: "paper",
+                      y0: 1,
+                      y1: 1,
+                      line: { color: "#86efac", width: 1, dash: "dot" },
+                  },
+                  // 0 band (neutral)
+                  {
+                      type: "line",
+                      x0: 0,
+                      x1: 1,
+                      xref: "paper",
+                      y0: 0,
+                      y1: 0,
+                      line: { color: "#64748b", width: 2 },
+                  },
+                  // -1 band
+                  {
+                      type: "line",
+                      x0: 0,
+                      x1: 1,
+                      xref: "paper",
+                      y0: -1,
+                      y1: -1,
+                      line: { color: "#fca5a5", width: 1, dash: "dot" },
+                  },
+                  // -2 band (oversold extreme)
+                  {
+                      type: "line",
+                      x0: 0,
+                      x1: 1,
+                      xref: "paper",
+                      y0: -2,
+                      y1: -2,
+                      line: { color: "#ef4444", width: 1, dash: "dash" },
+                  },
+              ]
+            : [];
 
     // Percentile reference bands (25, 50, 75)
-    $: percentileShapes = normalizationMode === "percentile" && tickerMetric === "prem_disc"
-        ? [
-              // 75th percentile
-              {
-                  type: "line",
-                  x0: 0,
-                  x1: 1,
-                  xref: "paper",
-                  y0: 75,
-                  y1: 75,
-                  line: { color: "#10b981", width: 1, dash: "dash" },
-              },
-              // 50th percentile (median)
-              {
-                  type: "line",
-                  x0: 0,
-                  x1: 1,
-                  xref: "paper",
-                  y0: 50,
-                  y1: 50,
-                  line: { color: "#64748b", width: 2 },
-              },
-              // 25th percentile
-              {
-                  type: "line",
-                  x0: 0,
-                  x1: 1,
-                  xref: "paper",
-                  y0: 25,
-                  y1: 25,
-                  line: { color: "#ef4444", width: 1, dash: "dash" },
-              },
-          ]
-        : [];
+    $: percentileShapes =
+        normalizationMode === "percentile" && tickerMetric === "prem_disc"
+            ? [
+                  // 75th percentile
+                  {
+                      type: "line",
+                      x0: 0,
+                      x1: 1,
+                      xref: "paper",
+                      y0: 75,
+                      y1: 75,
+                      line: { color: "#10b981", width: 1, dash: "dash" },
+                  },
+                  // 50th percentile (median)
+                  {
+                      type: "line",
+                      x0: 0,
+                      x1: 1,
+                      xref: "paper",
+                      y0: 50,
+                      y1: 50,
+                      line: { color: "#64748b", width: 2 },
+                  },
+                  // 25th percentile
+                  {
+                      type: "line",
+                      x0: 0,
+                      x1: 1,
+                      xref: "paper",
+                      y0: 25,
+                      y1: 25,
+                      line: { color: "#ef4444", width: 1, dash: "dash" },
+                  },
+              ]
+            : [];
 
     $: tickerChartLayout = {
         title: `${tickerMode === "aggregate" ? "Aggregate" : selectedTicker} - ${tickerMetric === "flow" ? "Flow Analysis" : "Premium/Discount"} ${pdSmoothType !== "raw" ? `(${pdSmoothType.toUpperCase()} ${pdSmoothWindow}d` : ""} ${normalizationMode !== "raw" ? `${pdSmoothType !== "raw" ? ", " : "("}${normalizationMode.toUpperCase()})` : pdSmoothType !== "raw" ? ")" : ""}`,
@@ -616,7 +611,9 @@
 
         // Get top 6 ETFs and group rest as "Others"
         const top6 = summary.slice(0, 6);
-        const othersAum = summary.slice(6).reduce((acc, s) => acc + (s.aum_usd || 0), 0);
+        const othersAum = summary
+            .slice(6)
+            .reduce((acc, s) => acc + (s.aum_usd || 0), 0);
 
         const labels = top6.map((s) => s.ticker);
         const values = top6.map((s) => s.aum_usd || 0);
@@ -645,7 +642,8 @@
                         "#64748b", // Others - Slate
                     ],
                 },
-                hovertemplate: "<b>%{label}</b><br>$%{value:,.0f}<br>%{percent}<extra></extra>",
+                hovertemplate:
+                    "<b>%{label}</b><br>$%{value:,.0f}<br>%{percent}<extra></extra>",
             },
         ];
     })();
@@ -1039,7 +1037,10 @@
                     darkMode={$darkMode}
                 />
                 <div class="correlation-hint">
-                    <span class="hint-text">High correlation = flows follow price | Low/negative = flows independent</span>
+                    <span class="hint-text"
+                        >High correlation = flows follow price | Low/negative =
+                        flows independent</span
+                    >
                 </div>
             </div>
         </div>
