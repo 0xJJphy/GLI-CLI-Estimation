@@ -206,6 +206,9 @@ export const dashboardData = writable({
     }
 });
 
+export const etfData = writable(null);
+export const etfLoading = writable(false);
+
 export const isLoading = writable(true);
 export const error = writable(null);
 export const selectedSource = writable('tv'); // 'tv' or 'fred'
@@ -233,6 +236,21 @@ export async function fetchData() {
         error.set(e.message);
     } finally {
         isLoading.set(false);
+    }
+}
+
+export async function fetchEtfData() {
+    etfLoading.set(true);
+    try {
+        const response = await fetch('/etf_data.json');
+        if (!response.ok) throw new Error('Failed to fetch ETF data');
+        const data = await response.json();
+        etfData.set(data);
+    } catch (e) {
+        console.error('Error fetching ETF data:', e);
+        error.set(e.message);
+    } finally {
+        etfLoading.set(false);
     }
 }
 

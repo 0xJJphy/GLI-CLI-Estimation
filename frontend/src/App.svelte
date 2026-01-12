@@ -29,6 +29,7 @@
   import ChartExplorerTab from "./lib/tabs/ChartExplorerTab.svelte";
   import StableCoinsTab from "./lib/tabs/StableCoinsTab.svelte";
   import NarrativesTab from "./lib/tabs/NarrativesTab.svelte";
+  import EtfsTab from "./lib/tabs/EtfsTab.svelte";
 
   // Global Settings Store
   import {
@@ -2473,6 +2474,16 @@
                   >
                     {$currentTranslations.nav_stablecoins || "Stablecoins"}
                   </div>
+                  <div
+                    class="nav-item sub"
+                    class:active={currentTab === "Etfs"}
+                    on:click={() => setTab("Etfs")}
+                    on:keydown={(e) => e.key === "Enter" && setTab("Etfs")}
+                    role="button"
+                    tabindex="0"
+                  >
+                    ETFs
+                  </div>
                 </div>
               {/if}
             </div>
@@ -2843,6 +2854,10 @@
             translations={$currentTranslations}
             dashboardData={$dashboardData}
           />
+        </div>
+      {:else if currentTab === "Etfs"}
+        <div class="tab-content">
+          <EtfsTab />
         </div>
       {/if}
     </div>

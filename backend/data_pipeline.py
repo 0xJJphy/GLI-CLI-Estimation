@@ -38,6 +38,9 @@ from treasury_refinancing_signal import get_treasury_refinancing_signal
 # Import Offshore Dollar Liquidity module
 from offshore_liquidity import get_offshore_liquidity_output
 
+# Import ETF Data module
+from etf_data import fetch_etf_data
+
 # Import Crypto Narratives & Rotation module
 from crypto_analytics import (
     fetch_fear_and_greed,
@@ -4855,7 +4858,6 @@ def run_pipeline():
             ),
             # Offshore Dollar Liquidity
             'offshore_liquidity': get_offshore_liquidity_output(df_t, df_offshore_tv if not df_offshore_tv.empty else None).get('offshore_liquidity', {}),
-
         }
 
         output_path = os.path.join(OUTPUT_DIR, filename)
@@ -4863,8 +4865,18 @@ def run_pipeline():
             json.dump(data_output, f)
 
     # Generate only the hybrid TV+FRED data (primary source)
-    # FRED-only generation removed to avoid duplicate API calls and reduce runtime
     process_and_save_final(df_hybrid_t, 'dashboard_data_tv.json', silent=False)
+    
+    # Save ETF data separately to keep dashboard_data weight low
+    print("Saving separate ETF data...")
+    try:
+        etf_data = clean_for_json(fetch_etf_data())
+        etf_output_path = os.path.join(OUTPUT_DIR, 'etf_data.json')
+        with open(etf_output_path, 'w') as f:
+            json.dump(etf_data, f)
+        print(f"  -> ETF data saved to {etf_output_path}")
+    except Exception as e:
+        print(f"Error saving separate ETF data: {e}")
     
     # Copy to dashboard_data.json for backwards compatibility
     import shutil
