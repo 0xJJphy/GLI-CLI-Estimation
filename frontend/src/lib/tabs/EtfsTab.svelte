@@ -14,6 +14,10 @@
     import Chart from "../components/Chart.svelte";
     import LightweightChart from "../components/LightweightChart.svelte";
     import Dropdown from "../components/Dropdown.svelte";
+    import {
+        calculateRollingZScore,
+        calculatePercentile,
+    } from "../utils/helpers";
 
     // Data is now fetched locally to avoid bloating main dashboard_data.json
     $: summary = $etfData?.summary || [];
@@ -25,6 +29,30 @@
     let chartTimeframe = "1D"; // 1D, 7D, 30D, 90D
     let showMA = true;
     let showBtcOverlay = false;
+
+    // Advanced Chart State
+    let aggChartMode = "net_flow"; // "net_flow" or "roc"
+    let selectedRoc = "7d"; // "7d", "30d", "90d", "yoy"
+    let aggNormMode = "raw"; // "raw", "zscore", "percentile"
+    let maWindow = 20;
+
+    $: aggModes = [
+        { value: "net_flow", label: t($currentTranslations, "etf_net_flows") },
+        { value: "roc", label: "Rate of Change (ROC) AUM" },
+    ];
+
+    $: normOptions = [
+        { value: "raw", label: t($currentTranslations, "view_raw") || "Raw" },
+        { value: "zscore", label: "Z-Score" },
+        { value: "percentile", label: "%ile" },
+    ];
+
+    $: maWindowOptions = [
+        { value: 10, label: "10d MA" },
+        { value: 20, label: "20d MA" },
+        { value: 50, label: "50d MA" },
+        { value: 100, label: "100d MA" },
+    ];
 
     /**
      * Helper to calculate simple moving average
@@ -91,21 +119,63 @@
     ];
 
     // Main Chart Data Mapping
-    $: currentFlowData =
-        chartTimeframe === "1D"
-            ? flowsAgg.total_flow_usd || []
-            : chartTimeframe === "7D"
-              ? flowsAgg.flow_usd_7d || []
-              : chartTimeframe === "30D"
-                ? flowsAgg.flow_usd_30d || []
-                : flowsAgg.flow_usd_90d || [];
-
-    $: barColors = currentFlowData.map((val) =>
+    $: barColors = (processedMainData.y || []).map((val) =>
         val >= 0 ? "#10b981" : "#ef4444",
     );
 
+    // Advanced Data Logic (ROC + Normalization)
+    $: processedMainData = (() => {
+        if (aggChartMode === "net_flow") {
+            const yData =
+                chartTimeframe === "1D"
+                    ? flowsAgg.total_flow_usd || []
+                    : chartTimeframe === "7D"
+                      ? flowsAgg.flow_usd_7d || []
+                      : chartTimeframe === "30D"
+                        ? flowsAgg.flow_usd_30d || []
+                        : flowsAgg.flow_usd_90d || [];
+            return {
+                y: yData,
+                name: t($currentTranslations, "etf_net_flows"),
+                type: "bar",
+            };
+        }
+
+        // ROC Mode Logic
+        let rawRoc = [];
+        const cumFlow = flowsAgg.cum_flow_usd || [];
+
+        if (chartTimeframe === "7D") rawRoc = flowsAgg.aum_roc_7d || [];
+        else if (chartTimeframe === "30D") rawRoc = flowsAgg.aum_roc_30d || [];
+        else if (chartTimeframe === "90D") rawRoc = flowsAgg.aum_roc_90d || [];
+        else if (chartTimeframe === "YOY") {
+            rawRoc = cumFlow.map((v, i) => {
+                const prevYearIdx = i - 252;
+                if (prevYearIdx < 0) return null;
+                const prev = cumFlow[prevYearIdx];
+                return prev ? ((v - prev) / Math.abs(prev)) * 100 : null;
+            });
+        } else {
+            // Default to 7D for ROC if 1D is selected
+            rawRoc = flowsAgg.aum_roc_7d || [];
+        }
+
+        let finalY = rawRoc;
+        if (aggNormMode === "zscore") {
+            finalY = calculateRollingZScore(rawRoc, 252);
+        } else if (aggNormMode === "percentile") {
+            finalY = calculatePercentile(rawRoc, 252);
+        }
+
+        return {
+            y: finalY,
+            name: `${chartTimeframe} ROC ${aggNormMode !== "raw" ? `(${aggNormMode.toUpperCase()})` : ""}`,
+            type: "scatter",
+        };
+    })();
+
     // MA Area Logic: Calculated in Frontend, handles zero-crossings for clean fill
-    $: maDataRaw = calculateSMA(currentFlowData, 20);
+    $: maDataRaw = calculateSMA(processedMainData.y, maWindow);
     $: maProcessed = (() => {
         if (!maDataRaw || maDataRaw.length === 0)
             return { dates: [], pos: [], neg: [], line: [] };
@@ -152,10 +222,23 @@
     $: mainChartData = [
         {
             x: dates,
-            y: currentFlowData,
-            name: t($currentTranslations, "etf_net_flows"),
-            type: "bar",
+            y: processedMainData.y,
+            name: processedMainData.name,
+            type: processedMainData.type,
+            mode: processedMainData.type === "scatter" ? "lines" : undefined,
             marker: { color: barColors },
+            line: {
+                color:
+                    processedMainData.type === "scatter"
+                        ? "#3b82f6"
+                        : undefined,
+                width: 2,
+            },
+            fill: processedMainData.type === "scatter" ? "tozeroy" : undefined,
+            fillcolor:
+                processedMainData.type === "scatter"
+                    ? "rgba(59, 130, 246, 0.1)"
+                    : undefined,
             opacity: 0.8,
         },
         ...(showMA
@@ -405,35 +488,85 @@
         <!-- Main Chart Section -->
         <div class="chart-card full-width" class:light={!$darkMode}>
             <div class="chart-header">
-                <div class="timeframe-toggles">
-                    <button
-                        class:active={chartTimeframe === "1D"}
-                        on:click={() => (chartTimeframe = "1D")}>1D</button
-                    >
-                    <button
-                        class:active={chartTimeframe === "7D"}
-                        on:click={() => (chartTimeframe = "7D")}
-                        >{t($currentTranslations, "etf_weekly")}</button
-                    >
-                    <button
-                        class:active={chartTimeframe === "30D"}
-                        on:click={() => (chartTimeframe = "30D")}
-                        >{t($currentTranslations, "etf_monthly")}</button
-                    >
-                    <button
-                        class:active={chartTimeframe === "90D"}
-                        on:click={() => (chartTimeframe = "90D")}
-                        >{t($currentTranslations, "etf_quarterly")}</button
-                    >
+                <div class="header-controls">
+                    <Dropdown
+                        options={aggModes}
+                        bind:value={aggChartMode}
+                        darkMode={$darkMode}
+                        small={true}
+                    />
+                    {#if aggChartMode === "roc"}
+                        <Dropdown
+                            options={normOptions}
+                            bind:value={aggNormMode}
+                            darkMode={$darkMode}
+                            small={true}
+                        />
+                    {/if}
+                    <Dropdown
+                        options={maWindowOptions}
+                        bind:value={maWindow}
+                        darkMode={$darkMode}
+                        small={true}
+                    />
+                    <div class="timeframe-toggles">
+                        {#if aggChartMode === "net_flow"}
+                            <button
+                                class:active={chartTimeframe === "1D"}
+                                on:click={() => (chartTimeframe = "1D")}
+                                >1D</button
+                            >
+                        {/if}
+                        <button
+                            class:active={chartTimeframe === "7D"}
+                            on:click={() => (chartTimeframe = "7D")}
+                            >{aggChartMode === "roc"
+                                ? "7D ROC"
+                                : t($currentTranslations, "etf_weekly")}</button
+                        >
+                        <button
+                            class:active={chartTimeframe === "30D"}
+                            on:click={() => (chartTimeframe = "30D")}
+                            >{aggChartMode === "roc"
+                                ? "30D ROC"
+                                : t(
+                                      $currentTranslations,
+                                      "etf_monthly",
+                                  )}</button
+                        >
+                        <button
+                            class:active={chartTimeframe === "90D"}
+                            on:click={() => (chartTimeframe = "90D")}
+                            >{aggChartMode === "roc"
+                                ? "90D ROC"
+                                : t(
+                                      $currentTranslations,
+                                      "etf_quarterly",
+                                  )}</button
+                        >
+                        <button
+                            class:active={chartTimeframe === "YOY"}
+                            on:click={() => (chartTimeframe = "YOY")}
+                            >{aggChartMode === "roc"
+                                ? "YoY ROC"
+                                : "YoY Flow"}</button
+                        >
+                    </div>
                 </div>
-                <div class="ma-toggle">
-                    <label>
+                <div class="secondary-controls">
+                    <label class="custom-checkbox">
                         <input type="checkbox" bind:checked={showMA} />
-                        {t($currentTranslations, "etf_ma")}
+                        <span class="checkmark"></span>
+                        <span class="label-text"
+                            >{t($currentTranslations, "etf_ma")}</span
+                        >
                     </label>
-                    <label>
+                    <label class="custom-checkbox">
                         <input type="checkbox" bind:checked={showBtcOverlay} />
-                        {t($currentTranslations, "etf_btc_overlay")}
+                        <span class="checkmark"></span>
+                        <span class="label-text"
+                            >{t($currentTranslations, "etf_btc_overlay")}</span
+                        >
                     </label>
                 </div>
             </div>
@@ -468,7 +601,7 @@
                         </div>
                     </div>
                     <div class="ticker-controls">
-                        <label class="agg-checkbox">
+                        <label class="custom-checkbox">
                             <input
                                 type="checkbox"
                                 checked={tickerMode === "aggregate"}
@@ -477,36 +610,20 @@
                                         ? "aggregate"
                                         : "individual")}
                             />
-                            {t($currentTranslations, "etf_aggregate") ||
-                                "Aggregate"}
+                            <span class="checkmark"></span>
+                            <span class="label-text"
+                                >{t($currentTranslations, "etf_aggregate") ||
+                                    "Aggregate"}</span
+                            >
                         </label>
 
                         {#if tickerMetric === "prem_disc"}
-                            <div class="ticker-mode-selector">
-                                <button
-                                    class:active={normalizationMode === "raw"}
-                                    on:click={() => (normalizationMode = "raw")}
-                                >
-                                    {t($currentTranslations, "view_raw") ||
-                                        "Raw"}
-                                </button>
-                                <button
-                                    class:active={normalizationMode ===
-                                        "zscore"}
-                                    on:click={() =>
-                                        (normalizationMode = "zscore")}
-                                >
-                                    Z-Score
-                                </button>
-                                <button
-                                    class:active={normalizationMode ===
-                                        "percentile"}
-                                    on:click={() =>
-                                        (normalizationMode = "percentile")}
-                                >
-                                    %ile
-                                </button>
-                            </div>
+                            <Dropdown
+                                options={normOptions}
+                                bind:value={normalizationMode}
+                                darkMode={$darkMode}
+                                small={true}
+                            />
                         {/if}
 
                         {#if tickerMode === "individual"}
@@ -514,6 +631,7 @@
                                 options={tickerOptions}
                                 bind:value={selectedTicker}
                                 darkMode={$darkMode}
+                                small={true}
                             />
                         {/if}
                     </div>
@@ -813,17 +931,91 @@
         border-color: #3b82f6;
     }
 
-    .ma-toggle {
+    .chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .header-controls {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    .secondary-controls {
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
+    }
+
+    /* Custom Checkbox Styling */
+    .custom-checkbox {
         display: flex;
         align-items: center;
         gap: 0.5rem;
-        font-size: 0.75rem;
-        color: var(--text-muted);
+        cursor: pointer;
+        user-select: none;
+        font-size: 0.8rem;
         font-weight: 600;
+        color: var(--text-secondary);
     }
 
-    .ma-toggle input {
+    .custom-checkbox input {
+        position: absolute;
+        opacity: 0;
         cursor: pointer;
+        height: 0;
+        width: 0;
+    }
+
+    .checkmark {
+        height: 18px;
+        width: 18px;
+        background-color: var(--bg-tertiary);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        position: relative;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .custom-checkbox:hover input ~ .checkmark {
+        border-color: #3b82f6;
+        background-color: rgba(59, 130, 246, 0.1);
+    }
+
+    .custom-checkbox input:checked ~ .checkmark {
+        background-color: #3b82f6;
+        border-color: #3b82f6;
+    }
+
+    .checkmark:after {
+        content: "";
+        position: absolute;
+        display: none;
+        left: 6px;
+        top: 2px;
+        width: 4px;
+        height: 8px;
+        border: solid white;
+        border-width: 0 2px 2px 0;
+        transform: rotate(45deg);
+    }
+
+    .custom-checkbox input:checked ~ .checkmark:after {
+        display: block;
+    }
+
+    .label-text {
+        transition: color 0.2s;
+    }
+
+    .custom-checkbox input:checked ~ .label-text {
+        color: var(--text-primary);
     }
 
     .card-header {
@@ -870,23 +1062,7 @@
         display: flex;
         align-items: center;
         gap: 1rem;
-    }
-
-    .agg-checkbox {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-size: 0.75rem;
-        color: var(--text-muted);
-        cursor: pointer;
-        padding: 4px 8px;
-        background: var(--bg-secondary);
-        border-radius: 6px;
-        border: 1px solid var(--border-color);
-    }
-
-    .agg-checkbox input {
-        cursor: pointer;
+        flex-wrap: wrap;
     }
 
     .ticker-chart-wrapper {

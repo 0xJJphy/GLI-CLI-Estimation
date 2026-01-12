@@ -1038,6 +1038,12 @@ const translations = {
         etf_90d_flow: "90d Net Flow",
         etf_aum_roc: "AUM ROC",
         etf_aggregate: "Aggregate",
+        etf_roc_7d: "7D ROC",
+        etf_roc_30d: "30D ROC",
+        etf_roc_90d: "90D ROC",
+        etf_roc_yoy: "YoY ROC",
+        etf_normalization: "Normalization",
+        etf_ma_window: "MA Window",
     },
     es: {
         gli: "Suma de los balances de 15 bancos centrales en USD. ↑ Expansión = Inyección de liquidez (alcista) | ↓ Contracción = QT (bajista)",
@@ -1647,6 +1653,12 @@ const translations = {
         etf_90d_flow: "Flujo 90d",
         etf_aum_roc: "ROC AUM",
         etf_aggregate: "Agregado",
+        etf_roc_7d: "ROC 7D",
+        etf_roc_30d: "ROC 30D",
+        etf_roc_90d: "ROC 90D",
+        etf_roc_yoy: "ROC Anual (YoY)",
+        etf_normalization: "Normalización",
+        etf_ma_window: "Ventana MA",
         // view_raw: "Original", // Duplicate
         // view_zscore: "Z-Score", // Duplicate
         // view_percentile: "Percentil", // Duplicate
