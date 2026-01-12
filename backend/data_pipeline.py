@@ -2,7 +2,7 @@ import os
 import requests
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from fredapi import Fred
 from dotenv import load_dotenv
 import json
@@ -65,6 +65,8 @@ def clean_for_json(obj):
         if pd.isnull(obj) or not np.isfinite(obj):
             return None
         return float(obj)
+    elif isinstance(obj, (datetime, date)):
+        return obj.strftime('%Y-%m-%d')
     return obj
 
 def get_safe_last_date(series):

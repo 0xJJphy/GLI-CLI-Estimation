@@ -132,7 +132,7 @@ def fetch_etf_data():
         # Convert date to string for JSON compatibility
         df_agg['date'] = df_agg['date'].astype(str)
         # Thorough cleaning for JSON
-        df_agg = df_agg.fillna(0).replace([np.inf, -np.inf], 0)
+        df_agg = df_agg.drop(columns=['date_dt']).fillna(0).replace([np.inf, -np.inf], 0)
         data['flows_agg'] = df_agg.to_dict(orient='list')
         data['dates'] = df_agg['date'].tolist()
 
@@ -174,7 +174,8 @@ def fetch_etf_data():
             df_ind['pd_zscore_1y'] = (df_ind['premium_discount'] - df_ind['premium_discount'].rolling(window=window_norm, min_periods=30).mean()) / df_ind['premium_discount'].rolling(window=window_norm, min_periods=30).std()
             df_ind['pd_percentile_1y'] = df_ind['premium_discount'].rolling(window=window_norm, min_periods=30).rank(pct=True) * 100
             
-            df_ind = df_ind.fillna(0).replace([np.inf, -np.inf], 0)
+            # Clean up internal column and finalize for JSON
+            df_ind = df_ind.drop(columns=['date_dt']).fillna(0).replace([np.inf, -np.inf], 0)
             individual_daily[ticker] = df_ind.to_dict(orient='list')
         
         data['individual_daily'] = individual_daily
