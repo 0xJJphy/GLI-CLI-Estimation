@@ -219,6 +219,18 @@
     $: maNeg = maProcessed.neg;
     $: maLine = maProcessed.line;
 
+    // --- BTC Price Overlay Logic ---
+    // Efficiently map BTC prices from global dashboard data into ETF-specific date space
+    // using a lookup dictionary to handle gaps (weekends/holidays) correctly.
+    $: btcDatesMap = $dashboardData?.dates || [];
+    $: btcRawPrices = $dashboardData?.btc?.price || [];
+    $: btcLookup = btcDatesMap.reduce((acc, date, i) => {
+        acc[date] = btcRawPrices[i];
+        return acc;
+    }, {});
+
+    $: btcPricesMapped = dates.map((d) => btcLookup[d] || null);
+
     $: mainChartData = [
         {
             x: dates,
@@ -279,36 +291,32 @@
             yaxis: "y2",
             line: { color: "#10b981", width: 3 },
         },
-        ...(showBtcOverlay && $dashboardData.btc?.price && dates.length > 0
+        ...(showBtcOverlay && btcPricesMapped.length > 0
             ? [
                   {
                       x: dates,
-                      y: (() => {
-                          const btcPrices = $dashboardData.btc.price;
-                          const gDates = $dashboardData.dates;
-                          const firstEtfDate = dates[0];
-                          const startIdx = gDates.indexOf(firstEtfDate);
-                          if (startIdx === -1)
-                              return btcPrices.slice(-dates.length);
-                          return btcPrices.slice(
-                              startIdx,
-                              startIdx + dates.length,
-                          );
-                      })(),
-                      name: "BTC Price",
+                      y: btcPricesMapped,
+                      name: "Bitcoin Price",
                       type: "scatter",
                       mode: "lines",
                       yaxis: "y3",
                       line: { color: "#f59e0b", width: 1.5, dash: "dot" },
+                      connectgaps: true,
                   },
               ]
             : []),
     ];
 
     $: mainChartLayout = {
-        title: `${t($currentTranslations, "etf_title")} (${chartTimeframe})`,
+        title: {
+            text:
+                aggChartMode === "roc"
+                    ? `AUM Rate of Change (ROC) - ${chartTimeframe} ${aggNormMode !== "raw" ? `(${aggNormMode.toUpperCase()})` : ""}`
+                    : `ETF Net Flows - ${chartTimeframe}`,
+            font: { color: $darkMode ? "#e2e8f0" : "#1e293b", size: 16 },
+        },
         yaxis: {
-            title: "Net Flow ($)",
+            title: aggChartMode === "roc" ? "ROC (%)" : "Net Flow ($)",
             gridcolor: $darkMode ? "#334155" : "#e2e8f0",
         },
         yaxis2: {
