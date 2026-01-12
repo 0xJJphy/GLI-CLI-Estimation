@@ -125,10 +125,36 @@ def fetch_etf_data():
         # ROC Calculation for Total AUM
         for days in [7, 30, 90]:
             df_agg[f'aum_roc_{days}d'] = df_agg['total_aum_usd'].pct_change(periods=days) * 100
-        
+
+        # ROC Calculation for Flows (more volatile, useful for trading signals)
+        # Uses cumulative flow as base to avoid division by zero issues with daily flows
+        df_agg['flow_roc_7d'] = df_agg['cum_flow_usd'].pct_change(periods=7) * 100
+        df_agg['flow_roc_30d'] = df_agg['cum_flow_usd'].pct_change(periods=30) * 100
+        df_agg['flow_roc_90d'] = df_agg['cum_flow_usd'].pct_change(periods=90) * 100
+
         # Moving Average for charts (e.g., 20d SMA)
         df_agg['flow_usd_ma20'] = df_agg['total_flow_usd'].rolling(window=20, min_periods=5).mean()
-        
+
+        # Fetch BTC prices for correlation calculation
+        btc_query = """
+            SELECT date, price_usd as btc_price
+            FROM btc_prices
+            ORDER BY date ASC
+        """
+        df_btc = pd.read_sql(btc_query, conn)
+        df_btc['date'] = df_btc['date'].astype(str)
+
+        # Merge BTC prices with aggregated data
+        df_agg_with_btc = df_agg.merge(df_btc, on='date', how='left')
+
+        # Calculate BTC daily returns for correlation
+        df_agg_with_btc['btc_return'] = df_agg_with_btc['btc_price'].pct_change() * 100
+
+        # Rolling Correlation: ETF Flows vs BTC Returns (30-day window)
+        # This shows if flows are leading, lagging, or uncorrelated with price
+        df_agg['flow_btc_corr_30d'] = df_agg_with_btc['total_flow_usd'].rolling(window=30, min_periods=20).corr(df_agg_with_btc['btc_return'])
+        df_agg['flow_btc_corr_60d'] = df_agg_with_btc['total_flow_usd'].rolling(window=60, min_periods=30).corr(df_agg_with_btc['btc_return'])
+
         # Convert date to string for JSON compatibility
         df_agg['date'] = df_agg['date'].astype(str)
         # Thorough cleaning for JSON

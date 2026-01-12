@@ -17,6 +17,9 @@
     import {
         calculateRollingZScore,
         calculatePercentile,
+        calculateEMA,
+        calculateSMA,
+        applySmoothing,
     } from "../utils/helpers";
 
     // Data is now fetched locally to avoid bloating main dashboard_data.json
@@ -36,6 +39,13 @@
     let aggNormMode = "raw"; // "raw", "zscore", "percentile"
     let maWindow = 20;
 
+    // ROC Metric Selection (AUM vs Flows)
+    let rocMetric = "aum"; // "aum" or "flows"
+
+    // Premium/Discount Smoothing Options
+    let pdSmoothType = "ema"; // "raw", "ema", "sma"
+    let pdSmoothWindow = 10; // 5, 10, 20
+
     $: aggModes = [
         { value: "net_flow", label: t($currentTranslations, "etf_net_flows") },
         { value: "roc", label: "Rate of Change (ROC) AUM" },
@@ -52,6 +62,26 @@
         { value: 20, label: "20d MA" },
         { value: 50, label: "50d MA" },
         { value: 100, label: "100d MA" },
+    ];
+
+    // ROC Metric Options
+    $: rocMetricOptions = [
+        { value: "aum", label: "ROC AUM" },
+        { value: "flows", label: "ROC Flows" },
+    ];
+
+    // P/D Smoothing Type Options
+    $: pdSmoothTypeOptions = [
+        { value: "raw", label: "Raw" },
+        { value: "ema", label: "EMA (Rec.)" },
+        { value: "sma", label: "SMA" },
+    ];
+
+    // P/D Smoothing Window Options
+    $: pdSmoothWindowOptions = [
+        { value: 5, label: "5d" },
+        { value: 10, label: "10d" },
+        { value: 20, label: "20d" },
     ];
 
     /**
@@ -141,23 +171,40 @@
             };
         }
 
-        // ROC Mode Logic
+        // ROC Mode Logic - supports both AUM and Flows ROC
         let rawRoc = [];
         const cumFlow = flowsAgg.cum_flow_usd || [];
 
-        if (chartTimeframe === "7D") rawRoc = flowsAgg.aum_roc_7d || [];
-        else if (chartTimeframe === "30D") rawRoc = flowsAgg.aum_roc_30d || [];
-        else if (chartTimeframe === "90D") rawRoc = flowsAgg.aum_roc_90d || [];
-        else if (chartTimeframe === "YOY") {
-            rawRoc = cumFlow.map((v, i) => {
-                const prevYearIdx = i - 252;
-                if (prevYearIdx < 0) return null;
-                const prev = cumFlow[prevYearIdx];
-                return prev ? ((v - prev) / Math.abs(prev)) * 100 : null;
-            });
+        if (rocMetric === "flows") {
+            // Use Flow ROC (more volatile, better for trading signals)
+            if (chartTimeframe === "7D") rawRoc = flowsAgg.flow_roc_7d || [];
+            else if (chartTimeframe === "30D") rawRoc = flowsAgg.flow_roc_30d || [];
+            else if (chartTimeframe === "90D") rawRoc = flowsAgg.flow_roc_90d || [];
+            else if (chartTimeframe === "YOY") {
+                rawRoc = cumFlow.map((v, i) => {
+                    const prevYearIdx = i - 252;
+                    if (prevYearIdx < 0) return null;
+                    const prev = cumFlow[prevYearIdx];
+                    return prev ? ((v - prev) / Math.abs(prev)) * 100 : null;
+                });
+            } else {
+                rawRoc = flowsAgg.flow_roc_7d || [];
+            }
         } else {
-            // Default to 7D for ROC if 1D is selected
-            rawRoc = flowsAgg.aum_roc_7d || [];
+            // Use AUM ROC (more stable, shows total market growth)
+            if (chartTimeframe === "7D") rawRoc = flowsAgg.aum_roc_7d || [];
+            else if (chartTimeframe === "30D") rawRoc = flowsAgg.aum_roc_30d || [];
+            else if (chartTimeframe === "90D") rawRoc = flowsAgg.aum_roc_90d || [];
+            else if (chartTimeframe === "YOY") {
+                rawRoc = cumFlow.map((v, i) => {
+                    const prevYearIdx = i - 252;
+                    if (prevYearIdx < 0) return null;
+                    const prev = cumFlow[prevYearIdx];
+                    return prev ? ((v - prev) / Math.abs(prev)) * 100 : null;
+                });
+            } else {
+                rawRoc = flowsAgg.aum_roc_7d || [];
+            }
         }
 
         let finalY = rawRoc;
@@ -169,7 +216,7 @@
 
         return {
             y: finalY,
-            name: `${chartTimeframe} ROC ${aggNormMode !== "raw" ? `(${aggNormMode.toUpperCase()})` : ""}`,
+            name: `${chartTimeframe} ROC ${rocMetric === "flows" ? "Flows" : "AUM"} ${aggNormMode !== "raw" ? `(${aggNormMode.toUpperCase()})` : ""}`,
             type: "scatter",
         };
     })();
@@ -311,7 +358,7 @@
         title: {
             text:
                 aggChartMode === "roc"
-                    ? `AUM Rate of Change (ROC) - ${chartTimeframe} ${aggNormMode !== "raw" ? `(${aggNormMode.toUpperCase()})` : ""}`
+                    ? `${rocMetric === "flows" ? "Flow" : "AUM"} Rate of Change (ROC) - ${chartTimeframe} ${aggNormMode !== "raw" ? `(${aggNormMode.toUpperCase()})` : ""}`
                     : `ETF Net Flows - ${chartTimeframe}`,
             font: { color: $darkMode ? "#e2e8f0" : "#1e293b", size: 16 },
         },
@@ -354,16 +401,42 @@
             : individualDaily[selectedTicker] || {};
 
     $: tickerX = tickerMode === "aggregate" ? dates : tickerDataRaw.date || [];
-    $: tickerY =
-        tickerMetric === "flow"
-            ? tickerDataRaw.total_flow_usd || tickerDataRaw.flow_usd || []
-            : normalizationMode === "zscore"
-              ? tickerDataRaw.pd_zscore_1y || []
-              : normalizationMode === "percentile"
-                ? tickerDataRaw.pd_percentile_1y || []
-                : tickerDataRaw.avg_premium_discount ||
-                  tickerDataRaw.premium_discount ||
-                  [];
+    // Apply smoothing to Premium/Discount data
+    $: tickerYRaw = (() => {
+        if (tickerMetric === "flow") {
+            return tickerDataRaw.total_flow_usd || tickerDataRaw.flow_usd || [];
+        }
+
+        // Get raw P/D data first
+        let rawPD =
+            tickerDataRaw.avg_premium_discount ||
+            tickerDataRaw.premium_discount ||
+            [];
+
+        // Apply smoothing if not using z-score/percentile (those already smooth implicitly)
+        if (normalizationMode === "raw" && pdSmoothType !== "raw") {
+            rawPD = applySmoothing(rawPD, pdSmoothType, pdSmoothWindow);
+        }
+
+        // Then apply normalization if needed
+        if (normalizationMode === "zscore") {
+            // Apply smoothing to z-score output for cleaner signals
+            const zscore = tickerDataRaw.pd_zscore_1y || calculateRollingZScore(rawPD, 126);
+            return pdSmoothType !== "raw"
+                ? applySmoothing(zscore, pdSmoothType, pdSmoothWindow)
+                : zscore;
+        } else if (normalizationMode === "percentile") {
+            // Apply smoothing to percentile output for cleaner signals
+            const pctile = tickerDataRaw.pd_percentile_1y || calculatePercentile(rawPD, 126);
+            return pdSmoothType !== "raw"
+                ? applySmoothing(pctile, pdSmoothType, pdSmoothWindow)
+                : pctile;
+        }
+
+        return rawPD;
+    })();
+
+    $: tickerY = tickerYRaw;
 
     $: tickerChartData = [
         {
@@ -402,16 +475,112 @@
             : []),
     ];
 
+    // Z-Score reference bands (horizontal lines at -2, -1, 0, +1, +2)
+    $: zscoreShapes = normalizationMode === "zscore" && tickerMetric === "prem_disc"
+        ? [
+              // +2 band (overbought extreme)
+              {
+                  type: "line",
+                  x0: 0,
+                  x1: 1,
+                  xref: "paper",
+                  y0: 2,
+                  y1: 2,
+                  line: { color: "#10b981", width: 1, dash: "dash" },
+              },
+              // +1 band
+              {
+                  type: "line",
+                  x0: 0,
+                  x1: 1,
+                  xref: "paper",
+                  y0: 1,
+                  y1: 1,
+                  line: { color: "#86efac", width: 1, dash: "dot" },
+              },
+              // 0 band (neutral)
+              {
+                  type: "line",
+                  x0: 0,
+                  x1: 1,
+                  xref: "paper",
+                  y0: 0,
+                  y1: 0,
+                  line: { color: "#64748b", width: 2 },
+              },
+              // -1 band
+              {
+                  type: "line",
+                  x0: 0,
+                  x1: 1,
+                  xref: "paper",
+                  y0: -1,
+                  y1: -1,
+                  line: { color: "#fca5a5", width: 1, dash: "dot" },
+              },
+              // -2 band (oversold extreme)
+              {
+                  type: "line",
+                  x0: 0,
+                  x1: 1,
+                  xref: "paper",
+                  y0: -2,
+                  y1: -2,
+                  line: { color: "#ef4444", width: 1, dash: "dash" },
+              },
+          ]
+        : [];
+
+    // Percentile reference bands (25, 50, 75)
+    $: percentileShapes = normalizationMode === "percentile" && tickerMetric === "prem_disc"
+        ? [
+              // 75th percentile
+              {
+                  type: "line",
+                  x0: 0,
+                  x1: 1,
+                  xref: "paper",
+                  y0: 75,
+                  y1: 75,
+                  line: { color: "#10b981", width: 1, dash: "dash" },
+              },
+              // 50th percentile (median)
+              {
+                  type: "line",
+                  x0: 0,
+                  x1: 1,
+                  xref: "paper",
+                  y0: 50,
+                  y1: 50,
+                  line: { color: "#64748b", width: 2 },
+              },
+              // 25th percentile
+              {
+                  type: "line",
+                  x0: 0,
+                  x1: 1,
+                  xref: "paper",
+                  y0: 25,
+                  y1: 25,
+                  line: { color: "#ef4444", width: 1, dash: "dash" },
+              },
+          ]
+        : [];
+
     $: tickerChartLayout = {
-        title: `${tickerMode === "aggregate" ? "Aggregate" : selectedTicker} - ${tickerMetric === "flow" ? "Flow Analysis" : "Premium/Discount Analysis"} (${normalizationMode.toUpperCase()})`,
+        title: `${tickerMode === "aggregate" ? "Aggregate" : selectedTicker} - ${tickerMetric === "flow" ? "Flow Analysis" : "Premium/Discount"} ${pdSmoothType !== "raw" ? `(${pdSmoothType.toUpperCase()} ${pdSmoothWindow}d` : ""} ${normalizationMode !== "raw" ? `${pdSmoothType !== "raw" ? ", " : "("}${normalizationMode.toUpperCase()})` : pdSmoothType !== "raw" ? ")" : ""}`,
         yaxis: {
             title:
                 tickerMetric === "flow"
                     ? "Flow ($)"
                     : normalizationMode === "raw"
                       ? "Prem/Disc (%)"
-                      : normalizationMode.toUpperCase(),
+                      : normalizationMode === "zscore"
+                        ? "Z-Score"
+                        : "Percentile",
             gridcolor: $darkMode ? "#334155" : "#e2e8f0",
+            ...(normalizationMode === "zscore" ? { range: [-3, 3] } : {}),
+            ...(normalizationMode === "percentile" ? { range: [0, 100] } : {}),
         },
         ...(tickerMetric === "flow"
             ? {
@@ -423,6 +592,7 @@
                   },
               }
             : {}),
+        shapes: [...zscoreShapes, ...percentileShapes],
         height: 380,
         paper_bgcolor: "transparent",
         plot_bgcolor: "transparent",
@@ -439,6 +609,122 @@
             maximumFractionDigits: decimals,
         });
     }
+
+    // Market Share Pie Chart Data
+    $: marketShareData = (() => {
+        if (!summary || summary.length === 0) return [];
+
+        // Get top 6 ETFs and group rest as "Others"
+        const top6 = summary.slice(0, 6);
+        const othersAum = summary.slice(6).reduce((acc, s) => acc + (s.aum_usd || 0), 0);
+
+        const labels = top6.map((s) => s.ticker);
+        const values = top6.map((s) => s.aum_usd || 0);
+
+        if (othersAum > 0) {
+            labels.push("Others");
+            values.push(othersAum);
+        }
+
+        return [
+            {
+                labels,
+                values,
+                type: "pie",
+                hole: 0.4,
+                textinfo: "label+percent",
+                textposition: "outside",
+                marker: {
+                    colors: [
+                        "#3b82f6", // IBIT - Blue
+                        "#10b981", // FBTC - Green
+                        "#f59e0b", // ARKB - Amber
+                        "#8b5cf6", // BITB - Purple
+                        "#ec4899", // HODL - Pink
+                        "#06b6d4", // BRRR - Cyan
+                        "#64748b", // Others - Slate
+                    ],
+                },
+                hovertemplate: "<b>%{label}</b><br>$%{value:,.0f}<br>%{percent}<extra></extra>",
+            },
+        ];
+    })();
+
+    $: marketShareLayout = {
+        title: {
+            text: "Market Share by AUM",
+            font: { color: $darkMode ? "#e2e8f0" : "#1e293b", size: 14 },
+        },
+        height: 320,
+        margin: { t: 40, b: 20, l: 20, r: 20 },
+        paper_bgcolor: "transparent",
+        plot_bgcolor: "transparent",
+        showlegend: false,
+        font: { color: $darkMode ? "#e2e8f0" : "#1e293b", size: 11 },
+    };
+
+    // Flow-BTC Correlation Chart Data
+    $: correlationChartData = [
+        {
+            x: dates,
+            y: flowsAgg.flow_btc_corr_30d || [],
+            name: "30d Correlation",
+            type: "scatter",
+            mode: "lines",
+            line: { color: "#3b82f6", width: 2 },
+            fill: "tozeroy",
+            fillcolor: "rgba(59, 130, 246, 0.1)",
+        },
+        {
+            x: dates,
+            y: flowsAgg.flow_btc_corr_60d || [],
+            name: "60d Correlation",
+            type: "scatter",
+            mode: "lines",
+            line: { color: "#10b981", width: 1.5, dash: "dot" },
+        },
+    ];
+
+    $: correlationChartLayout = {
+        title: {
+            text: "ETF Flows vs BTC Price Correlation",
+            font: { color: $darkMode ? "#e2e8f0" : "#1e293b", size: 14 },
+        },
+        yaxis: {
+            title: "Correlation",
+            range: [-1, 1],
+            gridcolor: $darkMode ? "#334155" : "#e2e8f0",
+            zeroline: true,
+            zerolinecolor: $darkMode ? "#475569" : "#94a3b8",
+            zerolinewidth: 2,
+        },
+        height: 280,
+        margin: { t: 40, b: 40, l: 50, r: 20 },
+        paper_bgcolor: "transparent",
+        plot_bgcolor: "transparent",
+        showlegend: true,
+        legend: { orientation: "h", y: -0.2, font: { size: 10 } },
+        font: { color: $darkMode ? "#e2e8f0" : "#1e293b" },
+        shapes: [
+            // Reference lines at +0.5 and -0.5
+            {
+                type: "line",
+                x0: dates[0],
+                x1: dates[dates.length - 1],
+                y0: 0.5,
+                y1: 0.5,
+                line: { color: "#10b981", width: 1, dash: "dash" },
+            },
+            {
+                type: "line",
+                x0: dates[0],
+                x1: dates[dates.length - 1],
+                y0: -0.5,
+                y1: -0.5,
+                line: { color: "#ef4444", width: 1, dash: "dash" },
+            },
+        ],
+    };
 
     onMount(() => {
         if (!$etfData) {
@@ -504,6 +790,12 @@
                         small={true}
                     />
                     {#if aggChartMode === "roc"}
+                        <Dropdown
+                            options={rocMetricOptions}
+                            bind:value={rocMetric}
+                            darkMode={$darkMode}
+                            small={true}
+                        />
                         <Dropdown
                             options={normOptions}
                             bind:value={aggNormMode}
@@ -632,6 +924,20 @@
                                 darkMode={$darkMode}
                                 small={true}
                             />
+                            <Dropdown
+                                options={pdSmoothTypeOptions}
+                                bind:value={pdSmoothType}
+                                darkMode={$darkMode}
+                                small={true}
+                            />
+                            {#if pdSmoothType !== "raw"}
+                                <Dropdown
+                                    options={pdSmoothWindowOptions}
+                                    bind:value={pdSmoothWindow}
+                                    darkMode={$darkMode}
+                                    small={true}
+                                />
+                            {/if}
                         {/if}
 
                         {#if tickerMode === "individual"}
@@ -653,7 +959,19 @@
                 </div>
             </div>
 
-            <!-- summary Table -->
+            <!-- Market Share Pie Chart -->
+            <div class="card pie-chart-card">
+                <Chart
+                    data={marketShareData}
+                    layout={marketShareLayout}
+                    darkMode={$darkMode}
+                />
+            </div>
+        </div>
+
+        <!-- Second Row: Table + Correlation -->
+        <div class="bottom-grid-2">
+            <!-- Summary Table -->
             <div class="card table-card">
                 <div class="card-header">
                     <h3>{t($currentTranslations, "etf_summary_all")}</h3>
@@ -710,6 +1028,18 @@
                             {/each}
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            <!-- Flow-BTC Correlation Chart -->
+            <div class="card correlation-card">
+                <Chart
+                    data={correlationChartData}
+                    layout={correlationChartLayout}
+                    darkMode={$darkMode}
+                />
+                <div class="correlation-hint">
+                    <span class="hint-text">High correlation = flows follow price | Low/negative = flows independent</span>
                 </div>
             </div>
         </div>
@@ -846,14 +1176,45 @@
 
     .bottom-grid {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 1.5fr 1fr;
         gap: 1.5rem;
     }
 
+    .bottom-grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+        margin-top: 1.5rem;
+    }
+
     @media (max-width: 1024px) {
-        .bottom-grid {
+        .bottom-grid,
+        .bottom-grid-2 {
             grid-template-columns: 1fr;
         }
+    }
+
+    .pie-chart-card {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .correlation-card {
+        position: relative;
+    }
+
+    .correlation-hint {
+        padding: 8px 12px;
+        background: var(--bg-secondary);
+        border-radius: 6px;
+        margin-top: 8px;
+    }
+
+    .hint-text {
+        font-size: 0.7rem;
+        color: var(--text-muted);
+        font-style: italic;
     }
 
     .table-wrapper {

@@ -349,11 +349,106 @@ export function calculatePercentile(values, window = null) {
 }
 
 /**
+ * Calculate Exponential Moving Average (EMA).
+ * EMA gives more weight to recent data, making it more responsive to new information.
+ * Recommended for macro/position trading due to faster regime change detection.
+ *
+ * @param {number[]} values - Array of values
+ * @param {number} period - EMA period (e.g., 5, 10, 20)
+ * @returns {number[]} Array of EMA values
+ */
+export function calculateEMA(values, period) {
+    if (!values || values.length === 0) return [];
+    if (period <= 0) return values;
+
+    const k = 2 / (period + 1); // EMA multiplier
+    const result = [];
+
+    for (let i = 0; i < values.length; i++) {
+        const val = values[i];
+
+        if (val === null || val === undefined) {
+            result.push(null);
+            continue;
+        }
+
+        if (i === 0 || result[i - 1] === null) {
+            // First valid value or after a null: use the value as-is (or SMA seed)
+            result.push(val);
+        } else {
+            // EMA formula: EMA_today = (Value_today * k) + (EMA_yesterday * (1 - k))
+            result.push(val * k + result[i - 1] * (1 - k));
+        }
+    }
+
+    return result;
+}
+
+/**
+ * Calculate Simple Moving Average (SMA).
+ * SMA gives equal weight to all values in the window, more stable but with more lag.
+ *
+ * @param {number[]} values - Array of values
+ * @param {number} period - SMA window (e.g., 5, 10, 20)
+ * @returns {number[]} Array of SMA values
+ */
+export function calculateSMA(values, period) {
+    if (!values || values.length === 0) return [];
+    if (period <= 0) return values;
+
+    const result = [];
+
+    for (let i = 0; i < values.length; i++) {
+        if (i < period - 1) {
+            // Not enough data points yet
+            result.push(null);
+            continue;
+        }
+
+        let sum = 0;
+        let count = 0;
+
+        for (let j = 0; j < period; j++) {
+            const val = values[i - j];
+            if (val !== null && val !== undefined) {
+                sum += val;
+                count++;
+            }
+        }
+
+        result.push(count > 0 ? sum / count : null);
+    }
+
+    return result;
+}
+
+/**
+ * Apply smoothing to a data series based on type and window.
+ * Convenience wrapper for EMA/SMA selection.
+ *
+ * @param {number[]} values - Array of values
+ * @param {string} type - "ema", "sma", or "raw"
+ * @param {number} window - Smoothing window
+ * @returns {number[]} Smoothed values
+ */
+export function applySmoothing(values, type, window) {
+    if (!values || type === "raw" || window <= 1) return values;
+
+    if (type === "ema") {
+        return calculateEMA(values, window);
+    } else if (type === "sma") {
+        return calculateSMA(values, window);
+    }
+
+    return values;
+}
+
+/**
  * Calculate BTC Rate of Change.
- * @param {number[]} prices 
- * @param {string[]} dates 
- * @param {number} period 
- * @param {number} lag 
+ * @param {number[]} prices
+ * @param {string[]} dates
+ * @param {number} period
+ * @param {number} lag
  * @returns {Array<{x: string, y: number}>}
  */
 export function calculateBtcRoc(prices, dates, period, lag = 0) {
