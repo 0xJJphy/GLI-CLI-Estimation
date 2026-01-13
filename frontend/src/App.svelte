@@ -28,6 +28,7 @@
   import OffshoreLiquidityTab from "./lib/tabs/OffshoreLiquidityTab.svelte";
   import ChartExplorerTab from "./lib/tabs/ChartExplorerTab.svelte";
   import StableCoinsTab from "./lib/tabs/StableCoinsTab.svelte";
+  import CurrenciesTab from "./lib/tabs/CurrenciesTab.svelte";
   import NarrativesTab from "./lib/tabs/NarrativesTab.svelte";
   import EtfsTab from "./lib/tabs/EtfsTab.svelte";
 
@@ -2476,6 +2477,17 @@
                   </div>
                   <div
                     class="nav-item sub"
+                    class:active={currentTab === "Currencies"}
+                    on:click={() => setTab("Currencies")}
+                    on:keydown={(e) =>
+                      e.key === "Enter" && setTab("Currencies")}
+                    role="button"
+                    tabindex="0"
+                  >
+                    {$currentTranslations.nav_currencies || "Currencies"}
+                  </div>
+                  <div
+                    class="nav-item sub"
                     class:active={currentTab === "Etfs"}
                     on:click={() => setTab("Etfs")}
                     on:keydown={(e) => e.key === "Enter" && setTab("Etfs")}
@@ -2842,6 +2854,14 @@
       {:else if currentTab === "StableCoins"}
         <div class="tab-content">
           <StableCoinsTab
+            darkMode={$darkMode}
+            translations={$currentTranslations}
+            dashboardData={$dashboardData}
+          />
+        </div>
+      {:else if currentTab === "Currencies"}
+        <div class="tab-content">
+          <CurrenciesTab
             darkMode={$darkMode}
             translations={$currentTranslations}
             dashboardData={$dashboardData}

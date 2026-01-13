@@ -108,16 +108,22 @@
 
         const defaultLayout = getLayout(darkMode, $showWatermark);
 
-        Plotly.newPlot(
-            chartContainer,
-            processedData,
-            {
-                ...defaultLayout,
-                yaxis: { ...defaultLayout.yaxis, type: yType, autorange: true },
-                ...layout,
+        const finalLayout = {
+            ...defaultLayout,
+            ...layout,
+            xaxis: {
+                ...defaultLayout.xaxis,
+                ...(layout.xaxis || {}),
             },
-            config,
-        );
+            yaxis: {
+                ...defaultLayout.yaxis,
+                type: yType,
+                autorange: true,
+                ...(layout.yaxis || {}),
+            },
+        };
+
+        Plotly.newPlot(chartContainer, processedData, finalLayout, config);
 
         const resizeObserver = new ResizeObserver(() => {
             Plotly.Plots.resize(chartContainer);
@@ -132,18 +138,24 @@
                     connectgaps: true,
                 }));
                 const defaultLayout = getLayout(darkMode, get(showWatermark));
+                const finalLayout = {
+                    ...defaultLayout,
+                    ...layout,
+                    xaxis: {
+                        ...defaultLayout.xaxis,
+                        ...(layout.xaxis || {}),
+                    },
+                    yaxis: {
+                        ...defaultLayout.yaxis,
+                        type: yType,
+                        autorange: true,
+                        ...(layout.yaxis || {}),
+                    },
+                };
                 Plotly.react(
                     chartContainer,
                     processedData,
-                    {
-                        ...defaultLayout,
-                        yaxis: {
-                            ...defaultLayout.yaxis,
-                            type: yType,
-                            autorange: true,
-                        },
-                        ...layout,
-                    },
+                    finalLayout,
                     config,
                 );
             }
@@ -164,16 +176,22 @@
 
         const defaultLayout = getLayout(darkMode, $showWatermark);
 
-        Plotly.react(
-            chartContainer,
-            processedData,
-            {
-                ...defaultLayout,
-                yaxis: { ...defaultLayout.yaxis, type: yType, autorange: true },
-                ...layout,
+        const finalLayout = {
+            ...defaultLayout,
+            ...layout,
+            xaxis: {
+                ...defaultLayout.xaxis,
+                ...(layout.xaxis || {}),
             },
-            config,
-        );
+            yaxis: {
+                ...defaultLayout.yaxis,
+                type: yType,
+                autorange: true,
+                ...(layout.yaxis || {}),
+            },
+        };
+
+        Plotly.react(chartContainer, processedData, finalLayout, config);
     });
 
     function downloadImage() {

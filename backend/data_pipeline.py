@@ -2735,6 +2735,108 @@ def calculate_stablecoins(df: pd.DataFrame) -> dict:
     return result
 
 
+def calculate_currencies(df: pd.DataFrame) -> dict:
+    """
+    Calculates DXY and major currency pair metrics, including ROCs and Volatility.
+    Includes Bitcoin for overlay purposes.
+    """
+    result = {
+        'dxy': {},
+        'pairs': {},
+        'btc': {},
+        'dates': []
+    }
+    
+    # Helper functions (consistent with calculate_stablecoins)
+    def calc_roc(series, period):
+        return ((series / series.shift(period) - 1) * 100)
+    
+    def calc_zscore(series, window=252):
+        mean = series.rolling(window, min_periods=window//2).mean()
+        std = series.rolling(window, min_periods=window//2).std()
+        return ((series - mean) / std.replace(0, np.nan))
+    
+    def calc_percentile(series, window=252):
+        def percentile_rank(arr):
+            if len(arr) < window // 2:
+                return np.nan
+            current = arr[-1]
+            if np.isnan(current):
+                return np.nan
+            valid = arr[~np.isnan(arr)]
+            if len(valid) < window // 2:
+                return np.nan
+            rank = (valid < current).sum() + 0.5 * (valid == current).sum()
+            return 100 * rank / len(valid)
+        return series.rolling(window, min_periods=window//2).apply(percentile_rank, raw=True)
+
+    # 1. Process DXY
+    if 'DXY' in df.columns:
+        dxy = df['DXY'].ffill()
+        result['dxy']['absolute'] = dxy.tolist()
+        
+        # ROC Metrics
+        result['dxy']['roc_7d'] = calc_roc(dxy, 7).tolist()
+        result['dxy']['roc_30d'] = calc_roc(dxy, 30).tolist()
+        result['dxy']['roc_90d'] = calc_roc(dxy, 90).tolist()
+        result['dxy']['roc_180d'] = calc_roc(dxy, 180).tolist()
+        result['dxy']['roc_yoy'] = calc_roc(dxy, 365).tolist()
+        
+        # Z-Scores for ROCs
+        result['dxy']['roc_7d_z'] = calc_zscore(calc_roc(dxy, 7), 252).tolist()
+        result['dxy']['roc_30d_z'] = calc_zscore(calc_roc(dxy, 30), 252).tolist()
+        result['dxy']['roc_90d_z'] = calc_zscore(calc_roc(dxy, 90), 252).tolist()
+        result['dxy']['roc_180d_z'] = calc_zscore(calc_roc(dxy, 180), 252).tolist()
+        
+        # Percentiles for ROCs
+        result['dxy']['roc_7d_pct'] = calc_percentile(calc_roc(dxy, 7), 252).tolist()
+        result['dxy']['roc_30d_pct'] = calc_percentile(calc_roc(dxy, 30), 252).tolist()
+        result['dxy']['roc_90d_pct'] = calc_percentile(calc_roc(dxy, 90), 252).tolist()
+        result['dxy']['roc_180d_pct'] = calc_percentile(calc_roc(dxy, 180), 252).tolist()
+        
+        # Realized Volatility (21-day annualized)
+        pct_change = dxy.pct_change()
+        vol = pct_change.rolling(21).std() * np.sqrt(252) * 100
+        result['dxy']['volatility'] = vol.tolist()
+
+    # 2. Process Major Pairs
+    major_pairs = {
+        'EURUSD': 'EUR',
+        'JPYUSD': 'JPY',
+        'GBPUSD': 'GBP',
+        'AUDUSD': 'AUD',
+        'CADUSD': 'CAD',
+        'CHFUSD': 'CHF',
+        'CNYUSD': 'CNY'
+    }
+    
+    for col, name in major_pairs.items():
+        if col in df.columns:
+            pair_series = df[col].ffill()
+            result['pairs'][name] = {
+                'absolute': pair_series.tolist(),
+                'roc_7d': calc_roc(pair_series, 7).tolist(),
+                'roc_30d': calc_roc(pair_series, 30).tolist(),
+                'roc_90d': calc_roc(pair_series, 90).tolist(),
+                'roc_180d': calc_roc(pair_series, 180).tolist(),
+                'roc_yoy': calc_roc(pair_series, 365).tolist(),
+            }
+
+    # 3. Process Bitcoin for overlay
+    if 'BTC' in df.columns:
+        btc = df['BTC'].ffill()
+        result['btc']['absolute'] = btc.tolist()
+        result['btc']['roc_7d'] = calc_roc(btc, 7).tolist()
+        result['btc']['roc_30d'] = calc_roc(btc, 30).tolist()
+        result['btc']['roc_90d'] = calc_roc(btc, 90).tolist()
+        result['btc']['roc_180d'] = calc_roc(btc, 180).tolist()
+        result['btc']['roc_yoy'] = calc_roc(btc, 365).tolist()
+
+    result['dates'] = df.index.strftime('%Y-%m-%d').tolist()
+    
+    return result
+
+
 # ============================================
 # PERCENTILE CALCULATIONS
 # ============================================
@@ -4186,6 +4288,9 @@ def run_pipeline():
         # Stablecoin Analytics
         stablecoins_data = calculate_stablecoins(df_t)
 
+        # Currency Analytics
+        currencies_data = calculate_currencies(df_t)
+
         # Crypto Narratives & Market Regimes
         # Pass custom aggregate stablecoin supply Series for better historical regimes
         custom_stables_series = stablecoins_data.get('total_series')
@@ -4860,6 +4965,13 @@ def run_pipeline():
             ),
             # Offshore Dollar Liquidity
             'offshore_liquidity': get_offshore_liquidity_output(df_t, df_offshore_tv if not df_offshore_tv.empty else None).get('offshore_liquidity', {}),
+            # Currency Analytics
+            'currencies': {
+                'dates': currencies_data.get('dates', []),
+                'dxy': {k: clean_for_json(v) for k, v in currencies_data.get('dxy', {}).items()},
+                'pairs': {k: {sk: clean_for_json(sv) for sk, sv in v.items()} for k, v in currencies_data.get('pairs', {}).items()},
+                'btc': {k: clean_for_json(v) for k, v in currencies_data.get('btc', {}).items()}
+            },
         }
 
         output_path = os.path.join(OUTPUT_DIR, filename)

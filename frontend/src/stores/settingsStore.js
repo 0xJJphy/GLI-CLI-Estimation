@@ -74,6 +74,7 @@ const translations = {
         nav_btc_quant: "BTC Quant v2",
         nav_btc_analysis: "BTC Analysis",
         nav_stablecoins: "Stablecoins",
+        nav_currencies: "Currencies",
         // Stablecoins Tab
         stablecoins_title: "Stablecoin Market Overview",
         stablecoins_desc: "Track stablecoin market caps, growth trends, and depeg events.",
@@ -99,6 +100,17 @@ const translations = {
         stablecoins_no_growth_data: "No growth data available",
         stablecoins_no_price_data: "No price data available",
         stablecoins_no_events: "No depeg events detected",
+        // Currencies Tab
+        currencies_title: "Global Currencies Overview",
+        currencies_desc: "Monitor the US Dollar Index (DXY) and major currency pairs.",
+        dxy_label: "US Dollar Index (DXY)",
+        dxy_inversion_label: "Invert DXY (1/DXY)",
+        major_pairs_title: "Major Currency Pairs",
+        currency_roc_7d: "7D ROC",
+        currency_roc_1m: "1M ROC",
+        currency_roc_3m: "3M ROC",
+        currency_volatility: "Realized Vol",
+        rate_col: "Rate",
         // Crypto Narratives
         nav_narratives: "Crypto Narratives",
         cai_label: "Altseason Index (CAI)",
@@ -2117,6 +2129,7 @@ const translations = {
         nav_btc_quant: "BTC Quant v2",
         nav_btc_analysis: "Análisis BTC",
         nav_stablecoins: "Stablecoins",
+        nav_currencies: "Divisas",
         // Stablecoins Tab
         stablecoins_title: "Vista General de Stablecoins",
         stablecoins_desc: "Seguimiento de capitalización, tendencias de crecimiento y eventos de depeg.",
@@ -2142,6 +2155,17 @@ const translations = {
         stablecoins_no_growth_data: "No hay datos de crecimiento disponibles",
         stablecoins_no_price_data: "No hay datos de precio disponibles",
         stablecoins_no_events: "No se han detectado eventos de depeg",
+        // Currencies Tab
+        currencies_title: "Vista General de Divisas Globales",
+        currencies_desc: "Monitoreo del Índice del Dólar (DXY) y pares de divisas principales.",
+        dxy_label: "Índice del Dólar (DXY)",
+        dxy_inversion_label: "Invertir DXY (1/DXY)",
+        major_pairs_title: "Pares de Divisas Principales",
+        currency_roc_7d: "ROC 7D",
+        currency_roc_1m: "ROC 1M",
+        currency_roc_3m: "ROC 3M",
+        currency_volatility: "Vol. Realizada",
+        rate_col: "Tasa",
         // Crypto Narratives
         nav_narratives: "Narrativas Crypto",
         cai_label: "Índice Altseason (CAI)",
