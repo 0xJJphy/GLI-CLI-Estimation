@@ -54,6 +54,7 @@ INDEXES_CONFIG = {
     'DAX': ('XETR', 'DAX 40'),
     'NI225': ('OSE', 'Nikkei 225'),
     'HSI': ('HSI', 'Hang Seng'),
+    'BUZZ': ('AMEX', 'VanEck Social Sentiment ETF'),
 }
 
 def calc_roc(series, period):

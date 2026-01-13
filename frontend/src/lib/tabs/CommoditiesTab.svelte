@@ -98,29 +98,81 @@
         { value: "spx", label: "/ SPX" },
     ];
 
-    // Helper to calculate ratio
+    /**
+     * Find the closest prior date in a sorted array of date strings.
+     * Uses binary search for efficiency.
+     */
+    function findClosestPriorDate(targetDate, sortedDates) {
+        if (!sortedDates?.length) return -1;
+
+        const target = new Date(targetDate).getTime();
+        let left = 0,
+            right = sortedDates.length - 1;
+        let result = -1;
+
+        while (left <= right) {
+            const mid = Math.floor((left + right) / 2);
+            const midDate = new Date(sortedDates[mid]).getTime();
+
+            if (midDate <= target) {
+                result = mid;
+                left = mid + 1;
+            } else {
+                right = mid - 1;
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * Calculate ratio with proper date alignment.
+     * Uses nearest prior date matching for weekly data against daily data.
+     * Normalizes to starting value = 100 for better visualization.
+     */
     function calculateRatio(
         numeratorValues,
         denominatorValues,
         numDates,
         denomDates,
     ) {
-        if (!numeratorValues?.length || !denominatorValues?.length)
+        if (
+            !numeratorValues?.length ||
+            !denominatorValues?.length ||
+            !denomDates?.length
+        ) {
             return numeratorValues;
+        }
 
         const denomMap = new Map();
         denomDates.forEach((d, i) => {
-            if (denominatorValues[i] != null)
+            if (denominatorValues[i] != null) {
                 denomMap.set(d, denominatorValues[i]);
+            }
         });
 
-        return numDates.map((date, i) => {
+        const sortedDenomDates = [...denomDates].sort();
+
+        const rawRatios = numDates.map((date, i) => {
             const numVal = numeratorValues[i];
-            const denomVal = denomMap.get(date);
-            if (numVal == null || denomVal == null || denomVal === 0)
-                return null;
-            return (numVal / denomVal) * 1000;
+            if (numVal == null) return null;
+
+            const closestIdx = findClosestPriorDate(date, sortedDenomDates);
+            if (closestIdx === -1) return null;
+
+            const closestDate = sortedDenomDates[closestIdx];
+            const denomVal = denomMap.get(closestDate);
+
+            if (denomVal == null || denomVal === 0) return null;
+            return numVal / denomVal;
         });
+
+        // Normalize: set first valid value to 100
+        const firstValid = rawRatios.find((v) => v != null);
+        if (firstValid == null) return rawRatios;
+
+        const scale = 100 / firstValid;
+        return rawRatios.map((v) => (v != null ? v * scale : null));
     }
 
     function selectMainMode(mode) {

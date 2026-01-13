@@ -112,31 +112,108 @@
         { value: "netliq", label: "/ Net Liq" },
     ];
 
-    // Helper to align and calculate ratio
+    // M2 local mapping: which M2 series to use for each index
+    const m2LocalMapping = {
+        SPX: "us",
+        NDX: "us",
+        RUT: "us",
+        DJI: "us",
+        BUZZ: "us",
+        DAX: "eu",
+        NIFTY: "in",
+        HSI: "cn",
+        NI225: "jp",
+    };
+
+    // Get local M2 data
+    let m2LocalData = $derived({
+        us: $dashboardData.m2?.us || [],
+        eu: $dashboardData.m2?.eu || [],
+        cn: $dashboardData.m2?.cn || [],
+        jp: $dashboardData.m2?.jp || [],
+        in: $dashboardData.m2?.in || [],
+    });
+
+    /**
+     * Find the closest prior date in a sorted array of date strings.
+     * Uses binary search for efficiency.
+     * @returns {number} Index of the closest prior date, or -1 if not found.
+     */
+    function findClosestPriorDate(targetDate, sortedDates) {
+        if (!sortedDates?.length) return -1;
+
+        const target = new Date(targetDate).getTime();
+        let left = 0,
+            right = sortedDates.length - 1;
+        let result = -1;
+
+        while (left <= right) {
+            const mid = Math.floor((left + right) / 2);
+            const midDate = new Date(sortedDates[mid]).getTime();
+
+            if (midDate <= target) {
+                result = mid; // This date is valid, but maybe there's a closer one
+                left = mid + 1;
+            } else {
+                right = mid - 1;
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * Calculate ratio with proper date alignment.
+     * Uses nearest prior date matching for weekly data against daily data.
+     * Normalizes to starting value = 100 for better visualization.
+     */
     function calculateRatio(
         indexValues,
         denominatorValues,
         indexDates,
         denomDates,
     ) {
-        if (!indexValues?.length || !denominatorValues?.length)
+        if (
+            !indexValues?.length ||
+            !denominatorValues?.length ||
+            !denomDates?.length
+        ) {
             return indexValues;
+        }
 
         // Create date-to-value map for denominator
         const denomMap = new Map();
         denomDates.forEach((d, i) => {
-            if (denominatorValues[i] != null)
+            if (denominatorValues[i] != null) {
                 denomMap.set(d, denominatorValues[i]);
+            }
         });
 
-        // Calculate ratio for each index date
-        return indexDates.map((date, i) => {
+        // Sort denominator dates for binary search
+        const sortedDenomDates = [...denomDates].sort();
+
+        // Calculate raw ratios using nearest prior date
+        const rawRatios = indexDates.map((date, i) => {
             const indexVal = indexValues[i];
-            const denomVal = denomMap.get(date);
-            if (indexVal == null || denomVal == null || denomVal === 0)
-                return null;
-            return (indexVal / denomVal) * 1000; // Scale for readability
+            if (indexVal == null) return null;
+
+            // Find closest prior date in denominator data
+            const closestIdx = findClosestPriorDate(date, sortedDenomDates);
+            if (closestIdx === -1) return null;
+
+            const closestDate = sortedDenomDates[closestIdx];
+            const denomVal = denomMap.get(closestDate);
+
+            if (denomVal == null || denomVal === 0) return null;
+            return indexVal / denomVal;
         });
+
+        // Normalize: set first valid value to 100
+        const firstValid = rawRatios.find((v) => v != null);
+        if (firstValid == null) return rawRatios;
+
+        const scale = 100 / firstValid;
+        return rawRatios.map((v) => (v != null ? v * scale : null));
     }
 
     function selectMainMode(mode) {
@@ -167,8 +244,11 @@
                     name = `${mainAsset} / GLI`;
                     break;
                 case "m2":
-                    denomData = m2Data;
-                    name = `${mainAsset} / M2`;
+                    // Use local M2 for the index's region
+                    const m2Region = m2LocalMapping[mainAsset] || "us";
+                    denomData = m2LocalData[m2Region] || m2Data;
+                    const regionLabel = m2Region.toUpperCase();
+                    name = `${mainAsset} / M2 ${regionLabel}`;
                     break;
                 case "netliq":
                     denomData = netLiqData;
@@ -302,8 +382,10 @@
                             chartName = `${name}/GLI`;
                             break;
                         case "m2":
-                            denomData = m2Data;
-                            chartName = `${name}/M2`;
+                            // Use local M2 for the index's region
+                            const m2Region = m2LocalMapping[name] || "us";
+                            denomData = m2LocalData[m2Region] || m2Data;
+                            chartName = `${name}/M2 ${m2Region.toUpperCase()}`;
                             break;
                         case "netliq":
                             denomData = netLiqData;
@@ -343,7 +425,7 @@
         return result;
     });
 
-    // Cross-Ratios (NDX/SPX, RUT/SPX)
+    // Cross-Ratios (NDX/SPX, RUT/SPX, BUZZ/SPX)
     let crossRatioRange = $state("1Y");
     let crossRatioCharts = $derived.by(() => {
         const result = {};
@@ -386,6 +468,27 @@
                             mode: "lines",
                             line: { color: "#10b981", width: 2.5 },
                             hovertemplate: `%{x}<br>RUT/SPX: %{y:.4f}<extra></extra>`,
+                        },
+                    ],
+                    dates,
+                    crossRatioRange,
+                );
+            }
+            // BUZZ/SPX (Retail Sentiment)
+            if (mainData.BUZZ?.absolute) {
+                const buzzSpx = mainData.BUZZ.absolute.map((v, i) =>
+                    v && spxData[i] ? v / spxData[i] : null,
+                );
+                result["BUZZ/SPX"] = filterPlotlyData(
+                    [
+                        {
+                            x: dates,
+                            y: buzzSpx,
+                            name: "BUZZ/SPX",
+                            type: "scatter",
+                            mode: "lines",
+                            line: { color: "#f97316", width: 2.5 },
+                            hovertemplate: `%{x}<br>BUZZ/SPX: %{y:.4f}<extra></extra>`,
                         },
                     ],
                     dates,
