@@ -1,57 +1,22 @@
+"""
+scraper_commodities.py
+Fetches commodity data from TradingView with caching.
+"""
 import os
 import pandas as pd
 import numpy as np
 import json
 from datetime import datetime, date
-from dotenv import load_dotenv
-import time
 
-# tvDatafeed import
-try:
-    from tvDatafeed import TvDatafeed, Interval
-    TV_AVAILABLE = True
-except ImportError:
-    print("WARNING: tvDatafeed not found. Please install it using: pip install git+https://github.com/rongardF/tvdatafeed.git")
-    TV_AVAILABLE = False
+# Use shared TV client
+from tv_client import fetch_historical_data, get_tv_session, TV_AVAILABLE
 
-load_dotenv()
-
-TV_USERNAME = os.environ.get('TV_USERNAME')
-TV_PASSWORD = os.environ.get('TV_PASSWORD')
-
-# 30 years of daily data = ~7500 bars
-N_BARS = 7500
+# Configuration
+N_BARS = 7500  # ~30 years of daily data
 CACHE_MAX_AGE_HOURS = 12
-
-# Output path
 OUTPUT_PATH = os.path.join(os.path.dirname(__file__), '..', 'frontend', 'public', 'commodities_data.json')
 
-def get_tv_instance():
-    if not TV_AVAILABLE:
-        return None
-    try:
-        if TV_USERNAME and TV_PASSWORD:
-            return TvDatafeed(TV_USERNAME, TV_PASSWORD)
-        else:
-            return TvDatafeed()
-    except Exception as e:
-        print(f"TV Login failed: {e}")
-        return None
-
-def fetch_historical_data(tv_instance, symbol, exchange, interval=Interval.in_daily, n_bars=N_BARS):
-    """Fetch historical data with retries."""
-    for attempt in range(3):
-        try:
-            data = tv_instance.get_hist(symbol=symbol, exchange=exchange, interval=interval, n_bars=n_bars)
-            if data is not None and not data.empty:
-                return data
-            print(f"No data for {symbol} on attempt {attempt+1}")
-        except Exception as e:
-            print(f"Error fetching {symbol} [attempt {attempt+1}]: {e}")
-        time.sleep(2)
-    return None
-
-# Configuration for Commodities
+# Commodity symbols and exchanges
 COMMODITIES_CONFIG = {
     'GOLD': ('TVC', 'Gold'),
     'SILVER': ('TVC', 'Silver'),
@@ -87,18 +52,16 @@ def is_cache_valid():
             cached = json.load(f)
         
         if not cached.get('dates'):
-            print("Cache has no dates - will refresh")
             return False
         
         last_cached_date = cached['dates'][-1]
         today = date.today()
         
+        # Adjust for weekends
         if today.weekday() == 0:
             expected_date = today.replace(day=today.day - 3)
-        elif today.weekday() == 6:
-            expected_date = today.replace(day=today.day - 2)
-        elif today.weekday() == 5:
-            expected_date = today.replace(day=today.day - 1)
+        elif today.weekday() in [5, 6]:
+            expected_date = today.replace(day=today.day - (today.weekday() - 4))
         else:
             expected_date = today.replace(day=today.day - 1)
         
@@ -108,23 +71,28 @@ def is_cache_valid():
             print(f"✓ Cache is up-to-date (last date: {last_cached_date})")
             return True
         
-        print(f"Cache is stale (last: {last_cached_date}, expected: {expected_date}) - will refresh")
+        print(f"Cache stale (last: {last_cached_date}) - will refresh")
         return False
         
     except Exception as e:
-        print(f"Error checking cache: {e} - will refresh")
+        print(f"Error checking cache: {e}")
         return False
 
 def run_scraper(force_refresh=False):
-    """Run the commodity scraper. Will skip if cache is valid unless force_refresh=True."""
+    """Run the commodity scraper."""
     
     if not force_refresh and is_cache_valid():
         print("Using cached data - run with --force to refresh")
         return
     
-    tv = get_tv_instance()
+    if not TV_AVAILABLE:
+        print("Error: TvDatafeed not available")
+        return
+    
+    # Initialize session once (singleton)
+    tv = get_tv_session()
     if not tv:
-        print("Error: Could not initialize TradingView instance.")
+        print("Error: Could not initialize TradingView session")
         return
 
     data_output = {
@@ -134,27 +102,25 @@ def run_scraper(force_refresh=False):
     }
 
     # Use GOLD as base for dates
-    print(f"Fetching base commodity (GOLD) with {N_BARS} bars (~30 years)...")
-    base_df = fetch_historical_data(tv, 'GOLD', 'TVC', n_bars=N_BARS)
+    print(f"Fetching GOLD with {N_BARS} bars...")
+    base_df = fetch_historical_data('GOLD', 'TVC', n_bars=N_BARS)
     if base_df is None or base_df.empty:
-        print("Error: Could not fetch base commodity data.")
+        print("Error: Could not fetch base commodity data")
         return
 
-    # Normalize dates
     base_df.index = base_df.index.normalize()
-    dates_list = [d.strftime('%Y-%m-%d') for d in base_df.index]
-    data_output['dates'] = dates_list
+    data_output['dates'] = [d.strftime('%Y-%m-%d') for d in base_df.index]
 
-    # Initialize dataframe
     all_prices = pd.DataFrame(index=base_df.index)
     all_prices['GOLD'] = base_df['close']
 
-    # Fetch other commodities
+    # Fetch other commodities (reusing same session)
     for symbol, (exchange, name) in COMMODITIES_CONFIG.items():
-        if symbol == 'GOLD': continue
+        if symbol == 'GOLD':
+            continue
         
         print(f"Fetching {symbol} from {exchange}...")
-        df = fetch_historical_data(tv, symbol, exchange, n_bars=N_BARS)
+        df = fetch_historical_data(symbol, exchange, n_bars=N_BARS)
         if df is not None and not df.empty:
             df.index = df.index.normalize()
             df = df[~df.index.duplicated(keep='last')]
@@ -176,9 +142,9 @@ def run_scraper(force_refresh=False):
             'roc_yoy': clean_series(calc_roc(prices, 252)),
         }
 
-    # Fetch BTC for overlay
-    print("Fetching BTC for overlay...")
-    btc_df = fetch_historical_data(tv, 'BTCUSD', 'BITSTAMP', n_bars=N_BARS)
+    # Fetch BTC overlay
+    print("Fetching BTC overlay...")
+    btc_df = fetch_historical_data('BTCUSD', 'BITSTAMP', n_bars=N_BARS)
     if btc_df is not None and not btc_df.empty:
         btc_df.index = btc_df.index.normalize()
         btc_aligned = btc_df['close'].reindex(all_prices.index).ffill()
@@ -187,11 +153,11 @@ def run_scraper(force_refresh=False):
             'roc_30d': clean_series(calc_roc(btc_aligned, 30))
         }
 
-    # Save to JSON
+    # Save
     with open(OUTPUT_PATH, 'w') as f:
         json.dump(data_output, f)
     
-    print(f"✓ Successfully saved {len(dates_list)} days of data to {OUTPUT_PATH}")
+    print(f"✓ Saved {len(data_output['dates'])} days to {OUTPUT_PATH}")
 
 if __name__ == "__main__":
     import sys
