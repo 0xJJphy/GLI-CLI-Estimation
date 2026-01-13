@@ -1935,7 +1935,11 @@
                     "Market-implied inflation expectations vs actual CPI. Divergence signals potential policy shifts."}
             </p>
             <div class="chart-content">
-                <Chart data={inflationExpectationsData} layout={cpiLayout} />
+                <Chart
+                    {darkMode}
+                    data={inflationExpectationsData}
+                    layout={cpiLayout}
+                />
             </div>
             <div class="latest-values">
                 <span
