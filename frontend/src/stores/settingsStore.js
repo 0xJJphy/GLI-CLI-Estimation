@@ -75,6 +75,8 @@ const translations = {
         nav_btc_analysis: "BTC Analysis",
         nav_stablecoins: "Stablecoins",
         nav_currencies: "Currencies",
+        nav_indexes: "Indexes",
+        nav_commodities: "Commodities",
         // Stablecoins Tab
         stablecoins_title: "Stablecoin Market Overview",
         stablecoins_desc: "Track stablecoin market caps, growth trends, and depeg events.",
@@ -111,6 +113,19 @@ const translations = {
         currency_roc_3m: "3M ROC",
         currency_volatility: "Realized Vol",
         rate_col: "Rate",
+        // Indexes Tab
+        indexes_title: "Global Equity Indices",
+        indexes_desc: "Performance analysis of major global stock market benchmarks.",
+        other_benchmarks: "Other Benchmarks",
+        index_name: "Index",
+        // Commodities Tab
+        commodities_title: "Global Commodities",
+        commodities_desc: "Tracking real assets, energy, and metals.",
+        other_commodities: "Other Commodities",
+        commodity_name: "Commodity",
+        // Common
+        performance_table: "Performance Analysis",
+        last_price: "Last",
         // Crypto Narratives
         nav_narratives: "Crypto Narratives",
         cai_label: "Altseason Index (CAI)",
@@ -1435,6 +1450,18 @@ const translations = {
         regime_formula_desc: "Score = 50 + 15 × Total_Z | Liquidez (35% GLI + 35% NetLiq + 20% M2 ± amplitud CB) + Crédito (60% CLI + 40% momentum CLI) - Frenos (tasas reales + estrés repo + escasez reservas)",
         regime_score_bullish: "Score > 50: Sesgo alcista (verde) → Liquidez expandiéndose, crédito relajándose",
         regime_score_bearish: "Score < 50: Sesgo bajista (rojo) → Liquidez contrayéndose, crédito endureciéndose",
+        nav_indexes: "Índices",
+        nav_commodities: "Commodities",
+        indexes_title: "Índices Bursátiles Globales",
+        indexes_desc: "Análisis de rendimiento de los principales índices bursátiles globales.",
+        other_benchmarks: "Otros Referentes",
+        index_name: "Índice",
+        commodities_title: "Commodities Globales",
+        commodities_desc: "Seguimiento de activos reales, energía y metales.",
+        other_commodities: "Otros Commodities",
+        commodity_name: "Commodity",
+        performance_table: "Análisis de Rendimiento",
+        last_price: "Último",
         // Risk Model Tab
         risk_stance: "SESGO",
         risk_factors: "Factores",

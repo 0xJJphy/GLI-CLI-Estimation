@@ -389,7 +389,7 @@
                     <h4>{pair}/USD</h4>
                     <TimeRangeSelector bind:selectedRange={pairRanges[pair]} />
                 </div>
-                <div class="chart-content mini" style="height: 180px;">
+                <div class="chart-content mini" style="height: 280px;">
                     <Chart
                         data={pairCharts[pair]}
                         {darkMode}
@@ -491,7 +491,7 @@
     /* Local overrides only, base styles come from global app.css */
     .currencies-grid {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(2, 1fr);
         gap: 1.5rem;
         width: 100%;
         max-width: 100%;

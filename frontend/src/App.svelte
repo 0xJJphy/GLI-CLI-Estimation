@@ -7,6 +7,10 @@
     latestStats,
     isLoading,
     error,
+    indexesData,
+    fetchIndexesData,
+    commoditiesData,
+    fetchCommoditiesData,
   } from "./stores/dataStore";
   import StatsCard from "./lib/components/StatsCard.svelte";
   import Chart from "./lib/components/Chart.svelte";
@@ -31,6 +35,8 @@
   import CurrenciesTab from "./lib/tabs/CurrenciesTab.svelte";
   import NarrativesTab from "./lib/tabs/NarrativesTab.svelte";
   import EtfsTab from "./lib/tabs/EtfsTab.svelte";
+  import IndexesTab from "./lib/tabs/IndexesTab.svelte";
+  import CommoditiesTab from "./lib/tabs/CommoditiesTab.svelte";
 
   // Global Settings Store
   import {
@@ -279,6 +285,8 @@
 
   onMount(() => {
     fetchData();
+    fetchIndexesData();
+    fetchCommoditiesData();
   });
 
   const setTab = (tab) => {
@@ -2495,6 +2503,27 @@
                   >
                     ETFs
                   </div>
+                  <div
+                    class="nav-item sub"
+                    class:active={currentTab === "Indexes"}
+                    on:click={() => setTab("Indexes")}
+                    on:keydown={(e) => e.key === "Enter" && setTab("Indexes")}
+                    role="button"
+                    tabindex="0"
+                  >
+                    {$currentTranslations.nav_indexes || "Indexes"}
+                  </div>
+                  <div
+                    class="nav-item sub"
+                    class:active={currentTab === "Commodities"}
+                    on:click={() => setTab("Commodities")}
+                    on:keydown={(e) =>
+                      e.key === "Enter" && setTab("Commodities")}
+                    role="button"
+                    tabindex="0"
+                  >
+                    {$currentTranslations.nav_commodities || "Commodities"}
+                  </div>
                 </div>
               {/if}
             </div>
@@ -2877,6 +2906,22 @@
       {:else if currentTab === "Etfs"}
         <div class="tab-content">
           <EtfsTab />
+        </div>
+      {:else if currentTab === "Indexes"}
+        <div class="tab-content">
+          <IndexesTab
+            darkMode={$darkMode}
+            translations={$currentTranslations}
+            indexesData={$indexesData}
+          />
+        </div>
+      {:else if currentTab === "Commodities"}
+        <div class="tab-content">
+          <CommoditiesTab
+            darkMode={$darkMode}
+            translations={$currentTranslations}
+            commoditiesData={$commoditiesData}
+          />
         </div>
       {/if}
     </div>

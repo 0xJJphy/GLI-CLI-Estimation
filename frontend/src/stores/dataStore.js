@@ -209,6 +209,12 @@ export const dashboardData = writable({
 export const etfData = writable(null);
 export const etfLoading = writable(false);
 
+export const indexesData = writable({ dates: [], indexes: {}, btc: {} });
+export const indexesLoading = writable(false);
+
+export const commoditiesData = writable({ dates: [], commodities: {}, btc: {} });
+export const commoditiesLoading = writable(false);
+
 export const isLoading = writable(true);
 export const error = writable(null);
 export const selectedSource = writable('tv'); // 'tv' or 'fred'
@@ -236,6 +242,34 @@ export async function fetchData() {
         error.set(e.message);
     } finally {
         isLoading.set(false);
+    }
+}
+
+export async function fetchIndexesData() {
+    indexesLoading.set(true);
+    try {
+        const response = await fetch('/indexes_data.json');
+        if (!response.ok) throw new Error('Failed to fetch Indexes data');
+        const data = await response.json();
+        indexesData.set(data);
+    } catch (e) {
+        console.error('Error fetching Indexes data:', e);
+    } finally {
+        indexesLoading.set(false);
+    }
+}
+
+export async function fetchCommoditiesData() {
+    commoditiesLoading.set(true);
+    try {
+        const response = await fetch('/commodities_data.json');
+        if (!response.ok) throw new Error('Failed to fetch Commodities data');
+        const data = await response.json();
+        commoditiesData.set(data);
+    } catch (e) {
+        console.error('Error fetching Commodities data:', e);
+    } finally {
+        commoditiesLoading.set(false);
     }
 }
 
