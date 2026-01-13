@@ -341,7 +341,7 @@
                 </button>
             </div>
         </div>
-        <div class="chart-container" style="height: 450px;">
+        <div class="chart-content" style="height: 450px;">
             <Chart
                 data={mainChartData}
                 {darkMode}
@@ -365,7 +365,7 @@
                         color: "#f7931a",
                         visible: showBtcOverlay && btcMode === "absolute",
                     },
-                    margin: { t: 30, r: 60, l: 60, b: 60 },
+                    margin: { t: 30, r: 60, l: 60, b: 100 },
                     legend: {
                         orientation: "v",
                         y: 0.5,
@@ -389,7 +389,7 @@
                     <h4>{pair}/USD</h4>
                     <TimeRangeSelector bind:selectedRange={pairRanges[pair]} />
                 </div>
-                <div class="chart-container mini" style="height: 180px;">
+                <div class="chart-content mini" style="height: 180px;">
                     <Chart
                         data={pairCharts[pair]}
                         {darkMode}
@@ -502,7 +502,7 @@
     }
 
     .pairs-section-header {
-        margin: 2rem 0 1rem 0;
+        margin: 3rem 0 1.5rem 0;
         padding-left: 0.5rem;
         border-left: 4px solid var(--accent-primary);
     }
