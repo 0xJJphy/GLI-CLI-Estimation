@@ -239,21 +239,23 @@
 <div class="tab-container us-debt-tab" class:dark={darkMode}>
     <!-- Header Section -->
     <div class="tab-header">
-        <div class="header-left">
-            <span class="header-icon">🏛️</span>
-            <h2
-                class="header-title glitch-text"
-                data-text={translations.treasury_maturity_tracker ||
-                    "Treasury Maturity Tracker"}
-            >
-                {translations.treasury_maturity_tracker ||
-                    "Treasury Maturity Tracker"}
-            </h2>
-            {#if !schedule.months?.length}
-                <span class="demo-badge"
-                    >{translations.demo_data || "DEMO DATA"}</span
-                >
-            {/if}
+        <div class="header-content">
+            <div class="header-left">
+                <span class="header-icon">🏦</span>
+                <h2 class="header-title">
+                    {translations.treasury_maturity_tracker ||
+                        "Treasury Maturity Tracker"}
+                </h2>
+                {#if !schedule.months?.length}
+                    <span class="demo-badge"
+                        >{translations.demo_data || "DEMO DATA"}</span
+                    >
+                {/if}
+            </div>
+            <p class="description">
+                Analysis of US National Debt, Treasury General Account (TGA),
+                and Term Funding.
+            </p>
         </div>
         <div class="header-right">
             <div class="header-controls">
@@ -557,16 +559,7 @@
         color: var(--text-primary);
     }
 
-    /* Header */
-    .tab-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 24px;
-        padding-bottom: 16px;
-        border-bottom: 1px solid var(--border-color);
-    }
-
+    /* Local overrides only, base styles come from global app.css */
     .header-left {
         display: flex;
         align-items: center;

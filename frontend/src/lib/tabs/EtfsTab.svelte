@@ -744,7 +744,7 @@
         </div>
     {:else}
         <!-- Summary Header -->
-        <div class="tab-header" class:light={!$darkMode}>
+        <div class="tab-header">
             <div class="header-content">
                 <h2>{t($currentTranslations, "etf_title")}</h2>
                 <p class="description">
@@ -778,7 +778,7 @@
         </div>
 
         <!-- Main Chart Section -->
-        <div class="chart-card full-width" class:light={!$darkMode}>
+        <div class="chart-card full-width">
             <div class="chart-header">
                 <div class="header-controls">
                     <Dropdown
@@ -1099,56 +1099,21 @@
         color: var(--text-primary);
     }
 
-    .header-content .description {
-        margin: 4px 0 0 0;
-        color: var(--text-secondary);
-        font-size: 0.9rem;
+    .etfs-tab {
+        padding: 0;
     }
 
-    .header-stats {
-        display: flex;
-        gap: 20px;
-    }
-
-    .stat-item {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-end;
-    }
-
+    /* Local overrides only, base styles come from global app.css */
     .stat-item.main .stat-value {
-        color: #3b82f6;
+        color: var(--accent-secondary);
         font-size: 1.5rem;
     }
 
-    .stat-label {
-        font-size: 0.7rem;
-        font-weight: 600;
-        color: var(--text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-
-    .stat-value {
-        font-size: 1.1rem;
-        font-weight: 700;
-        color: var(--text-primary);
-    }
-
     .pos {
-        color: #10b981;
+        color: var(--positive-color);
     }
     .neg {
-        color: #ef4444;
-    }
-
-    .chart-card {
-        background: var(--card-bg);
-        border-radius: 12px;
-        border: 1px solid var(--border-color);
-        padding: 20px;
-        margin-bottom: 24px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        color: var(--negative-color);
     }
 
     .full-width {
@@ -1156,23 +1121,11 @@
     }
 
     .card {
-        background: var(--card-bg);
+        background: var(--bg-secondary);
         border-radius: 12px;
         border: 1px solid var(--border-color);
-        padding: 20px;
-    }
-
-    .card-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1.25rem;
-    }
-
-    .card-header h3 {
-        margin: 0;
-        font-size: 1.125rem;
-        font-weight: 600;
+        padding: 1.5rem;
+        box-shadow: var(--card-shadow);
     }
 
     .bottom-grid {
@@ -1195,66 +1148,8 @@
         }
     }
 
-    .pie-chart-card {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-    }
-
-    .correlation-card {
-        position: relative;
-    }
-
-    .correlation-hint {
-        padding: 8px 12px;
-        background: var(--bg-secondary);
-        border-radius: 6px;
-        margin-top: 8px;
-    }
-
-    .hint-text {
-        font-size: 0.7rem;
-        color: var(--text-muted);
-        font-style: italic;
-    }
-
-    .table-wrapper {
-        overflow-x: auto;
-    }
-
-    table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-
-    th {
-        text-align: left;
-        padding: 0.75rem;
-        font-size: 0.75rem;
-        font-weight: 600;
-        color: var(--text-muted);
-        border-bottom: 1px solid var(--border-color);
-        text-transform: uppercase;
-    }
-
-    td {
-        padding: 1rem 0.75rem;
-        border-bottom: 1px solid var(--border-color);
-        font-size: 0.875rem;
-    }
-
-    .text-right {
-        text-align: right;
-    }
-
-    .ticker-cell {
-        display: flex;
-        flex-direction: column;
-        gap: 0.25rem;
-    }
-
     .ticker-badge {
-        background: #3b82f620;
+        background: rgba(59, 130, 246, 0.1);
         color: #3b82f6;
         padding: 0.125rem 0.5rem;
         border-radius: 0.25rem;
@@ -1263,28 +1158,12 @@
         width: fit-content;
     }
 
-    .provider {
-        font-size: 0.75rem;
-        color: var(--text-muted);
-    }
-
-    :global(.dark) .chart-card,
-    :global(.dark) .card {
-        background: #0f172a;
-        border-color: #1e293b;
-    }
-
-    :global(.dark) .ticker-badge {
-        background: #3b82f630;
-    }
-
-    .timeframe-toggles {
-        display: flex;
-        gap: 0.5rem;
+    [data-theme="dark"] .ticker-badge {
+        background: rgba(59, 130, 246, 0.2);
     }
 
     .timeframe-toggles button {
-        background: var(--card-bg);
+        background: var(--bg-tertiary);
         border: 1px solid var(--border-color);
         padding: 0.35rem 0.75rem;
         border-radius: 0.375rem;
@@ -1296,31 +1175,9 @@
     }
 
     .timeframe-toggles button.active {
-        background: #3b82f6;
-        color: #f8fafc;
-        border-color: #3b82f6;
-    }
-
-    .chart-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1.5rem;
-        flex-wrap: wrap;
-        gap: 1rem;
-    }
-
-    .header-controls {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        flex-wrap: wrap;
-    }
-
-    .secondary-controls {
-        display: flex;
-        align-items: center;
-        gap: 1.25rem;
+        background: var(--accent-primary);
+        color: #ffffff;
+        border-color: var(--accent-primary);
     }
 
     /* Custom Checkbox Styling */
@@ -1335,14 +1192,6 @@
         color: var(--text-secondary);
     }
 
-    .custom-checkbox input {
-        position: absolute;
-        opacity: 0;
-        cursor: pointer;
-        height: 0;
-        width: 0;
-    }
-
     .checkmark {
         height: 18px;
         width: 18px;
@@ -1354,13 +1203,13 @@
     }
 
     .custom-checkbox:hover input ~ .checkmark {
-        border-color: #3b82f6;
+        border-color: var(--accent-primary);
         background-color: rgba(59, 130, 246, 0.1);
     }
 
     .custom-checkbox input:checked ~ .checkmark {
-        background-color: #3b82f6;
-        border-color: #3b82f6;
+        background-color: var(--accent-primary);
+        border-color: var(--accent-primary);
     }
 
     .checkmark:after {
@@ -1378,29 +1227,6 @@
 
     .custom-checkbox input:checked ~ .checkmark:after {
         display: block;
-    }
-
-    .label-text {
-        transition: color 0.2s;
-    }
-
-    .custom-checkbox input:checked ~ .label-text {
-        color: var(--text-primary);
-    }
-
-    .card-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1rem;
-        flex-wrap: wrap;
-        gap: 1rem;
-    }
-
-    .header-main {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
     }
 
     .ticker-mode-selector {
@@ -1423,19 +1249,24 @@
     }
 
     .ticker-mode-selector button.active {
-        background: var(--card-bg);
-        color: var(--text-color);
+        background: var(--bg-tertiary);
+        color: var(--text-primary);
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
 
-    .ticker-controls {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        flex-wrap: wrap;
+    .table-wrapper th {
+        text-align: left;
+        padding: 0.75rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--text-muted);
+        border-bottom: 1px solid var(--border-color);
+        text-transform: uppercase;
     }
 
-    .ticker-chart-wrapper {
-        min-height: 380px;
+    .table-wrapper td {
+        padding: 1rem 0.75rem;
+        border-bottom: 1px solid var(--border-color);
+        font-size: 0.875rem;
     }
 </style>

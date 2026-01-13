@@ -761,7 +761,7 @@
 </script>
 
 <!-- Header -->
-<div class="tab-header" class:light={!darkMode}>
+<div class="tab-header">
     <div class="header-content">
         <h2>{t("stablecoins_title", "Stablecoin Market Overview")}</h2>
         <p class="description">
@@ -782,7 +782,7 @@
 </div>
 
 <!-- Main Grid -->
-<div class="stablecoins-grid" class:light={!darkMode}>
+<div class="stablecoins-grid">
     <!-- Aggregate Supply Chart -->
     <div class="chart-card full-width" bind:this={aggregateCard}>
         <div class="chart-header">
@@ -1191,115 +1191,90 @@
 </div>
 
 <style>
-    .tab-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 24px;
-        margin-bottom: 32px;
-        background: var(--bg-secondary);
-        border-radius: 16px;
-        border: 1px solid var(--border-color);
-    }
-    .tab-header.light {
-        background: #f8fafc;
-        border-color: #e2e8f0;
-    }
-    .header-content h2 {
-        margin: 0 0 8px 0;
-        font-size: 1.5rem;
-        color: var(--text-primary);
-    }
-    .light .header-content h2 {
-        color: #1e293b;
-    }
-    .description {
-        margin: 0;
-        color: var(--text-muted);
-        font-size: 0.9rem;
-    }
-    .header-stats {
-        display: flex;
-        gap: 24px;
-    }
-    .stat-item {
-        text-align: right;
-    }
-    .stat-label {
-        display: block;
-        font-size: 0.75rem;
-        color: var(--text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-    .stat-value {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: #6366f1;
-        font-family: "JetBrains Mono", monospace;
-    }
-
     .stablecoins-grid {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
-        gap: 20px;
-        padding: 0;
+        gap: 1.5rem;
     }
 
-    /* Use global .chart-card styles */
-    .chart-card.full-width {
+    .full-width {
         grid-column: 1 / -1;
     }
 
-    .chart-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 16px;
+    /* Local overrides only, base styles come from global app.css */
+    .table-container {
+        margin-top: 1rem;
+        overflow-x: auto;
     }
-    .chart-header h3 {
-        margin: 0;
-        font-size: 1rem;
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+    }
+
+    th {
+        text-align: left;
+        padding: 1rem;
+        background: var(--bg-tertiary);
+        color: var(--text-muted);
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.05em;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    td {
+        padding: 1rem;
+        border-bottom: 1px solid var(--border-color);
         color: var(--text-primary);
     }
-    .light .chart-header h3 {
-        color: #1e293b;
-    }
-    .header-controls {
-        display: flex;
-        gap: 12px;
-        align-items: center;
-    }
 
-    /* Removing legacy custom dropdown styles - now handled by Dropdown component */
-
-    .download-btn {
-        background: transparent;
-        border: 1px solid var(--border-color);
-        border-radius: 6px;
-        padding: 6px 10px;
-        cursor: pointer;
-        font-size: 0.9rem;
-        transition: all 0.2s;
-    }
-    .download-btn:hover {
+    tr:hover td {
         background: var(--bg-tertiary);
     }
 
-    .chart-content {
-        min-height: 300px;
+    .stat-badge {
+        font-size: 0.8rem;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 4px;
+        background: var(--bg-tertiary);
     }
 
-    .no-data {
+    .pagination {
         display: flex;
-        align-items: center;
         justify-content: center;
-        min-height: 200px;
-        color: var(--text-muted);
-        font-style: italic;
+        align-items: center;
+        gap: 1rem;
+        margin-top: 1.5rem;
     }
 
-    /* SFAI Chart Styles */
+    .page-btn {
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-color);
+        color: var(--text-primary);
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .page-btn:hover:not(:disabled) {
+        border-color: var(--accent-primary);
+    }
+
+    .page-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .page-info {
+        font-size: 0.9rem;
+        color: var(--text-muted);
+    }
+
     .sfai-card .chart-header {
         flex-wrap: wrap;
     }
