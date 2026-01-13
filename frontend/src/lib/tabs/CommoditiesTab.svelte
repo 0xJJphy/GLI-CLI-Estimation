@@ -274,6 +274,7 @@
                 },
                 yaxis: btcMode === "roc" ? "y" : "y2",
                 fill: "none",
+                fillcolor: "transparent",
                 hovertemplate: `%{x}<br>${btcName}: %{y:.0f}${btcMode === "roc" ? "%" : ""}<extra></extra>`,
             });
         }
