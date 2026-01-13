@@ -24,8 +24,8 @@
     // Theme-aware colors with optional watermark
     const getLayout = (isDark, watermarkVisible) => {
         const baseLayout = {
-            paper_bgcolor: "rgba(0,0,0,0)",
-            plot_bgcolor: "rgba(0,0,0,0)",
+            paper_bgcolor: isDark ? "#0a0a0a" : "#ffffff",
+            plot_bgcolor: isDark ? "#0a0a0a" : "#ffffff",
             font: {
                 color: isDark ? "#cbd5e1" : "#1e293b",
                 family: "'JetBrains Mono', monospace",

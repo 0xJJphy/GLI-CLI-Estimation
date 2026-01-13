@@ -68,13 +68,12 @@
     }
   }
 
-  function applyTheme() {
-    if (typeof document !== "undefined") {
-      document.documentElement.setAttribute(
-        "data-theme",
-        darkMode ? "dark" : "light",
-      );
-    }
+  // Sync theme to DOM
+  $: if (typeof document !== "undefined") {
+    document.documentElement.setAttribute(
+      "data-theme",
+      $darkMode ? "dark" : "light",
+    );
   }
 
   // Individual time range state for each chart section

@@ -20,12 +20,13 @@ export async function downloadCardAsImage(element, filename = 'chart_card', opti
     }
 
     try {
-        // Detect current theme
-        const isDarkMode = document.documentElement.classList.contains('dark') ||
+        // Detect current theme robustly
+        const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark' ||
+            document.documentElement.classList.contains('dark') ||
             document.body.classList.contains('dark') ||
-            document.documentElement.getAttribute('data-theme') === 'dark' ||
             window.matchMedia('(prefers-color-scheme: dark)').matches;
 
+        const themeBgColor = isDarkMode ? '#050505' : '#ffffff';
         const backgroundColor = isDarkMode ? '#050505' : '#ffffff';
         const scale = options.scale || 2;
         const parentRect = element.getBoundingClientRect();
@@ -70,7 +71,6 @@ export async function downloadCardAsImage(element, filename = 'chart_card', opti
                 const relX = rect.left - parentRect.left;
                 const relY = rect.top - parentRect.top;
 
-                // Use Plotly's native toImage to capture the chart with annotations/watermarks
                 const dataURL = await Plotly.toImage(/** @type {HTMLElement} */(plotlyEl), {
                     format: 'png',
                     width: rect.width * scale,

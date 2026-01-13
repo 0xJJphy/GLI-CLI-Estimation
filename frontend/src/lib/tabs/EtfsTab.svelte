@@ -1158,10 +1158,6 @@
         width: fit-content;
     }
 
-    [data-theme="dark"] .ticker-badge {
-        background: rgba(59, 130, 246, 0.2);
-    }
-
     .timeframe-toggles button {
         background: var(--bg-tertiary);
         border: 1px solid var(--border-color);

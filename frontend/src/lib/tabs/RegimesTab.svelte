@@ -483,8 +483,6 @@
             },
         ],
         margin: { t: 20, b: 40, l: 50, r: 20 },
-        paper_bgcolor: "transparent",
-        plot_bgcolor: "transparent",
         font: { color: darkMode ? "#e2e8f0" : "#1e293b" },
     };
 
@@ -593,8 +591,6 @@
             },
         ],
         margin: { t: 20, b: 40, l: 50, r: 60 },
-        paper_bgcolor: "transparent",
-        plot_bgcolor: "transparent",
         showlegend: false,
         font: { color: darkMode ? "#e2e8f0" : "#1e293b" },
     };
@@ -696,8 +692,6 @@
             },
         ],
         margin: { t: 20, b: 40, l: 50, r: 60 },
-        paper_bgcolor: "transparent",
-        plot_bgcolor: "transparent",
         showlegend: false,
         font: { color: darkMode ? "#e2e8f0" : "#1e293b" },
     };
@@ -898,12 +892,11 @@
     $: stressHeatmapLayout = {
         xaxis: { showgrid: false, color: darkMode ? "#94a3b8" : "#475569" },
         yaxis: {
+            type: "category",
             color: darkMode ? "#94a3b8" : "#475569",
             automargin: true,
         },
         margin: { t: 10, b: 40, l: 100, r: 20 },
-        paper_bgcolor: "transparent",
-        plot_bgcolor: "transparent",
         font: { color: darkMode ? "#e2e8f0" : "#1e293b" },
     };
 
@@ -952,8 +945,6 @@
             },
         },
         showlegend: false,
-        paper_bgcolor: "transparent",
-        plot_bgcolor: "transparent",
         margin: { t: 30, b: 30, l: 30, r: 30 },
         font: { color: darkMode ? "#e2e8f0" : "#1e293b" },
     };
@@ -988,8 +979,6 @@
                 : "rgba(71,85,105,0.1)",
         },
         margin: { t: 10, b: 40, l: 50, r: 20 },
-        paper_bgcolor: "transparent",
-        plot_bgcolor: "transparent",
         font: { color: darkMode ? "#e2e8f0" : "#1e293b" },
     };
 
