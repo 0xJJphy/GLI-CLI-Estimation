@@ -104,12 +104,14 @@
             title: translations.reserves_axis || "Reserves (T)",
             side: "left",
             showgrid: false,
+            autorange: true,
         },
         yaxis2: {
             title: translations.net_liq_axis || "Net Liq (T)",
             overlaying: "y",
             side: "right",
             showgrid: false,
+            autorange: true,
         },
         legend: { orientation: "h", y: 1.1 },
         shapes: [
