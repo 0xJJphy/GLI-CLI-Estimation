@@ -524,6 +524,7 @@
                 <TimeRangeSelector bind:selectedRange={mainRange} />
                 <button
                     class="download-btn"
+                    aria-label="Download chart as image"
                     onclick={() =>
                         downloadCardAsImage(
                             mainCard,
