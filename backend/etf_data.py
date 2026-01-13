@@ -143,10 +143,16 @@ def fetch_etf_data():
             ORDER BY date ASC
         """
         df_btc = pd.read_sql(btc_query, conn)
-        df_btc['date'] = df_btc['date'].astype(str)
+        
+        # Ensure consistent date types for merge (standardizing to YYYY-MM-DD string)
+        df_btc['date_merge'] = pd.to_datetime(df_btc['date']).dt.strftime('%Y-%m-%d')
+        df_agg['date_merge'] = pd.to_datetime(df_agg['date']).dt.strftime('%Y-%m-%d')
 
         # Merge BTC prices with aggregated data
-        df_agg_with_btc = df_agg.merge(df_btc, on='date', how='left')
+        df_agg_with_btc = df_agg.merge(df_btc, on='date_merge', how='left')
+        
+        # Forward fill BTC prices to handle any minor gaps in price data
+        df_agg_with_btc['btc_price'] = df_agg_with_btc['btc_price'].ffill()
 
         # Calculate BTC daily returns for correlation
         df_agg_with_btc['btc_return'] = df_agg_with_btc['btc_price'].pct_change() * 100
