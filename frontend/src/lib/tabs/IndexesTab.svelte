@@ -737,6 +737,35 @@
         </div>
     </div>
 
+    {#if crossRatioCharts["BUZZ/SPX"]}
+        <div class="chart-card">
+            <div class="chart-header">
+                <h4>BUZZ / SPX</h4>
+                <TimeRangeSelector
+                    selectedRange={crossRatioRange}
+                    onRangeChange={(val) => (crossRatioRange = val)}
+                />
+            </div>
+            <div class="ratio-desc">
+                <span class="tag bullish">↑ Retail sentiment outperforming</span
+                >
+                <span class="tag bearish">↓ Smart money leading</span>
+            </div>
+            <div class="chart-content" style="height: 280px;">
+                <Chart
+                    data={crossRatioCharts["BUZZ/SPX"] || []}
+                    {darkMode}
+                    layout={{
+                        showlegend: false,
+                        margin: { t: 10, r: 10, l: 45, b: 40 },
+                        yaxis: { tickfont: { size: 10 }, autorange: true },
+                    }}
+                    config={{ responsive: true, displayModeBar: false }}
+                />
+            </div>
+        </div>
+    {/if}
+
     <!-- Other Benchmarks -->
     <div class="section-title full-width">
         <h3>{t("other_benchmarks", "Other Benchmarks")}</h3>
