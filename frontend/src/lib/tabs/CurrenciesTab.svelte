@@ -71,30 +71,42 @@
                 yData = yData.map((v) => (v ? 1 / v : null));
                 name = mainAsset === "DXY" ? "1 / DXY" : `1 / (${name})`;
             }
-        } else if (mainMode === "roc7d") {
-            yData = assetData.roc_7d || [];
-            name = `${name} ROC 7D (%)`;
-            color = "#10b981";
-        } else if (mainMode === "roc30d") {
-            yData = assetData.roc_30d || [];
-            name = `${name} ROC 30D (%)`;
-            color = "#3b82f6";
-        } else if (mainMode === "roc90d") {
-            yData = assetData.roc_90d || [];
-            name = `${name} ROC 90D (%)`;
-            color = "#8b5cf6"; // Purple (Bonds)
-        } else if (mainMode === "roc180d") {
-            yData = assetData.roc_180d || [];
-            name = `${name} ROC 180D (%)`;
-            color = "#f59e0b"; // Amber (Others)
-        } else if (mainMode === "roc_yoy") {
-            yData = assetData.roc_yoy || [];
-            name = `${name} YoY Change (%)`;
-            color = "#ec4899"; // Pink
-        } else if (mainMode === "volatility") {
-            yData = assetData.volatility || [];
-            name = `${name} Realized Vol (%)`;
-            color = "#ef4444"; // Red
+        } else {
+            // ROC or Volatility modes
+            const modeKey =
+                mainMode === "volatility"
+                    ? "volatility"
+                    : mainMode === "roc_yoy"
+                      ? "roc_yoy"
+                      : mainMode.replace("roc", "roc_");
+
+            yData = assetData[modeKey] || [];
+
+            if (mainInverted) {
+                if (mainMode === "volatility") {
+                    // Volatility is absolute value, inversion doesn't change it much but for UX we keep it same
+                    name = `Inverted ${name}`;
+                } else {
+                    // ROC(1/X) = (1 / (1 + ROC/100) - 1) * 100
+                    yData = yData.map((v) =>
+                        v !== null ? (1 / (1 + v / 100) - 1) * 100 : null,
+                    );
+                    name =
+                        mainAsset === "DXY"
+                            ? `1/DXY ${mainMode.toUpperCase()}`
+                            : `1/(${mainAsset}) ${mainMode.toUpperCase()}`;
+                }
+            } else {
+                name = `${name} ${mainMode.toUpperCase()} (%)`;
+            }
+
+            // Color coding (keep defined colors)
+            if (mainMode === "roc7d") color = "#10b981";
+            else if (mainMode === "roc30d") color = "#3b82f6";
+            else if (mainMode === "roc90d") color = "#8b5cf6";
+            else if (mainMode === "roc180d") color = "#f59e0b";
+            else if (mainMode === "roc_yoy") color = "#ec4899";
+            else if (mainMode === "volatility") color = "#ef4444";
         }
 
         const traces = [
@@ -271,15 +283,17 @@
                 />
             </div>
             <div class="header-controls">
-                {#if mainMode === "absolute"}
-                    <button
-                        class="control-btn"
-                        class:active={mainInverted}
-                        on:click={toggleMainInversion}
-                    >
-                        {mainAsset === "DXY" ? "1/DXY" : `1 / ${mainAsset}`}
-                    </button>
-                {/if}
+                <button
+                    class="control-btn"
+                    class:active={mainInverted}
+                    on:click={toggleMainInversion}
+                    title={mainAsset === "DXY"
+                        ? "Invert DXY (1/DXY)"
+                        : `Invert ${mainAsset}`}
+                >
+                    <i class="fas fa-exchange-alt"></i>
+                    {mainAsset === "DXY" ? "1/DXY" : `1/${mainAsset}`}
+                </button>
 
                 <div class="btc-overlay-toggle">
                     <button
@@ -474,56 +488,7 @@
 </div>
 
 <style>
-    .tab-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 2rem;
-        padding-bottom: 1rem;
-        border-bottom: 1px solid var(--border-color);
-    }
-    .tab-header.light {
-        background: rgba(255, 255, 255, 0.8);
-    }
-    .header-content h2 {
-        margin: 0 0 0.5rem 0;
-        font-size: 1.75rem;
-        color: #f8fafc;
-    }
-    .light .header-content h2 {
-        color: #1e293b;
-    }
-    .description {
-        margin: 0;
-        color: #94a3b8;
-        font-size: 0.95rem;
-    }
-    .stat-item {
-        background: var(--bg-secondary);
-        border: 1px solid var(--border-color);
-        padding: 0.75rem 1.5rem;
-        border-radius: 10px;
-        box-shadow: var(--card-shadow);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        min-width: 120px;
-    }
-    .stat-label {
-        font-size: 0.75rem;
-        text-transform: uppercase;
-        color: #64748b;
-        letter-spacing: 0.05em;
-    }
-    .stat-value {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: #f8fafc;
-    }
-    .light .stat-value {
-        color: #1e293b;
-    }
-
+    /* Local overrides only, base styles come from global app.css */
     .currencies-grid {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -536,18 +501,10 @@
         grid-column: 1 / -1;
     }
 
-    .chart-card {
-        background: var(--bg-secondary);
-        border: 1px solid var(--border-color);
-        border-radius: 12px;
-        padding: 1.5rem;
-        box-shadow: var(--card-shadow);
-        position: relative;
-    }
-    .light .chart-card {
-        background: #ffffff;
-        border-color: #e2e8f0;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    .pairs-section-header {
+        margin: 2rem 0 1rem 0;
+        padding-left: 0.5rem;
+        border-left: 4px solid var(--accent-primary);
     }
 
     .chart-header {

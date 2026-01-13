@@ -634,11 +634,11 @@
         background: var(--bg-secondary);
         border: 1px solid var(--border-color);
         border-radius: 12px;
-        padding: 16px;
+        padding: 1.5rem;
+        box-shadow: var(--card-shadow);
         display: flex;
         flex-direction: column;
-        gap: 4px;
-        box-shadow: var(--card-shadow);
+        gap: 8px;
     }
 
     .metric-label {
@@ -692,7 +692,7 @@
         color: var(--text-muted);
     }
 
-    /* Use global .chart-card styles, only override margin-bottom */
+    /* Base estilos manejados globalmente en app.css */
     .chart-card {
         margin-bottom: 24px;
     }
