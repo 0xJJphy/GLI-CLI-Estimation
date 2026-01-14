@@ -750,7 +750,9 @@
     });
 
     // Recent depeg events (paginated)
-    $: sortedDepegs = [...(depegEvents || [])].reverse();
+    $: sortedDepegs = [
+        ...(Array.isArray(depegEvents) ? depegEvents : []),
+    ].reverse();
     $: totalPages = Math.ceil(sortedDepegs.length / itemsPerPage);
     $: paginatedDepegs = sortedDepegs.slice(
         (currentPage - 1) * itemsPerPage,

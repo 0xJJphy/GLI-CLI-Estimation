@@ -110,7 +110,7 @@ export const getFilteredIndices = (dates, range) => {
  * @returns {Array}
  */
 export const filterPlotlyData = (traceArray, dates, range) => {
-    if (!traceArray || !dates || !dates.length) return traceArray;
+    if (!traceArray || !dates || !dates.length) return traceArray || [];
 
     let indices;
     if (range === "ALL") {
@@ -118,6 +118,7 @@ export const filterPlotlyData = (traceArray, dates, range) => {
         let firstValidIdx = -1;
         for (let i = 0; i < dates.length; i++) {
             const hasData = traceArray.some((trace) => {
+                if (!trace.y || !Array.isArray(trace.y)) return false;
                 const val = trace.y[i];
                 return val !== null && val !== undefined && val !== 0;
             });
@@ -134,8 +135,8 @@ export const filterPlotlyData = (traceArray, dates, range) => {
 
     return traceArray.map((trace) => ({
         ...trace,
-        x: trace.x ? indices.map((i) => trace.x[i]) : [],
-        y: trace.y ? indices.map((i) => trace.y[i]) : [],
+        x: trace.x && Array.isArray(trace.x) ? indices.map((i) => trace.x[i]) : [],
+        y: trace.y && Array.isArray(trace.y) ? indices.map((i) => trace.y[i]) : [],
     }));
 };
 
