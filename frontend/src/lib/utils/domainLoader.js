@@ -40,9 +40,10 @@ const domainCache = new Map();
 
 // Configuration
 const DATA_BASE_URL = '';  // Base URL for data files (files are directly in public/domains/)
-// Modular domain files now generate complete data matching legacy dashboard_data.json
-// If issues occur, set to false to fallback to legacy data
-const USE_MODULAR_DOMAINS = true;  // Feature flag - set true to enable domain loading
+// CRITICAL FIX: Modular loading causes data display issues in multiple tabs
+// Affected: GlobalM2, OffshoreLiquidity, Stablecoins, Narratives, UsSystem dates, RegimesTab theme
+// Using legacy dashboard_data.json until all issues are resolved
+const USE_MODULAR_DOMAINS = false;  // DISABLED - Using legacy data for stability
 
 /**
  * Load a single domain's data
