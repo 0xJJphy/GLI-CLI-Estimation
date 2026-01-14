@@ -43,12 +43,50 @@
     });
 
     // Merge modular data with dashboardData (modular takes precedence)
+    // Note: modular crypto.json has flat structure (cai, regimes, narratives)
+    // while legacy dashboardData.crypto_narratives has nested structure
     $: effectiveData = {
         ...dashboardData,
-        crypto_narratives:
-            modularCryptoData?.crypto_analytics ||
-            dashboardData.crypto_narratives ||
-            {},
+        crypto_narratives: {
+            // Map modular flat structure to expected nested structure
+            ...(dashboardData.crypto_narratives || {}),
+            cai:
+                modularCryptoData?.crypto_analytics?.cai ||
+                dashboardData.crypto_narratives?.cai ||
+                [],
+            regimes:
+                modularCryptoData?.crypto_analytics?.regimes ||
+                dashboardData.crypto_narratives?.regimes ||
+                [],
+            narratives:
+                modularCryptoData?.crypto_analytics?.narratives ||
+                dashboardData.crypto_narratives?.narratives ||
+                {},
+            fear_greed:
+                modularCryptoData?.crypto_analytics?.fear_greed ||
+                dashboardData.crypto_narratives?.fear_greed ||
+                [],
+            btc_dom:
+                modularCryptoData?.crypto_analytics?.btc_dominance ||
+                dashboardData.crypto_narratives?.btc_dom ||
+                [],
+            total_mcap:
+                modularCryptoData?.crypto_analytics?.total_mcap ||
+                dashboardData.crypto_narratives?.total_mcap ||
+                [],
+            btc_mcap:
+                modularCryptoData?.crypto_analytics?.btc_mcap ||
+                dashboardData.crypto_narratives?.btc_mcap ||
+                [],
+            rs_risk_btc:
+                modularCryptoData?.crypto_analytics?.rs_risk_btc ||
+                dashboardData.crypto_narratives?.rs_risk_btc ||
+                [],
+            delta_rs_risk:
+                modularCryptoData?.crypto_analytics?.delta_rs_risk ||
+                dashboardData.crypto_narratives?.delta_rs_risk ||
+                [],
+        },
         btc: modularCryptoData?.btc || dashboardData.btc || {},
         dates: modularCryptoData?.dates || dashboardData.dates || [],
     };

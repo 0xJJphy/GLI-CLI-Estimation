@@ -30,13 +30,50 @@
     });
 
     // Merge modular data with dashboardData (modular takes precedence)
-    $: effectiveData = {
-        ...dashboardData,
-        offshore_liquidity:
-            modularOffshoreData?.offshore_liquidity ||
-            dashboardData.offshore_liquidity ||
-            {},
-    };
+    // Note: modular offshore.json has flat keys (obfr_effr_spread, etc.)
+    // while legacy has nested structure (chart1_fred_proxy.obfr_effr_spread)
+    $: effectiveData = (() => {
+        const modular = modularOffshoreData?.offshore_liquidity || {};
+        const legacy = dashboardData.offshore_liquidity || {};
+
+        // If modular data has the expected structure, use it directly
+        if (modular.chart1_fred_proxy) {
+            return { ...dashboardData, offshore_liquidity: modular };
+        }
+
+        // Otherwise map flat modular structure to expected nested structure
+        return {
+            ...dashboardData,
+            offshore_liquidity: {
+                ...legacy,
+                chart1_fred_proxy: {
+                    dates:
+                        modular.dates || legacy.chart1_fred_proxy?.dates || [],
+                    obfr_effr_spread:
+                        modular.obfr_effr_spread ||
+                        legacy.chart1_fred_proxy?.obfr_effr_spread ||
+                        [],
+                    cb_swaps_b:
+                        modular.cb_swaps ||
+                        legacy.chart1_fred_proxy?.cb_swaps_b ||
+                        [],
+                    stress_level:
+                        modular.stress_level ||
+                        legacy.chart1_fred_proxy?.stress_level,
+                    stress_score:
+                        modular.stress_score ||
+                        legacy.chart1_fred_proxy?.stress_score,
+                    latest:
+                        modular.latest ||
+                        legacy.chart1_fred_proxy?.latest ||
+                        {},
+                },
+                chart2_xccy_diy: legacy.chart2_xccy_diy || null,
+                thresholds: legacy.thresholds || {},
+                analysis: legacy.analysis || {},
+            },
+        };
+    })();
 
     // Reactive data extraction
     $: offshoreData = effectiveData.offshore_liquidity || {};
