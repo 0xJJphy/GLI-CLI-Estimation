@@ -19,6 +19,10 @@ from domains.core import SharedDomain, GLIDomain, USSystemDomain, M2Domain
 from domains.cli import CLIDomain
 from domains.treasury import TreasuryDomain
 from domains.stablecoins import StablecoinsDomain
+from domains.crypto import CryptoDomain
+from domains.fed_forecasts import FedForecastsDomain
+from domains.macro_regime import MacroRegimeDomain
+from domains.offshore import OffshoreDomain
 
 logger = logging.getLogger(__name__)
 
@@ -56,11 +60,10 @@ class DataOrchestrator:
             CLIDomain(),            # Credit Liquidity Index
             TreasuryDomain(),       # Yields, curves
             StablecoinsDomain(),    # Stablecoin analytics
-            # TODO: Add remaining domains
-            # CryptoDomain(),
-            # FedForecastsDomain(),
-            # MacroRegimeDomain(),
-            # OffshoreDomain(),
+            CryptoDomain(),         # Crypto regimes, CAI, narratives
+            FedForecastsDomain(),   # FOMC, inflation, labor
+            MacroRegimeDomain(),    # Combined regime scoring
+            OffshoreDomain(),       # Offshore USD stress
         ]
         
         self._results: Dict[str, Any] = {}
@@ -127,7 +130,11 @@ class DataOrchestrator:
         
         # Process each domain in order
         for domain in self._domains:
-            self.process_domain(domain, df)
+            try:
+                self.process_domain(domain, df)
+            except Exception as e:
+                logger.warning(f"Domain {domain.name} failed: {e}, continuing...")
+                continue
         
         # Generate legacy format if requested
         if generate_legacy:
@@ -153,20 +160,78 @@ class DataOrchestrator:
         legacy_path = os.path.join(self.output_dir, 'dashboard_data.json')
         
         if os.path.exists(legacy_path):
-            with open(legacy_path, 'r') as f:
-                legacy_data = json.load(f)
+            try:
+                with open(legacy_path, 'r') as f:
+                    legacy_data = json.load(f)
+            except Exception:
+                legacy_data = {}
         else:
             legacy_data = {}
         
-        # Merge domain results into legacy format
-        # For now, just update the domains we've processed
-        if 'currencies' in self._results:
-            legacy_data['currencies'] = self._results['currencies']
+        # Mapping from domain results to legacy format keys
+        domain_to_legacy = {
+            'currencies': 'currencies',
+            'stablecoins': 'stablecoins',
+            'crypto': 'crypto_analytics',
+            'offshore': 'offshore_liquidity',
+        }
         
+        # Merge domain results into legacy format
+        for domain_name, legacy_key in domain_to_legacy.items():
+            if domain_name in self._results:
+                legacy_data[legacy_key] = self._results[domain_name]
+        
+        # Handle shared domain specially
+        if 'shared' in self._results:
+            shared = self._results['shared']
+            legacy_data['dates'] = shared.get('dates', [])
+            if 'btc' in shared:
+                if 'btc' not in legacy_data:
+                    legacy_data['btc'] = {}
+                legacy_data['btc']['price'] = shared['btc'].get('price', [])
+        
+        # Handle metadata
         if 'metadata' in self._results:
-            legacy_data['dates'] = self._results['metadata'].get('dates', [])
-            legacy_data['last_dates'] = self._results['metadata'].get('last_dates', {})
-            legacy_data['timestamp'] = self._results['metadata'].get('timestamp')
+            meta = self._results['metadata']
+            legacy_data['last_dates'] = meta.get('last_dates', {})
+            legacy_data['timestamp'] = meta.get('timestamp')
+        
+        # Handle GLI domain
+        if 'gli' in self._results:
+            gli = self._results['gli']
+            if 'gli' not in legacy_data:
+                legacy_data['gli'] = {}
+            legacy_data['gli']['total'] = gli.get('total', [])
+            legacy_data['gli']['rocs'] = gli.get('rocs', {})
+            legacy_data['gli']['weights'] = gli.get('weights', {})
+        
+        # Handle M2 domain
+        if 'm2' in self._results:
+            m2 = self._results['m2']
+            if 'm2' not in legacy_data:
+                legacy_data['m2'] = {}
+            legacy_data['m2']['total'] = m2.get('total', [])
+            legacy_data['m2']['economies'] = m2.get('economies', {})
+        
+        # Handle US System domain
+        if 'us_system' in self._results:
+            us = self._results['us_system']
+            if 'us_net_liq' not in legacy_data:
+                legacy_data['us_net_liq'] = {}
+            legacy_data['us_net_liq']['net_liquidity'] = us.get('net_liquidity', [])
+            legacy_data['us_net_liq']['rrp'] = us.get('rrp', [])
+            legacy_data['us_net_liq']['tga'] = us.get('tga', [])
+        
+        # Handle CLI domain
+        if 'cli' in self._results:
+            cli = self._results['cli']
+            legacy_data['cli'] = cli
+        
+        # Handle macro_regime domain
+        if 'macro_regime' in self._results:
+            regime = self._results['macro_regime']
+            legacy_data['regime_score'] = regime.get('score', [])
+            legacy_data['regime_code'] = regime.get('regime_code', [])
         
         # Save merged legacy format
         with open(legacy_path, 'w') as f:
@@ -179,7 +244,9 @@ class DataOrchestrator:
         timing_data = {
             'timestamp': datetime.now().isoformat(),
             'total_seconds': total_elapsed,
-            'domains': self._timing
+            'domains': self._timing,
+            'domain_count': len(self._timing),
+            'successful': list(self._timing.keys()),
         }
         
         timing_path = os.path.join(self.domains_dir, 'processing_metadata.json')
@@ -202,3 +269,4 @@ class DataOrchestrator:
 def create_orchestrator(output_dir: str) -> DataOrchestrator:
     """Factory function to create configured orchestrator."""
     return DataOrchestrator(output_dir)
+
