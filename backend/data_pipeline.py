@@ -1309,15 +1309,20 @@ def calculate_net_repo_operations(df: pd.DataFrame) -> Dict[str, pd.Series]:
         'cumulative_30d': cumulative_30d
     }
 
-# tvDatafeed import
+# tvDatafeed - use shared singleton from tv_client to prevent double login
 try:
-    from tvDatafeed import TvDatafeed, Interval
-    TV_AVAILABLE = True
+    from utils.tv_client import get_tv_session, TV_AVAILABLE, Interval
 except ImportError:
-    print("WARNING: tvDatafeed not found. Please install it using: pip install git+https://github.com/rongardF/tvdatafeed.git")
-    TvDatafeed = None
-    Interval = None
-    TV_AVAILABLE = False
+    # Fallback to direct import if tv_client not available
+    try:
+        from tvDatafeed import TvDatafeed, Interval
+        TV_AVAILABLE = True
+    except ImportError:
+        print("WARNING: tvDatafeed not found. Please install it using: pip install git+https://github.com/rongardF/tvdatafeed.git")
+        TvDatafeed = None
+        Interval = None
+        TV_AVAILABLE = False
+    get_tv_session = None
 
 # Load environment variables
 load_dotenv()
@@ -1337,44 +1342,45 @@ if not FRED_API_KEY:
 
 fred = Fred(api_key=FRED_API_KEY) if FRED_API_KEY else None
 
-def try_tv_login(username, password, max_retries=10, delay=3):
-    """
-    Attempts to log in to TradingView with aggressive retry loop.
-    Keeps trying until success, with exponential-ish backoff.
-    """
-    if not TV_AVAILABLE:
-        return None
-
-    attempt = 0
-    while True:
-        attempt += 1
-        try:
-            print(f"Attempting TV Login ({attempt})...")
-            if username and password:
-                tv_instance = TvDatafeed(username, password)
-            else:
-                tv_instance = TvDatafeed()
-            
-            # Verify login worked by making a simple request
-            test = tv_instance.get_hist("BTCUSD", "BITSTAMP", Interval.in_daily, n_bars=5)
-            if test is not None and len(test) > 0:
-                print("TV Login Successful!")
-                return tv_instance
-            else:
-                raise Exception("Login succeeded but test fetch failed")
+# Use shared TV session singleton (defined in utils/tv_client.py)
+# This prevents double login - scrapers and data_pipeline share the same session
+if get_tv_session is not None:
+    tv = get_tv_session()
+elif TV_AVAILABLE:
+    # Fallback: create local session if tv_client not available
+    def try_tv_login(username, password, max_retries=10, delay=3):
+        """Local fallback for TV login."""
+        if not TV_AVAILABLE:
+            return None
+        attempt = 0
+        while True:
+            attempt += 1
+            try:
+                print(f"Attempting TV Login ({attempt})...")
+                if username and password:
+                    tv_instance = TvDatafeed(username, password)
+                else:
+                    tv_instance = TvDatafeed()
                 
-        except Exception as e:
-            print(f"TV Login failed (Attempt {attempt}): {e}")
-            if attempt >= max_retries:
-                print("Max retries reached. Falling back to Guest mode...")
-                try:
-                    return TvDatafeed()
-                except:
-                    return None
-            wait_time = min(delay * (1.5 ** (attempt - 1)), 30)  # Max 30s wait
-            time.sleep(wait_time)
-
-tv = try_tv_login(TV_USERNAME, TV_PASSWORD) if TV_AVAILABLE else None
+                test = tv_instance.get_hist("BTCUSD", "BITSTAMP", Interval.in_daily, n_bars=5)
+                if test is not None and len(test) > 0:
+                    print("TV Login Successful!")
+                    return tv_instance
+                else:
+                    raise Exception("Login succeeded but test fetch failed")
+            except Exception as e:
+                print(f"TV Login failed (Attempt {attempt}): {e}")
+                if attempt >= max_retries:
+                    print("Max retries reached. Falling back to Guest mode...")
+                    try:
+                        return TvDatafeed()
+                    except:
+                        return None
+                wait_time = min(delay * (1.5 ** (attempt - 1)), 30)
+                time.sleep(wait_time)
+    tv = try_tv_login(TV_USERNAME, TV_PASSWORD)
+else:
+    tv = None
 
 # Output directory and cache setup
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), 'data')

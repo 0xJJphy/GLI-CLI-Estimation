@@ -28,9 +28,9 @@ COMMODITIES_CONFIG = {
     'USOIL': ('TVC', 'Crude Oil (WTI)'),
     'HG1!': ('COMEX', 'Copper'),
     'PLATINUM': ('TVC', 'Platinum'),
-    'UX1!': ('NYMEX', 'Uranium'),
+    'URA': ('AMEX', 'Uranium ETF'),  # Changed from UX1! which is unavailable
     'PALLADIUM': ('TVC', 'Palladium'),
-    'GASOLINE': ('TVC', 'Gasoline'),
+    'RB1!': ('NYMEX', 'RBOB Gasoline'),  # Changed from GASOLINE which is unavailable
 }
 
 def calc_roc(series, period):

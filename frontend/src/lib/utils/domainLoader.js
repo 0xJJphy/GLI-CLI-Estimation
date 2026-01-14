@@ -39,7 +39,7 @@ const DOMAIN_CONFIG = {
 const domainCache = new Map();
 
 // Configuration
-const DATA_BASE_URL = '/data';  // Base URL for data files
+const DATA_BASE_URL = '';  // Base URL for data files (files are directly in public/domains/)
 const USE_MODULAR_DOMAINS = true;  // Feature flag - set true to enable domain loading
 
 /**
