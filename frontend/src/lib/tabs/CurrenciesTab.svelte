@@ -2,24 +2,35 @@
     /**
      * CurrenciesTab.svelte
      * Displays DXY Index and major currency pairs with inversion and ROC analysis.
+     *
+     * Migration Status: Ready for domain loader (USE_MODULAR_DOMAINS feature flag)
      */
+    import { onMount } from "svelte";
     import Chart from "../components/Chart.svelte";
     import LightweightChart from "../components/LightweightChart.svelte";
     import TimeRangeSelector from "../components/TimeRangeSelector.svelte";
     import Dropdown from "../components/Dropdown.svelte";
     import { filterPlotlyData, getCutoffDate } from "../utils/helpers.js";
     import { downloadCardAsImage } from "../utils/downloadCard.js";
+    import { loadCurrenciesTabData } from "../utils/domainLoader.js";
 
     // Core props
     export let darkMode = false;
     export let translations = {};
     export let dashboardData = {};
 
+    // Domain loader state (for future migration)
+    let domainData = null;
+    let loadError = null;
+
+    // Use domain data if loaded, otherwise fallback to dashboardData
+    $: effectiveData = domainData || dashboardData.currencies || {};
+
     // Helper to get translation with fallback
     $: t = (key, fallback) => translations[key] || fallback;
 
-    // Currency Data from dashboardData
-    $: currenciesData = dashboardData.currencies || {};
+    // Currency Data - now uses effectiveData for domain migration readiness
+    $: currenciesData = effectiveData;
     $: dxyData = currenciesData.dxy || {};
     $: pairsData = currenciesData.pairs || {};
     $: dates = currenciesData.dates || [];
