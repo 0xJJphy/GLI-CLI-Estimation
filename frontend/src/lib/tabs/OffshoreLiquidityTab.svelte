@@ -10,14 +10,36 @@
     import TimeRangeSelector from "../components/TimeRangeSelector.svelte";
     import { downloadCardAsImage } from "../utils/downloadCard.js";
     import { getCutoffDate } from "../utils/helpers.js";
+    import { loadOffshoreTabData } from "../utils/domainLoader.js";
+    import { onMount } from "svelte";
 
     export let darkMode = true;
     export let language = "en";
     export let translations = {};
     export let dashboardData = {};
 
+    // Modular data loading
+    let modularOffshoreData = null;
+    onMount(async () => {
+        try {
+            modularOffshoreData = await loadOffshoreTabData(dashboardData);
+            console.log("Modular Offshore Liquidity data loaded");
+        } catch (e) {
+            console.error("Error loading modular Offshore data:", e);
+        }
+    });
+
+    // Merge modular data with dashboardData (modular takes precedence)
+    $: effectiveData = {
+        ...dashboardData,
+        offshore_liquidity:
+            modularOffshoreData?.offshore_liquidity ||
+            dashboardData.offshore_liquidity ||
+            {},
+    };
+
     // Reactive data extraction
-    $: offshoreData = dashboardData.offshore_liquidity || {};
+    $: offshoreData = effectiveData.offshore_liquidity || {};
     $: chart1 = offshoreData.chart1_fred_proxy || {};
     $: chart2 = offshoreData.chart2_xccy_diy || null;
     $: thresholds = offshoreData.thresholds || {};

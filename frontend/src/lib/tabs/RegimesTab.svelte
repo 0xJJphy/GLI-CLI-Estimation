@@ -8,6 +8,8 @@
     import Chart from "../components/Chart.svelte";
     import TimeRangeSelector from "../components/TimeRangeSelector.svelte";
     import { getCutoffDate } from "../utils/helpers.js";
+    import { loadRegimesTabData, loadDomain } from "../utils/domainLoader.js";
+    import { onMount } from "svelte";
 
     export let dashboardData = {};
     export let darkMode = true;
@@ -49,17 +51,47 @@
     // ============================================================
     $: t = (key, fallback) => translations[key] || fallback;
 
+    // Modular data loading
+    let modularRegimeData = null;
+    onMount(async () => {
+        try {
+            modularRegimeData = await loadRegimesTabData(dashboardData);
+            console.log("Modular Regimes data loaded");
+        } catch (e) {
+            console.error("Error loading modular Regimes data:", e);
+        }
+    });
+
+    // Merge modular data with dashboardData (modular takes precedence)
+    $: effectiveData = {
+        ...dashboardData,
+        macro_regime:
+            modularRegimeData?.macro_regime || dashboardData.macro_regime || {},
+        regime_v2a:
+            modularRegimeData?.macro_regime?.v2a ||
+            dashboardData.regime_v2a ||
+            {},
+        regime_v2b:
+            modularRegimeData?.macro_regime?.v2b ||
+            dashboardData.regime_v2b ||
+            {},
+        cli: dashboardData.cli || {},
+        cli_v2: dashboardData.cli_v2 || {},
+        btc: dashboardData.btc || {},
+        dates: modularRegimeData?.dates || dashboardData.dates || [],
+    };
+
     // ============================================================
     // HELPER FUNCTIONS
     // ============================================================
     function getLastDate() {
-        const dates = dashboardData.dates;
+        const dates = effectiveData.dates;
         if (!dates || dates.length === 0) return "N/A";
         return dates[dates.length - 1]?.split("T")[0] || "N/A";
     }
 
     function filterByRange(series, range) {
-        const dates = dashboardData.dates;
+        const dates = effectiveData.dates;
         if (!dates || !series || series.length === 0) return series;
         if (range === "ALL") return series;
         const cutoff = getCutoffDate(range);
@@ -71,7 +103,7 @@
     }
 
     function getFilteredDates(range) {
-        return filterByRange(dashboardData.dates, range);
+        return filterByRange(effectiveData.dates, range);
     }
 
     function getLatestValue(arr, decimals = 2) {

@@ -13,6 +13,8 @@
         calculatePercentile,
     } from "../utils/helpers.js";
     import { downloadCardAsImage } from "../utils/downloadCard.js";
+    import { loadCryptoTabData } from "../utils/domainLoader.js";
+    import { onMount } from "svelte";
 
     export let dashboardData = {};
     export let darkMode = true;
@@ -29,8 +31,30 @@
 
     $: t = (key, fallback) => translations[key] || fallback;
 
-    $: data = dashboardData.crypto_narratives || {};
-    $: dates = dashboardData.dates || [];
+    // Modular data loading
+    let modularCryptoData = null;
+    onMount(async () => {
+        try {
+            modularCryptoData = await loadCryptoTabData(dashboardData);
+            console.log("Modular Crypto/Narratives data loaded");
+        } catch (e) {
+            console.error("Error loading modular Crypto data:", e);
+        }
+    });
+
+    // Merge modular data with dashboardData (modular takes precedence)
+    $: effectiveData = {
+        ...dashboardData,
+        crypto_narratives:
+            modularCryptoData?.crypto_analytics ||
+            dashboardData.crypto_narratives ||
+            {},
+        btc: modularCryptoData?.btc || dashboardData.btc || {},
+        dates: modularCryptoData?.dates || dashboardData.dates || [],
+    };
+
+    $: data = effectiveData.crypto_narratives || {};
+    $: dates = effectiveData.dates || [];
 
     $: cryptoStartIndex = (() => {
         if (!dates || dates.length === 0) return 0;
@@ -394,7 +418,7 @@
     let showCai = true;
 
     $: btcRegimeData = (() => {
-        const btcPrice = dashboardData.btc?.price;
+        const btcPrice = effectiveData.btc?.price;
         if (!btcPrice) return [];
         const filteredDates = getFilteredDates(regimeRange);
         const btc = filterByRange(btcPrice, regimeRange);

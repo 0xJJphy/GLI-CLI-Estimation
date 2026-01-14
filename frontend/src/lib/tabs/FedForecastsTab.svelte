@@ -2,11 +2,37 @@
     import Chart from "../components/Chart.svelte";
     import TimeRangeSelector from "../components/TimeRangeSelector.svelte";
     import { filterPlotlyData } from "../utils/helpers.js";
+    import { loadFedForecastsTabData } from "../utils/domainLoader.js";
+    import { onMount } from "svelte";
 
     // Core props only
     export let darkMode = false;
     export let translations = {};
     export let dashboardData = {};
+
+    // Modular data loading
+    let modularFedData = null;
+    onMount(async () => {
+        try {
+            modularFedData = await loadFedForecastsTabData(dashboardData);
+            console.log("Modular Fed Forecasts data loaded");
+        } catch (e) {
+            console.error("Error loading modular Fed Forecasts data:", e);
+        }
+    });
+
+    // Merge modular data with dashboardData (modular takes precedence)
+    $: effectiveData = {
+        ...dashboardData,
+        fed_forecasts:
+            modularFedData?.fed_forecasts || dashboardData.fed_forecasts || {},
+        treasury_settlements:
+            modularFedData?.treasury_settlements ||
+            dashboardData.treasury_settlements ||
+            {},
+        signal_metrics: dashboardData.signal_metrics || {},
+        dates: modularFedData?.dates || dashboardData.dates || [],
+    };
 
     // Local state for time ranges (no longer props)
     let cpiRange = "5Y";
@@ -24,23 +50,23 @@
     $: cpiData = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.fed_forecasts?.cpi_yoy || [],
+                x: effectiveData.dates,
+                y: effectiveData.fed_forecasts?.cpi_yoy || [],
                 name: translations.headline_cpi || "CPI YoY",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#ef4444", width: 2 },
             },
             {
-                x: dashboardData.dates,
-                y: dashboardData.fed_forecasts?.core_cpi_yoy || [],
+                x: effectiveData.dates,
+                y: effectiveData.fed_forecasts?.core_cpi_yoy || [],
                 name: translations.core_cpi || "Core CPI YoY",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#f97316", width: 2, dash: "dash" },
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         cpiRange,
     );
 
@@ -48,23 +74,23 @@
     $: pceData = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.fed_forecasts?.pce_yoy || [],
+                x: effectiveData.dates,
+                y: effectiveData.fed_forecasts?.pce_yoy || [],
                 name: translations.headline_pce || "PCE YoY",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#8b5cf6", width: 2 },
             },
             {
-                x: dashboardData.dates,
-                y: dashboardData.fed_forecasts?.core_pce_yoy || [],
+                x: effectiveData.dates,
+                y: effectiveData.fed_forecasts?.core_pce_yoy || [],
                 name: translations.core_pce || "Core PCE YoY",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#a855f7", width: 2, dash: "dash" },
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         pceRange,
     );
 
