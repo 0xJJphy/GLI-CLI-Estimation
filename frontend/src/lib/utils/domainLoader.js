@@ -40,7 +40,7 @@ const domainCache = new Map();
 
 // Configuration
 const DATA_BASE_URL = '/data';  // Base URL for data files
-const USE_MODULAR_DOMAINS = false;  // Feature flag - set true to enable domain loading
+const USE_MODULAR_DOMAINS = true;  // Feature flag - set true to enable domain loading
 
 /**
  * Load a single domain's data
@@ -199,10 +199,10 @@ export async function loadStablecoinsTabData(legacyData) {
             loadDomain('shared')
         ]);
 
-        // Merge BTC data from shared domain
         return {
             ...stablecoins,
-            btc: shared.btc
+            btc: shared.btc,
+            dates: shared.dates // Include dates for SFAI chart
         };
     } catch {
         console.warn('Falling back to legacy data for stablecoins');
@@ -279,6 +279,208 @@ export async function loadUSSystemTabData(legacyData) {
     }
 }
 
+/**
+ * Load data for NarrativesTab / CryptoTab
+ * @param {Object} legacyData - Legacy dashboard_data (fallback)
+ * @returns {Promise<Object>} Data for crypto/narratives tab
+ */
+export async function loadCryptoTabData(legacyData) {
+    if (!USE_MODULAR_DOMAINS) {
+        return {
+            crypto_analytics: legacyData?.crypto_analytics || {},
+            dates: legacyData?.dates || []
+        };
+    }
+
+    try {
+        const [crypto, shared] = await Promise.all([
+            loadDomain('crypto'),
+            loadDomain('shared')
+        ]);
+
+        return {
+            crypto_analytics: crypto,
+            btc: shared.btc,
+            dates: shared.dates
+        };
+    } catch {
+        console.warn('Falling back to legacy data for crypto');
+        return {
+            crypto_analytics: legacyData?.crypto_analytics || {},
+            dates: legacyData?.dates || []
+        };
+    }
+}
+
+/**
+ * Load data for FedForecastsTab
+ * @param {Object} legacyData - Legacy dashboard_data (fallback)
+ * @returns {Promise<Object>} Data for Fed Forecasts tab
+ */
+export async function loadFedForecastsTabData(legacyData) {
+    if (!USE_MODULAR_DOMAINS) {
+        return {
+            fed_forecasts: legacyData?.fed_forecasts || {},
+            inflation_swaps: legacyData?.inflation_swaps || {},
+            dates: legacyData?.dates || []
+        };
+    }
+
+    try {
+        const [fed_forecasts, shared] = await Promise.all([
+            loadDomain('fed_forecasts'),
+            loadDomain('shared')
+        ]);
+
+        return {
+            fed_forecasts,
+            inflation_swaps: fed_forecasts.inflation_swaps || {},
+            dates: shared.dates
+        };
+    } catch {
+        console.warn('Falling back to legacy data for Fed Forecasts');
+        return {
+            fed_forecasts: legacyData?.fed_forecasts || {},
+            inflation_swaps: legacyData?.inflation_swaps || {},
+            dates: legacyData?.dates || []
+        };
+    }
+}
+
+/**
+ * Load data for RegimesTab
+ * @param {Object} legacyData - Legacy dashboard_data (fallback)
+ * @returns {Promise<Object>} Data for Regimes tab
+ */
+export async function loadRegimesTabData(legacyData) {
+    if (!USE_MODULAR_DOMAINS) {
+        return {
+            macro_regime: legacyData?.macro_regime || {},
+            signals: legacyData?.signals || {},
+            dates: legacyData?.dates || []
+        };
+    }
+
+    try {
+        const [macro_regime, shared] = await Promise.all([
+            loadDomain('macro_regime'),
+            loadDomain('shared')
+        ]);
+
+        return {
+            macro_regime,
+            signals: macro_regime.signals || {},
+            dates: shared.dates
+        };
+    } catch {
+        console.warn('Falling back to legacy data for Regimes');
+        return {
+            macro_regime: legacyData?.macro_regime || {},
+            signals: legacyData?.signals || {},
+            dates: legacyData?.dates || []
+        };
+    }
+}
+
+/**
+ * Load data for GlobalM2Tab
+ * @param {Object} legacyData - Legacy dashboard_data (fallback)
+ * @returns {Promise<Object>} Data for M2 tab
+ */
+export async function loadM2TabData(legacyData) {
+    if (!USE_MODULAR_DOMAINS) {
+        return {
+            m2: legacyData?.m2 || {},
+            dates: legacyData?.dates || []
+        };
+    }
+
+    try {
+        const [m2, shared] = await Promise.all([
+            loadDomain('m2'),
+            loadDomain('shared')
+        ]);
+
+        return {
+            m2,
+            dates: shared.dates
+        };
+    } catch {
+        console.warn('Falling back to legacy data for M2');
+        return {
+            m2: legacyData?.m2 || {},
+            dates: legacyData?.dates || []
+        };
+    }
+}
+
+/**
+ * Load data for OffshoreLiquidityTab
+ * @param {Object} legacyData - Legacy dashboard_data (fallback)
+ * @returns {Promise<Object>} Data for Offshore Liquidity tab
+ */
+export async function loadOffshoreTabData(legacyData) {
+    if (!USE_MODULAR_DOMAINS) {
+        return {
+            offshore_liquidity: legacyData?.offshore_liquidity || {},
+            dates: legacyData?.dates || []
+        };
+    }
+
+    try {
+        const [offshore, shared] = await Promise.all([
+            loadDomain('offshore'),
+            loadDomain('shared')
+        ]);
+
+        return {
+            offshore_liquidity: offshore,
+            dates: shared.dates
+        };
+    } catch {
+        console.warn('Falling back to legacy data for Offshore');
+        return {
+            offshore_liquidity: legacyData?.offshore_liquidity || {},
+            dates: legacyData?.dates || []
+        };
+    }
+}
+
+/**
+ * Load data for UsDebtTab / Treasury
+ * @param {Object} legacyData - Legacy dashboard_data (fallback)
+ * @returns {Promise<Object>} Data for Treasury tab
+ */
+export async function loadTreasuryTabData(legacyData) {
+    if (!USE_MODULAR_DOMAINS) {
+        return {
+            treasury: legacyData?.treasury || {},
+            tips: legacyData?.tips || {},
+            dates: legacyData?.dates || []
+        };
+    }
+
+    try {
+        const [treasury, shared] = await Promise.all([
+            loadDomain('treasury'),
+            loadDomain('shared')
+        ]);
+
+        return {
+            treasury,
+            tips: treasury.tips || {},
+            dates: shared.dates
+        };
+    } catch {
+        console.warn('Falling back to legacy data for Treasury');
+        return {
+            treasury: legacyData?.treasury || {},
+            tips: legacyData?.tips || {},
+            dates: legacyData?.dates || []
+        };
+    }
+}
+
 export default {
     loadDomain,
     loadDomains,
@@ -292,4 +494,10 @@ export default {
     loadStablecoinsTabData,
     loadGLITabData,
     loadUSSystemTabData,
+    loadCryptoTabData,
+    loadFedForecastsTabData,
+    loadRegimesTabData,
+    loadM2TabData,
+    loadOffshoreTabData,
+    loadTreasuryTabData,
 };

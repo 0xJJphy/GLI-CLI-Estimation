@@ -4978,6 +4978,16 @@ def run_pipeline():
         with open(output_path, 'w') as f:
             json.dump(data_output, f)
 
+    # Modular Domain Processing (New Architecture)
+    print("Running modular domain orchestrator...")
+    try:
+        from orchestrator import create_orchestrator
+        orchestrator = create_orchestrator(OUTPUT_DIR)
+        orchestrator.run(df_hybrid_t, generate_legacy=False) # Skip legacy for now as it's done above
+        print("  -> Modular domain files saved to backend/data/domains/")
+    except Exception as e:
+        print(f"Error in orchestrator: {e}")
+
     # Generate only the hybrid TV+FRED data (primary source)
     process_and_save_final(df_hybrid_t, 'dashboard_data_tv.json', silent=False)
     

@@ -15,6 +15,8 @@
         calculateRollingZScore,
     } from "../utils/helpers.js";
     import { downloadCardAsImage } from "../utils/downloadCard.js";
+    import { loadGLITabData, loadDomain } from "../utils/domainLoader.js";
+    import { onMount } from "svelte";
 
     // Core props only
     export let darkMode = false;
@@ -61,6 +63,34 @@
         isGliRocMode &&
         (gliNormMode === "zscore" || gliNormMode === "percentile");
 
+    // Modular data loading
+    let modularGliData = null;
+    let modularMacroRegime = null;
+    onMount(async () => {
+        try {
+            const [gliResult, macroRegime] = await Promise.all([
+                loadGLITabData(dashboardData),
+                loadDomain("macro_regime"),
+            ]);
+            modularGliData = gliResult;
+            modularMacroRegime = macroRegime;
+            console.log("Modular GLI data loaded");
+        } catch (e) {
+            console.error("Error loading modular GLI data:", e);
+        }
+    });
+
+    // Merge modular data with dashboardData (modular takes precedence)
+    $: effectiveData = {
+        ...dashboardData,
+        gli: modularGliData?.gli || dashboardData.gli || {},
+        dates: modularGliData?.dates || dashboardData.dates || [],
+        macro_regime: modularMacroRegime || dashboardData.macro_regime || {},
+        bank_rocs:
+            modularGliData?.gli?.bank_rocs || dashboardData.bank_rocs || {},
+        last_dates: dashboardData.last_dates || {},
+    };
+
     // GLI Aggregate mode options
     $: gliAggregateModes = [
         { value: "absolute", label: t("raw_view", "Absolute") },
@@ -98,12 +128,12 @@
 
     // --- Internal Helper Functions ---
     function getLastDate(seriesKey) {
-        if (!dashboardData.last_dates) return "N/A";
+        if (!effectiveData.last_dates) return "N/A";
         const key = seriesKey.toUpperCase();
         return (
-            dashboardData.last_dates[key] ||
-            dashboardData.last_dates[key + "_USD"] ||
-            dashboardData.last_dates[seriesKey] ||
+            effectiveData.last_dates[key] ||
+            effectiveData.last_dates[key + "_USD"] ||
+            effectiveData.last_dates[seriesKey] ||
             "N/A"
         );
     }
@@ -164,7 +194,7 @@
     $: gliChartData = getGliDataForMode(
         gliAggregateMode,
         gliNormMode,
-        dashboardData,
+        effectiveData,
         gliLookbackWindow,
     );
     $: gliChartLabel = getGliChartLabel(gliAggregateMode, gliNormMode);
@@ -172,7 +202,7 @@
     $: gliTotalData = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
+                x: effectiveData.dates,
                 y: gliChartData,
                 name: gliChartLabel,
                 type: "scatter",
@@ -180,218 +210,218 @@
                 line: { color: "#6366f1", width: 3, shape: "spline" },
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         gliRange,
     );
 
     $: fedData = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.gli?.fed,
+                x: effectiveData.dates,
+                y: effectiveData.gli?.fed,
                 name: translations.indicator_fed || "Fed Assets",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#3b82f6", width: 3, shape: "spline" },
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         fedRange,
     );
     $: ecbData = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.gli?.ecb,
+                x: effectiveData.dates,
+                y: effectiveData.gli?.ecb,
                 name: translations.indicator_ecb || "ECB Assets",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#8b5cf6", width: 3, shape: "spline" },
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         ecbRange,
     );
     $: bojData = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.gli?.boj,
+                x: effectiveData.dates,
+                y: effectiveData.gli?.boj,
                 name: translations.indicator_boj || "BoJ Assets",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#f43f5e", width: 3, shape: "spline" },
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         bojRange,
     );
     $: boeData = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.gli?.boe,
+                x: effectiveData.dates,
+                y: effectiveData.gli?.boe,
                 name: translations.indicator_boe || "BoE Assets",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#f59e0b", width: 3, shape: "spline" },
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         boeRange,
     );
     $: pbocData = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.gli?.pboc,
+                x: effectiveData.dates,
+                y: effectiveData.gli?.pboc,
                 name: translations.indicator_pboc || "PBoC Assets",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#10b981", width: 3, shape: "spline" },
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         pbocRange,
     );
     $: bocData = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.gli?.boc,
+                x: effectiveData.dates,
+                y: effectiveData.gli?.boc,
                 name: translations.indicator_boc || "BoC Assets",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#34d399", width: 3, shape: "spline" },
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         bocRange,
     );
     $: rbaData = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.gli?.rba,
+                x: effectiveData.dates,
+                y: effectiveData.gli?.rba,
                 name: translations.indicator_rba || "RBA Assets",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#14b8a6", width: 3, shape: "spline" },
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         rbaRange,
     );
     $: snbData = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.gli?.snb,
+                x: effectiveData.dates,
+                y: effectiveData.gli?.snb,
                 name: translations.indicator_snb || "SNB Assets",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#06b6d4", width: 3, shape: "spline" },
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         snbRange,
     );
     $: bokData = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.gli?.bok,
+                x: effectiveData.dates,
+                y: effectiveData.gli?.bok,
                 name: translations.indicator_bok || "BoK Assets",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#0ea5e9", width: 3, shape: "spline" },
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         bokRange,
     );
     $: rbiData = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.gli?.rbi,
+                x: effectiveData.dates,
+                y: effectiveData.gli?.rbi,
                 name: translations.indicator_rbi || "RBI Assets",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#6366f1", width: 3, shape: "spline" },
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         rbiRange,
     );
     $: cbrData = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.gli?.cbr,
+                x: effectiveData.dates,
+                y: effectiveData.gli?.cbr,
                 name: translations.indicator_cbr || "CBR Assets",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#8b5cf6", width: 3, shape: "spline" },
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         cbrRange,
     );
     $: bcbData = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.gli?.bcb,
+                x: effectiveData.dates,
+                y: effectiveData.gli?.bcb,
                 name: translations.indicator_bcb || "BCB Assets",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#a855f7", width: 3, shape: "spline" },
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         bcbRange,
     );
     $: rbnzData = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.gli?.rbnz,
+                x: effectiveData.dates,
+                y: effectiveData.gli?.rbnz,
                 name: translations.indicator_rbnz || "RBNZ Assets",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#d946ef", width: 3, shape: "spline" },
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         rbnzRange,
     );
     $: srData = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.gli?.sr,
+                x: effectiveData.dates,
+                y: effectiveData.gli?.sr,
                 name: translations.indicator_sr || "Sveriges Riksbank",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#ec4899", width: 3, shape: "spline" },
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         srRange,
     );
     $: bnmData = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.gli?.bnm,
+                x: effectiveData.dates,
+                y: effectiveData.gli?.bnm,
                 name: translations.indicator_bnm || "BNM Assets",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#fb923c", width: 3, shape: "spline" },
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         bnmRange,
     );
 
@@ -400,8 +430,8 @@
     $: cbBreadthData = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.macro_regime?.cb_diffusion_13w,
+                x: effectiveData.dates,
+                y: effectiveData.macro_regime?.cb_diffusion_13w,
                 name:
                     translations.indicator_cb_breadth ||
                     "CB Breadth (% Expanding)",
@@ -412,28 +442,28 @@
                 fillcolor: "rgba(16, 185, 129, 0.1)",
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         cbBreadthRange,
     );
 
     $: cbConcentrationData = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.macro_regime?.cb_hhi_13w,
+                x: effectiveData.dates,
+                y: effectiveData.macro_regime?.cb_hhi_13w,
                 name: translations.indicator_cb_hhi || "CB Concentration (HHI)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#f59e0b", width: 2, shape: "spline" },
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         cbConcentrationRange,
     );
 
     // Bank ROC lookup for indicators
     function getBankRocs(bankId) {
-        const rocs = dashboardData.bank_rocs?.[bankId] || {};
+        const rocs = effectiveData.bank_rocs?.[bankId] || {};
         const getLatest = (arr) => arr?.[arr?.length - 1] ?? null;
         return {
             w1: getLatest(rocs["1W"]),
@@ -445,7 +475,7 @@
 
     // GLI Total ROC helper for aggregate indicator
     function getGliTotalRocs() {
-        const rocs = dashboardData.gli?.rocs || {};
+        const rocs = effectiveData.gli?.rocs || {};
         const getLatest = (arr) => arr?.[arr?.length - 1] ?? null;
         return {
             m1: getLatest(rocs["1M"]),

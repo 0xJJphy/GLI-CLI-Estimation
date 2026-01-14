@@ -16,6 +16,8 @@
         calculatePercentile,
     } from "../utils/helpers.js";
     import { downloadCardAsImage } from "../utils/downloadCard.js";
+    import { loadStablecoinsTabData } from "../utils/domainLoader.js";
+    import { onMount } from "svelte";
 
     // Core props
     export let darkMode = false;
@@ -106,9 +108,19 @@
         USD1W: "#8B5CF6", // USD1W violet
     };
 
-    // Get stablecoin data from dashboardData
-    $: stablecoinsData = dashboardData.stablecoins || {};
-    $: stableDates = stablecoinsData.dates || [];
+    let modularData = null;
+    onMount(async () => {
+        try {
+            modularData = await loadStablecoinsTabData(dashboardData);
+            console.log("Modular stableicons data loaded:", modularData);
+        } catch (e) {
+            console.error("Error loading modular stablecoins data:", e);
+        }
+    });
+
+    // Get stablecoin data from modularData (if available) or dashboardData
+    $: stablecoinsData = modularData || dashboardData.stablecoins || {};
+    $: stableDates = stablecoinsData.dates || dashboardData.dates || [];
     $: marketCaps = stablecoinsData.market_caps || {};
     $: totalSupply = stablecoinsData.total || [];
     $: prices = stablecoinsData.prices || {};
@@ -194,8 +206,12 @@
     }
 
     // BTC data for SFAI chart
-    $: btcData = dashboardData.btc?.price || [];
-    $: btcDates = dashboardData.dates || [];
+    $: btcData =
+        (modularData && modularData.btc?.price) ||
+        dashboardData.btc?.price ||
+        [];
+    $: btcDates =
+        (modularData && modularData.dates) || dashboardData.dates || [];
 
     // SFAI Chart state
     let sfaiRange = "1Y";

@@ -475,7 +475,8 @@ def main():
     args = parser.parse_args()
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    default_json = os.path.join(base_dir, "data", "dashboard_data.json")
+    # Path: backend/analytics -> backend -> backend/data
+    default_json = os.path.join(base_dir, "..", "data", "dashboard_data.json")
     json_path = args.data or default_json
 
     if not os.path.exists(json_path):
@@ -507,7 +508,8 @@ def main():
         step_weeks=args.step_weeks,
     )
 
-    out_dir = os.path.join(base_dir, "data")
+    # Output to backend/data (same as data_pipeline.py)
+    out_dir = os.path.join(base_dir, "..", "data")
     os.makedirs(out_dir, exist_ok=True)
 
     if not grid.empty:

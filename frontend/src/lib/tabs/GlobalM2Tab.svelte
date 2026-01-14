@@ -13,6 +13,8 @@
         calculateRollingZScore,
     } from "../utils/helpers.js";
     import { downloadCardAsImage } from "../utils/downloadCard.js";
+    import { loadM2TabData } from "../utils/domainLoader.js";
+    import { onMount } from "svelte";
 
     // Core props only
     export let darkMode = false;
@@ -53,6 +55,29 @@
     $: showM2LookbackWindow =
         isM2RocMode && (m2NormMode === "zscore" || m2NormMode === "percentile");
 
+    // Modular data loading
+    let modularM2Data = null;
+    onMount(async () => {
+        try {
+            modularM2Data = await loadM2TabData(dashboardData);
+            console.log("Modular M2 data loaded");
+        } catch (e) {
+            console.error("Error loading modular M2 data:", e);
+        }
+    });
+
+    // Merge modular data with dashboardData (modular takes precedence)
+    $: effectiveData = {
+        ...dashboardData,
+        m2: modularM2Data?.m2 || dashboardData.m2 || {},
+        dates: modularM2Data?.dates || dashboardData.dates || [],
+        m2_weights:
+            modularM2Data?.m2?.weights || dashboardData.m2_weights || {},
+        m2_bank_rocs:
+            modularM2Data?.m2?.bank_rocs || dashboardData.m2_bank_rocs || {},
+        last_dates: dashboardData.last_dates || {},
+    };
+
     // M2 Aggregate mode options
     $: m2AggregateModes = [
         { value: "absolute", label: t("raw_view", "Absolute") },
@@ -90,12 +115,12 @@
 
     // --- Internal Helper Functions ---
     function getLastDate(seriesKey) {
-        if (!dashboardData.last_dates) return "N/A";
+        if (!effectiveData.last_dates) return "N/A";
         const key = seriesKey.toUpperCase();
         return (
-            dashboardData.last_dates[key] ||
-            dashboardData.last_dates[key + "_USD"] ||
-            dashboardData.last_dates[seriesKey] ||
+            effectiveData.last_dates[key] ||
+            effectiveData.last_dates[key + "_USD"] ||
+            effectiveData.last_dates[seriesKey] ||
             "N/A"
         );
     }
@@ -155,7 +180,7 @@
     $: m2ChartData = getM2DataForMode(
         m2AggregateMode,
         m2NormMode,
-        dashboardData,
+        effectiveData,
         m2LookbackWindow,
     );
     $: m2ChartLabel = getM2ChartLabel(m2AggregateMode, m2NormMode);
@@ -164,7 +189,7 @@
     $: m2TotalData = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
+                x: effectiveData.dates,
                 y: m2ChartData,
                 name: m2ChartLabel,
                 type: "scatter",
@@ -172,14 +197,14 @@
                 line: { color: "#6366f1", width: 3, shape: "spline" },
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         m2Range,
     );
 
     // M2 Weights (computed internally)
-    $: m2Weights = Object.entries(dashboardData.m2_weights || {})
+    $: m2Weights = Object.entries(effectiveData.m2_weights || {})
         .map(([id, weight]) => {
-            const rocs = dashboardData.m2_bank_rocs?.[id] || {};
+            const rocs = effectiveData.m2_bank_rocs?.[id] || {};
             return {
                 id,
                 name: id.toUpperCase(),
@@ -200,197 +225,197 @@
     $: usM2Data = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.m2?.us,
+                x: effectiveData.dates,
+                y: effectiveData.m2?.us,
                 name: "US M2",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#3b82f6", width: 3, shape: "spline" },
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         usM2DataRange,
     );
     $: euM2Data = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.m2?.eu,
+                x: effectiveData.dates,
+                y: effectiveData.m2?.eu,
                 name: "EU M2",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#8b5cf6", width: 3, shape: "spline" },
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         euM2DataRange,
     );
     $: cnM2Data = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.m2?.cn,
+                x: effectiveData.dates,
+                y: effectiveData.m2?.cn,
                 name: "China M2",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#10b981", width: 3, shape: "spline" },
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         cnM2DataRange,
     );
     $: jpM2Data = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.m2?.jp,
+                x: effectiveData.dates,
+                y: effectiveData.m2?.jp,
                 name: "Japan M2",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#f43f5e", width: 3, shape: "spline" },
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         jpM2DataRange,
     );
     $: ukM2Data = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.m2?.uk,
+                x: effectiveData.dates,
+                y: effectiveData.m2?.uk,
                 name: "UK M2",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#f59e0b", width: 3, shape: "spline" },
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         ukM2DataRange,
     );
     $: caM2Data = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.m2?.ca,
+                x: effectiveData.dates,
+                y: effectiveData.m2?.ca,
                 name: "Canada M2",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#ef4444", width: 3, shape: "spline" },
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         caM2DataRange,
     );
     $: auM2Data = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.m2?.au,
+                x: effectiveData.dates,
+                y: effectiveData.m2?.au,
                 name: "Australia M2",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#3b82f6", width: 3, shape: "spline" },
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         auM2DataRange,
     );
     $: inM2Data = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.m2?.in,
+                x: effectiveData.dates,
+                y: effectiveData.m2?.in,
                 name: "India M2",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#6366f1", width: 3, shape: "spline" },
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         inM2DataRange,
     );
     $: chM2Data = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.m2?.ch,
+                x: effectiveData.dates,
+                y: effectiveData.m2?.ch,
                 name: "Switzerland M2",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#0ea5e9", width: 3, shape: "spline" },
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         chM2DataRange,
     );
     $: ruM2Data = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.m2?.ru,
+                x: effectiveData.dates,
+                y: effectiveData.m2?.ru,
                 name: "Russia M2",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#22c55e", width: 3, shape: "spline" },
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         ruM2DataRange,
     );
     $: brM2Data = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.m2?.br,
+                x: effectiveData.dates,
+                y: effectiveData.m2?.br,
                 name: "Brazil M2",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#f59e0b", width: 3, shape: "spline" },
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         brM2DataRange,
     );
     $: krM2Data = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.m2?.kr,
+                x: effectiveData.dates,
+                y: effectiveData.m2?.kr,
                 name: "South Korea M2",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#8b5cf6", width: 3, shape: "spline" },
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         krM2DataRange,
     );
     $: mxM2Data = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.m2?.mx,
+                x: effectiveData.dates,
+                y: effectiveData.m2?.mx,
                 name: "Mexico M2",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#10b981", width: 3, shape: "spline" },
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         mxM2DataRange,
     );
     $: myM2Data = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.m2?.my,
+                x: effectiveData.dates,
+                y: effectiveData.m2?.my,
                 name: "Malaysia M2",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#6366f1", width: 3, shape: "spline" },
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         myM2DataRange,
     );
 
@@ -537,7 +562,7 @@
 
     // M2 ROC helper for indicators
     function getM2Rocs(countryId) {
-        const rocs = dashboardData.m2_bank_rocs?.[countryId] || {};
+        const rocs = effectiveData.m2_bank_rocs?.[countryId] || {};
         const getLatest = (arr) => arr?.[arr?.length - 1] ?? null;
         return {
             w1: getLatest(rocs["1W"]),
@@ -549,7 +574,7 @@
 
     // M2 Total ROC helper for aggregate indicator
     function getM2TotalRocs() {
-        const rocs = dashboardData.m2?.rocs || {};
+        const rocs = effectiveData.m2?.rocs || {};
         const getLatest = (arr) => arr?.[arr?.length - 1] ?? null;
         return {
             m1: getLatest(rocs["1M"]),
@@ -629,7 +654,7 @@
 
                     <div class="card-divider"></div>
                     <!-- Aggregate ROC Indicators -->
-                    {#if dashboardData.m2?.rocs}
+                    {#if effectiveData.m2?.rocs}
                         {@const totalRocs = getM2TotalRocs()}
                         <div class="metrics-footer">
                             <div class="roc-bar">

@@ -1075,7 +1075,7 @@ def get_offshore_liquidity_output(
         foreign_rates = {}
         
         try:
-            from rates_sources import ForeignRateFetcher
+            from config.rates_sources import ForeignRateFetcher
             rate_fetcher = ForeignRateFetcher(df_fred)
             
             # USD 3M from SOFR Index (preferred - term aligned)

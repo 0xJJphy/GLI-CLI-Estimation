@@ -6,6 +6,8 @@
     import Chart from "../components/Chart.svelte";
     import TimeRangeSelector from "../components/TimeRangeSelector.svelte";
     import { filterPlotlyData } from "../utils/helpers.js";
+    import { loadUSSystemTabData } from "../utils/domainLoader.js";
+    import { onMount } from "svelte";
 
     // Core props only
     export let darkMode = false;
@@ -29,14 +31,47 @@
     let tgaCard;
     let netRepoCard;
 
+    // Modular data loading
+    let modularUsData = null;
+    onMount(async () => {
+        try {
+            modularUsData = await loadUSSystemTabData(dashboardData);
+            console.log("Modular US System data loaded");
+        } catch (e) {
+            console.error("Error loading modular US System data:", e);
+        }
+    });
+
+    // Merge modular data with dashboardData (modular takes precedence)
+    $: effectiveData = {
+        ...dashboardData,
+        us_net_liq:
+            modularUsData?.us_net_liq?.net_liquidity ||
+            dashboardData.us_net_liq,
+        us_net_liq_reserves:
+            modularUsData?.us_net_liq?.bank_reserves ||
+            dashboardData.us_net_liq_reserves,
+        us_net_liq_rrp:
+            modularUsData?.us_net_liq?.rrp || dashboardData.us_net_liq_rrp,
+        us_net_liq_tga:
+            modularUsData?.us_net_liq?.tga || dashboardData.us_net_liq_tga,
+        dates: modularUsData?.dates || dashboardData.dates || [],
+        gli: dashboardData.gli || {},
+        us_system_rocs: dashboardData.us_system_rocs || {},
+        us_system_metrics: dashboardData.us_system_metrics || {},
+        repo_operations: dashboardData.repo_operations || {},
+        repo_stress: dashboardData.repo_stress || {},
+        last_dates: dashboardData.last_dates || {},
+    };
+
     // --- Internal Helper Functions ---
     function getLastDate(seriesKey) {
-        if (!dashboardData.last_dates) return "N/A";
+        if (!effectiveData.last_dates) return "N/A";
         const key = seriesKey.toUpperCase();
         return (
-            dashboardData.last_dates[key] ||
-            dashboardData.last_dates[key + "_USD"] ||
-            dashboardData.last_dates[seriesKey] ||
+            effectiveData.last_dates[key] ||
+            effectiveData.last_dates[key + "_USD"] ||
+            effectiveData.last_dates[seriesKey] ||
             "N/A"
         );
     }
@@ -55,15 +90,15 @@
     $: netLiqData = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.us_net_liq,
+                x: effectiveData.dates,
+                y: effectiveData.us_net_liq,
                 name: "US Net Liquidity",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#10b981", width: 3, shape: "spline" },
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         netLiqRange,
     );
 
@@ -71,8 +106,8 @@
     $: bankReservesData = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.us_net_liq_reserves,
+                x: effectiveData.dates,
+                y: effectiveData.us_net_liq_reserves,
                 name: translations.reserves_t || "Bank Reserves (T)",
                 type: "scatter",
                 mode: "lines",
@@ -81,8 +116,8 @@
                 fillcolor: "rgba(34, 197, 94, 0.05)",
             },
             {
-                x: dashboardData.dates,
-                y: dashboardData.us_net_liq,
+                x: effectiveData.dates,
+                y: effectiveData.us_net_liq,
                 name: translations.net_liq_t || "Net Liquidity (T)",
                 type: "scatter",
                 mode: "lines",
@@ -95,7 +130,7 @@
                 yaxis: "y2",
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         reservesRange,
     );
 
@@ -172,15 +207,15 @@
     $: fedData = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.gli?.fed,
+                x: effectiveData.dates,
+                y: effectiveData.gli?.fed,
                 name: "Fed Assets",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#3b82f6", width: 3, shape: "spline" },
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         fedRange,
     );
 
@@ -188,8 +223,8 @@
     $: rrpData = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.us_net_liq_rrp,
+                x: effectiveData.dates,
+                y: effectiveData.us_net_liq_rrp,
                 name: "Fed RRP (T)",
                 type: "scatter",
                 mode: "lines",
@@ -198,7 +233,7 @@
                 fillcolor: "rgba(239, 68, 68, 0.05)",
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         rrpRange,
     );
 
@@ -206,8 +241,8 @@
     $: tgaData = filterPlotlyData(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.us_net_liq_tga,
+                x: effectiveData.dates,
+                y: effectiveData.us_net_liq_tga,
                 name: "TGA (T)",
                 type: "scatter",
                 mode: "lines",
@@ -216,13 +251,13 @@
                 fillcolor: "rgba(245, 158, 11, 0.05)",
             },
         ],
-        dashboardData.dates,
+        effectiveData.dates,
         tgaRange,
     );
 
     // US System Metrics (computed internally)
-    $: usSystemMetrics = dashboardData.us_system_rocs
-        ? Object.entries(dashboardData.us_system_rocs).map(([id, data]) => {
+    $: usSystemMetrics = effectiveData.us_system_rocs
+        ? Object.entries(effectiveData.us_system_rocs).map(([id, data]) => {
               const labels = {
                   fed: "Fed Assets",
                   rrp: "Fed RRP",
@@ -260,22 +295,22 @@
     );
 
     // Current values in Trillions for chart labels
-    $: latestNetLiq = getLatestValue(dashboardData.us_net_liq);
-    $: latestFedAssets = getLatestValue(dashboardData.gli?.fed);
-    $: latestRRP = getLatestValue(dashboardData.us_net_liq_rrp);
-    $: latestTGA = getLatestValue(dashboardData.us_net_liq_tga);
-    $: latestReserves = getLatestValue(dashboardData.us_net_liq_reserves);
+    $: latestNetLiq = getLatestValue(effectiveData.us_net_liq);
+    $: latestFedAssets = getLatestValue(effectiveData.gli?.fed);
+    $: latestRRP = getLatestValue(effectiveData.us_net_liq_rrp);
+    $: latestTGA = getLatestValue(effectiveData.us_net_liq_tga);
+    $: latestReserves = getLatestValue(effectiveData.us_net_liq_reserves);
 
     // Net Repo Operations Latest Values
-    $: latestNet = dashboardData.repo_operations?.net_repo?.slice(-1)[0] || 0;
+    $: latestNet = effectiveData.repo_operations?.net_repo?.slice(-1)[0] || 0;
     $: latestRepoSRF =
-        dashboardData.repo_operations?.srf_usage?.slice(-1)[0] || 0;
+        effectiveData.repo_operations?.srf_usage?.slice(-1)[0] || 0;
     $: latestRepoRRP =
-        dashboardData.repo_operations?.rrp_usage?.slice(-1)[0] || 0;
+        effectiveData.repo_operations?.rrp_usage?.slice(-1)[0] || 0;
 
     // Repo rates for spread calculation
-    $: latestSOFR = getLatestValue(dashboardData.repo_stress?.sofr);
-    $: latestIORB = getLatestValue(dashboardData.repo_stress?.iorb);
+    $: latestSOFR = getLatestValue(effectiveData.repo_stress?.sofr);
+    $: latestIORB = getLatestValue(effectiveData.repo_stress?.iorb);
     $: sofrIorbSpread = (latestSOFR - latestIORB) * 100; // bps
 
     // Composite Liquidity Risk Assessment

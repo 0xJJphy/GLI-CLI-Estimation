@@ -3,18 +3,23 @@ scraper_indexes.py
 Fetches global stock index data from TradingView with caching.
 """
 import os
+import sys
 import pandas as pd
 import numpy as np
 import json
 from datetime import datetime, date
 
+# Add backend to path for utils imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
 # Use shared TV client
-from tv_client import fetch_historical_data, get_tv_session, TV_AVAILABLE
+from utils.tv_client import fetch_historical_data, get_tv_session, TV_AVAILABLE
 
 # Configuration
 N_BARS = 7500  # ~30 years of daily data
 CACHE_MAX_AGE_HOURS = 12
-OUTPUT_PATH = os.path.join(os.path.dirname(__file__), '..', 'frontend', 'public', 'indexes_data.json')
+# Path: backend/scrapers -> backend -> project_root -> frontend/public
+OUTPUT_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'frontend', 'public', 'indexes_data.json')
 
 # Index symbols and exchanges
 INDEXES_CONFIG = {
