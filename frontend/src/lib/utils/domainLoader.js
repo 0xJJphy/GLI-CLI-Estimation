@@ -40,10 +40,10 @@ const domainCache = new Map();
 
 // Configuration
 const DATA_BASE_URL = '';  // Base URL for data files (files are directly in public/domains/)
-// CRITICAL FIX: Modular loading causes data display issues in multiple tabs
-// Affected: GlobalM2, OffshoreLiquidity, Stablecoins, Narratives, UsSystem dates, RegimesTab theme
-// Using legacy dashboard_data.json until all issues are resolved
-const USE_MODULAR_DOMAINS = false;  // DISABLED - Using legacy data for stability
+// Modular domain loading - fixed data mapping in loader functions
+// loadM2TabData: spreads m2.economies.* -> m2.*
+// loadOffshoreTabData: builds chart1_fred_proxy nested structure
+const USE_MODULAR_DOMAINS = true;  // ENABLED for testing fixed mappings
 
 /**
  * Load a single domain's data
@@ -404,12 +404,25 @@ export async function loadM2TabData(legacyData) {
             loadDomain('shared')
         ]);
 
+        // Map modular m2.economies.* to expected m2.* format
+        // Modular: { economies: { us: [], eu: [] }, total: [], rocs: {}, weights: {} }
+        // Expected: { us: [], eu: [], total: [], rocs: {} }
+        const mappedM2 = {
+            total: m2.total || [],
+            rocs: m2.rocs || {},
+            // Spread all economy data directly into m2
+            ...(m2.economies || {}),
+        };
+
         return {
-            m2,
+            m2: mappedM2,
+            // m2_weights and m2_bank_rocs are expected at top level by GlobalM2Tab
+            m2_weights: m2.weights || {},
+            m2_bank_rocs: m2.economy_rocs || {},
             dates: shared.dates
         };
-    } catch {
-        console.warn('Falling back to legacy data for M2');
+    } catch (error) {
+        console.warn('Falling back to legacy data for M2:', error);
         return {
             m2: legacyData?.m2 || {},
             dates: legacyData?.dates || []
@@ -436,12 +449,43 @@ export async function loadOffshoreTabData(legacyData) {
             loadDomain('shared')
         ]);
 
+        // Map modular flat structure to expected nested format
+        // Modular: { obfr_effr_spread: [], cb_swaps: [], stress_score: [], ... }
+        // Expected: { chart1_fred_proxy: { obfr_effr_spread: [], cb_swaps_b: [], ... }, chart2_xccy_diy: {}, thresholds: {} }
+
+        const dates = shared.dates || [];
+        const lastIdx = dates.length - 1;
+
         return {
-            offshore_liquidity: offshore,
-            dates: shared.dates
+            offshore_liquidity: {
+                chart1_fred_proxy: {
+                    dates: dates,
+                    obfr: offshore.obfr || [],
+                    effr: offshore.effr || [],
+                    obfr_effr_spread: offshore.obfr_effr_spread || [],
+                    cb_swaps_b: offshore.cb_swaps || [],
+                    stress_level: offshore.stress_level || 'normal',
+                    stress_score: Array.isArray(offshore.stress_score)
+                        ? offshore.stress_score[offshore.stress_score.length - 1]
+                        : offshore.stress_score || 0,
+                    latest: {
+                        obfr_effr_spread: offshore.obfr_effr_spread?.[lastIdx],
+                        spread_zscore: offshore.obfr_effr_spread_z?.[lastIdx],
+                        cb_swaps_b: offshore.cb_swaps?.[lastIdx],
+                    }
+                },
+                chart2_xccy_diy: offshore.xccy_basis_ref || null,
+                thresholds: legacyData?.offshore_liquidity?.thresholds || {
+                    obfr_effr: { normal: 3, elevated: 6, stressed: 10, critical: 15 },
+                    cb_swaps: { active: 0.1, elevated: 10, stressed: 50, crisis: 100 },
+                    xccy: { normal: -10, elevated: -20, stressed: -35, crisis: -50 }
+                },
+                analysis: legacyData?.offshore_liquidity?.analysis || {}
+            },
+            dates: dates
         };
-    } catch {
-        console.warn('Falling back to legacy data for Offshore');
+    } catch (error) {
+        console.warn('Falling back to legacy data for Offshore:', error);
         return {
             offshore_liquidity: legacyData?.offshore_liquidity || {},
             dates: legacyData?.dates || []
