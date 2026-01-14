@@ -40,10 +40,9 @@ const domainCache = new Map();
 
 // Configuration
 const DATA_BASE_URL = '';  // Base URL for data files (files are directly in public/domains/)
-// TEMPORARILY DISABLED: Modular domain files are incomplete compared to legacy dashboard_data.json
-// Missing data: cb_diffusion_13w, cb_hhi_13w, fear_greed, many ROC metrics, narratives structure
-// Re-enable when orchestrator generates complete modular files
-const USE_MODULAR_DOMAINS = false;  // Feature flag - set true to enable domain loading
+// Modular domain files now generate complete data matching legacy dashboard_data.json
+// If issues occur, set to false to fallback to legacy data
+const USE_MODULAR_DOMAINS = true;  // Feature flag - set true to enable domain loading
 
 /**
  * Load a single domain's data

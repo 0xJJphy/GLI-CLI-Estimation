@@ -119,7 +119,7 @@ class CryptoDomain(BaseDomain):
         return result
     
     def process(self, df: pd.DataFrame, **kwargs) -> Dict[str, Any]:
-        """Process crypto data."""
+        """Process crypto data with all legacy fields."""
         result = {
             'btc_price_ref': 'shared.btc',  # Reference, not duplicate
             'stablecoin_supply_ref': 'stablecoins.total',
@@ -144,13 +144,79 @@ class CryptoDomain(BaseDomain):
         # Narratives
         result['narratives'] = self._calculate_narratives(df, regimes['m_risk'])
         
-        # Dominance
+        # === FEAR & GREED INDEX ===
+        if 'FNG' in df.columns:
+            fng = df['FNG'].ffill()
+            result['fear_greed'] = clean_for_json(fng)
+            
+            # ROC metrics for F&G
+            periods = {'7d': 7, '30d': 30, '90d': 90, '180d': 180, '365d': 365}
+            for name, period in periods.items():
+                roc = fng.pct_change(period) * 100
+                result[f'fng_roc_{name}'] = clean_for_json(roc)
+                
+                # Z-score (rolling)
+                z = (roc - roc.rolling(252, min_periods=63).mean()) / roc.rolling(252, min_periods=63).std()
+                result[f'fng_roc_{name}_z'] = clean_for_json(z.clip(-3, 3))
+                
+                # Percentile (rolling)
+                def rolling_pct_rank(s):
+                    return s.expanding(min_periods=63).apply(lambda x: (x < x.iloc[-1]).mean() * 100, raw=False)
+                result[f'fng_roc_{name}_pct'] = clean_for_json(rolling_pct_rank(roc))
+            
+            # Current F&G
+            last_fng = fng.iloc[-1] if len(fng) > 0 else None
+            result['fng_current'] = {
+                'value': float(last_fng) if last_fng is not None and not np.isnan(last_fng) else None,
+                'label': 'Fear' if last_fng and last_fng < 25 else 'Greed' if last_fng and last_fng > 75 else 'Neutral'
+            }
+        
+        # === CAI ROC METRICS ===
+        cai = regimes['cai']
+        if cai is not None and len(cai) > 0:
+            periods = {'7d': 7, '30d': 30, '90d': 90, '180d': 180, '365d': 365}
+            for name, period in periods.items():
+                roc = cai.diff(period)
+                result[f'cai_roc_{name}'] = clean_for_json(roc)
+                
+                z = (roc - roc.rolling(252, min_periods=63).mean()) / roc.rolling(252, min_periods=63).std()
+                result[f'cai_roc_{name}_z'] = clean_for_json(z.clip(-3, 3))
+                
+                def rolling_pct_rank(s):
+                    return s.expanding(min_periods=63).apply(lambda x: (x < x.iloc[-1]).mean() * 100, raw=False)
+                result[f'cai_roc_{name}_pct'] = clean_for_json(rolling_pct_rank(roc))
+            
+            # Current CAI
+            last_cai = cai.iloc[-1] if len(cai) > 0 else None
+            result['cai_current'] = {
+                'value': float(last_cai) if last_cai is not None and not np.isnan(last_cai) else None,
+                'label': 'Alt Season' if last_cai and last_cai > 75 else 'BTC Season' if last_cai and last_cai < 25 else 'Neutral'
+            }
+        
+        # === DOMINANCE ===
         if 'BTC_DOM' in df.columns:
             result['btc_dominance'] = clean_for_json(df['BTC_DOM'].ffill())
+            result['btc_dom'] = clean_for_json(df['BTC_DOM'].ffill())  # Legacy alias
         if 'ETH_DOM' in df.columns:
             result['eth_dominance'] = clean_for_json(df['ETH_DOM'].ffill())
+            result['eth_dom'] = clean_for_json(df['ETH_DOM'].ffill())  # Legacy alias
         
-        # Market caps
+        # Others dominance = 100 - BTC - ETH - Stablecoin
+        if 'BTC_DOM' in df.columns and 'ETH_DOM' in df.columns:
+            btc_d = df['BTC_DOM'].ffill()
+            eth_d = df['ETH_DOM'].ffill()
+            # Stablecoin dominance approximation
+            total_mcap = df['TOTAL_MCAP'].ffill() / 1e9 if 'TOTAL_MCAP' in df.columns else pd.Series(1e12, index=df.index)
+            stable_dom = (m_stable / total_mcap * 100).clip(0, 100)
+            others_dom = (100 - btc_d - eth_d - stable_dom).clip(0, 100)
+            result['others_dom'] = clean_for_json(others_dom)
+            result['others_dominance'] = clean_for_json(others_dom)
+            result['stablecoin_dominance'] = clean_for_json(stable_dom)
+        
+        # === STABLECOIN SUPPLY ===
+        result['stablecoin_supply'] = clean_for_json(m_stable)
+        
+        # === MARKET CAPS ===
         if 'TOTAL_MCAP' in df.columns:
             result['total_mcap'] = clean_for_json(df['TOTAL_MCAP'].ffill() / 1e9)
         if 'BTC_MCAP' in df.columns:
@@ -158,4 +224,10 @@ class CryptoDomain(BaseDomain):
         if 'ETH_MCAP' in df.columns:
             result['eth_mcap'] = clean_for_json(df['ETH_MCAP'].ffill() / 1e9)
         
+        # === DEFI DOMINANCE ===
+        if 'DEFI_MCAP' in df.columns and 'TOTAL_MCAP' in df.columns:
+            defi_dom = (df['DEFI_MCAP'].ffill() / df['TOTAL_MCAP'].ffill() * 100).clip(0, 100)
+            result['defi_dominance'] = clean_for_json(defi_dom)
+        
         return result
+
