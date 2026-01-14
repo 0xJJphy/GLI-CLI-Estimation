@@ -134,8 +134,8 @@ export const filterPlotlyData = (traceArray, dates, range) => {
 
     return traceArray.map((trace) => ({
         ...trace,
-        x: indices.map((i) => trace.x[i]),
-        y: indices.map((i) => trace.y[i]),
+        x: trace.x ? indices.map((i) => trace.x[i]) : [],
+        y: trace.y ? indices.map((i) => trace.y[i]) : [],
     }));
 };
 

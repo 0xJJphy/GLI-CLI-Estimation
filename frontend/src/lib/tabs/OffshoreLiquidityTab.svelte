@@ -56,8 +56,11 @@
             offshoreModular.cb_swaps_active ||
             legacyChart1.cb_swaps_active ||
             false,
-        stress_score:
-            offshoreModular.stress_score || legacyChart1.stress_score || 0,
+        stress_score: (() => {
+            const score =
+                offshoreModular.stress_score || legacyChart1.stress_score;
+            return Array.isArray(score) ? score.slice(-1)[0] || 0 : score || 0;
+        })(),
         stress_level:
             offshoreModular.stress_level ||
             legacyChart1.stress_level ||
