@@ -54,34 +54,48 @@ This document describes the modular data architecture for the GLI-CLI Dashboard 
 
 ```
 backend/
-├── domains/                    # Domain processors
-│   ├── __init__.py            # Exports all domain classes
-│   ├── base.py                # BaseDomain + utilities
-│   ├── schemas/               # JSON schemas (→ PostgreSQL)
-│   │   └── currencies.py      # Example schema with DDL
-│   ├── core/                  # SharedDomain, GLI, M2, USSystem
-│   ├── cli/                   # Credit Liquidity Index
-│   ├── treasury/              # Yields, curves
-│   ├── stablecoins/           # Stablecoin analytics
-│   ├── currencies/            # DXY, FX pairs
-│   ├── crypto/                # Regimes, CAI, narratives
-│   ├── fed_forecasts/         # FOMC, inflation, labor
-│   ├── macro_regime/          # Combined regime scoring
-│   └── offshore/              # Eurodollar stress
-├── connectors/                # Database adapters
-│   ├── __init__.py
-│   └── db_adapter.py          # Supabase/PostgreSQL client
-├── tests/                     # Test suite
-│   ├── __init__.py
-│   └── test_domains.py        # Domain processor tests
-├── orchestrator.py            # Domain coordination
-├── data_pipeline.py           # Data fetching (existing)
+├── analytics/              # Data analytics modules
+│   ├── crypto_analytics.py # Crypto regimes, CAI, narratives
+│   ├── offshore_liquidity.py # Eurodollar stress metrics
+│   ├── regime_v2.py        # CLI V2, macro regime calculations
+│   └── train_regime_offset.py # Regime training utils
+├── config/                 # Configuration modules
+│   ├── signal_config.py    # Signal computation and scoring
+│   └── rates_sources.py    # Rate source configurations
+├── connectors/             # External data connectors
+│   ├── db_adapter.py       # Supabase/PostgreSQL adapter
+│   └── etf_data.py         # ETF data fetcher
+├── domains/                # Domain processors (new architecture)
+│   ├── base.py             # BaseDomain + utilities
+│   ├── schemas/            # JSON schemas (→ PostgreSQL)
+│   ├── core/               # SharedDomain, GLI, M2, USSystem
+│   ├── cli/                # Credit Liquidity Index
+│   ├── treasury/           # Treasury domain (yields, curves)
+│   ├── stablecoins/        # Stablecoin analytics
+│   ├── currencies/         # DXY, FX pairs
+│   ├── crypto/             # Regimes, CAI, narratives
+│   ├── fed_forecasts/      # FOMC, inflation, labor
+│   ├── macro_regime/       # Combined regime scoring
+│   └── offshore/           # Offshore liquidity
+├── scrapers/               # Data scrapers
+│   ├── scraper_commodities.py
+│   └── scraper_indexes.py
+├── tests/                  # Test suite
+│   ├── test_domains.py     # Domain processor tests
+│   ├── test_etf_data_v2.py
+│   └── test_offshore.py
+├── treasury/               # Treasury data modules (external)
+│   ├── treasury_data.py    # Treasury maturity data
+│   ├── treasury_auction_demand.py # Auction demand metrics
+│   └── treasury_refinancing_signal.py # QRA analysis
+├── utils/                  # Utilities and diagnostics
+│   ├── tv_client.py        # TradingView client
+│   ├── generate_mock_data.py
+│   └── check_*.py          # Diagnostic scripts
+├── data_pipeline.py        # Main data processing script
+├── orchestrator.py         # Domain coordination
 └── data/
-    └── domains/               # Domain JSON outputs
-        ├── shared.json
-        ├── gli.json
-        ├── m2.json
-        └── ...
+    └── domains/            # Domain JSON outputs
 ```
 
 ---

@@ -12,7 +12,7 @@ from typing import Dict, List, Any, Optional
 import calendar
 
 # Import Regime V2 module for CLI V2 and advanced regime calculations
-from regime_v2 import (
+from analytics.regime_v2 import (
     calculate_cli_v2,
     calculate_macro_regime_v2a,
     calculate_macro_regime_v2b,
@@ -21,28 +21,28 @@ from regime_v2 import (
 )
 
 # Import unified signal configuration
-from signal_config import (
+from config.signal_config import (
     compute_signal, SIGNAL_CONFIG, SignalState, STATE_SCORES,
     STANCE_KEYS, aggregate_signal_score, validate_weights
 )
 
 # Import Treasury maturity data module
-from treasury_data import get_treasury_maturity_data
+from treasury.treasury_data import get_treasury_maturity_data
 
 # Import Treasury auction demand module
-from treasury_auction_demand import fetch_treasury_auction_demand
+from treasury.treasury_auction_demand import fetch_treasury_auction_demand
 
 # Import Treasury refinancing signal module
-from treasury_refinancing_signal import get_treasury_refinancing_signal
+from treasury.treasury_refinancing_signal import get_treasury_refinancing_signal
 
 # Import Offshore Dollar Liquidity module
-from offshore_liquidity import get_offshore_liquidity_output
+from analytics.offshore_liquidity import get_offshore_liquidity_output
 
 # Import ETF Data module
-from etf_data import fetch_etf_data
+from connectors.etf_data import fetch_etf_data
 
 # Import Crypto Narratives & Rotation module
-from crypto_analytics import (
+from analytics.crypto_analytics import (
     fetch_fear_and_greed,
     calculate_crypto_regimes,
     calculate_narratives,
