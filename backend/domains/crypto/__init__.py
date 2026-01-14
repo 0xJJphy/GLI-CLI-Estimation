@@ -86,13 +86,14 @@ class CryptoDomain(BaseDomain):
     
     def _calculate_narratives(self, df: pd.DataFrame, m_risk: pd.Series) -> Dict[str, Any]:
         """Calculate narrative metrics."""
+        # Use title case keys to match legacy format expected by frontend
         narratives = {
-            'DEFI_MCAP': 'defi',
-            'MEME_MCAP': 'meme',
-            'AI_MCAP': 'ai',
-            'LAYER1_MCAP': 'l1',
-            'DEPIN_MCAP': 'depin',
-            'RWA_MCAP': 'rwa'
+            'DEFI_MCAP': 'DeFi',
+            'MEME_MCAP': 'Meme',
+            'AI_MCAP': 'AI',
+            'LAYER1_MCAP': 'L1',
+            'DEPIN_MCAP': 'DePIN',
+            'RWA_MCAP': 'RWA'
         }
         
         m_btc = df['BTC_MCAP'].ffill() / 1e9 if 'BTC_MCAP' in df.columns else pd.Series(1, index=df.index)
@@ -110,10 +111,19 @@ class CryptoDomain(BaseDomain):
                 share_of_alts = np.log(m_narrative / m_risk)
                 mom_share = share_of_alts.diff(30)
                 
+                # Get current (last) values for displaying in cards
+                last_mcap = m_narrative.iloc[-1] if len(m_narrative) > 0 else None
+                last_mom_btc = mom_btc.iloc[-1] if len(mom_btc) > 0 else None
+                last_mom_share = mom_share.iloc[-1] if len(mom_share) > 0 else None
+                
                 result[name] = {
                     'mcap': clean_for_json(m_narrative),
                     'mom_btc': clean_for_json(mom_btc),
                     'mom_share': clean_for_json(mom_share),
+                    # Current values for narrative cards
+                    'current_mcap': float(last_mcap) if last_mcap is not None and not np.isnan(last_mcap) else 0,
+                    'current_mom_btc': float(last_mom_btc) if last_mom_btc is not None and not np.isnan(last_mom_btc) else 0,
+                    'current_mom_share': float(last_mom_share) if last_mom_share is not None and not np.isnan(last_mom_share) else 0,
                 }
         
         return result
