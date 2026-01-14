@@ -4988,6 +4988,15 @@ def run_pipeline():
     print("Running modular domain orchestrator...")
     try:
         from orchestrator import create_orchestrator
+        
+        # Add FEAR_GREED to df_hybrid_t so CryptoDomain can access it
+        # (normally added inside process_and_save_final, but orchestrator runs before that)
+        if 'FEAR_GREED' not in df_hybrid_t.columns:
+            from analytics.crypto_analytics import fetch_fear_and_greed
+            fng_series = fetch_fear_and_greed()
+            if not fng_series.empty:
+                df_hybrid_t['FEAR_GREED'] = fng_series.reindex(df_hybrid_t.index).ffill()
+        
         orchestrator = create_orchestrator(OUTPUT_DIR)
         orchestrator.run(df_hybrid_t, generate_legacy=False) # Skip legacy for now as it's done above
         print("  -> Modular domain files saved to backend/data/domains/")

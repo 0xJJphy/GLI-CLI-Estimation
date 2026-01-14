@@ -155,8 +155,9 @@ class CryptoDomain(BaseDomain):
         result['narratives'] = self._calculate_narratives(df, regimes['m_risk'])
         
         # === FEAR & GREED INDEX ===
-        if 'FNG' in df.columns:
-            fng = df['FNG'].ffill()
+        # Column name is FEAR_GREED (from data_pipeline.py)
+        if 'FEAR_GREED' in df.columns:
+            fng = df['FEAR_GREED'].ffill()
             result['fear_greed'] = clean_for_json(fng)
             
             # ROC metrics for F&G
