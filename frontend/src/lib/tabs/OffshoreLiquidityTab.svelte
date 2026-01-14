@@ -29,57 +29,68 @@
         }
     });
 
-    // Merge modular data with dashboardData (modular takes precedence)
-    // Note: modular offshore.json has flat keys (obfr_effr_spread, etc.)
-    // while legacy has nested structure (chart1_fred_proxy.obfr_effr_spread)
-    $: effectiveData = (() => {
-        const modular = modularOffshoreData?.offshore_liquidity || {};
-        const legacy = dashboardData.offshore_liquidity || {};
+    // Use modular data directly with flat keys from offshore.json
+    // Keys: obfr_effr_spread, obfr_effr_spread_z, obfr, effr, cb_swaps, cb_swaps_active, sofr_iorb_spread, stress_score, xccy_basis_ref
+    $: offshoreModular = modularOffshoreData?.offshore_liquidity || {};
+    $: offshoreLegacy = dashboardData.offshore_liquidity || {};
+    $: legacyChart1 = offshoreLegacy.chart1_fred_proxy || {};
 
-        // If modular data has the expected structure, use it directly
-        if (modular.chart1_fred_proxy) {
-            return { ...dashboardData, offshore_liquidity: modular };
-        }
-
-        // Otherwise map flat modular structure to expected nested structure
-        return {
-            ...dashboardData,
-            offshore_liquidity: {
-                ...legacy,
-                chart1_fred_proxy: {
-                    dates:
-                        modular.dates || legacy.chart1_fred_proxy?.dates || [],
-                    obfr_effr_spread:
-                        modular.obfr_effr_spread ||
-                        legacy.chart1_fred_proxy?.obfr_effr_spread ||
-                        [],
-                    cb_swaps_b:
-                        modular.cb_swaps ||
-                        legacy.chart1_fred_proxy?.cb_swaps_b ||
-                        [],
-                    stress_level:
-                        modular.stress_level ||
-                        legacy.chart1_fred_proxy?.stress_level,
-                    stress_score:
-                        modular.stress_score ||
-                        legacy.chart1_fred_proxy?.stress_score,
-                    latest:
-                        modular.latest ||
-                        legacy.chart1_fred_proxy?.latest ||
-                        {},
-                },
-                chart2_xccy_diy: legacy.chart2_xccy_diy || null,
-                thresholds: legacy.thresholds || {},
-                analysis: legacy.analysis || {},
+    // Unified data object - prefer modular flat keys, fallback to legacy nested structure
+    $: offshoreData = {
+        // Spread data
+        dates:
+            offshoreModular.dates ||
+            legacyChart1.dates ||
+            dashboardData.dates ||
+            [],
+        obfr_effr_spread:
+            offshoreModular.obfr_effr_spread ||
+            legacyChart1.obfr_effr_spread ||
+            [],
+        obfr_effr_spread_z:
+            offshoreModular.obfr_effr_spread_z ||
+            legacyChart1.spread_zscore ||
+            [],
+        cb_swaps_b: offshoreModular.cb_swaps || legacyChart1.cb_swaps_b || [],
+        cb_swaps_active:
+            offshoreModular.cb_swaps_active ||
+            legacyChart1.cb_swaps_active ||
+            false,
+        stress_score:
+            offshoreModular.stress_score || legacyChart1.stress_score || 0,
+        stress_level:
+            offshoreModular.stress_level ||
+            legacyChart1.stress_level ||
+            "normal",
+        // Latest values
+        latest: offshoreModular.latest ||
+            legacyChart1.latest || {
+                obfr_effr_spread:
+                    offshoreModular.obfr_effr_spread?.slice(-1)[0],
+                spread_zscore: offshoreModular.obfr_effr_spread_z?.slice(-1)[0],
+                cb_swaps_b: offshoreModular.cb_swaps?.slice(-1)[0],
             },
-        };
-    })();
+        // XCCY data from legacy (not in modular yet)
+        xccy_basis_ref:
+            offshoreModular.xccy_basis_ref ||
+            offshoreLegacy.chart2_xccy_diy ||
+            null,
+        // Analysis from legacy
+        analysis: offshoreLegacy.analysis || {},
+        thresholds: offshoreLegacy.thresholds || {},
+    };
 
-    // Reactive data extraction
-    $: offshoreData = effectiveData.offshore_liquidity || {};
-    $: chart1 = offshoreData.chart1_fred_proxy || {};
-    $: chart2 = offshoreData.chart2_xccy_diy || null;
-    $: thresholds = offshoreData.thresholds || {};
+    // For backward compatibility with template that uses chart1.xxx
+    $: chart1 = {
+        dates: offshoreData.dates,
+        obfr_effr_spread: offshoreData.obfr_effr_spread,
+        cb_swaps_b: offshoreData.cb_swaps_b,
+        stress_level: offshoreData.stress_level,
+        stress_score: offshoreData.stress_score,
+        latest: offshoreData.latest,
+    };
+    $: chart2 = offshoreData.xccy_basis_ref;
+    $: thresholds = offshoreData.thresholds;
 
     // Time range state
     let selectedRange = "1Y";

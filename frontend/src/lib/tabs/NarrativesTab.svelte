@@ -42,57 +42,40 @@
         }
     });
 
-    // Merge modular data with dashboardData (modular takes precedence)
-    // Note: modular crypto.json has flat structure (cai, regimes, narratives)
-    // while legacy dashboardData.crypto_narratives has nested structure
-    $: effectiveData = {
-        ...dashboardData,
-        crypto_narratives: {
-            // Map modular flat structure to expected nested structure
-            ...(dashboardData.crypto_narratives || {}),
-            cai:
-                modularCryptoData?.crypto_analytics?.cai ||
-                dashboardData.crypto_narratives?.cai ||
-                [],
-            regimes:
-                modularCryptoData?.crypto_analytics?.regimes ||
-                dashboardData.crypto_narratives?.regimes ||
-                [],
-            narratives:
-                modularCryptoData?.crypto_analytics?.narratives ||
-                dashboardData.crypto_narratives?.narratives ||
-                {},
-            fear_greed:
-                modularCryptoData?.crypto_analytics?.fear_greed ||
-                dashboardData.crypto_narratives?.fear_greed ||
-                [],
-            btc_dom:
-                modularCryptoData?.crypto_analytics?.btc_dominance ||
-                dashboardData.crypto_narratives?.btc_dom ||
-                [],
-            total_mcap:
-                modularCryptoData?.crypto_analytics?.total_mcap ||
-                dashboardData.crypto_narratives?.total_mcap ||
-                [],
-            btc_mcap:
-                modularCryptoData?.crypto_analytics?.btc_mcap ||
-                dashboardData.crypto_narratives?.btc_mcap ||
-                [],
-            rs_risk_btc:
-                modularCryptoData?.crypto_analytics?.rs_risk_btc ||
-                dashboardData.crypto_narratives?.rs_risk_btc ||
-                [],
-            delta_rs_risk:
-                modularCryptoData?.crypto_analytics?.delta_rs_risk ||
-                dashboardData.crypto_narratives?.delta_rs_risk ||
-                [],
-        },
-        btc: modularCryptoData?.btc || dashboardData.btc || {},
-        dates: modularCryptoData?.dates || dashboardData.dates || [],
+    // Use modular data directly with flat keys from crypto.json
+    // Keys: cai, regimes, narratives, btc_dominance, eth_dominance, total_mcap, btc_mcap, eth_mcap, rs_risk_btc, delta_rs_risk
+    $: cryptoData = modularCryptoData?.crypto_analytics || {};
+    $: legacyData = dashboardData.crypto_narratives || {};
+
+    // Data variable - prefer modular, fallback to legacy
+    $: data = {
+        cai: cryptoData.cai || legacyData.cai || [],
+        regimes: cryptoData.regimes || legacyData.regimes || [],
+        narratives: cryptoData.narratives || legacyData.narratives || {},
+        fear_greed: cryptoData.fear_greed || legacyData.fear_greed || [],
+        btc_dom: cryptoData.btc_dominance || legacyData.btc_dom || [],
+        eth_dom: cryptoData.eth_dominance || legacyData.eth_dom || [],
+        others_dom: cryptoData.others_dominance || legacyData.others_dom || [],
+        stablecoin_dominance:
+            cryptoData.stablecoin_dominance ||
+            legacyData.stablecoin_dominance ||
+            [],
+        total_mcap: cryptoData.total_mcap || legacyData.total_mcap || [],
+        btc_mcap: cryptoData.btc_mcap || legacyData.btc_mcap || [],
+        eth_mcap: cryptoData.eth_mcap || legacyData.eth_mcap || [],
+        rs_risk_btc: cryptoData.rs_risk_btc || legacyData.rs_risk_btc || [],
+        delta_rs_risk:
+            cryptoData.delta_rs_risk || legacyData.delta_rs_risk || [],
+        // ROC metrics from legacy
+        fng_current: legacyData.fng_current || {},
+        fng_roc_7d: cryptoData.fng_roc_7d || legacyData.fng_roc_7d || [],
+        fng_roc_30d: cryptoData.fng_roc_30d || legacyData.fng_roc_30d || [],
+        cai_roc_7d: cryptoData.cai_roc_7d || legacyData.cai_roc_7d || [],
+        cai_roc_30d: cryptoData.cai_roc_30d || legacyData.cai_roc_30d || [],
     };
 
-    $: data = effectiveData.crypto_narratives || {};
-    $: dates = effectiveData.dates || [];
+    $: dates = modularCryptoData?.dates || dashboardData.dates || [];
+    $: btcData = modularCryptoData?.btc || dashboardData.btc || {};
 
     $: cryptoStartIndex = (() => {
         if (!dates || dates.length === 0) return 0;
@@ -456,7 +439,7 @@
     let showCai = true;
 
     $: btcRegimeData = (() => {
-        const btcPrice = effectiveData.btc?.price;
+        const btcPrice = btcData?.price;
         if (!btcPrice) return [];
         const filteredDates = getFilteredDates(regimeRange);
         const btc = filterByRange(btcPrice, regimeRange);
