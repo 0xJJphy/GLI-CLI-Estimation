@@ -1,33 +1,139 @@
-# Environment variables
+# =============================================================================
+# GLI-CLI-Estimation - .gitignore
+# =============================================================================
+
+# =============================================================================
+# Environment Variables (NEVER commit these)
+# =============================================================================
 .env
 .env.*
+.env.local
+.env.development
+.env.production
+*.env
 
-# Dependencies
-node_modules/
+# =============================================================================
+# Data Files (generated/cached - regenerate with `npm run data:sync`)
+# =============================================================================
+# Backend data folder
+backend/data/
+backend/cache/
+
+# Frontend data copies
+frontend/public/*.json
+!frontend/public/manifest.json
+frontend/dist/*.json
+
+# Generic data patterns
+*.csv
+!requirements.csv
+*.xlsx
+*.xls
+*.parquet
+*.pickle
+*.pkl
+
+# =============================================================================
+# Python
+# =============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
 venv/
 env/
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
+ENV/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.mypy_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
+eggs/
+*.egg
 
-# Data
-*.csv
-*.json
-!package.json
-!composer.json
+# =============================================================================
+# Node.js / JavaScript
+# =============================================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
 
-# IDE
-.vscode/
-.idea/
-
-# Build
+# =============================================================================
+# Build Outputs
+# =============================================================================
 dist/
 build/
 .svelte-kit/
+.next/
+.nuxt/
+.output/
+*.tsbuildinfo
 
-# Custom
+# =============================================================================
+# IDE & Editors
+# =============================================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-workspace
+*.sublime-project
+
+# =============================================================================
+# OS Generated
+# =============================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# =============================================================================
+# Logs
+# =============================================================================
+*.log
+logs/
+*.log.*
+
+# =============================================================================
+# Secrets & Credentials
+# =============================================================================
+*.pem
+*.key
+*.crt
+*.p12
+secrets/
+credentials/
+config.local.*
+
+# =============================================================================
+# Project-Specific Exclusions
+# =============================================================================
+# Agent/AI workspace
+.agent/
+
+# Temporary files
 plain_txt/
 scripts/
 find_duplicates.js
-.agent/
+*.tmp
+*.bak
+*.tmp
