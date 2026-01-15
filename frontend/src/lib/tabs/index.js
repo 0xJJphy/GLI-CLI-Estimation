@@ -21,3 +21,4 @@ export { default as OffshoreLiquidityTab } from './OffshoreLiquidityTab.svelte';
 export { default as EtfsTab } from './EtfsTab.svelte';
 export { default as IndexesTab } from './IndexesTab.svelte';
 export { default as CommoditiesTab } from './CommoditiesTab.svelte';
+export { default as ComponentsTab } from './ComponentsTab.svelte';

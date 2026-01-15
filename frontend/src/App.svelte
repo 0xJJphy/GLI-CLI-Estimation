@@ -37,6 +37,7 @@
   import EtfsTab from "./lib/tabs/EtfsTab.svelte";
   import IndexesTab from "./lib/tabs/IndexesTab.svelte";
   import CommoditiesTab from "./lib/tabs/CommoditiesTab.svelte";
+  import ComponentsTab from "./lib/tabs/ComponentsTab.svelte";
 
   // Global Settings Store
   import {
@@ -2606,6 +2607,17 @@
                   >
                     {$currentTranslations.nav_regimes}
                   </div>
+                  <div
+                    class="nav-item sub"
+                    class:active={currentTab === "Components"}
+                    on:click={() => setTab("Components")}
+                    on:keydown={(e) =>
+                      e.key === "Enter" && setTab("Components")}
+                    role="button"
+                    tabindex="0"
+                  >
+                    📦 Components
+                  </div>
                 </div>
               {/if}
             </div>
@@ -2922,6 +2934,10 @@
             translations={$currentTranslations}
             commoditiesData={$commoditiesData}
           />
+        </div>
+      {:else if currentTab === "Components"}
+        <div class="tab-content">
+          <ComponentsTab darkMode={$darkMode} dashboardData={$dashboardData} />
         </div>
       {/if}
     </div>
