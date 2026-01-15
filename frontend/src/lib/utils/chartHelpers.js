@@ -46,14 +46,11 @@ export const PERCENTILE_CONFIG = {
  * @param {boolean} options.invertColors - If true, swap bullish/bearish colors (for inverted indicators)
  * @returns {Array} Array of Plotly shape objects
  */
-export function createZScoreBands(
-    darkMode,
-    {
-        bullishThreshold = 1.0,
-        bearishThreshold = -1.0,
-        invertColors = false,
-    } = {}
-) {
+export function createZScoreBands(darkMode, options = {}) {
+    const bullishThreshold = options.bullishThreshold ?? 1.0;
+    const bearishThreshold = options.bearishThreshold ?? -1.0;
+    const invertColors = options.invertColors ?? false;
+
     const greenColor = darkMode
         ? "rgba(16, 185, 129, 0.08)"
         : "rgba(16, 185, 129, 0.12)";
@@ -120,10 +117,11 @@ export function createZScoreBands(
  * @param {boolean} options.invert - If true, low values are bullish (for VIX, spreads)
  * @returns {Array} Array of Plotly shape objects
  */
-export function createPercentileBands(
-    darkMode,
-    { bullishPct = 70, bearishPct = 30, invert = false } = {}
-) {
+export function createPercentileBands(darkMode, options = {}) {
+    const bullishPct = options.bullishPct ?? 70;
+    const bearishPct = options.bearishPct ?? 30;
+    const invert = options.invert ?? false;
+
     const greenColor = darkMode
         ? "rgba(16, 185, 129, 0.10)"
         : "rgba(16, 185, 129, 0.12)";
