@@ -30,8 +30,8 @@
     /** Callback when range changes - parent must update data reactively */
     export let onRangeChange = () => {};
 
-    /** Available time range options */
-    export let ranges = ["1M", "3M", "6M", "1Y", "3Y", "5Y", "ALL"];
+    /** @type {string[] | {value: string, label: string}[] | undefined} Available time range options */
+    export let ranges = undefined;
 
     /** Whether to show time range selector */
     export let showRangeSelector = true;
@@ -83,6 +83,21 @@
         );
     }
 
+    // Transform ranges to object format if passed as strings
+    // If null/undefined, let TimeRangeSelector use its default
+    /** @type {{value: string, label: string}[] | undefined} */
+    $: normalizedRanges = (() => {
+        if (!ranges || !Array.isArray(ranges) || ranges.length === 0)
+            return undefined;
+        if (typeof ranges[0] === "string") {
+            return /** @type {string[]} */ (ranges).map((r) => ({
+                value: r,
+                label: r,
+            }));
+        }
+        return /** @type {{value: string, label: string}[]} */ (ranges);
+    })();
+
     // Determine chart height class
     $: heightClass =
         chartHeight === "short" ? "short" : chartHeight === "normal" ? "" : "";
@@ -110,7 +125,11 @@
                 />
             {/if}
             {#if showRangeSelector}
-                <TimeRangeSelector {selectedRange} {onRangeChange} {ranges} />
+                <TimeRangeSelector
+                    {selectedRange}
+                    {onRangeChange}
+                    ranges={normalizedRanges}
+                />
             {/if}
             {#if lastDate}
                 <span class="last-date">{lastDate}</span>
