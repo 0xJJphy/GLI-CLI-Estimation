@@ -78,9 +78,10 @@ class StablecoinsDomain(BaseDomain):
         result['total'] = clean_for_json(total_supply)
         
         # Total supply ROCs
+        roc_30d = self._calc_roc(total_supply, 30)
         result['total_rocs'] = {
             '7d': clean_for_json(self._calc_roc(total_supply, 7)),
-            '30d': clean_for_json(self._calc_roc(total_supply, 30)),
+            '30d': clean_for_json(roc_30d),
             '90d': clean_for_json(self._calc_roc(total_supply, 90)),
             '180d': clean_for_json(self._calc_roc(total_supply, 180)),
             'yoy': clean_for_json(self._calc_roc(total_supply, 365)),
@@ -89,9 +90,14 @@ class StablecoinsDomain(BaseDomain):
         # Z-scores for ROCs
         result['total_rocs_z'] = {
             '7d': clean_for_json(calculate_zscore(self._calc_roc(total_supply, 7), 252)),
-            '30d': clean_for_json(calculate_zscore(self._calc_roc(total_supply, 30), 252)),
+            '30d': clean_for_json(calculate_zscore(roc_30d, 252)),
             '90d': clean_for_json(calculate_zscore(self._calc_roc(total_supply, 90), 252)),
         }
+
+        # Acceleration Z-Score (2nd derivative proxy: change in 30d ROC)
+        # Using 30d diff of 30d ROC to capture monthly acceleration trends
+        accel_raw = roc_30d.diff(30)
+        result['total_accel_z'] = clean_for_json(calculate_zscore(accel_raw, 252))
         
         # Prices and depeg detection
         price_cols = {

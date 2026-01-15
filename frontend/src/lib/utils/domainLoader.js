@@ -215,17 +215,20 @@ export async function loadStablecoinsTabData(legacyData) {
 
         // 2. Flatten Total ROC Z-Scores
         if (stablecoins.total_rocs_z) {
-            // Frontend keys: total_accel_z (seems separate?), total_roc_7d_z?
-            // Checking Svelte: it calculates rolling z-score on the fly in some cases,
-            // but for 'accel_z' mode it uses stablecoinsData.total_accel_z
-            // For other modes with 'zscore' normalization, it uses calculateRollingZScore helper.
-            // So we might not need to flatten Z-scores for ROCs if frontend calculates them,
-            // EXCEPT for 'accel_z' which might be a specific pre-calc.
-            // Let's check backend output for 'total_accel_z'. It's not there.
-            // SFAI velocity is there.
+            flattened.total_roc_7d_z = stablecoins.total_rocs_z["7d"];
+            flattened.total_roc_1m_z = stablecoins.total_rocs_z["30d"];
+            flattened.total_roc_3m_z = stablecoins.total_rocs_z["90d"];
         }
 
-        // 3. Aggregate Depeg Events
+        // 3. New Metrics: Accel & Total Dominance
+        if (stablecoins.total_accel_z) {
+            flattened.total_accel_z = stablecoins.total_accel_z;
+        }
+        if (stablecoins.crypto_dominance) {
+            flattened.total_dominance = stablecoins.crypto_dominance;
+        }
+
+        // 4. Aggregate Depeg Events
         if (stablecoins.depeg_events && !Array.isArray(stablecoins.depeg_events)) {
             let allEvents = [];
             Object.entries(stablecoins.depeg_events).forEach(([coin, events]) => {
