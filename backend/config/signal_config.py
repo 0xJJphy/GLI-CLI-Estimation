@@ -80,13 +80,15 @@ SIGNAL_CONFIG: Dict[str, Dict[str, Any]] = {
             "warning_max": 5.0,
             # bearish: spread > 5 bps
             "bearish_min": 5.0,
-            # danger: SRF usage detected (handled separately)
+            # danger: SRF usage > $1B (banks tapping Fed backstop at ceiling rate)
+            # Note: Small SRF usage (<$1B) is normal operational noise
+            "srf_usage_threshold": 1.0,  # Billions USD
         },
         "reasons": {
             SignalState.BULLISH: "SOFR ≈ IORB: adequate interbank liquidity",
             SignalState.WARNING: "SOFR slightly above IORB: monitor repo conditions",
             SignalState.BEARISH: "SOFR >> IORB: repo liquidity stress detected",
-            SignalState.DANGER: "SRF Usage detected: banks borrowing at ceiling rate",
+            SignalState.DANGER: "SRF Usage > $1B: banks borrowing at ceiling rate",
             SignalState.NEUTRAL: "Repo spread in normal operating range",
         },
         "hysteresis": 0.5,  # bps buffer to prevent flip-flops

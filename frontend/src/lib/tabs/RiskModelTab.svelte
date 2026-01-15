@@ -2205,10 +2205,18 @@
         const arr = dashboardData.repo_stress?.srf_usage;
         return arr && arr.length > 0 ? arr[arr.length - 1] || 0 : 0;
     })();
+    // Fed Rate Corridor Stress Classification:
+    // - HIGH: SRF usage > $1B (banks tapping backstop) OR SOFR within 5bps of ceiling
+    // - ELEVATED: SOFR > 5bps above IORB floor OR < 10bps from ceiling
+    // - NORMAL: SOFR trading near IORB (±5bps) with comfortable ceiling headroom
+    // Note: Small SRF usage (<$1B) is normal operational noise, not stress
     $: corridorStressLevel = (() => {
-        if (latestSrfUsage > 0 || latestSofrToCeiling < 5) return "HIGH";
-        if (latestSofrToFloor > 10 || latestSofrToCeiling < 10)
+        // HIGH stress: significant SRF usage or approaching ceiling
+        if (latestSrfUsage > 1 || latestSofrToCeiling < 5) return "HIGH";
+        // ELEVATED: SOFR drifting above floor or narrowing ceiling gap
+        if (latestSofrToFloor > 5 || latestSofrToCeiling < 10)
             return "ELEVATED";
+        // NORMAL: SOFR ≈ IORB (within ±5bps), adequate ceiling headroom
         return "NORMAL";
     })();
     $: corridorStressColor =

@@ -3312,7 +3312,10 @@ def calculate_signals(df, cli_df):
     
     if sofr is not None and iorb is not None:
         spread = get_latest(sofr - iorb)
-        srf_active = get_latest(srf_usage) is not None and get_latest(srf_usage) > 0
+        # Use SRF threshold from signal_config (single source of truth)
+        srf_threshold = SIGNAL_CONFIG['repo']['thresholds'].get('srf_usage_threshold', 1.0)
+        srf_latest = get_latest(srf_usage)
+        srf_active = srf_latest is not None and srf_latest > srf_threshold
         
         if spread is not None:
             # Convert to basis points for threshold comparison
