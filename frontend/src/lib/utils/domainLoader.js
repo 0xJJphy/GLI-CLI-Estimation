@@ -236,7 +236,10 @@ export async function loadStablecoinsTabData(legacyData) {
                 }
             });
             // Sort by date ascending
-            allEvents.sort((a, b) => new Date(a.date) - new Date(b.date));
+            allEvents.sort(
+                (a, b) =>
+                    new Date(a.date).getTime() - new Date(b.date).getTime(),
+            );
             flattened.depeg_events = allEvents;
         }
 
@@ -253,6 +256,11 @@ export async function loadStablecoinsTabData(legacyData) {
             flattened.stable_index_dom_roc_30d_z = stablecoins.stable_index_rocs_z["30d"];
             flattened.stable_index_dom_roc_90d_z = stablecoins.stable_index_rocs_z["90d"];
         }
+        if (stablecoins.stable_index_rocs_pct) {
+            flattened.stable_index_dom_roc_7d_pct = stablecoins.stable_index_rocs_pct["7d"];
+            flattened.stable_index_dom_roc_30d_pct = stablecoins.stable_index_rocs_pct["30d"];
+            flattened.stable_index_dom_roc_90d_pct = stablecoins.stable_index_rocs_pct["90d"];
+        }
 
         // 5. Flatten Custom Stables Dom ROCs
         if (stablecoins.custom_stables_dom_rocs) {
@@ -266,6 +274,11 @@ export async function loadStablecoinsTabData(legacyData) {
             flattened.custom_stables_dom_roc_7d_z = stablecoins.custom_stables_dom_rocs_z["7d"];
             flattened.custom_stables_dom_roc_30d_z = stablecoins.custom_stables_dom_rocs_z["30d"];
             flattened.custom_stables_dom_roc_90d_z = stablecoins.custom_stables_dom_rocs_z["90d"];
+        }
+        if (stablecoins.custom_stables_dom_rocs_pct) {
+            flattened.custom_stables_dom_roc_7d_pct = stablecoins.custom_stables_dom_rocs_pct["7d"];
+            flattened.custom_stables_dom_roc_30d_pct = stablecoins.custom_stables_dom_rocs_pct["30d"];
+            flattened.custom_stables_dom_roc_90d_pct = stablecoins.custom_stables_dom_rocs_pct["90d"];
         }
 
         return {

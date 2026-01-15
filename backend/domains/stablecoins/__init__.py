@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 from typing import Dict, Any, List
 
-from ..base import BaseDomain, clean_for_json, calculate_rocs, calculate_zscore
+from ..base import BaseDomain, clean_for_json, calculate_rocs, calculate_zscore, rolling_percentile
 
 
 class StablecoinsDomain(BaseDomain):
@@ -38,7 +38,7 @@ class StablecoinsDomain(BaseDomain):
                     'deviation_pct': float((price - 1.0) * 100)
                 })
         
-        return events[-100:]  # Last 100 events
+        return events
     
     def _calc_roc(self, series: pd.Series, period: int) -> pd.Series:
         """Calculate ROC as percentage."""
@@ -121,7 +121,7 @@ class StablecoinsDomain(BaseDomain):
             # Dominance
             dom = (mcap_series / total_supply.replace(0, np.nan)) * 100
             result['dominance'][name] = clean_for_json(dom)
-            # Growth
+            # Growth (Using iloc safely)
             result['growth'][name] = {
                 '7d': float(self._calc_roc(mcap_series, 7).iloc[-1]) if len(mcap_series) > 7 else 0,
                 '30d': float(self._calc_roc(mcap_series, 30).iloc[-1]) if len(mcap_series) > 30 else 0,
@@ -156,6 +156,12 @@ class StablecoinsDomain(BaseDomain):
                 '7d': clean_for_json(calculate_zscore(self._calc_roc(custom_dom, 7), 252)),
                 '30d': clean_for_json(calculate_zscore(self._calc_roc(custom_dom, 30), 252)),
                 '90d': clean_for_json(calculate_zscore(self._calc_roc(custom_dom, 90), 252)),
+            }
+            # Percentiles for Custom Dom ROCs
+            result['custom_stables_dom_rocs_pct'] = {
+                '7d': clean_for_json(rolling_percentile(self._calc_roc(custom_dom, 7), 252*2)),
+                '30d': clean_for_json(rolling_percentile(self._calc_roc(custom_dom, 30), 252*2)),
+                '90d': clean_for_json(rolling_percentile(self._calc_roc(custom_dom, 90), 252*2)),
             }
         
         # SFAI (Stablecoin Flow Attribution Index)
@@ -213,6 +219,12 @@ class StablecoinsDomain(BaseDomain):
                 '7d': clean_for_json(calculate_zscore(self._calc_roc(stable_dom_idx, 7), 252)),
                 '30d': clean_for_json(calculate_zscore(self._calc_roc(stable_dom_idx, 30), 252)),
                 '90d': clean_for_json(calculate_zscore(self._calc_roc(stable_dom_idx, 90), 252)),
+            }
+            
+            result['stable_index_rocs_pct'] = {
+                '7d': clean_for_json(rolling_percentile(self._calc_roc(stable_dom_idx, 7), 252*2)),
+                '30d': clean_for_json(rolling_percentile(self._calc_roc(stable_dom_idx, 30), 252*2)),
+                '90d': clean_for_json(rolling_percentile(self._calc_roc(stable_dom_idx, 90), 252*2)),
             }
         
         return result
