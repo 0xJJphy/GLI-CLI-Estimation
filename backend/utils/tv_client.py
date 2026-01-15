@@ -44,26 +44,37 @@ def get_tv_session(force_new=False):
     username = os.environ.get('TV_USERNAME')
     password = os.environ.get('TV_PASSWORD')
     
+    max_retries = 5
+    
+    if username and password:
+        # Try authenticated login with retries
+        for attempt in range(max_retries):
+            try:
+                print(f"Logging into TradingView as {username}... (attempt {attempt + 1}/{max_retries})")
+                _tv_instance = TvDatafeed(username, password)
+                _is_logged_in = True
+                print(f"[OK] TradingView login successful")
+                return _tv_instance
+            except Exception as e:
+                print(f"Login attempt {attempt + 1} failed: {e}")
+                if attempt < max_retries - 1:
+                    import time
+                    wait_time = 2 ** attempt  # Exponential backoff: 1, 2, 4, 8, 16 seconds
+                    print(f"Waiting {wait_time}s before retry...")
+                    time.sleep(wait_time)
+        
+        # All retries failed, fall back to unauthenticated
+        print(f"All {max_retries} login attempts failed, falling back to unauthenticated mode")
+    
+    # Unauthenticated mode (either no credentials or login failed)
     try:
-        if username and password:
-            print(f"Logging into TradingView as {username}...")
-            _tv_instance = TvDatafeed(username, password)
-            _is_logged_in = True
-        else:
-            print("Using TradingView without login (limited access)")
-            _tv_instance = TvDatafeed()
-            _is_logged_in = False
+        print("Using TradingView without login (limited access)")
+        _tv_instance = TvDatafeed()
+        _is_logged_in = False
         return _tv_instance
     except Exception as e:
-        print(f"TradingView login failed: {e}")
-        # Try without login as fallback
-        try:
-            _tv_instance = TvDatafeed()
-            _is_logged_in = False
-            return _tv_instance
-        except Exception as e2:
-            print(f"TradingView fallback also failed: {e2}")
-            return None
+        print(f"TradingView unauthenticated mode also failed: {e}")
+        return None
 
 def is_session_active():
     """Check if there's an active TV session."""

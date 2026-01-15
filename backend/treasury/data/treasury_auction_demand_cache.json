@@ -7,10 +7,10 @@
       "Bill": {
         "score": 13.8,
         "name_key": "bill",
-        "avg_btc": 3.0,
-        "avg_indirect_pct": 52.8,
-        "avg_direct_pct": 6.7,
-        "avg_dealer_pct": 34.3,
+        "avg_btc": 2.95,
+        "avg_indirect_pct": 54.3,
+        "avg_direct_pct": 5.7,
+        "avg_dealer_pct": 34.4,
         "btc_score": 50,
         "indirect_score": -25,
         "dealer_score": 10,
@@ -42,6 +42,51 @@
       }
     },
     "recent_auctions": [
+      {
+        "date": "2026-01-15",
+        "security": "4-Week Bill",
+        "security_type": "Bill",
+        "cusip": "912797SR9",
+        "bid_to_cover": 2.92,
+        "indirect_pct": 62.6,
+        "direct_pct": 3.7,
+        "dealer_pct": 24.8,
+        "amount_billions": 95.0,
+        "status": "STRONG",
+        "status_key": "strong",
+        "status_color": "#22c55e",
+        "alerts": [],
+        "alert_count": 0
+      },
+      {
+        "date": "2026-01-15",
+        "security": "8-Week Bill",
+        "security_type": "Bill",
+        "cusip": "912797SZ1",
+        "bid_to_cover": 2.71,
+        "indirect_pct": 58.8,
+        "direct_pct": 4.3,
+        "dealer_pct": 35.2,
+        "amount_billions": 90.0,
+        "status": "CAUTION",
+        "status_key": "caution",
+        "status_color": "#eab308",
+        "alerts": [
+          {
+            "level": "caution",
+            "type": "ELEVATED_DEALER",
+            "icon": "\ud83d\udfe1",
+            "title": "Slightly Elevated Dealer %",
+            "message": "Dealer takedown at 35.2% for 8-Week Bill",
+            "metric": "dealer_pct",
+            "value": 35.17322703430598,
+            "threshold": 35,
+            "implication": "Minor absorption pressure.",
+            "market_impact": "Neutral, monitor trend"
+          }
+        ],
+        "alert_count": 1
+      },
       {
         "date": "2026-01-14",
         "security": "17-Week Bill",
@@ -97,35 +142,6 @@
       },
       {
         "date": "2026-01-13",
-        "security": "29-Year 10-Month Bond",
-        "security_type": "Bond",
-        "cusip": "912810UP1",
-        "bid_to_cover": 2.42,
-        "indirect_pct": 51.6,
-        "direct_pct": 16.5,
-        "dealer_pct": 9.2,
-        "amount_billions": 22.0,
-        "status": "WARNING",
-        "status_key": "warning",
-        "status_color": "#f97316",
-        "alerts": [
-          {
-            "level": "warning",
-            "type": "WEAK_FOREIGN_DEMAND",
-            "icon": "\ud83d\udfe0",
-            "title": "Below-Average Foreign Demand",
-            "message": "Indirect bidders at 51.6% for 29-Year 10-Month Bond",
-            "metric": "indirect_pct",
-            "value": 51.6427055896097,
-            "threshold": 58,
-            "implication": "Foreign demand softening.",
-            "market_impact": "Monitor USD and yield curve"
-          }
-        ],
-        "alert_count": 1
-      },
-      {
-        "date": "2026-01-13",
         "security": "6-Week Bill",
         "security_type": "Bill",
         "cusip": "912797RU3",
@@ -176,6 +192,35 @@
           }
         ],
         "alert_count": 3
+      },
+      {
+        "date": "2026-01-13",
+        "security": "29-Year 10-Month Bond",
+        "security_type": "Bond",
+        "cusip": "912810UP1",
+        "bid_to_cover": 2.42,
+        "indirect_pct": 51.6,
+        "direct_pct": 16.5,
+        "dealer_pct": 9.2,
+        "amount_billions": 22.0,
+        "status": "WARNING",
+        "status_key": "warning",
+        "status_color": "#f97316",
+        "alerts": [
+          {
+            "level": "warning",
+            "type": "WEAK_FOREIGN_DEMAND",
+            "icon": "\ud83d\udfe0",
+            "title": "Below-Average Foreign Demand",
+            "message": "Indirect bidders at 51.6% for 29-Year 10-Month Bond",
+            "metric": "indirect_pct",
+            "value": 51.6427055896097,
+            "threshold": 58,
+            "implication": "Foreign demand softening.",
+            "market_impact": "Monitor USD and yield curve"
+          }
+        ],
+        "alert_count": 1
       },
       {
         "date": "2026-01-12",
@@ -237,22 +282,6 @@
       },
       {
         "date": "2026-01-12",
-        "security": "26-Week Bill",
-        "security_type": "Bill",
-        "cusip": "912797TN7",
-        "bid_to_cover": 3.17,
-        "indirect_pct": 65.2,
-        "direct_pct": 9.3,
-        "dealer_pct": 19.8,
-        "amount_billions": 77.0,
-        "status": "STRONG",
-        "status_key": "strong",
-        "status_color": "#22c55e",
-        "alerts": [],
-        "alert_count": 0
-      },
-      {
-        "date": "2026-01-12",
         "security": "13-Week Bill",
         "security_type": "Bill",
         "cusip": "912797QD2",
@@ -303,6 +332,22 @@
           }
         ],
         "alert_count": 3
+      },
+      {
+        "date": "2026-01-12",
+        "security": "26-Week Bill",
+        "security_type": "Bill",
+        "cusip": "912797TN7",
+        "bid_to_cover": 3.17,
+        "indirect_pct": 65.2,
+        "direct_pct": 9.3,
+        "dealer_pct": 19.8,
+        "amount_billions": 77.0,
+        "status": "STRONG",
+        "status_key": "strong",
+        "status_color": "#22c55e",
+        "alerts": [],
+        "alert_count": 0
       },
       {
         "date": "2026-01-08",
@@ -640,35 +685,6 @@
       },
       {
         "date": "2025-12-29",
-        "security": "13-Week Bill",
-        "security_type": "Bill",
-        "cusip": "912797SD0",
-        "bid_to_cover": 2.66,
-        "indirect_pct": 51.2,
-        "direct_pct": 5.9,
-        "dealer_pct": 33.2,
-        "amount_billions": 86.0,
-        "status": "CAUTION",
-        "status_key": "caution",
-        "status_color": "#eab308",
-        "alerts": [
-          {
-            "level": "caution",
-            "type": "SOFT_FOREIGN_DEMAND",
-            "icon": "\ud83d\udfe1",
-            "title": "Soft Foreign Participation",
-            "message": "Indirect bidders at 51.2% for 13-Week Bill",
-            "metric": "indirect_pct",
-            "value": 51.24292823715927,
-            "threshold": 55,
-            "implication": "Slightly below normal foreign interest.",
-            "market_impact": "Neutral"
-          }
-        ],
-        "alert_count": 1
-      },
-      {
-        "date": "2025-12-29",
         "security": "26-Week Bill",
         "security_type": "Bill",
         "cusip": "912797TF4",
@@ -707,49 +723,20 @@
           }
         ],
         "alert_count": 2
-      },
-      {
-        "date": "2025-12-24",
-        "security": "7-Year Note",
-        "security_type": "Note",
-        "cusip": "91282CPQ8",
-        "bid_to_cover": 2.51,
-        "indirect_pct": 53.2,
-        "direct_pct": 28.5,
-        "dealer_pct": 8.4,
-        "amount_billions": 44.0,
-        "status": "WARNING",
-        "status_key": "warning",
-        "status_color": "#f97316",
-        "alerts": [
-          {
-            "level": "warning",
-            "type": "WEAK_FOREIGN_DEMAND",
-            "icon": "\ud83d\udfe0",
-            "title": "Below-Average Foreign Demand",
-            "message": "Indirect bidders at 53.2% for 7-Year Note",
-            "metric": "indirect_pct",
-            "value": 53.24589355785909,
-            "threshold": 58,
-            "implication": "Foreign demand softening.",
-            "market_impact": "Monitor USD and yield curve"
-          }
-        ],
-        "alert_count": 1
       }
     ],
     "metrics": {
       "avg_btc_all": 2.71,
       "avg_indirect_all": 61.5,
-      "avg_direct_all": 13.8,
-      "avg_dealer_all": 18.4,
-      "total_auctions": 304,
+      "avg_direct_all": 13.7,
+      "avg_dealer_all": 18.5,
+      "total_auctions": 306,
       "date_range": {
         "start": "2024-01-17",
-        "end": "2026-01-14"
+        "end": "2026-01-15"
       }
     },
-    "timestamp": "2026-01-15T15:55:58.412113",
+    "timestamp": "2026-01-15T23:45:06.469941",
     "signal_color": "#84cc16"
   },
   "alerts": {
@@ -758,9 +745,9 @@
     "recommendation": "Multiple critical alerts detected. Treasury demand under significant stress. Consider reducing duration exposure.",
     "counts": {
       "critical": 3,
-      "warning": 17,
+      "warning": 16,
       "caution": 12,
-      "total": 32
+      "total": 31
     },
     "critical_alerts": [
       {
@@ -827,18 +814,6 @@
       },
       {
         "level": "warning",
-        "type": "WEAK_FOREIGN_DEMAND",
-        "icon": "\ud83d\udfe0",
-        "title": "Below-Average Foreign Demand",
-        "message": "Indirect bidders at 51.6% for 29-Year 10-Month Bond",
-        "metric": "indirect_pct",
-        "value": 51.6427055896097,
-        "threshold": 58,
-        "implication": "Foreign demand softening.",
-        "market_impact": "Monitor USD and yield curve"
-      },
-      {
-        "level": "warning",
         "type": "DUAL_METRIC_STRESS",
         "icon": "\u26a0\ufe0f",
         "title": "Multiple Caution Signals",
@@ -848,6 +823,18 @@
         "threshold": 2,
         "implication": "Auction absorbed but with strain.",
         "market_impact": "Watch follow-through in secondary market"
+      },
+      {
+        "level": "warning",
+        "type": "WEAK_FOREIGN_DEMAND",
+        "icon": "\ud83d\udfe0",
+        "title": "Below-Average Foreign Demand",
+        "message": "Indirect bidders at 51.6% for 29-Year 10-Month Bond",
+        "metric": "indirect_pct",
+        "value": 51.6427055896097,
+        "threshold": 58,
+        "implication": "Foreign demand softening.",
+        "market_impact": "Monitor USD and yield curve"
       },
       {
         "level": "warning",
@@ -971,18 +958,6 @@
       },
       {
         "level": "warning",
-        "type": "WEAK_FOREIGN_DEMAND",
-        "icon": "\ud83d\udfe0",
-        "title": "Below-Average Foreign Demand",
-        "message": "Indirect bidders at 53.2% for 7-Year Note",
-        "metric": "indirect_pct",
-        "value": 53.24589355785909,
-        "threshold": 58,
-        "implication": "Foreign demand softening.",
-        "market_impact": "Monitor USD and yield curve"
-      },
-      {
-        "level": "warning",
         "type": "DETERIORATING_FOREIGN_TREND",
         "icon": "\ud83d\udcc9",
         "title": "Note Foreign Demand Weakening",
@@ -1007,6 +982,18 @@
       }
     ],
     "caution_alerts": [
+      {
+        "level": "caution",
+        "type": "ELEVATED_DEALER",
+        "icon": "\ud83d\udfe1",
+        "title": "Slightly Elevated Dealer %",
+        "message": "Dealer takedown at 35.2% for 8-Week Bill",
+        "metric": "dealer_pct",
+        "value": 35.17322703430598,
+        "threshold": 35,
+        "implication": "Minor absorption pressure.",
+        "market_impact": "Neutral, monitor trend"
+      },
       {
         "level": "caution",
         "type": "SOFT_FOREIGN_DEMAND",
@@ -1138,21 +1125,83 @@
         "threshold": 55,
         "implication": "Slightly below normal foreign interest.",
         "market_impact": "Neutral"
-      },
-      {
-        "level": "caution",
-        "type": "SOFT_FOREIGN_DEMAND",
-        "icon": "\ud83d\udfe1",
-        "title": "Soft Foreign Participation",
-        "message": "Indirect bidders at 51.2% for 13-Week Bill",
-        "metric": "indirect_pct",
-        "value": 51.24292823715927,
-        "threshold": 55,
-        "implication": "Slightly below normal foreign interest.",
-        "market_impact": "Neutral"
       }
     ],
     "alerts_by_type": {
+      "ELEVATED_DEALER": [
+        {
+          "level": "caution",
+          "type": "ELEVATED_DEALER",
+          "icon": "\ud83d\udfe1",
+          "title": "Slightly Elevated Dealer %",
+          "message": "Dealer takedown at 35.2% for 8-Week Bill",
+          "metric": "dealer_pct",
+          "value": 35.17322703430598,
+          "threshold": 35,
+          "implication": "Minor absorption pressure.",
+          "market_impact": "Neutral, monitor trend"
+        },
+        {
+          "level": "caution",
+          "type": "ELEVATED_DEALER",
+          "icon": "\ud83d\udfe1",
+          "title": "Slightly Elevated Dealer %",
+          "message": "Dealer takedown at 37.0% for 6-Week Bill",
+          "metric": "dealer_pct",
+          "value": 37.00522943444427,
+          "threshold": 35,
+          "implication": "Minor absorption pressure.",
+          "market_impact": "Neutral, monitor trend"
+        },
+        {
+          "level": "caution",
+          "type": "ELEVATED_DEALER",
+          "icon": "\ud83d\udfe1",
+          "title": "Slightly Elevated Dealer %",
+          "message": "Dealer takedown at 38.9% for 13-Week Bill",
+          "metric": "dealer_pct",
+          "value": 38.89463716537379,
+          "threshold": 35,
+          "implication": "Minor absorption pressure.",
+          "market_impact": "Neutral, monitor trend"
+        },
+        {
+          "level": "caution",
+          "type": "ELEVATED_DEALER",
+          "icon": "\ud83d\udfe1",
+          "title": "Slightly Elevated Dealer %",
+          "message": "Dealer takedown at 36.3% for 8-Week Bill",
+          "metric": "dealer_pct",
+          "value": 36.34243504328917,
+          "threshold": 35,
+          "implication": "Minor absorption pressure.",
+          "market_impact": "Neutral, monitor trend"
+        },
+        {
+          "level": "caution",
+          "type": "ELEVATED_DEALER",
+          "icon": "\ud83d\udfe1",
+          "title": "Slightly Elevated Dealer %",
+          "message": "Dealer takedown at 38.5% for 17-Week Bill",
+          "metric": "dealer_pct",
+          "value": 38.54275243572379,
+          "threshold": 35,
+          "implication": "Minor absorption pressure.",
+          "market_impact": "Neutral, monitor trend"
+        },
+        {
+          "level": "caution",
+          "type": "ELEVATED_DEALER",
+          "icon": "\ud83d\udfe1",
+          "title": "Slightly Elevated Dealer %",
+          "message": "Dealer takedown at 35.8% for 13-Week Bill",
+          "metric": "dealer_pct",
+          "value": 35.80181200752063,
+          "threshold": 35,
+          "implication": "Minor absorption pressure.",
+          "market_impact": "Neutral, monitor trend"
+        }
+      ],
       "HIGH_DEALER_TAKEDOWN": [
         {
           "level": "warning",
@@ -1260,18 +1309,6 @@
           "message": "Indirect bidders at 52.1% for 6-Week Bill",
           "metric": "indirect_pct",
           "value": 52.08355415499126,
-          "threshold": 55,
-          "implication": "Slightly below normal foreign interest.",
-          "market_impact": "Neutral"
-        },
-        {
-          "level": "caution",
-          "type": "SOFT_FOREIGN_DEMAND",
-          "icon": "\ud83d\udfe1",
-          "title": "Soft Foreign Participation",
-          "message": "Indirect bidders at 51.2% for 13-Week Bill",
-          "metric": "indirect_pct",
-          "value": 51.24292823715927,
           "threshold": 55,
           "implication": "Slightly below normal foreign interest.",
           "market_impact": "Neutral"
@@ -1447,80 +1484,6 @@
           "threshold": 40,
           "implication": "Foreign central banks and sovereign funds avoiding this maturity.",
           "market_impact": "USD weakness risk, yield pressure"
-        },
-        {
-          "level": "warning",
-          "type": "WEAK_FOREIGN_DEMAND",
-          "icon": "\ud83d\udfe0",
-          "title": "Below-Average Foreign Demand",
-          "message": "Indirect bidders at 53.2% for 7-Year Note",
-          "metric": "indirect_pct",
-          "value": 53.24589355785909,
-          "threshold": 58,
-          "implication": "Foreign demand softening.",
-          "market_impact": "Monitor USD and yield curve"
-        }
-      ],
-      "ELEVATED_DEALER": [
-        {
-          "level": "caution",
-          "type": "ELEVATED_DEALER",
-          "icon": "\ud83d\udfe1",
-          "title": "Slightly Elevated Dealer %",
-          "message": "Dealer takedown at 37.0% for 6-Week Bill",
-          "metric": "dealer_pct",
-          "value": 37.00522943444427,
-          "threshold": 35,
-          "implication": "Minor absorption pressure.",
-          "market_impact": "Neutral, monitor trend"
-        },
-        {
-          "level": "caution",
-          "type": "ELEVATED_DEALER",
-          "icon": "\ud83d\udfe1",
-          "title": "Slightly Elevated Dealer %",
-          "message": "Dealer takedown at 38.9% for 13-Week Bill",
-          "metric": "dealer_pct",
-          "value": 38.89463716537379,
-          "threshold": 35,
-          "implication": "Minor absorption pressure.",
-          "market_impact": "Neutral, monitor trend"
-        },
-        {
-          "level": "caution",
-          "type": "ELEVATED_DEALER",
-          "icon": "\ud83d\udfe1",
-          "title": "Slightly Elevated Dealer %",
-          "message": "Dealer takedown at 36.3% for 8-Week Bill",
-          "metric": "dealer_pct",
-          "value": 36.34243504328917,
-          "threshold": 35,
-          "implication": "Minor absorption pressure.",
-          "market_impact": "Neutral, monitor trend"
-        },
-        {
-          "level": "caution",
-          "type": "ELEVATED_DEALER",
-          "icon": "\ud83d\udfe1",
-          "title": "Slightly Elevated Dealer %",
-          "message": "Dealer takedown at 38.5% for 17-Week Bill",
-          "metric": "dealer_pct",
-          "value": 38.54275243572379,
-          "threshold": 35,
-          "implication": "Minor absorption pressure.",
-          "market_impact": "Neutral, monitor trend"
-        },
-        {
-          "level": "caution",
-          "type": "ELEVATED_DEALER",
-          "icon": "\ud83d\udfe1",
-          "title": "Slightly Elevated Dealer %",
-          "message": "Dealer takedown at 35.8% for 13-Week Bill",
-          "metric": "dealer_pct",
-          "value": 35.80181200752063,
-          "threshold": 35,
-          "implication": "Minor absorption pressure.",
-          "market_impact": "Neutral, monitor trend"
         }
       ],
       "DETERIORATING_FOREIGN_TREND": [
@@ -1553,6 +1516,18 @@
       ]
     },
     "all_alerts": [
+      {
+        "level": "caution",
+        "type": "ELEVATED_DEALER",
+        "icon": "\ud83d\udfe1",
+        "title": "Slightly Elevated Dealer %",
+        "message": "Dealer takedown at 35.2% for 8-Week Bill",
+        "metric": "dealer_pct",
+        "value": 35.17322703430598,
+        "threshold": 35,
+        "implication": "Minor absorption pressure.",
+        "market_impact": "Neutral, monitor trend"
+      },
       {
         "level": "warning",
         "type": "HIGH_DEALER_TAKEDOWN",
@@ -1590,18 +1565,6 @@
         "market_impact": "Watch follow-through in secondary market"
       },
       {
-        "level": "warning",
-        "type": "WEAK_FOREIGN_DEMAND",
-        "icon": "\ud83d\udfe0",
-        "title": "Below-Average Foreign Demand",
-        "message": "Indirect bidders at 51.6% for 29-Year 10-Month Bond",
-        "metric": "indirect_pct",
-        "value": 51.6427055896097,
-        "threshold": 58,
-        "implication": "Foreign demand softening.",
-        "market_impact": "Monitor USD and yield curve"
-      },
-      {
         "level": "caution",
         "type": "ELEVATED_DEALER",
         "icon": "\ud83d\udfe1",
@@ -1636,6 +1599,18 @@
         "threshold": 2,
         "implication": "Auction absorbed but with strain.",
         "market_impact": "Watch follow-through in secondary market"
+      },
+      {
+        "level": "warning",
+        "type": "WEAK_FOREIGN_DEMAND",
+        "icon": "\ud83d\udfe0",
+        "title": "Below-Average Foreign Demand",
+        "message": "Indirect bidders at 51.6% for 29-Year 10-Month Bond",
+        "metric": "indirect_pct",
+        "value": 51.6427055896097,
+        "threshold": 58,
+        "implication": "Foreign demand softening.",
+        "market_impact": "Monitor USD and yield curve"
       },
       {
         "level": "critical",
@@ -1866,18 +1841,6 @@
         "market_impact": "Neutral"
       },
       {
-        "level": "caution",
-        "type": "SOFT_FOREIGN_DEMAND",
-        "icon": "\ud83d\udfe1",
-        "title": "Soft Foreign Participation",
-        "message": "Indirect bidders at 51.2% for 13-Week Bill",
-        "metric": "indirect_pct",
-        "value": 51.24292823715927,
-        "threshold": 55,
-        "implication": "Slightly below normal foreign interest.",
-        "market_impact": "Neutral"
-      },
-      {
         "level": "critical",
         "type": "HIGH_DEALER_TAKEDOWN",
         "icon": "\ud83d\udd34",
@@ -1900,18 +1863,6 @@
         "threshold": 40,
         "implication": "Foreign central banks and sovereign funds avoiding this maturity.",
         "market_impact": "USD weakness risk, yield pressure"
-      },
-      {
-        "level": "warning",
-        "type": "WEAK_FOREIGN_DEMAND",
-        "icon": "\ud83d\udfe0",
-        "title": "Below-Average Foreign Demand",
-        "message": "Indirect bidders at 53.2% for 7-Year Note",
-        "metric": "indirect_pct",
-        "value": 53.24589355785909,
-        "threshold": 58,
-        "implication": "Foreign demand softening.",
-        "market_impact": "Monitor USD and yield curve"
       },
       {
         "level": "warning",
@@ -1940,6 +1891,51 @@
     ]
   },
   "raw_auctions": [
+    {
+      "date": "2026-01-15",
+      "security": "4-Week Bill",
+      "security_type": "Bill",
+      "cusip": "912797SR9",
+      "bid_to_cover": 2.92,
+      "indirect_pct": 62.6,
+      "direct_pct": 3.7,
+      "dealer_pct": 24.8,
+      "amount_billions": 95.0,
+      "status": "STRONG",
+      "status_key": "strong",
+      "status_color": "#22c55e",
+      "alerts": [],
+      "alert_count": 0
+    },
+    {
+      "date": "2026-01-15",
+      "security": "8-Week Bill",
+      "security_type": "Bill",
+      "cusip": "912797SZ1",
+      "bid_to_cover": 2.71,
+      "indirect_pct": 58.8,
+      "direct_pct": 4.3,
+      "dealer_pct": 35.2,
+      "amount_billions": 90.0,
+      "status": "CAUTION",
+      "status_key": "caution",
+      "status_color": "#eab308",
+      "alerts": [
+        {
+          "level": "caution",
+          "type": "ELEVATED_DEALER",
+          "icon": "\ud83d\udfe1",
+          "title": "Slightly Elevated Dealer %",
+          "message": "Dealer takedown at 35.2% for 8-Week Bill",
+          "metric": "dealer_pct",
+          "value": 35.17322703430598,
+          "threshold": 35,
+          "implication": "Minor absorption pressure.",
+          "market_impact": "Neutral, monitor trend"
+        }
+      ],
+      "alert_count": 1
+    },
     {
       "date": "2026-01-14",
       "security": "17-Week Bill",
@@ -1995,35 +1991,6 @@
     },
     {
       "date": "2026-01-13",
-      "security": "29-Year 10-Month Bond",
-      "security_type": "Bond",
-      "cusip": "912810UP1",
-      "bid_to_cover": 2.42,
-      "indirect_pct": 51.6,
-      "direct_pct": 16.5,
-      "dealer_pct": 9.2,
-      "amount_billions": 22.0,
-      "status": "WARNING",
-      "status_key": "warning",
-      "status_color": "#f97316",
-      "alerts": [
-        {
-          "level": "warning",
-          "type": "WEAK_FOREIGN_DEMAND",
-          "icon": "\ud83d\udfe0",
-          "title": "Below-Average Foreign Demand",
-          "message": "Indirect bidders at 51.6% for 29-Year 10-Month Bond",
-          "metric": "indirect_pct",
-          "value": 51.6427055896097,
-          "threshold": 58,
-          "implication": "Foreign demand softening.",
-          "market_impact": "Monitor USD and yield curve"
-        }
-      ],
-      "alert_count": 1
-    },
-    {
-      "date": "2026-01-13",
       "security": "6-Week Bill",
       "security_type": "Bill",
       "cusip": "912797RU3",
@@ -2074,6 +2041,35 @@
         }
       ],
       "alert_count": 3
+    },
+    {
+      "date": "2026-01-13",
+      "security": "29-Year 10-Month Bond",
+      "security_type": "Bond",
+      "cusip": "912810UP1",
+      "bid_to_cover": 2.42,
+      "indirect_pct": 51.6,
+      "direct_pct": 16.5,
+      "dealer_pct": 9.2,
+      "amount_billions": 22.0,
+      "status": "WARNING",
+      "status_key": "warning",
+      "status_color": "#f97316",
+      "alerts": [
+        {
+          "level": "warning",
+          "type": "WEAK_FOREIGN_DEMAND",
+          "icon": "\ud83d\udfe0",
+          "title": "Below-Average Foreign Demand",
+          "message": "Indirect bidders at 51.6% for 29-Year 10-Month Bond",
+          "metric": "indirect_pct",
+          "value": 51.6427055896097,
+          "threshold": 58,
+          "implication": "Foreign demand softening.",
+          "market_impact": "Monitor USD and yield curve"
+        }
+      ],
+      "alert_count": 1
     },
     {
       "date": "2026-01-12",
@@ -2135,22 +2131,6 @@
     },
     {
       "date": "2026-01-12",
-      "security": "26-Week Bill",
-      "security_type": "Bill",
-      "cusip": "912797TN7",
-      "bid_to_cover": 3.17,
-      "indirect_pct": 65.2,
-      "direct_pct": 9.3,
-      "dealer_pct": 19.8,
-      "amount_billions": 77.0,
-      "status": "STRONG",
-      "status_key": "strong",
-      "status_color": "#22c55e",
-      "alerts": [],
-      "alert_count": 0
-    },
-    {
-      "date": "2026-01-12",
       "security": "13-Week Bill",
       "security_type": "Bill",
       "cusip": "912797QD2",
@@ -2201,6 +2181,22 @@
         }
       ],
       "alert_count": 3
+    },
+    {
+      "date": "2026-01-12",
+      "security": "26-Week Bill",
+      "security_type": "Bill",
+      "cusip": "912797TN7",
+      "bid_to_cover": 3.17,
+      "indirect_pct": 65.2,
+      "direct_pct": 9.3,
+      "dealer_pct": 19.8,
+      "amount_billions": 77.0,
+      "status": "STRONG",
+      "status_key": "strong",
+      "status_color": "#22c55e",
+      "alerts": [],
+      "alert_count": 0
     },
     {
       "date": "2026-01-08",
@@ -2538,35 +2534,6 @@
     },
     {
       "date": "2025-12-29",
-      "security": "13-Week Bill",
-      "security_type": "Bill",
-      "cusip": "912797SD0",
-      "bid_to_cover": 2.66,
-      "indirect_pct": 51.2,
-      "direct_pct": 5.9,
-      "dealer_pct": 33.2,
-      "amount_billions": 86.0,
-      "status": "CAUTION",
-      "status_key": "caution",
-      "status_color": "#eab308",
-      "alerts": [
-        {
-          "level": "caution",
-          "type": "SOFT_FOREIGN_DEMAND",
-          "icon": "\ud83d\udfe1",
-          "title": "Soft Foreign Participation",
-          "message": "Indirect bidders at 51.2% for 13-Week Bill",
-          "metric": "indirect_pct",
-          "value": 51.24292823715927,
-          "threshold": 55,
-          "implication": "Slightly below normal foreign interest.",
-          "market_impact": "Neutral"
-        }
-      ],
-      "alert_count": 1
-    },
-    {
-      "date": "2025-12-29",
       "security": "26-Week Bill",
       "security_type": "Bill",
       "cusip": "912797TF4",
@@ -2605,36 +2572,7 @@
         }
       ],
       "alert_count": 2
-    },
-    {
-      "date": "2025-12-24",
-      "security": "7-Year Note",
-      "security_type": "Note",
-      "cusip": "91282CPQ8",
-      "bid_to_cover": 2.51,
-      "indirect_pct": 53.2,
-      "direct_pct": 28.5,
-      "dealer_pct": 8.4,
-      "amount_billions": 44.0,
-      "status": "WARNING",
-      "status_key": "warning",
-      "status_color": "#f97316",
-      "alerts": [
-        {
-          "level": "warning",
-          "type": "WEAK_FOREIGN_DEMAND",
-          "icon": "\ud83d\udfe0",
-          "title": "Below-Average Foreign Demand",
-          "message": "Indirect bidders at 53.2% for 7-Year Note",
-          "metric": "indirect_pct",
-          "value": 53.24589355785909,
-          "threshold": 58,
-          "implication": "Foreign demand softening.",
-          "market_impact": "Monitor USD and yield curve"
-        }
-      ],
-      "alert_count": 1
     }
   ],
-  "last_updated": "2026-01-15T15:55:58.418704"
+  "last_updated": "2026-01-15T23:45:06.475460"
 }
