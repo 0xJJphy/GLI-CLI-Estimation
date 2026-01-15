@@ -245,6 +245,27 @@ export async function loadStablecoinsTabData(legacyData) {
             flattened.stable_index_dom_roc_7d = stablecoins.stable_index_rocs["7d"];
             flattened.stable_index_dom_roc_30d = stablecoins.stable_index_rocs["30d"];
             flattened.stable_index_dom_roc_90d = stablecoins.stable_index_rocs["90d"];
+            flattened.stable_index_dom_roc_180d = stablecoins.stable_index_rocs["180d"];
+            flattened.stable_index_dom_roc_yoy = stablecoins.stable_index_rocs["yoy"];
+        }
+        if (stablecoins.stable_index_rocs_z) {
+            flattened.stable_index_dom_roc_7d_z = stablecoins.stable_index_rocs_z["7d"];
+            flattened.stable_index_dom_roc_30d_z = stablecoins.stable_index_rocs_z["30d"];
+            flattened.stable_index_dom_roc_90d_z = stablecoins.stable_index_rocs_z["90d"];
+        }
+
+        // 5. Flatten Custom Stables Dom ROCs
+        if (stablecoins.custom_stables_dom_rocs) {
+            flattened.custom_stables_dom_roc_7d = stablecoins.custom_stables_dom_rocs["7d"];
+            flattened.custom_stables_dom_roc_30d = stablecoins.custom_stables_dom_rocs["30d"];
+            flattened.custom_stables_dom_roc_90d = stablecoins.custom_stables_dom_rocs["90d"];
+            flattened.custom_stables_dom_roc_180d = stablecoins.custom_stables_dom_rocs["180d"];
+            flattened.custom_stables_dom_roc_yoy = stablecoins.custom_stables_dom_rocs["yoy"];
+        }
+        if (stablecoins.custom_stables_dom_rocs_z) {
+            flattened.custom_stables_dom_roc_7d_z = stablecoins.custom_stables_dom_rocs_z["7d"];
+            flattened.custom_stables_dom_roc_30d_z = stablecoins.custom_stables_dom_rocs_z["30d"];
+            flattened.custom_stables_dom_roc_90d_z = stablecoins.custom_stables_dom_rocs_z["90d"];
         }
 
         return {

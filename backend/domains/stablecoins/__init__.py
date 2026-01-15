@@ -137,8 +137,26 @@ class StablecoinsDomain(BaseDomain):
                 dom_total = (mcap_series / total_crypto.replace(0, np.nan)) * 100
                 result['dominance_total'][name] = clean_for_json(dom_total)
             
-            result['crypto_dominance'] = clean_for_json((total_supply / total_crypto.replace(0, np.nan)) * 100)
+            # Custom Total Stables / Total Crypto Dominance
+            custom_dom = (total_supply / total_crypto.replace(0, np.nan)) * 100
+            result['crypto_dominance'] = clean_for_json(custom_dom)
             result['total_crypto_mcap'] = clean_for_json(total_crypto)
+            
+            # Custom Dominance ROCs
+            result['custom_stables_dom'] = clean_for_json(custom_dom)
+            result['custom_stables_dom_rocs'] = {
+                '7d': clean_for_json(self._calc_roc(custom_dom, 7)),
+                '30d': clean_for_json(self._calc_roc(custom_dom, 30)),
+                '90d': clean_for_json(self._calc_roc(custom_dom, 90)),
+                '180d': clean_for_json(self._calc_roc(custom_dom, 180)),
+                'yoy': clean_for_json(self._calc_roc(custom_dom, 365)),
+            }
+            # Z-scores for Custom Dom ROCs
+            result['custom_stables_dom_rocs_z'] = {
+                '7d': clean_for_json(calculate_zscore(self._calc_roc(custom_dom, 7), 252)),
+                '30d': clean_for_json(calculate_zscore(self._calc_roc(custom_dom, 30), 252)),
+                '90d': clean_for_json(calculate_zscore(self._calc_roc(custom_dom, 90), 252)),
+            }
         
         # SFAI (Stablecoin Flow Attribution Index)
         # SFAI uses total stablecoin ROC vs BTC performance
@@ -150,16 +168,21 @@ class StablecoinsDomain(BaseDomain):
             # 1: Inflow (Stables up, BTC neutral/up)
             # 2: Profit Taking (Stables up, BTC down)
             # 3: Buying Pressure (Stables down, BTC up)
-            # 4: Capitulation (Stables down, BTC down)
+            # 4: Capitulation (Stables down, BTC down/neutral)
             
             sfai_index = (stables_roc * 100).rolling(7).mean()
             sfai_velocity = sfai_index.diff(7)
             
             regime = pd.Series(0, index=df.index)
+            # Cover all cases including 0 returns to avoid gaps
             regime.loc[(stables_roc > 0) & (btc_ret >= 0)] = 1
             regime.loc[(stables_roc > 0) & (btc_ret < 0)] = 2
             regime.loc[(stables_roc <= 0) & (btc_ret > 0)] = 3
-            regime.loc[(stables_roc <= 0) & (btc_ret < 0)] = 4
+            # Include 0 return in capitulation if stables are leaving/neutral
+            regime.loc[(stables_roc <= 0) & (btc_ret <= 0)] = 4
+            
+            # Forward fill any remaining zeros (e.g. from NaNs at start) to ensure continuity where possible
+            regime = regime.replace(0, np.nan).ffill().fillna(0).astype(int)
             
             result['sfai_regime'] = clean_for_json(regime)
             result['sfai_continuous'] = clean_for_json(sfai_index)
@@ -169,7 +192,27 @@ class StablecoinsDomain(BaseDomain):
         if 'STABLE_INDEX_MCAP' in df.columns:
             # This is often used for the Dominance chart
             stable_idx = df['STABLE_INDEX_MCAP'].ffill() / 1e9
-            result['stable_index_dom'] = clean_for_json(df.get('STABLE_INDEX_DOM', pd.Series(0, index=df.index)))
-            result['custom_stables_dom'] = clean_for_json((total_supply / total_crypto.replace(0, np.nan)) * 100 if 'TOTAL_MCAP' in df.columns else pd.Series(0, index=df.index))
+            # STABLE.C.D is often a dominance metric itself (percentage)
+            # If the source is market cap, we might convert, but usually STABLE.C.D is already a %.
+            # Assuming STABLE_INDEX_MCAP in the pipeline is actually the dominance index specific ticker.
+            # But earlier code treated it as Mcap. Let's assume it can be used for ROCs.
+            # If we have STABLE_INDEX_DOM in pipeline (which we seem to get from `df.get('STABLE_INDEX_DOM'...`), use that.
+            
+            stable_dom_idx = df.get('STABLE_INDEX_DOM', pd.Series(0, index=df.index))
+            result['stable_index_dom'] = clean_for_json(stable_dom_idx)
+            
+            result['stable_index_rocs'] = {
+                '7d': clean_for_json(self._calc_roc(stable_dom_idx, 7)),
+                '30d': clean_for_json(self._calc_roc(stable_dom_idx, 30)),
+                '90d': clean_for_json(self._calc_roc(stable_dom_idx, 90)),
+                '180d': clean_for_json(self._calc_roc(stable_dom_idx, 180)),
+                'yoy': clean_for_json(self._calc_roc(stable_dom_idx, 365)),
+            }
+            
+            result['stable_index_rocs_z'] = {
+                '7d': clean_for_json(calculate_zscore(self._calc_roc(stable_dom_idx, 7), 252)),
+                '30d': clean_for_json(calculate_zscore(self._calc_roc(stable_dom_idx, 30), 252)),
+                '90d': clean_for_json(calculate_zscore(self._calc_roc(stable_dom_idx, 90), 252)),
+            }
         
         return result
