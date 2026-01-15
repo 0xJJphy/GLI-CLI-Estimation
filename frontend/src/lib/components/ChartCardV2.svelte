@@ -103,9 +103,8 @@
             <slot name="controls">
                 {#if showRangeSelector}
                     <TimeRangeSelector
-                        {range}
-                        onChange={handleRangeChange}
-                        {darkMode}
+                        selectedRange={range}
+                        onRangeChange={handleRangeChange}
                     />
                 {/if}
             </slot>
