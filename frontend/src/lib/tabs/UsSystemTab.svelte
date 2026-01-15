@@ -55,14 +55,24 @@
             modularUsData?.us_net_liq?.rrp || dashboardData.us_net_liq_rrp,
         us_net_liq_tga:
             modularUsData?.us_net_liq?.tga || dashboardData.us_net_liq_tga,
+        fed_assets:
+            modularUsData?.us_net_liq?.fed || dashboardData.gli?.fed || [],
         dates: modularUsData?.dates || dashboardData.dates || [],
-        gli: dashboardData.gli || {},
+        gli: dashboardData.gli || {}, // Keep as fallback/context
         us_system_rocs: dashboardData.us_system_rocs || {},
         us_system_metrics: dashboardData.us_system_metrics || {},
         repo_operations: dashboardData.repo_operations || {},
         repo_stress: dashboardData.repo_stress || {},
         last_dates: dashboardData.last_dates || {},
     };
+
+    // Calculate Fed Start Index to skip leading zeros/nulls (fixes 1970 issue)
+    $: fedStartIndex = (() => {
+        const fed = effectiveData.fed_assets;
+        if (!fed || fed.length === 0) return 0;
+        const index = fed.findIndex((v) => v !== null && v !== 0);
+        return index === -1 ? 0 : index;
+    })();
 
     // --- Internal Helper Functions ---
     function getLastDate(seriesKey) {
@@ -207,15 +217,15 @@
     $: fedData = filterPlotlyData(
         [
             {
-                x: effectiveData.dates,
-                y: effectiveData.gli?.fed,
+                x: effectiveData.dates.slice(fedStartIndex),
+                y: effectiveData.fed_assets.slice(fedStartIndex),
                 name: "Fed Assets",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#3b82f6", width: 3, shape: "spline" },
             },
         ],
-        effectiveData.dates,
+        effectiveData.dates.slice(fedStartIndex),
         fedRange,
     );
 
@@ -296,7 +306,7 @@
 
     // Current values in Trillions for chart labels
     $: latestNetLiq = getLatestValue(effectiveData.us_net_liq);
-    $: latestFedAssets = getLatestValue(effectiveData.gli?.fed);
+    $: latestFedAssets = getLatestValue(effectiveData.fed_assets);
     $: latestRRP = getLatestValue(effectiveData.us_net_liq_rrp);
     $: latestTGA = getLatestValue(effectiveData.us_net_liq_tga);
     $: latestReserves = getLatestValue(effectiveData.us_net_liq_reserves);

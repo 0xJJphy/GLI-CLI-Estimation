@@ -49,29 +49,96 @@
 
     // Data variable - prefer modular, fallback to legacy
     $: data = {
-        cai: cryptoData.cai || legacyData.cai || [],
-        regimes: cryptoData.regimes || legacyData.regimes || [],
-        narratives: cryptoData.narratives || legacyData.narratives || {},
-        fear_greed: cryptoData.fear_greed || legacyData.fear_greed || [],
-        btc_dom: cryptoData.btc_dominance || legacyData.btc_dom || [],
-        eth_dom: cryptoData.eth_dominance || legacyData.eth_dom || [],
-        others_dom: cryptoData.others_dominance || legacyData.others_dom || [],
+        cai:
+            modularCryptoData?.crypto_analytics?.cai ||
+            cryptoData.cai ||
+            legacyData.cai ||
+            [],
+        regimes:
+            modularCryptoData?.crypto_analytics?.regimes ||
+            cryptoData.regimes ||
+            legacyData.regimes ||
+            [],
+        narratives:
+            modularCryptoData?.crypto_analytics?.narratives ||
+            cryptoData.narratives ||
+            legacyData.narratives ||
+            {},
+        fear_greed:
+            modularCryptoData?.crypto_analytics?.fear_greed ||
+            cryptoData.fear_greed ||
+            legacyData.fear_greed ||
+            [],
+        btc_dom:
+            modularCryptoData?.crypto_analytics?.btc_dominance ||
+            cryptoData.btc_dominance ||
+            legacyData.btc_dom ||
+            [],
+        eth_dom:
+            modularCryptoData?.crypto_analytics?.eth_dominance ||
+            cryptoData.eth_dominance ||
+            legacyData.eth_dom ||
+            [],
+        others_dom:
+            modularCryptoData?.crypto_analytics?.others_dominance ||
+            cryptoData.others_dominance ||
+            legacyData.others_dom ||
+            [],
         stablecoin_dominance:
+            modularCryptoData?.crypto_analytics?.stablecoin_dominance ||
             cryptoData.stablecoin_dominance ||
             legacyData.stablecoin_dominance ||
             [],
-        total_mcap: cryptoData.total_mcap || legacyData.total_mcap || [],
-        btc_mcap: cryptoData.btc_mcap || legacyData.btc_mcap || [],
-        eth_mcap: cryptoData.eth_mcap || legacyData.eth_mcap || [],
-        rs_risk_btc: cryptoData.rs_risk_btc || legacyData.rs_risk_btc || [],
+        total_mcap:
+            modularCryptoData?.crypto_analytics?.total_mcap ||
+            cryptoData.total_mcap ||
+            legacyData.total_mcap ||
+            [],
+        btc_mcap:
+            modularCryptoData?.crypto_analytics?.btc_mcap ||
+            cryptoData.btc_mcap ||
+            legacyData.btc_mcap ||
+            [],
+        eth_mcap:
+            modularCryptoData?.crypto_analytics?.eth_mcap ||
+            cryptoData.eth_mcap ||
+            legacyData.eth_mcap ||
+            [],
+        rs_risk_btc:
+            modularCryptoData?.crypto_analytics?.rs_risk_btc ||
+            cryptoData.rs_risk_btc ||
+            legacyData.rs_risk_btc ||
+            [],
         delta_rs_risk:
-            cryptoData.delta_rs_risk || legacyData.delta_rs_risk || [],
-        // ROC metrics from legacy
-        fng_current: legacyData.fng_current || {},
-        fng_roc_7d: cryptoData.fng_roc_7d || legacyData.fng_roc_7d || [],
-        fng_roc_30d: cryptoData.fng_roc_30d || legacyData.fng_roc_30d || [],
-        cai_roc_7d: cryptoData.cai_roc_7d || legacyData.cai_roc_7d || [],
-        cai_roc_30d: cryptoData.cai_roc_30d || legacyData.cai_roc_30d || [],
+            modularCryptoData?.crypto_analytics?.delta_rs_risk ||
+            cryptoData.delta_rs_risk ||
+            legacyData.delta_rs_risk ||
+            [],
+        // ROC metrics from modular prefered
+        fng_current:
+            modularCryptoData?.crypto_analytics?.fng_current ||
+            legacyData.fng_current ||
+            {},
+        fng_roc_7d:
+            modularCryptoData?.crypto_analytics?.fng_roc_7d ||
+            cryptoData.fng_roc_7d ||
+            legacyData.fng_roc_7d ||
+            [],
+        fng_roc_30d:
+            modularCryptoData?.crypto_analytics?.fng_roc_30d ||
+            cryptoData.fng_roc_30d ||
+            legacyData.fng_roc_30d ||
+            [],
+        cai_roc_7d:
+            modularCryptoData?.crypto_analytics?.cai_roc_7d ||
+            cryptoData.cai_roc_7d ||
+            legacyData.cai_roc_7d ||
+            [],
+        cai_roc_30d:
+            modularCryptoData?.crypto_analytics?.cai_roc_30d ||
+            cryptoData.cai_roc_30d ||
+            legacyData.cai_roc_30d ||
+            [],
     };
 
     $: dates = modularCryptoData?.dates || dashboardData.dates || [];
@@ -80,7 +147,7 @@
     $: cryptoStartIndex = (() => {
         if (!dates || dates.length === 0) return 0;
         const cai = data.cai || [];
-        const btc = dashboardData.btc?.price || [];
+        const btc = btcData?.price || [];
         // First non-null in BTC or Altseason Index
         for (let i = 0; i < dates.length; i++) {
             if (

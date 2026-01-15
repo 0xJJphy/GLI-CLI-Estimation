@@ -576,8 +576,12 @@
 <style>
     .offshore-tab {
         padding-bottom: 40px;
-        color: #f1f5f9;
+        color: var(--text-color, #f1f5f9);
         min-height: 100vh;
+    }
+
+    .offshore-tab:not(.dark) {
+        color: #1e293b;
     }
 
     .tab-header {
@@ -603,7 +607,7 @@
         font-size: 22px;
         font-weight: 700;
         margin: 0;
-        color: #f8fafc;
+        color: var(--text-color, #f8fafc);
     }
 
     .subtitle {
@@ -672,6 +676,13 @@
         transition: all 0.2s ease;
     }
 
+    .offshore-tab:not(.dark) .analysis-item {
+        background: rgba(255, 255, 255, 0.7);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        border-left-width: 4px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
     .analysis-item:hover {
         transform: translateY(-2px);
         background: rgba(15, 23, 42, 0.6);
@@ -732,9 +743,13 @@
     .item-title {
         font-size: 14px;
         font-weight: 700;
-        color: #f1f5f9;
+        color: var(--text-color, #f1f5f9);
         text-transform: uppercase;
         letter-spacing: 0.5px;
+    }
+
+    .offshore-tab:not(.dark) .item-title {
+        color: #0f172a;
     }
 
     .item-badge {
@@ -770,11 +785,15 @@
         margin: 0;
     }
 
+    .offshore-tab:not(.dark) .item-text {
+        color: #334155;
+    }
+
     .card-header h3 {
         font-size: 18px;
         font-weight: 600;
         margin: 0;
-        color: #f8fafc;
+        color: var(--text-color, #f8fafc);
     }
 
     .card-desc {
@@ -817,7 +836,7 @@
     .metric-value {
         font-size: 22px;
         font-weight: 700;
-        color: #f8fafc;
+        color: var(--text-color, #f8fafc);
         margin: 2px 0;
     }
 
@@ -843,6 +862,11 @@
         border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 16px;
         padding: 20px;
+    }
+
+    .offshore-tab:not(.dark) .methodology-section {
+        background: rgba(0, 0, 0, 0.02);
+        border-color: rgba(0, 0, 0, 0.05);
     }
 
     .methodology-toggle {
@@ -881,6 +905,10 @@
         margin: 0 0 20px 0;
     }
 
+    .offshore-tab:not(.dark) .methodology-content p {
+        color: #475569;
+    }
+
     .thresholds-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -909,6 +937,10 @@
         font-size: 12px;
         color: #cbd5e1;
         margin-bottom: 6px;
+    }
+
+    .offshore-tab:not(.dark) .threshold-item li {
+        color: #475569;
     }
 
     .dot {

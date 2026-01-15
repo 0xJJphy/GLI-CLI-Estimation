@@ -68,16 +68,16 @@
         macro_regime:
             modularRegimeData?.macro_regime || dashboardData.macro_regime || {},
         regime_v2a:
-            modularRegimeData?.macro_regime?.v2a ||
-            dashboardData.regime_v2a ||
-            {},
+            modularRegimeData?.regime_v2a || dashboardData.regime_v2a || {},
         regime_v2b:
-            modularRegimeData?.macro_regime?.v2b ||
-            dashboardData.regime_v2b ||
+            modularRegimeData?.regime_v2b || dashboardData.regime_v2b || {},
+        cli: modularRegimeData?.cli || dashboardData.cli || {},
+        cli_v2: modularRegimeData?.cli_v2 || dashboardData.cli_v2 || {},
+        stress_historical:
+            modularRegimeData?.stress_historical ||
+            dashboardData.stress_historical ||
             {},
-        cli: dashboardData.cli || {},
-        cli_v2: dashboardData.cli_v2 || {},
-        btc: dashboardData.btc || {},
+        btc: modularRegimeData?.btc || dashboardData.btc || {},
         dates: modularRegimeData?.dates || dashboardData.dates || [],
     };
 
@@ -422,8 +422,8 @@
     // ============================================================
     $: currentRegime =
         regimeVersion === "v2a"
-            ? dashboardData.regime_v2a
-            : dashboardData.regime_v2b;
+            ? effectiveData.regime_v2a
+            : effectiveData.regime_v2b;
 
     $: latestRegimeCode = (() => {
         if (!currentRegime?.regime_code) return 0;
@@ -521,8 +521,8 @@
     // BTC + Regime V2A with Score Subplot - reactive to darkMode and offset
     // BTC trace remains static; only the regime background extends into future via v2aOffsetDays
     $: btcRegimeV2aData = (() => {
-        const btcPrice = dashboardData.btc?.price;
-        const score = dashboardData.regime_v2a?.score;
+        const btcPrice = effectiveData.btc?.price;
+        const score = effectiveData.regime_v2a?.score;
         if (!btcPrice) return [];
         const dates = getFilteredDates(btcRegimeV2aRange);
         const btc = filterByRange(btcPrice, btcRegimeV2aRange);
@@ -599,7 +599,7 @@
         },
         shapes: [
             ...createRegimeShapes(
-                dashboardData.regime_v2a?.score,
+                effectiveData.regime_v2a?.score,
                 btcRegimeV2aRange,
                 darkMode,
                 v2aOffsetDays,
@@ -629,8 +629,8 @@
 
     // BTC + Regime V2B with Score Subplot
     $: btcRegimeV2bData = (() => {
-        const btcPrice = dashboardData.btc?.price;
-        const score = dashboardData.regime_v2b?.score;
+        const btcPrice = effectiveData.btc?.price;
+        const score = effectiveData.regime_v2b?.score;
         if (!btcPrice) return [];
         const dates = getFilteredDates(btcRegimeV2bRange);
         const btc = filterByRange(btcPrice, btcRegimeV2bRange);
@@ -701,7 +701,7 @@
         },
         shapes: [
             ...createRegimeShapes(
-                dashboardData.regime_v2b?.score,
+                effectiveData.regime_v2b?.score,
                 btcRegimeV2bRange,
                 darkMode,
                 v2bOffsetDays,
@@ -732,11 +732,11 @@
     $: cliComparisonData = (() => {
         const dates = getFilteredDates(cliComparisonRange);
         const cliV1 = filterByRange(
-            dashboardData.cli?.total,
+            effectiveData.cli?.total,
             cliComparisonRange,
         );
         const cliV2 = filterByRange(
-            dashboardData.cli_v2?.cli_v2,
+            effectiveData.cli_v2?.cli_v2,
             cliComparisonRange,
         );
         const traces = [];
@@ -869,7 +869,8 @@
 
     // Stress Percentiles - Normalizing the raw scores against their history
     $: stressPercentiles = (() => {
-        const stress = dashboardData.stress_historical;
+        const stress =
+            effectiveData.stress_historical || dashboardData.stress_historical;
         if (!stress)
             return { inflation: [], liquidity: [], credit: [], volatility: [] };
         // Using a 504-day window (approx 2 years) for normalization
@@ -983,7 +984,8 @@
 
     // Keep the "Total Stress" as a simple line chart for trend analysis
     $: stressTotalData = (() => {
-        const stress = dashboardData.stress_historical;
+        const stress =
+            effectiveData.stress_historical || dashboardData.stress_historical;
         if (!stress?.total_stress) return [];
         const dates = getFilteredDates(stressHistoricalRange);
         return [
@@ -1015,7 +1017,8 @@
     };
 
     $: latestStress = (() => {
-        const stress = dashboardData.stress_historical;
+        const stress =
+            effectiveData.stress_historical || dashboardData.stress_historical;
         if (!stress?.total_stress) return { score: 0 };
         const scores = stress.total_stress.filter((s) => s !== null);
         return { score: scores.length > 0 ? scores[scores.length - 1] : 0 };

@@ -198,17 +198,19 @@ export async function loadStablecoinsTabData(legacyData) {
 
     try {
         const [stablecoins, shared] = await Promise.all([
-            loadDomain('stablecoins'),
-            loadDomain('shared')
+            loadDomain("stablecoins"),
+            loadDomain("shared"),
         ]);
 
+        // Helper to ensure lowercase keys for certain frontend logic if needed,
+        // although StablecoinsTab.svelte seems to use them dynamically.
         return {
             ...stablecoins,
             btc: shared.btc,
-            dates: shared.dates // Include dates for SFAI chart
+            dates: shared.dates, // Include dates for SFAI chart
         };
-    } catch {
-        console.warn('Falling back to legacy data for stablecoins');
+    } catch (e) {
+        console.warn("Falling back to legacy data for stablecoins", e);
         return legacyData?.stablecoins || {};
     }
 }
@@ -359,31 +361,49 @@ export async function loadRegimesTabData(legacyData) {
     if (!USE_MODULAR_DOMAINS) {
         return {
             macro_regime: legacyData?.macro_regime || {},
+            regime_v2a: legacyData?.regime_v2a || {},
+            regime_v2b: legacyData?.regime_v2b || {},
+            cli_v2: legacyData?.cli_v2 || {},
+            stress_historical: legacyData?.stress_historical || {},
             signals: legacyData?.signals || {},
             dates: legacyData?.dates || []
         };
     }
 
     try {
-        const [macro_regime, shared] = await Promise.all([
+        const [macro_regime, shared, cli, crypto] = await Promise.all([
             loadDomain('macro_regime'),
-            loadDomain('shared')
+            loadDomain('shared'),
+            loadDomain('cli'),
+            loadDomain('crypto')
         ]);
 
         return {
             macro_regime,
+            // These might be nested in macro_regime or top-level in legacy
+            // We favor the modular structure but provide compatibility
+            regime_v2a: macro_regime.v2a || macro_regime,
+            regime_v2b: macro_regime.v2b || macro_regime,
+            cli_v2: cli.v2 || cli,
+            stress_historical: macro_regime.stress_historical || macro_regime.stress || {},
             signals: macro_regime.signals || {},
+            btc: shared.btc || {},
             dates: shared.dates
         };
-    } catch {
-        console.warn('Falling back to legacy data for Regimes');
+    } catch (error) {
+        console.warn('Falling back to legacy data for Regimes:', error);
         return {
             macro_regime: legacyData?.macro_regime || {},
+            regime_v2a: legacyData?.regime_v2a || {},
+            regime_v2b: legacyData?.regime_v2b || {},
+            cli_v2: legacyData?.cli_v2 || {},
+            stress_historical: legacyData?.stress_historical || {},
             signals: legacyData?.signals || {},
             dates: legacyData?.dates || []
         };
     }
 }
+
 
 /**
  * Load data for GlobalM2Tab

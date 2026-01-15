@@ -4,7 +4,14 @@
         createChart,
         LineSeries,
         HistogramSeries,
+        createTextWatermark,
+        createImageWatermark,
     } from "lightweight-charts";
+    import {
+        showWatermark,
+        watermarkType,
+    } from "../../stores/settingsStore.js";
+    import { get } from "svelte/store";
 
     let {
         btcData = [],
@@ -18,6 +25,59 @@
     let chart = null;
     let btcSeries = null;
     let indicatorSeries = null;
+    let watermark = null;
+
+    const api = {
+        chart: null,
+        watermark: null,
+    };
+
+    // Helper to create watermark with current theme and type
+    const createWatermarkWithTheme = (isDark) => {
+        if (!api.chart) return;
+        if (api.watermark) {
+            api.watermark.detach();
+            api.watermark = null;
+        }
+        if (get(showWatermark)) {
+            const wmType = get(watermarkType);
+            if (wmType === "image") {
+                const logoSrc = isDark ? "/logo-white.png" : "/logo.png";
+                api.watermark = createImageWatermark(
+                    api.chart.panes()[0],
+                    logoSrc,
+                    {
+                        alpha: isDark ? 0.15 : 0.12,
+                        padding: 20,
+                    },
+                );
+            } else {
+                api.watermark = createTextWatermark(api.chart.panes()[0], {
+                    horzAlign: "center",
+                    vertAlign: "center",
+                    lines: [
+                        {
+                            text: "0xJJphy",
+                            color: isDark
+                                ? "rgba(255, 255, 255, 0.18)"
+                                : "rgba(0, 0, 0, 0.10)",
+                            fontSize: 48,
+                            fontFamily: "JetBrains Mono",
+                        },
+                    ],
+                });
+            }
+        }
+    };
+
+    // Subscribe to watermark stores for reactivity
+    const unsubWatermark = showWatermark.subscribe(() => {
+        if (api.chart) createWatermarkWithTheme(darkMode);
+    });
+
+    const unsubWatermarkType = watermarkType.subscribe(() => {
+        if (api.chart) createWatermarkWithTheme(darkMode);
+    });
 
     // Regime colors
     const regimeColors = {
@@ -28,88 +88,6 @@
         4: "rgba(139, 92, 246, 0.25)",
     };
 
-    const regimeSolidColors = {
-        0: "#6b7280",
-        1: "#22c55e",
-        2: "#ef4444",
-        3: "#3b82f6",
-        4: "#8b5cf6",
-    };
-
-    // Custom primitive for background coloring
-    class BackgroundColorPrimitive {
-        constructor(regimeData, colors) {
-            this._regimeData = regimeData;
-            this._colors = colors;
-        }
-
-        updateData(regimeData) {
-            this._regimeData = regimeData;
-        }
-
-        paneViews() {
-            return [
-                new BackgroundColorPaneView(this._regimeData, this._colors),
-            ];
-        }
-    }
-
-    class BackgroundColorPaneView {
-        constructor(regimeData, colors) {
-            this._regimeData = regimeData;
-            this._colors = colors;
-        }
-
-        zOrder() {
-            return "bottom";
-        }
-
-        renderer() {
-            return new BackgroundColorRenderer(this._regimeData, this._colors);
-        }
-    }
-
-    class BackgroundColorRenderer {
-        constructor(regimeData, colors) {
-            this._regimeData = regimeData;
-            this._colors = colors;
-        }
-
-        draw(target, priceConverter) {
-            const ctx = target.context;
-            const width = target.mediaSize.width;
-            const height = target.mediaSize.height;
-
-            if (!this._regimeData || this._regimeData.length === 0) return;
-
-            // Group consecutive regimes
-            let currentRegime = this._regimeData[0]?.value;
-            let startX = 0;
-            const barWidth = width / this._regimeData.length;
-
-            for (let i = 0; i <= this._regimeData.length; i++) {
-                const regime = this._regimeData[i]?.value;
-                if (i === this._regimeData.length || regime !== currentRegime) {
-                    // Draw rectangle for the regime period
-                    if (currentRegime !== 0 && currentRegime !== undefined) {
-                        ctx.fillStyle =
-                            this._colors[currentRegime] || this._colors[0];
-                        ctx.fillRect(
-                            startX,
-                            0,
-                            (i - startX / barWidth) * barWidth,
-                            height,
-                        );
-                    }
-                    if (i < this._regimeData.length) {
-                        startX = i * barWidth;
-                        currentRegime = regime;
-                    }
-                }
-            }
-        }
-    }
-
     // Theme colors
     const getColors = (isDark) => ({
         background: isDark ? "#050505" : "#ffffff",
@@ -117,14 +95,12 @@
         grid: isDark ? "rgba(255, 255, 255, 0.03)" : "rgba(0, 0, 0, 0.03)",
     });
 
-    let backgroundPrimitive = null;
-
     onMount(() => {
         if (!container) return;
 
         const colors = getColors(darkMode);
 
-        chart = createChart(container, {
+        api.chart = createChart(container, {
             layout: {
                 background: { color: colors.background },
                 textColor: colors.text,
@@ -157,8 +133,11 @@
             handleScroll: { mouseWheel: true, horzTouchDrag: true },
         });
 
+        // Create watermark
+        createWatermarkWithTheme(darkMode);
+
         // BTC Series (main pane, right scale)
-        btcSeries = chart.addSeries(LineSeries, {
+        btcSeries = api.chart.addSeries(LineSeries, {
             color: "#f7931a",
             lineWidth: 2,
             priceScaleId: "right",
@@ -168,7 +147,7 @@
         });
 
         // Indicator Series (bottom, left scale)
-        indicatorSeries = chart.addSeries(HistogramSeries, {
+        indicatorSeries = api.chart.addSeries(HistogramSeries, {
             priceScaleId: "left",
             priceLineVisible: false,
             lastValueVisible: false,
@@ -178,8 +157,8 @@
         updateData();
 
         const handleResize = () => {
-            if (chart && container && container.clientWidth > 0) {
-                chart.applyOptions({
+            if (api.chart && container && container.clientWidth > 0) {
+                api.chart.applyOptions({
                     width: container.clientWidth,
                     height: container.clientHeight,
                 });
@@ -190,19 +169,21 @@
         resizeObserver.observe(container);
 
         setTimeout(handleResize, 100);
-        setTimeout(() => chart?.timeScale().fitContent(), 200);
+        setTimeout(() => api.chart?.timeScale().fitContent(), 200);
 
         return () => {
             resizeObserver.disconnect();
-            if (chart) {
-                chart.remove();
-                chart = null;
+            unsubWatermark();
+            unsubWatermarkType();
+            if (api.chart) {
+                api.chart.remove();
+                api.chart = null;
             }
         };
     });
 
     function updateData() {
-        if (!chart || !btcSeries || !indicatorSeries) return;
+        if (!api.chart || !btcSeries || !indicatorSeries) return;
 
         // Update BTC data
         if (btcData.length > 0) {
@@ -215,21 +196,21 @@
         }
 
         // Fit content after data update
-        setTimeout(() => chart?.timeScale().fitContent(), 50);
+        setTimeout(() => api.chart?.timeScale().fitContent(), 50);
     }
 
     // React to data changes
     $effect(() => {
-        if (btcData && indicatorData && chart) {
+        if (btcData && indicatorData && api.chart) {
             updateData();
         }
     });
 
     // React to theme changes
     $effect(() => {
-        if (chart && darkMode !== undefined) {
+        if (api.chart && darkMode !== undefined) {
             const colors = getColors(darkMode);
-            chart.applyOptions({
+            api.chart.applyOptions({
                 layout: {
                     background: { color: colors.background },
                     textColor: colors.text,
@@ -239,6 +220,8 @@
                     horzLines: { color: colors.grid },
                 },
             });
+            // Recreate watermark with new theme colors
+            createWatermarkWithTheme(darkMode);
         }
     });
 </script>

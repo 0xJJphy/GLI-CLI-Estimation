@@ -311,6 +311,8 @@ class M2Domain(BaseDomain):
                     m2_usd = m2_local
                 
                 result['economies'][name] = clean_for_json(m2_usd)
+                if name == 'gb':
+                    result['economies']['uk'] = result['economies']['gb']
                 m2_total += m2_usd.fillna(0)
         
         result['total'] = clean_for_json(m2_total)
@@ -327,8 +329,13 @@ class M2Domain(BaseDomain):
                 series = pd.Series(series_data, index=df.index)
                 rocs = calculate_rocs(series)
                 result['economy_rocs'][name] = {k: clean_for_json(v) for k, v in rocs.items()}
-                
                 last_val = series.iloc[-1] if not pd.isna(series.iloc[-1]) else 0
                 result['weights'][name] = float(last_val / latest_m2 * 100)
+        
+        # Add UK as alias for GB for frontend compatibility
+        if 'gb' in result['economies']:
+            result['economies']['uk'] = result['economies']['gb']
+            result['economy_rocs']['uk'] = result['economy_rocs']['gb']
+            result['weights']['uk'] = result['weights']['gb']
         
         return result

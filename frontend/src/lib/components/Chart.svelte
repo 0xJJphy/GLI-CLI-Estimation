@@ -121,6 +121,11 @@
                 autorange: true,
                 ...(layout.yaxis || {}),
             },
+            annotations: [
+                ...defaultLayout.annotations,
+                ...(layout.annotations || []),
+            ],
+            images: [...defaultLayout.images, ...(layout.images || [])],
         };
 
         Plotly.newPlot(chartContainer, processedData, finalLayout, config);
@@ -130,69 +135,48 @@
         });
         resizeObserver.observe(chartContainer);
 
-        // Subscribe to watermarkType changes to trigger re-render
-        const unsubWatermarkType = watermarkType.subscribe(() => {
-            if (chartContainer) {
-                const processedData = data.map((trace) => ({
-                    ...trace,
-                    connectgaps: true,
-                }));
-                const defaultLayout = getLayout(darkMode, get(showWatermark));
-                const finalLayout = {
-                    ...defaultLayout,
-                    ...layout,
-                    xaxis: {
-                        ...defaultLayout.xaxis,
-                        ...(layout.xaxis || {}),
-                    },
-                    yaxis: {
-                        ...defaultLayout.yaxis,
-                        type: yType,
-                        autorange: true,
-                        ...(layout.yaxis || {}),
-                    },
-                };
-                Plotly.react(
-                    chartContainer,
-                    processedData,
-                    finalLayout,
-                    config,
-                );
-            }
-        });
-
         return () => {
             resizeObserver.disconnect();
-            unsubWatermarkType();
             Plotly.purge(chartContainer);
         };
     });
 
-    afterUpdate(() => {
-        const processedData = data.map((trace) => ({
-            ...trace,
-            connectgaps: true,
-        }));
+    // Reactive update when any relevant prop or store changes
+    $: {
+        if (
+            chartContainer &&
+            (data || layout || darkMode || $showWatermark || $watermarkType)
+        ) {
+            const processedData = (data || []).map((trace) => ({
+                ...trace,
+                connectgaps: true,
+            }));
 
-        const defaultLayout = getLayout(darkMode, $showWatermark);
+            const defaultLayout = getLayout(darkMode, $showWatermark);
 
-        const finalLayout = {
-            ...defaultLayout,
-            ...layout,
-            xaxis: {
-                ...defaultLayout.xaxis,
-                ...(layout.xaxis || {}),
-            },
-            yaxis: {
-                ...defaultLayout.yaxis,
-                type: yType,
-                autorange: true,
-                ...(layout.yaxis || {}),
-            },
-        };
+            const finalLayout = {
+                ...defaultLayout,
+                ...layout,
+                xaxis: {
+                    ...defaultLayout.xaxis,
+                    ...(layout.xaxis || {}),
+                },
+                yaxis: {
+                    ...defaultLayout.yaxis,
+                    type: yType,
+                    autorange: true,
+                    ...(layout.yaxis || {}),
+                },
+                annotations: [
+                    ...defaultLayout.annotations,
+                    ...(layout.annotations || []),
+                ],
+                images: [...defaultLayout.images, ...(layout.images || [])],
+            };
 
-        Plotly.react(chartContainer, processedData, finalLayout, config);
-    });
+            Plotly.react(chartContainer, processedData, finalLayout, config);
+        }
+    }
 
     function downloadImage() {
         Plotly.downloadImage(chartContainer, {

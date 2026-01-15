@@ -52,17 +52,17 @@ class StablecoinsDomain(BaseDomain):
         
         # Stablecoin market caps
         stables = {
-            'usdt': 'USDT_MCAP',
-            'usdc': 'USDC_MCAP',
-            'dai': 'DAI_MCAP',
-            'tusd': 'TUSD_MCAP',
-            'usdd': 'USDD_MCAP',
-            'usdp': 'USDP_MCAP',
-            'pyusd': 'PYUSD_MCAP',
-            'fdusd': 'FDUSD_MCAP',
-            'usde': 'USDEE_MCAP',
-            'usdg': 'USDGG_MCAP',
-            'rlusd': 'RLUSD_MCAP',
+            'USDT': 'USDT_MCAP',
+            'USDC': 'USDC_MCAP',
+            'DAI': 'DAI_MCAP',
+            'TUSD': 'TUSD_MCAP',
+            'USDD': 'USDD_MCAP',
+            'USDP': 'USDP_MCAP',
+            'PYUSD': 'PYUSD_MCAP',
+            'FDUSD': 'FDUSD_MCAP',
+            'USDE': 'USDEE_MCAP',
+            'USDG': 'USDGG_MCAP',
+            'RLUSD': 'RLUSD_MCAP',
         }
         
         # Market caps (in billions)
@@ -95,12 +95,12 @@ class StablecoinsDomain(BaseDomain):
         
         # Prices and depeg detection
         price_cols = {
-            'usdt': 'USDT_PRICE',
-            'usdc': 'USDC_PRICE',
-            'dai': 'DAI_PRICE',
-            'pyusd': 'PYUSD_PRICE',
-            'fdusd': 'FDUSD_PRICE',
-            'usde': 'USDE_PRICE',
+            'USDT': 'USDT_PRICE',
+            'USDC': 'USDC_PRICE',
+            'DAI': 'DAI_PRICE',
+            'PYUSD': 'PYUSD_PRICE',
+            'FDUSD': 'FDUSD_PRICE',
+            'USDE': 'USDE_PRICE',
         }
         
         result['prices'] = {}
@@ -114,26 +114,62 @@ class StablecoinsDomain(BaseDomain):
         
         # Dominance (share of total stablecoin supply)
         result['dominance'] = {}
-        for name in result['market_caps'].keys():
-            if name in result['market_caps']:
-                mcap_series = pd.Series(result['market_caps'][name], index=df.index)
-                dom = (mcap_series / total_supply) * 100
-                result['dominance'][name] = clean_for_json(dom)
+        result['growth'] = {}
+        
+        for name, mcap_data in result['market_caps'].items():
+            mcap_series = pd.Series(mcap_data, index=df.index)
+            # Dominance
+            dom = (mcap_series / total_supply.replace(0, np.nan)) * 100
+            result['dominance'][name] = clean_for_json(dom)
+            # Growth
+            result['growth'][name] = {
+                '7d': float(self._calc_roc(mcap_series, 7).iloc[-1]) if len(mcap_series) > 7 else 0,
+                '30d': float(self._calc_roc(mcap_series, 30).iloc[-1]) if len(mcap_series) > 30 else 0,
+                '90d': float(self._calc_roc(mcap_series, 90).iloc[-1]) if len(mcap_series) > 90 else 0,
+            }
         
         # Total crypto market cap dominance
         if 'TOTAL_MCAP' in df.columns:
             total_crypto = df['TOTAL_MCAP'].ffill() / 1e9
-            result['crypto_dominance'] = clean_for_json((total_supply / total_crypto) * 100)
+            result['dominance_total'] = {} # For the "Mkt Dom %" column
+            for name, mcap_data in result['market_caps'].items():
+                mcap_series = pd.Series(mcap_data, index=df.index)
+                dom_total = (mcap_series / total_crypto.replace(0, np.nan)) * 100
+                result['dominance_total'][name] = clean_for_json(dom_total)
+            
+            result['crypto_dominance'] = clean_for_json((total_supply / total_crypto.replace(0, np.nan)) * 100)
             result['total_crypto_mcap'] = clean_for_json(total_crypto)
         
-        # TradingView stablecoin indices
+        # SFAI (Stablecoin Flow Attribution Index)
+        # SFAI uses total stablecoin ROC vs BTC performance
+        if 'BTC' in df.columns:
+            btc_ret = df['BTC'].pct_change(1)
+            stables_roc = total_supply.pct_change(1)
+            
+            # Simple SFAI logic (V1)
+            # 1: Inflow (Stables up, BTC neutral/up)
+            # 2: Profit Taking (Stables up, BTC down)
+            # 3: Buying Pressure (Stables down, BTC up)
+            # 4: Capitulation (Stables down, BTC down)
+            
+            sfai_index = (stables_roc * 100).rolling(7).mean()
+            sfai_velocity = sfai_index.diff(7)
+            
+            regime = pd.Series(0, index=df.index)
+            regime.loc[(stables_roc > 0) & (btc_ret >= 0)] = 1
+            regime.loc[(stables_roc > 0) & (btc_ret < 0)] = 2
+            regime.loc[(stables_roc <= 0) & (btc_ret > 0)] = 3
+            regime.loc[(stables_roc <= 0) & (btc_ret < 0)] = 4
+            
+            result['sfai_regime'] = clean_for_json(regime)
+            result['sfai_continuous'] = clean_for_json(sfai_index)
+            result['sfai_velocity'] = clean_for_json(sfai_velocity)
+        
+        # TradingView stablecoin indices (STABLE.C.D)
         if 'STABLE_INDEX_MCAP' in df.columns:
+            # This is often used for the Dominance chart
             stable_idx = df['STABLE_INDEX_MCAP'].ffill() / 1e9
-            result['stable_index'] = clean_for_json(stable_idx)
-            result['stable_index_rocs'] = {
-                '7d': clean_for_json(self._calc_roc(stable_idx, 7)),
-                '30d': clean_for_json(self._calc_roc(stable_idx, 30)),
-                '90d': clean_for_json(self._calc_roc(stable_idx, 90)),
-            }
+            result['stable_index_dom'] = clean_for_json(df.get('STABLE_INDEX_DOM', pd.Series(0, index=df.index)))
+            result['custom_stables_dom'] = clean_for_json((total_supply / total_crypto.replace(0, np.nan)) * 100 if 'TOTAL_MCAP' in df.columns else pd.Series(0, index=df.index))
         
         return result
