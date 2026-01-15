@@ -1,0 +1,162 @@
+/**
+ * Design Tokens - Chart & Signal System
+ * 
+ * Centralized CSS variables for consistent styling across all charts and signals.
+ * Import this file in your main app.css or root layout.
+ */
+
+:root {
+    /* ===========================================
+   * SIGNAL STATE COLORS
+   * Used for bullish/bearish/neutral indicators
+   * =========================================== */
+
+    --signal-bullish: #22c55e;
+    --signal-bearish: #ef4444;
+    --signal-neutral: #6b7280;
+    --signal-warning: #f59e0b;
+    --signal-ok: #10b981;
+    --signal-danger: #dc2626;
+
+    /* Signal Backgrounds (15% opacity) */
+    --signal-bullish-bg: rgba(34, 197, 94, 0.15);
+    --signal-bearish-bg: rgba(239, 68, 68, 0.15);
+    --signal-neutral-bg: rgba(107, 114, 128, 0.15);
+    --signal-warning-bg: rgba(245, 158, 11, 0.15);
+    --signal-ok-bg: rgba(16, 185, 129, 0.15);
+    --signal-danger-bg: rgba(220, 38, 38, 0.15);
+
+    /* ===========================================
+   * CHART SERIES COLORS
+   * Primary colors for data series
+   * =========================================== */
+
+    /* Primary Series */
+    --series-primary: #10b981;
+    /* Green - CLI, GLI */
+    --series-secondary: #3b82f6;
+    /* Blue - NFCI, Treasury */
+    --series-tertiary: #a855f7;
+    /* Purple - NFCI Risk */
+
+    /* Spread/Credit Colors */
+    --series-hy-spread: #ef4444;
+    /* Red - High Yield */
+    --series-ig-spread: #38bdf8;
+    /* Light Blue - Investment Grade */
+
+    /* Volatility Colors */
+    --series-vix: #dc2626;
+    /* Dark Red */
+    --series-move: #3b82f6;
+    /* Blue */
+    --series-fx-vol: #06b6d4;
+    /* Cyan */
+
+    /* Rate Series */
+    --series-sofr: #3b82f6;
+    /* Blue */
+    --series-iorb: #22c55e;
+    /* Green - Floor */
+    --series-srf: #ef4444;
+    /* Red - Ceiling */
+    --series-rrp: #f59e0b;
+    /* Orange */
+
+    /* Treasury Yields */
+    --series-t10y: #3b82f6;
+    /* Blue */
+    --series-t2y: #6366f1;
+    /* Indigo */
+    --series-t30y: #8b5cf6;
+    /* Violet */
+    --series-t5y: #60a5fa;
+    /* Light Blue */
+
+    /* Stress Indices */
+    --series-stlfsi: #7c3aed;
+    /* Purple */
+    --series-kcfsi: #c026d3;
+    /* Magenta */
+
+    /* Central Banks */
+    --series-fed: #3b82f6;
+    /* Blue */
+    --series-ecb: #f59e0b;
+    /* Orange */
+    --series-boj: #ef4444;
+    /* Red */
+    --series-pboc: #a855f7;
+    /* Purple */
+    --series-boe: #06b6d4;
+    /* Cyan */
+
+    /* ===========================================
+   * CHART LAYOUT COLORS
+   * Grid, background, text colors
+   * =========================================== */
+
+    --chart-bg: transparent;
+    --chart-paper-bg: transparent;
+    --chart-grid-light: rgba(0, 0, 0, 0.05);
+    --chart-grid-dark: rgba(255, 255, 255, 0.05);
+    --chart-text-light: #1e293b;
+    --chart-text-dark: #e2e8f0;
+    --chart-text-muted-light: #64748b;
+    --chart-text-muted-dark: #94a3b8;
+
+    /* ===========================================
+   * REGIME COLORS
+   * Background shapes for regime indicators
+   * =========================================== */
+
+    --regime-expansion: rgba(34, 197, 94, 0.20);
+    --regime-contraction: rgba(239, 68, 68, 0.20);
+    --regime-neutral: rgba(107, 114, 128, 0.15);
+    --regime-transition: rgba(245, 158, 11, 0.20);
+
+    /* SFAI Regimes */
+    --regime-fresh-inflow: rgba(34, 197, 94, 0.25);
+    --regime-profit-taking: rgba(239, 68, 68, 0.25);
+    --regime-buying-pressure: rgba(59, 130, 246, 0.25);
+    --regime-capitulation: rgba(139, 92, 246, 0.25);
+
+    /* ===========================================
+   * LINE STYLES (reference only, applied in JS)
+   * =========================================== */
+
+    /* Default widths */
+    --line-width-default: 2;
+    --line-width-primary: 3;
+    --line-width-secondary: 1.5;
+
+    /* ===========================================
+   * CARD STYLING
+   * Chart card container styles
+   * =========================================== */
+
+    --card-border-radius: 12px;
+    --card-padding: 16px;
+    --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --card-bg-light: #ffffff;
+    --card-bg-dark: rgba(30, 41, 59, 0.5);
+    --card-border-light: rgba(0, 0, 0, 0.05);
+    --card-border-dark: rgba(255, 255, 255, 0.05);
+}
+
+/* Dark mode overrides using data attribute */
+[data-theme="dark"] {
+    --chart-grid: var(--chart-grid-dark);
+    --chart-text: var(--chart-text-dark);
+    --chart-text-muted: var(--chart-text-muted-dark);
+    --card-bg: var(--card-bg-dark);
+    --card-border: var(--card-border-dark);
+}
+
+[data-theme="light"] {
+    --chart-grid: var(--chart-grid-light);
+    --chart-text: var(--chart-text-light);
+    --chart-text-muted: var(--chart-text-muted-light);
+    --card-bg: var(--card-bg-light);
+    --card-border: var(--card-border-light);
+}
