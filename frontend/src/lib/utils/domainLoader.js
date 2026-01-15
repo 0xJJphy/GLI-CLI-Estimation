@@ -202,10 +202,53 @@ export async function loadStablecoinsTabData(legacyData) {
             loadDomain("shared"),
         ]);
 
-        // Helper to ensure lowercase keys for certain frontend logic if needed,
-        // although StablecoinsTab.svelte seems to use them dynamically.
+        // Flatten nested structures for frontend compatibility
+        const flattened = { ...stablecoins };
+
+        // 1. Flatten Total ROCs
+        if (stablecoins.total_rocs) {
+            flattened.total_roc_7d = stablecoins.total_rocs["7d"];
+            flattened.total_roc_1m = stablecoins.total_rocs["30d"]; // Frontend expects 1m, backend has 30d
+            flattened.total_roc_3m = stablecoins.total_rocs["90d"]; // Frontend expects 3m, backend has 90d
+            flattened.total_yoy = stablecoins.total_rocs["yoy"];
+        }
+
+        // 2. Flatten Total ROC Z-Scores
+        if (stablecoins.total_rocs_z) {
+            // Frontend keys: total_accel_z (seems separate?), total_roc_7d_z?
+            // Checking Svelte: it calculates rolling z-score on the fly in some cases,
+            // but for 'accel_z' mode it uses stablecoinsData.total_accel_z
+            // For other modes with 'zscore' normalization, it uses calculateRollingZScore helper.
+            // So we might not need to flatten Z-scores for ROCs if frontend calculates them,
+            // EXCEPT for 'accel_z' which might be a specific pre-calc.
+            // Let's check backend output for 'total_accel_z'. It's not there.
+            // SFAI velocity is there.
+        }
+
+        // 3. Aggregate Depeg Events
+        if (stablecoins.depeg_events && !Array.isArray(stablecoins.depeg_events)) {
+            let allEvents = [];
+            Object.entries(stablecoins.depeg_events).forEach(([coin, events]) => {
+                if (Array.isArray(events)) {
+                    allEvents = allEvents.concat(
+                        events.map((e) => ({ ...e, stablecoin: coin }))
+                    );
+                }
+            });
+            // Sort by date ascending
+            allEvents.sort((a, b) => new Date(a.date) - new Date(b.date));
+            flattened.depeg_events = allEvents;
+        }
+
+        // 4. Flatten Stable Index Dom
+        if (stablecoins.stable_index_rocs) {
+            flattened.stable_index_dom_roc_7d = stablecoins.stable_index_rocs["7d"];
+            flattened.stable_index_dom_roc_30d = stablecoins.stable_index_rocs["30d"];
+            flattened.stable_index_dom_roc_90d = stablecoins.stable_index_rocs["90d"];
+        }
+
         return {
-            ...stablecoins,
+            ...flattened,
             btc: shared.btc,
             dates: shared.dates, // Include dates for SFAI chart
         };
