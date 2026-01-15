@@ -40,10 +40,10 @@ export const PERCENTILE_CONFIG = {
  * Displays bullish zone (above threshold) and bearish zone (below threshold).
  * 
  * @param {boolean} darkMode - Whether dark mode is active
- * @param {Object} options - Configuration options
- * @param {number} options.bullishThreshold - Z-score threshold for bullish zone (default: 1.0)
- * @param {number} options.bearishThreshold - Z-score threshold for bearish zone (default: -1.0)
- * @param {boolean} options.invertColors - If true, swap bullish/bearish colors (for inverted indicators)
+ * @param {Object} [options] - Configuration options (all optional)
+ * @param {number} [options.bullishThreshold=1.0] - Z-score threshold for bullish zone
+ * @param {number} [options.bearishThreshold=-1.0] - Z-score threshold for bearish zone
+ * @param {boolean} [options.invertColors=false] - If true, swap bullish/bearish colors
  * @returns {Array} Array of Plotly shape objects
  */
 export function createZScoreBands(darkMode, options = {}) {
@@ -111,10 +111,10 @@ export function createZScoreBands(darkMode, options = {}) {
  * Displays zones based on percentile thresholds.
  * 
  * @param {boolean} darkMode - Whether dark mode is active
- * @param {Object} options - Configuration options
- * @param {number} options.bullishPct - Percentile threshold for bullish zone (default: 70)
- * @param {number} options.bearishPct - Percentile threshold for bearish zone (default: 30)
- * @param {boolean} options.invert - If true, low values are bullish (for VIX, spreads)
+ * @param {Object} [options] - Configuration options (all optional)
+ * @param {number} [options.bullishPct=70] - Percentile threshold for bullish zone
+ * @param {number} [options.bearishPct=30] - Percentile threshold for bearish zone
+ * @param {boolean} [options.invert=false] - If true, low values are bullish (for VIX, spreads)
  * @returns {Array} Array of Plotly shape objects
  */
 export function createPercentileBands(darkMode, options = {}) {
