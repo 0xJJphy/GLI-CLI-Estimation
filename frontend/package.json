@@ -4,8 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "data:indexes": "python ../backend/run_scrapers.py",
-    "data:sync": "npm run data:indexes && python ../backend/data_pipeline.py && python ../backend/analytics/train_regime_offset.py && powershell -Command \"Copy-Item ../backend/data/dashboard_data*.json -Destination public/ -Force; Copy-Item ../backend/data/regime_params.json -Destination public/ -Force; Copy-Item ../backend/data/etf_data.json -Destination public/ -Force; if (Test-Path ../backend/data/domains) { Copy-Item ../backend/data/domains -Destination public/ -Recurse -Force }\"",
+    "data:indexes": "python ../backend/run_scrapers.py --no-pipeline",
+    "data:sync": "python ../backend/run_scrapers.py && python ../backend/analytics/train_regime_offset.py && powershell -Command \"Copy-Item ../backend/data/dashboard_data*.json -Destination public/ -Force; Copy-Item ../backend/data/regime_params.json -Destination public/ -Force; Copy-Item ../backend/data/etf_data.json -Destination public/ -Force; if (Test-Path ../backend/data/domains) { Copy-Item ../backend/data/domains -Destination public/ -Recurse -Force }\"",
     "dev": "npm run data:sync && vite",
     "build": "npm run data:sync && vite build",
     "build:quick": "vite build",
