@@ -62,7 +62,8 @@ class MacroRegimeDomain(BaseDomain):
         }
         
         # Add diagnostic fields from v2a to top level if needed
-        for k in ['liquidity_z', 'credit_z', 'brakes_z', 'cli_gli_divergence']:
+        for k in ['liquidity_z', 'credit_z', 'brakes_z', 'cli_gli_divergence', 
+                  'cb_diffusion_13w', 'cb_hhi_13w']:
             if k in v2a_clean:
                 result[k] = v2a_clean[k]
                 
