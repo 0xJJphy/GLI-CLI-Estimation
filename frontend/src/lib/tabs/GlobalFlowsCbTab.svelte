@@ -3,9 +3,7 @@
      * GlobalFlowsCbTab.svelte
      * Displays individual central bank balance sheet charts with time range controls.
      */
-    import Chart from "../components/Chart.svelte";
-    import LightweightChart from "../components/LightweightChart.svelte";
-    import TimeRangeSelector from "../components/TimeRangeSelector.svelte";
+    import ChartCard from "../components/ChartCard.svelte";
     import Dropdown from "../components/Dropdown.svelte";
     import {
         filterPlotlyData,
@@ -14,9 +12,10 @@
         calculatePercentile,
         calculateRollingZScore,
     } from "../utils/helpers.js";
-    import { downloadCardAsImage } from "../utils/downloadCard.js";
     import { loadGLITabData, loadDomain } from "../utils/domainLoader.js";
     import { onMount } from "svelte";
+    import TimeRangeSelector from "../components/TimeRangeSelector.svelte";
+    import Chart from "../components/Chart.svelte";
 
     // Core props only
     export let darkMode = false;
@@ -43,10 +42,7 @@
     let cbBreadthRange = "5Y";
     let cbConcentrationRange = "5Y";
 
-    // Card container references for full-card download feature
-    let gliAggregateCard;
-    let cbBreadthCard;
-    let cbConcentrationCard;
+    // Helper to get translation with fallback
 
     // GLI Aggregate chart state - similar to StableCoinsTab
     let gliAggregateMode = "absolute"; // Modes: absolute, roc1m, roc3m, roc6m, yoy
@@ -570,261 +566,213 @@
     <!-- All Charts in 2-column grid -->
     <div class="chart-grid">
         <!-- First Row: Aggregate GLI Chart -->
-        <div class="chart-card wide" bind:this={gliAggregateCard}>
-            <div class="chart-header">
-                <h3>
-                    {translations.chart_gli || "Global Liquidity Index (GLI)"}
-                </h3>
-                <div class="header-controls">
+        <!-- First Row: Aggregate GLI Chart -->
+        <ChartCard
+            title={translations.chart_gli || "Global Liquidity Index (GLI)"}
+            {darkMode}
+            data={gliTotalData}
+            description={translations.gli_desc ||
+                "Aggregate central bank balance sheets in USD. Larger = more weight in global liquidity."}
+            selectedRange={gliRange}
+            onRangeChange={(r) => setRangeForBank("gli", r)}
+            cardStyle="wide"
+            chartHeight="short"
+            downloadName="global_liquidity_index"
+        >
+            <div slot="header-extra">
+                <Dropdown
+                    options={gliAggregateModes}
+                    bind:value={gliAggregateMode}
+                    onSelect={selectGliMode}
+                    {darkMode}
+                    small={true}
+                />
+                {#if isGliRocMode}
                     <Dropdown
-                        options={gliAggregateModes}
-                        bind:value={gliAggregateMode}
-                        onSelect={selectGliMode}
+                        options={gliNormModes}
+                        bind:value={gliNormMode}
+                        onSelect={selectGliNormMode}
                         {darkMode}
                         small={true}
                     />
-                    {#if isGliRocMode}
-                        <Dropdown
-                            options={gliNormModes}
-                            bind:value={gliNormMode}
-                            onSelect={selectGliNormMode}
-                            {darkMode}
-                            small={true}
-                        />
-                    {/if}
-                    {#if showGliLookbackWindow}
-                        <Dropdown
-                            options={gliLookbackOptions}
-                            bind:value={gliLookbackWindow}
-                            onSelect={selectGliLookbackWindow}
-                            {darkMode}
-                            small={true}
-                        />
-                    {/if}
-                    <TimeRangeSelector
-                        selectedRange={gliRange}
-                        onRangeChange={(r) => setRangeForBank("gli", r)}
+                {/if}
+                {#if showGliLookbackWindow}
+                    <Dropdown
+                        options={gliLookbackOptions}
+                        bind:value={gliLookbackWindow}
+                        onSelect={selectGliLookbackWindow}
+                        {darkMode}
+                        small={true}
                     />
-                    <button
-                        class="download-btn"
-                        title="Download Chart"
-                        on:click={() =>
-                            downloadCardAsImage(
-                                gliAggregateCard,
-                                "global_liquidity_index",
-                            )}
-                    >
-                        📥
-                    </button>
-                </div>
-            </div>
-            <p class="chart-description">
-                {translations.gli_desc ||
-                    "Aggregate central bank balance sheets in USD. Larger = more weight in global liquidity."}
-            </p>
-            <div class="chart-content short">
-                <Chart
-                    {darkMode}
-                    data={gliTotalData}
-                    cardContainer={gliAggregateCard}
-                    cardTitle="global_liquidity_index"
-                />
+                {/if}
             </div>
 
-            <div class="card-divider"></div>
-            <!-- Aggregate ROC Indicators -->
-            {#if dashboardData.gli?.rocs}
-                {@const totalRocs = getGliTotalRocs()}
-                <div class="metrics-footer">
-                    <div class="roc-bar">
-                        <div
-                            class="roc-item"
-                            class:positive={totalRocs.m1 > 0}
-                            class:negative={totalRocs.m1 < 0}
-                        >
-                            <span class="roc-label">1M</span>
-                            <span class="roc-value"
-                                >{totalRocs.m1 !== null
-                                    ? totalRocs.m1.toFixed(1) + "%"
-                                    : "N/A"}</span
+            <div slot="footer">
+                <div class="card-divider"></div>
+                <!-- Aggregate ROC Indicators -->
+                {#if dashboardData.gli?.rocs}
+                    {@const totalRocs = getGliTotalRocs()}
+                    <div class="metrics-footer">
+                        <div class="roc-bar">
+                            <div
+                                class="roc-item"
+                                class:positive={totalRocs.m1 > 0}
+                                class:negative={totalRocs.m1 < 0}
                             >
-                        </div>
-                        <div
-                            class="roc-item"
-                            class:positive={totalRocs.m3 > 0}
-                            class:negative={totalRocs.m3 < 0}
-                        >
-                            <span class="roc-label">3M</span>
-                            <span class="roc-value"
-                                >{totalRocs.m3 !== null
-                                    ? totalRocs.m3.toFixed(1) + "%"
-                                    : "N/A"}</span
+                                <span class="roc-label">1M</span>
+                                <span class="roc-value"
+                                    >{totalRocs.m1 !== null
+                                        ? totalRocs.m1.toFixed(1) + "%"
+                                        : "N/A"}</span
+                                >
+                            </div>
+                            <div
+                                class="roc-item"
+                                class:positive={totalRocs.m3 > 0}
+                                class:negative={totalRocs.m3 < 0}
                             >
-                        </div>
-                        <div
-                            class="roc-item"
-                            class:positive={totalRocs.m6 > 0}
-                            class:negative={totalRocs.m6 < 0}
-                        >
-                            <span class="roc-label">6M</span>
-                            <span class="roc-value"
-                                >{totalRocs.m6 !== null
-                                    ? totalRocs.m6.toFixed(1) + "%"
-                                    : "N/A"}</span
+                                <span class="roc-label">3M</span>
+                                <span class="roc-value"
+                                    >{totalRocs.m3 !== null
+                                        ? totalRocs.m3.toFixed(1) + "%"
+                                        : "N/A"}</span
+                                >
+                            </div>
+                            <div
+                                class="roc-item"
+                                class:positive={totalRocs.m6 > 0}
+                                class:negative={totalRocs.m6 < 0}
                             >
-                        </div>
-                        <div
-                            class="roc-item"
-                            class:positive={totalRocs.y1 > 0}
-                            class:negative={totalRocs.y1 < 0}
-                        >
-                            <span class="roc-label">1Y</span>
-                            <span class="roc-value"
-                                >{totalRocs.y1 !== null
-                                    ? totalRocs.y1.toFixed(1) + "%"
-                                    : "N/A"}</span
+                                <span class="roc-label">6M</span>
+                                <span class="roc-value"
+                                    >{totalRocs.m6 !== null
+                                        ? totalRocs.m6.toFixed(1) + "%"
+                                        : "N/A"}</span
+                                >
+                            </div>
+                            <div
+                                class="roc-item"
+                                class:positive={totalRocs.y1 > 0}
+                                class:negative={totalRocs.y1 < 0}
                             >
+                                <span class="roc-label">1Y</span>
+                                <span class="roc-value"
+                                    >{totalRocs.y1 !== null
+                                        ? totalRocs.y1.toFixed(1) + "%"
+                                        : "N/A"}</span
+                                >
+                            </div>
                         </div>
                     </div>
-                </div>
-            {/if}
-        </div>
+                {/if}
+            </div>
+        </ChartCard>
 
         <!-- CB Breadth Chart -->
-        <div class="chart-card" bind:this={cbBreadthCard}>
-            <div class="chart-header">
-                <h3>
-                    {translations.indicator_cb_breadth ||
-                        "Central Bank Breadth (% Expanding)"}
-                </h3>
-                <div class="header-controls">
-                    <TimeRangeSelector
-                        selectedRange={cbBreadthRange}
-                        onRangeChange={(r) => (cbBreadthRange = r)}
-                    />
-                </div>
-            </div>
-            <p class="chart-description">
-                {translations.cb_breadth_desc ||
-                    "Percentage of CBs expanding (13-week basis). ↑ Bullish."}
-            </p>
-            <div class="chart-content short">
-                <Chart
-                    {darkMode}
-                    data={cbBreadthData}
-                    cardContainer={cbBreadthCard}
-                    cardTitle="cb_breadth"
-                />
-            </div>
-        </div>
+        <ChartCard
+            title={translations.indicator_cb_breadth ||
+                "Central Bank Breadth (% Expanding)"}
+            {darkMode}
+            data={cbBreadthData}
+            description={translations.cb_breadth_desc ||
+                "Percentage of CBs expanding (13-week basis). ↑ Bullish."}
+            selectedRange={cbBreadthRange}
+            onRangeChange={(r) => (cbBreadthRange = r)}
+            chartHeight="short"
+            downloadName="cb_breadth"
+        />
 
         <!-- CB Concentration Chart -->
-        <div class="chart-card" bind:this={cbConcentrationCard}>
-            <div class="chart-header">
-                <h3>
-                    {translations.indicator_cb_hhi ||
-                        "Central Bank Concentration (HHI)"}
-                </h3>
-                <div class="header-controls">
-                    <TimeRangeSelector
-                        selectedRange={cbConcentrationRange}
-                        onRangeChange={(r) => (cbConcentrationRange = r)}
-                    />
-                </div>
-            </div>
-            <p class="chart-description">
-                {translations.cb_hhi_desc ||
-                    "HHI Index. High = few banks drive liquidity."}
-            </p>
-            <div class="chart-content short">
-                <Chart
-                    {darkMode}
-                    data={cbConcentrationData}
-                    cardContainer={cbConcentrationCard}
-                    cardTitle="cb_concentration"
-                />
-            </div>
-        </div>
+        <ChartCard
+            title={translations.indicator_cb_hhi ||
+                "Central Bank Concentration (HHI)"}
+            {darkMode}
+            data={cbConcentrationData}
+            description={translations.cb_hhi_desc ||
+                "HHI Index. High = few banks drive liquidity."}
+            selectedRange={cbConcentrationRange}
+            onRangeChange={(r) => (cbConcentrationRange = r)}
+            chartHeight="short"
+            downloadName="cb_hhi"
+        />
 
         <!-- Individual Banks with ROC indicators -->
         {#each bankConfigs as item}
             {@const rocs = getBankRocs(item.id)}
-            <div class="chart-card">
-                <div class="chart-header">
-                    <h3>{item.name}</h3>
-                    <div class="header-controls">
-                        <TimeRangeSelector
-                            selectedRange={bankRanges[item.id]}
-                            onRangeChange={(r) => setRangeForBank(item.id, r)}
-                        />
-                        <span class="last-date">{getLastDate(item.bank)}</span>
-                    </div>
-                </div>
-                <div class="chart-content short">
-                    <Chart {darkMode} data={bankChartData[item.id]} />
-                </div>
-                <div class="card-divider"></div>
-                <div class="metrics-footer">
-                    <div class="roc-bar">
-                        <div
-                            class="roc-item"
-                            class:positive={rocs.w1 > 0}
-                            class:negative={rocs.w1 < 0}
-                        >
-                            <span class="roc-label"
-                                >{translations.val_1w || "1W"}</span
+            <ChartCard
+                title={item.name}
+                {darkMode}
+                data={bankChartData[item.id]}
+                selectedRange={bankRanges[item.id]}
+                onRangeChange={(r) => setRangeForBank(item.id, r)}
+                lastDate={getLastDate(item.bank)}
+                chartHeight="short"
+                downloadName={item.id}
+            >
+                <div slot="footer">
+                    <div class="card-divider"></div>
+                    <div class="metrics-footer">
+                        <div class="roc-bar">
+                            <div
+                                class="roc-item"
+                                class:positive={rocs.w1 > 0}
+                                class:negative={rocs.w1 < 0}
                             >
-                            <span class="roc-value"
-                                >{rocs.w1 !== null
-                                    ? rocs.w1.toFixed(1) + "%"
-                                    : translations.na || "N/A"}</span
+                                <span class="roc-label"
+                                    >{translations.val_1w || "1W"}</span
+                                >
+                                <span class="roc-value"
+                                    >{rocs.w1 !== null
+                                        ? rocs.w1.toFixed(1) + "%"
+                                        : translations.na || "N/A"}</span
+                                >
+                            </div>
+                            <div
+                                class="roc-item"
+                                class:positive={rocs.m1 > 0}
+                                class:negative={rocs.m1 < 0}
                             >
-                        </div>
-                        <div
-                            class="roc-item"
-                            class:positive={rocs.m1 > 0}
-                            class:negative={rocs.m1 < 0}
-                        >
-                            <span class="roc-label"
-                                >{translations.val_1m || "1M"}</span
+                                <span class="roc-label"
+                                    >{translations.val_1m || "1M"}</span
+                                >
+                                <span class="roc-value"
+                                    >{rocs.m1 !== null
+                                        ? rocs.m1.toFixed(1) + "%"
+                                        : translations.na || "N/A"}</span
+                                >
+                            </div>
+                            <div
+                                class="roc-item"
+                                class:positive={rocs.m3 > 0}
+                                class:negative={rocs.m3 < 0}
                             >
-                            <span class="roc-value"
-                                >{rocs.m1 !== null
-                                    ? rocs.m1.toFixed(1) + "%"
-                                    : translations.na || "N/A"}</span
+                                <span class="roc-label"
+                                    >{translations.val_3m || "3M"}</span
+                                >
+                                <span class="roc-value"
+                                    >{rocs.m3 !== null
+                                        ? rocs.m3.toFixed(1) + "%"
+                                        : translations.na || "N/A"}</span
+                                >
+                            </div>
+                            <div
+                                class="roc-item"
+                                class:positive={rocs.m6 > 0}
+                                class:negative={rocs.m6 < 0}
                             >
-                        </div>
-                        <div
-                            class="roc-item"
-                            class:positive={rocs.m3 > 0}
-                            class:negative={rocs.m3 < 0}
-                        >
-                            <span class="roc-label"
-                                >{translations.val_3m || "3M"}</span
-                            >
-                            <span class="roc-value"
-                                >{rocs.m3 !== null
-                                    ? rocs.m3.toFixed(1) + "%"
-                                    : translations.na || "N/A"}</span
-                            >
-                        </div>
-                        <div
-                            class="roc-item"
-                            class:positive={rocs.m6 > 0}
-                            class:negative={rocs.m6 < 0}
-                        >
-                            <span class="roc-label"
-                                >{translations.val_6m || "6M"}</span
-                            >
-                            <span class="roc-value"
-                                >{rocs.m6 !== null
-                                    ? rocs.m6.toFixed(1) + "%"
-                                    : translations.na || "N/A"}</span
-                            >
+                                <span class="roc-label"
+                                    >{translations.val_6m || "6M"}</span
+                                >
+                                <span class="roc-value"
+                                    >{rocs.m6 !== null
+                                        ? rocs.m6.toFixed(1) + "%"
+                                        : translations.na || "N/A"}</span
+                                >
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            </ChartCard>
         {/each}
     </div>
 </div>
@@ -843,59 +791,6 @@
         display: grid;
         grid-template-columns: repeat(2, 1fr);
         gap: 20px;
-    }
-
-    .chart-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 8px;
-        flex-wrap: wrap;
-        gap: 8px;
-    }
-
-    .chart-header h3 {
-        margin: 0;
-        font-size: 1rem;
-        font-weight: 600;
-        color: var(--text-primary);
-    }
-
-    .header-controls {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-
-    .last-date {
-        font-size: 0.7rem;
-        color: var(--text-muted);
-        background: var(--bg-tertiary);
-        padding: 3px 6px;
-        border-radius: 4px;
-    }
-
-    .chart-description {
-        font-size: 0.8rem;
-        color: var(--text-muted);
-        margin: 0 0 12px 0;
-        padding: 8px 10px;
-        background: var(--chart-description-bg);
-        border-radius: 6px;
-        border-left: 3px solid var(--accent-primary);
-    }
-
-    .chart-content {
-        min-height: 450px;
-        height: 450px;
-        flex-shrink: 0;
-        margin-bottom: 30px;
-    }
-
-    .chart-content.short {
-        min-height: 480px;
-        height: 480px;
-        margin-bottom: 30px;
     }
 
     .card-divider {
@@ -963,19 +858,5 @@
         .chart-grid {
             grid-template-columns: 1fr;
         }
-    }
-
-    .download-btn {
-        background: transparent;
-        border: 1px solid var(--border-color);
-        border-radius: 6px;
-        padding: 4px 8px;
-        cursor: pointer;
-        font-size: 0.85rem;
-        transition: all 0.2s ease;
-    }
-    .download-btn:hover {
-        background: var(--accent-primary);
-        border-color: var(--accent-primary);
     }
 </style>

@@ -18,6 +18,7 @@
     // Optional: Reference to the parent card container for "Download Card" feature
     export let cardContainer = null;
     export let cardTitle = "chart_card"; // Filename prefix for card download
+    export let shapes = []; // Additional Plotly shapes (zones, regimes)
 
     let chartContainer;
 
@@ -126,6 +127,7 @@
                 ...(layout.annotations || []),
             ],
             images: [...defaultLayout.images, ...(layout.images || [])],
+            shapes: [...(shapes || []), ...(layout.shapes || [])],
         };
 
         Plotly.newPlot(chartContainer, processedData, finalLayout, config);
@@ -172,6 +174,7 @@
                     ...(layout.annotations || []),
                 ],
                 images: [...defaultLayout.images, ...(layout.images || [])],
+                shapes: [...(shapes || []), ...(layout.shapes || [])],
             };
 
             Plotly.react(chartContainer, processedData, finalLayout, config);

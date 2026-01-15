@@ -115,6 +115,7 @@
     <div class="chart-header">
         <h3>{title}</h3>
         <div class="header-controls">
+            <slot name="header-extra"></slot>
             {#if dropdownOptions && onDropdownChange}
                 <Dropdown
                     options={dropdownOptions}
