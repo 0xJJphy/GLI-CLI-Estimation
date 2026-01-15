@@ -74,7 +74,7 @@ def is_cache_valid():
         last_cached = datetime.strptime(last_cached_date, '%Y-%m-%d').date()
         
         if last_cached >= expected_date:
-            print(f"✓ Cache is up-to-date (last date: {last_cached_date})")
+            print(f"[OK] Cache is up-to-date (last date: {last_cached_date})")
             return True
         
         print(f"Cache stale (last: {last_cached_date}) - will refresh")
@@ -163,7 +163,7 @@ def run_scraper(force_refresh=False):
     with open(OUTPUT_PATH, 'w') as f:
         json.dump(data_output, f)
     
-    print(f"✓ Saved {len(data_output['dates'])} days to {OUTPUT_PATH}")
+    print(f"[OK] Saved {len(data_output['dates'])} days to {OUTPUT_PATH}")
 
 if __name__ == "__main__":
     import sys
