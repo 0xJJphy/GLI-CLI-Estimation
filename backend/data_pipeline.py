@@ -3429,13 +3429,18 @@ def calculate_macro_regime(
         cb_deltas = df[cb_cols].astype(float).diff(impulse_days)
         # Diffusion: % CBs with Δ13W > 0
         denom = cb_deltas.notna().sum(axis=1).replace(0, np.nan)
-        cb_diffusion = (cb_deltas > 0).sum(axis=1) / denom
+        cb_diffusion_raw = (cb_deltas > 0).sum(axis=1) / denom
 
         # Concentration (HHI) over absolute contributions
         abs_d = cb_deltas.abs()
         abs_sum = abs_d.sum(axis=1).replace(0, np.nan)
         shares = abs_d.div(abs_sum, axis=0)
-        cb_hhi = (shares.pow(2)).sum(axis=1)
+        cb_hhi_raw = (shares.pow(2)).sum(axis=1)
+        
+        # Apply 5-day smoothing to reduce intra-week noise from asynchronous CB updates
+        # This filters out artificial volatility from different CBs updating on different days
+        cb_diffusion = cb_diffusion_raw.rolling(5, min_periods=1).mean()
+        cb_hhi = cb_hhi_raw.rolling(5, min_periods=1).mean()
 
     else:
         cb_diffusion = pd.Series(np.nan, index=idx)

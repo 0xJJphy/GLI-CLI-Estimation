@@ -1,0 +1,35 @@
+{
+  "timestamp": "2026-01-15T19:17:26.703857",
+  "total_seconds": 33.418822,
+  "domains": {
+    "metadata": 0.044664,
+    "shared": 0.867254,
+    "currencies": 2.820934,
+    "gli": 5.356672,
+    "m2": 4.028617,
+    "us_system": 0.959586,
+    "cli": 1.127887,
+    "treasury": 0.69432,
+    "stablecoins": 2.593891,
+    "crypto": 4.228175,
+    "fed_forecasts": 0.858357,
+    "macro_regime": 9.235695,
+    "offshore": 0.60277
+  },
+  "domain_count": 13,
+  "successful": [
+    "metadata",
+    "shared",
+    "currencies",
+    "gli",
+    "m2",
+    "us_system",
+    "cli",
+    "treasury",
+    "stablecoins",
+    "crypto",
+    "fed_forecasts",
+    "macro_regime",
+    "offshore"
+  ]
+}
