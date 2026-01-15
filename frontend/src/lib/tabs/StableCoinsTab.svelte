@@ -292,12 +292,16 @@
 
             if (regime !== currentRegime || i === filteredDates.length) {
                 // Close previous block
-                if (currentRegime !== null && currentRegime !== 0) {
+                if (
+                    currentRegime !== null &&
+                    currentRegime !== 0 &&
+                    blockStartIdx < i
+                ) {
                     const d0 = filteredDates[blockStartIdx];
-                    const d1 =
-                        filteredDates[
-                            Math.min(i - 1, filteredDates.length - 1)
-                        ];
+                    // Use the CURRENT index (start of new regime) as end, not i-1
+                    // This ensures shapes have at least 1 day width
+                    const endIdx = Math.min(i, filteredDates.length - 1);
+                    const d1 = filteredDates[endIdx];
                     if (d0 && d1) {
                         const color =
                             sfaiRegimeColors[currentRegime]?.base ||
