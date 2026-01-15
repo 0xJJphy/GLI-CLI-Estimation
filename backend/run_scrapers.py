@@ -58,7 +58,7 @@ def main():
         print("="*50)
         try:
             import data_pipeline
-            data_pipeline.main()
+            data_pipeline.run_pipeline()
         except Exception as e:
             print(f"Error in data_pipeline: {e}")
             import traceback
