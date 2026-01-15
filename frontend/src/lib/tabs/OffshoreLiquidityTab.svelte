@@ -796,10 +796,18 @@
         color: var(--text-color, #f8fafc);
     }
 
+    .offshore-tab:not(.dark) .card-header h3 {
+        color: #1e293b;
+    }
+
     .card-desc {
         font-size: 13px;
         color: #64748b;
         margin: 0;
+    }
+
+    .offshore-tab:not(.dark) .card-desc {
+        color: #475569;
     }
 
     .stress-badge {

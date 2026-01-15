@@ -451,10 +451,9 @@ export async function loadRegimesTabData(legacyData) {
     }
 
     try {
-        const [macro_regime, shared, cli, crypto] = await Promise.all([
+        const [macro_regime, shared, crypto] = await Promise.all([
             loadDomain('macro_regime'),
             loadDomain('shared'),
-            loadDomain('cli'),
             loadDomain('crypto')
         ]);
 
@@ -464,7 +463,9 @@ export async function loadRegimesTabData(legacyData) {
             // We favor the modular structure but provide compatibility
             regime_v2a: macro_regime.v2a || macro_regime,
             regime_v2b: macro_regime.v2b || macro_regime,
-            cli_v2: cli.v2 || cli,
+            // CLI data wrapper to match frontend expectation (cli.total, cli_v2.cli_v2)
+            cli: { total: macro_regime.cli_v1 || [] },
+            cli_v2: { cli_v2: macro_regime.cli_v2 || [] },
             stress_historical: macro_regime.stress_historical || macro_regime.stress || {},
             signals: macro_regime.signals || {},
             btc: shared.btc || {},
