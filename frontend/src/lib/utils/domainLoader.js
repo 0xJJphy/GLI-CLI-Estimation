@@ -179,9 +179,10 @@ export async function loadCurrenciesTabData(legacyData) {
 
     try {
         const currencies = await loadDomain('currencies');
+        console.log('[CurrenciesLoader] Successfully loaded from domain JSONs');
         return currencies;
     } catch {
-        console.warn('Falling back to legacy data for currencies');
+        console.warn('[CurrenciesLoader] FALLBACK: Using legacy data');
         return legacyData?.currencies || {};
     }
 }
@@ -284,13 +285,14 @@ export async function loadStablecoinsTabData(legacyData) {
             flattened.custom_stables_dom_roc_90d_pct = stablecoins.custom_stables_dom_rocs_pct["90d"];
         }
 
+        console.log('[StablecoinsLoader] Successfully loaded from domain JSONs');
         return {
             ...flattened,
             btc: shared.btc,
             dates: shared.dates, // Include dates for SFAI chart
         };
     } catch (e) {
-        console.warn("Falling back to legacy data for stablecoins", e);
+        console.warn('[StablecoinsLoader] FALLBACK: Using legacy data', e.message);
         return legacyData?.stablecoins || {};
     }
 }
@@ -314,6 +316,7 @@ export async function loadGLITabData(legacyData) {
             loadDomain('shared')
         ]);
 
+        console.log('[GLILoader] Successfully loaded from domain JSONs');
         return {
             gli: {
                 ...gli,
@@ -323,7 +326,7 @@ export async function loadGLITabData(legacyData) {
             dates: shared.dates
         };
     } catch {
-        console.warn('Falling back to legacy data for GLI');
+        console.warn('[GLILoader] FALLBACK: Using legacy data');
         return {
             gli: legacyData?.gli || {},
             dates: legacyData?.dates || []
@@ -347,6 +350,7 @@ export async function loadUSSystemTabData(legacyData) {
             loadDomain('shared')
         ]);
 
+        console.log('[USSystemLoader] Successfully loaded from domain JSONs');
         return {
             us_net_liq: {
                 net_liquidity: us_system.net_liquidity,
@@ -359,7 +363,7 @@ export async function loadUSSystemTabData(legacyData) {
             dates: shared.dates
         };
     } catch {
-        console.warn('Falling back to legacy data for US System');
+        console.warn('[USSystemLoader] FALLBACK: Using legacy data');
         return legacyData;
     }
 }
@@ -383,13 +387,14 @@ export async function loadCryptoTabData(legacyData) {
             loadDomain('shared')
         ]);
 
+        console.log('[CryptoLoader] Successfully loaded from domain JSONs');
         return {
             crypto_analytics: crypto,
             btc: shared.btc,
             dates: shared.dates
         };
     } catch {
-        console.warn('Falling back to legacy data for crypto');
+        console.warn('[CryptoLoader] FALLBACK: Using legacy data');
         return {
             crypto_analytics: legacyData?.crypto_analytics || {},
             dates: legacyData?.dates || []
@@ -417,13 +422,14 @@ export async function loadFedForecastsTabData(legacyData) {
             loadDomain('shared')
         ]);
 
+        console.log('[FedForecastsLoader] Successfully loaded from domain JSONs');
         return {
             fed_forecasts,
             inflation_swaps: fed_forecasts.inflation_swaps || {},
             dates: shared.dates
         };
     } catch {
-        console.warn('Falling back to legacy data for Fed Forecasts');
+        console.warn('[FedForecastsLoader] FALLBACK: Using legacy data');
         return {
             fed_forecasts: legacyData?.fed_forecasts || {},
             inflation_swaps: legacyData?.inflation_swaps || {},
@@ -457,6 +463,7 @@ export async function loadRegimesTabData(legacyData) {
             loadDomain('crypto')
         ]);
 
+        console.log('[RegimesLoader] Successfully loaded from domain JSONs');
         return {
             macro_regime,
             // These might be nested in macro_regime or top-level in legacy
@@ -472,7 +479,7 @@ export async function loadRegimesTabData(legacyData) {
             dates: shared.dates
         };
     } catch (error) {
-        console.warn('Falling back to legacy data for Regimes:', error);
+        console.warn('[RegimesLoader] FALLBACK: Using legacy data', error.message);
         return {
             macro_regime: legacyData?.macro_regime || {},
             regime_v2a: legacyData?.regime_v2a || {},
@@ -515,6 +522,7 @@ export async function loadM2TabData(legacyData) {
             ...(m2.economies || {}),
         };
 
+        console.log('[M2Loader] Successfully loaded from domain JSONs');
         return {
             m2: mappedM2,
             // m2_weights and m2_bank_rocs are expected at top level by GlobalM2Tab
@@ -523,7 +531,7 @@ export async function loadM2TabData(legacyData) {
             dates: shared.dates
         };
     } catch (error) {
-        console.warn('Falling back to legacy data for M2:', error);
+        console.warn('[M2Loader] FALLBACK: Using legacy data', error.message);
         return {
             m2: legacyData?.m2 || {},
             dates: legacyData?.dates || []
@@ -557,6 +565,7 @@ export async function loadOffshoreTabData(legacyData) {
         const dates = shared.dates || [];
         const lastIdx = dates.length - 1;
 
+        console.log('[OffshoreLoader] Successfully loaded from domain JSONs (offshore.json + shared.json)');
         return {
             offshore_liquidity: {
                 chart1_fred_proxy: {
@@ -586,13 +595,14 @@ export async function loadOffshoreTabData(legacyData) {
             dates: dates
         };
     } catch (error) {
-        console.warn('Falling back to legacy data for Offshore:', error);
+        console.warn('[OffshoreLoader] FALLBACK: Using legacy dashboard_data.json -', error.message);
         return {
             offshore_liquidity: legacyData?.offshore_liquidity || {},
             dates: legacyData?.dates || []
         };
     }
 }
+
 
 /**
  * Load data for UsDebtTab / Treasury
@@ -614,13 +624,14 @@ export async function loadTreasuryTabData(legacyData) {
             loadDomain('shared')
         ]);
 
+        console.log('[TreasuryLoader] Successfully loaded from domain JSONs');
         return {
             treasury,
             tips: treasury.tips || {},
             dates: shared.dates
         };
     } catch {
-        console.warn('Falling back to legacy data for Treasury');
+        console.warn('[TreasuryLoader] FALLBACK: Using legacy data');
         return {
             treasury: legacyData?.treasury || {},
             tips: legacyData?.tips || {},

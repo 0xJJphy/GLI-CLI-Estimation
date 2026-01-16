@@ -220,6 +220,7 @@ export const error = writable(null);
 export const selectedSource = writable('tv'); // 'tv' or 'fred'
 
 // Feature flag for domain-based loading (set to false for legacy behavior)
+// NOTE: Set to false while migrating tabs individually
 export const USE_DOMAIN_LOADING = writable(false);
 
 // Import domain adapter
