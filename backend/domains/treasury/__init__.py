@@ -1,10 +1,12 @@
 """
-Treasury Domain - Yields, Auctions, Settlements
+Treasury Domain - Yields, Auctions, Settlements, Maturities
 
 Contains:
 - Treasury yields (2Y, 5Y, 10Y, 30Y)
 - Yield curve spreads
-- Auction data (referenced from existing modules)
+- Treasury maturities schedule
+- Auction demand data
+- Refinancing signal
 """
 
 import numpy as np
@@ -13,16 +15,28 @@ from typing import Dict, Any
 
 from ..base import BaseDomain, clean_for_json, calculate_rocs
 
+# Import treasury data functions
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+try:
+    from treasury.treasury_data import get_treasury_maturity_data
+    from treasury.treasury_auction_demand import get_auction_demand_for_pipeline
+    HAS_TREASURY_FUNCS = True
+except ImportError as e:
+    HAS_TREASURY_FUNCS = False
+    print(f"[TreasuryDomain] Warning: Could not import treasury functions: {e}")
+
 
 class TreasuryDomain(BaseDomain):
-    """Treasury yields and curves domain."""
+    """Treasury yields, curves, maturities, and auctions domain."""
     
     @property
     def name(self) -> str:
         return "treasury"
     
     def process(self, df: pd.DataFrame, **kwargs) -> Dict[str, Any]:
-        """Process treasury data."""
+        """Process treasury data including maturities and auctions."""
         result = {}
         
         # Yields
@@ -72,11 +86,35 @@ class TreasuryDomain(BaseDomain):
                 'baa_aaa_spread': clean_for_json(baa - aaa)
             }
         
-        # Note: Auction data and settlements are fetched separately
-        # via existing treasury_data.py and treasury_auction_demand.py
-        # Those are referenced, not duplicated
-        result['auction_data_ref'] = 'treasury_auction_demand'
-        result['settlements_ref'] = 'treasury_settlements'
-        result['maturities_ref'] = 'treasury_maturities'
+        # Treasury Maturities (actual data, not just reference)
+        if HAS_TREASURY_FUNCS:
+            try:
+                maturity_data = get_treasury_maturity_data(120)  # 10 years ahead
+                result['maturities'] = maturity_data
+                print(f"[TreasuryDomain] Maturities: {len(maturity_data.get('schedule', {}).get('months', []))} months")
+            except Exception as e:
+                print(f"[TreasuryDomain] Error loading maturities: {e}")
+                result['maturities'] = None
+            
+            # Treasury Auction Demand
+            try:
+                auction_data = get_auction_demand_for_pipeline()
+                result['auction_demand'] = auction_data
+                auctions_count = len(auction_data.get('raw_auctions', []))
+                print(f"[TreasuryDomain] Auction demand: {auctions_count} auctions")
+            except Exception as e:
+                print(f"[TreasuryDomain] Error loading auction demand: {e}")
+                result['auction_demand'] = None
+            
+            # Refinancing Signal is complex - requires multiple inputs
+            # For now, just reference it from legacy data_pipeline
+            result['refinancing_signal_ref'] = 'treasury_refinancing_signal'
+        else:
+            # Fallback to references if functions not available
+            result['maturities_ref'] = 'treasury_maturities'
+            result['auction_data_ref'] = 'treasury_auction_demand'
+            result['refinancing_signal_ref'] = 'treasury_refinancing_signal'
         
         return result
+
+

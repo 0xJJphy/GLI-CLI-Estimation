@@ -612,8 +612,9 @@ export async function loadOffshoreTabData(legacyData) {
 export async function loadTreasuryTabData(legacyData) {
     if (!USE_MODULAR_DOMAINS) {
         return {
-            treasury: legacyData?.treasury || {},
-            tips: legacyData?.tips || {},
+            treasury_maturities: legacyData?.treasury_maturities || {},
+            treasury_auction_demand: legacyData?.treasury_auction_demand || {},
+            treasury_refinancing_signal: legacyData?.treasury_refinancing_signal || {},
             dates: legacyData?.dates || []
         };
     }
@@ -625,20 +626,26 @@ export async function loadTreasuryTabData(legacyData) {
         ]);
 
         console.log('[TreasuryLoader] Successfully loaded from domain JSONs');
+
+        // Map domain structure to UsDebtTab expected format
         return {
-            treasury,
-            tips: treasury.tips || {},
+            treasury_maturities: treasury.maturities || legacyData?.treasury_maturities || {},
+            treasury_auction_demand: treasury.auction_demand || legacyData?.treasury_auction_demand || {},
+            treasury_refinancing_signal: legacyData?.treasury_refinancing_signal || {}, // Still from legacy for now
+            treasury: treasury, // Full treasury domain for other uses
             dates: shared.dates
         };
-    } catch {
-        console.warn('[TreasuryLoader] FALLBACK: Using legacy data');
+    } catch (error) {
+        console.warn('[TreasuryLoader] FALLBACK: Using legacy data -', error.message);
         return {
-            treasury: legacyData?.treasury || {},
-            tips: legacyData?.tips || {},
+            treasury_maturities: legacyData?.treasury_maturities || {},
+            treasury_auction_demand: legacyData?.treasury_auction_demand || {},
+            treasury_refinancing_signal: legacyData?.treasury_refinancing_signal || {},
             dates: legacyData?.dates || []
         };
     }
 }
+
 
 export default {
     loadDomain,

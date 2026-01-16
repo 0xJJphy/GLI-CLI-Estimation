@@ -7,11 +7,24 @@
     import TimeRangeSelector from "../components/TimeRangeSelector.svelte";
     import TreasuryAuctionDemand from "../components/TreasuryAuctionDemand.svelte";
     import TreasuryRefinancingSignal from "../components/TreasuryRefinancingSignal.svelte";
+    import { loadTreasuryTabData } from "../utils/domainLoader.js";
+    import { onMount } from "svelte";
 
     // Props from App.svelte
     export let darkMode = false;
     export let translations = {};
     export let dashboardData = {};
+
+    // Modular data loading
+    let modularTreasuryData = null;
+    onMount(async () => {
+        try {
+            modularTreasuryData = await loadTreasuryTabData(dashboardData);
+            console.log("Modular Treasury data loaded");
+        } catch (e) {
+            console.error("Error loading modular Treasury data:", e);
+        }
+    });
 
     // Chart view mode: "stacked" or "line"
     let chartViewMode = "stacked";
@@ -46,19 +59,21 @@
     };
 
     // --- Computed Data ---
-    $: treasuryData = dashboardData.treasury_maturities || {
-        schedule: {
-            months: [],
-            bills: [],
-            notes: [],
-            bonds: [],
-            tips: [],
-            frn: [],
-            total: [],
-        },
-        metrics: {},
-        monthly_table: [],
-    };
+    // Prefer modular data, fallback to legacy dashboardData
+    $: treasuryData = modularTreasuryData?.treasury_maturities ||
+        dashboardData.treasury_maturities || {
+            schedule: {
+                months: [],
+                bills: [],
+                notes: [],
+                bonds: [],
+                tips: [],
+                frn: [],
+                total: [],
+            },
+            metrics: {},
+            monthly_table: [],
+        };
 
     $: rawSchedule = treasuryData.schedule || {};
     $: metrics = treasuryData.metrics || {};
@@ -118,7 +133,10 @@
         forecast_horizon: currentMonths,
     };
 
-    $: auctionDemandData = dashboardData.treasury_auction_demand || {};
+    $: auctionDemandData =
+        modularTreasuryData?.treasury_auction_demand ||
+        dashboardData.treasury_auction_demand ||
+        {};
     $: recentAuctions = (auctionDemandData.raw_auctions || []).slice(0, 20);
 
     // Format percentage
@@ -481,7 +499,9 @@
     <TreasuryRefinancingSignal
         {darkMode}
         {translations}
-        signalData={dashboardData.treasury_refinancing_signal || {}}
+        signalData={modularTreasuryData?.treasury_refinancing_signal ||
+            dashboardData.treasury_refinancing_signal ||
+            {}}
     />
 
     <!-- Treasury Auction Demand Section -->
