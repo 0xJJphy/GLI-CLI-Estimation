@@ -100,14 +100,16 @@
 
         <div class="header-right">
             <!-- Controls Slot or Default Range Selector -->
-            <slot name="controls">
-                {#if showRangeSelector}
-                    <TimeRangeSelector
-                        selectedRange={range}
-                        onRangeChange={handleRangeChange}
-                    />
-                {/if}
-            </slot>
+            <!-- Controls Slot for custom content -->
+            <slot name="controls"></slot>
+
+            <!-- Default Range Selector -->
+            {#if showRangeSelector}
+                <TimeRangeSelector
+                    selectedRange={range}
+                    onRangeChange={handleRangeChange}
+                />
+            {/if}
 
             {#if lastDate}
                 <span class="last-date">Last: {lastDate}</span>

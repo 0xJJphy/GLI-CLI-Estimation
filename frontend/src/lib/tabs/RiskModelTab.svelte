@@ -1564,7 +1564,7 @@
             value:
                 (
                     getLatestValue(
-                        dashboardData.inflation_expect?.Cleveland_1Y,
+                        dashboardData.inflation_swaps?.cleveland_1y,
                     ) ?? 0
                 ).toFixed(2) + "%",
             _color: "#3b82f6",
@@ -1574,7 +1574,7 @@
             value:
                 (
                     getLatestValue(
-                        dashboardData.inflation_expect?.Cleveland_2Y,
+                        dashboardData.inflation_swaps?.cleveland_2y,
                     ) ?? 0
                 ).toFixed(2) + "%",
             _color: "#1e3a8a",
@@ -1584,7 +1584,7 @@
             value:
                 (
                     getLatestValue(
-                        dashboardData.inflation_expect?.Cleveland_5Y,
+                        dashboardData.inflation_swaps?.cleveland_5y,
                     ) ?? 0
                 ).toFixed(2) + "%",
             _color: "#f59e0b",
@@ -1594,7 +1594,7 @@
             value:
                 (
                     getLatestValue(
-                        dashboardData.inflation_expect?.Cleveland_10Y,
+                        dashboardData.inflation_swaps?.cleveland_10y,
                     ) ?? 0
                 ).toFixed(2) + "%",
             _color: "#ef4444",
@@ -3011,10 +3011,6 @@
                         on:click={() => (cliViewMode = "percentile")}>%</button
                     >
                 </div>
-                <TimeRangeSelector
-                    selectedRange={cliRange}
-                    onRangeChange={(r) => (cliRange = r)}
-                />
             </svelte:fragment>
 
             <!-- Signal Slot -->
@@ -3085,10 +3081,6 @@
                         >%</button
                     >
                 </div>
-                <TimeRangeSelector
-                    selectedRange={divergenceRange}
-                    onRangeChange={(r) => (divergenceRange = r)}
-                />
             </svelte:fragment>
 
             <!-- Signal Slot -->
@@ -3271,10 +3263,6 @@
                         title="20-Day Rate of Change">20D</button
                     >
                 </div>
-                <TimeRangeSelector
-                    selectedRange={sofrVolumeRange}
-                    onRangeChange={(r) => (sofrVolumeRange = r)}
-                />
             </svelte:fragment>
 
             <!-- Chart Slot -->
@@ -3364,10 +3352,6 @@
                         title="Raw Values">📊</button
                     >
                 </div>
-                <TimeRangeSelector
-                    selectedRange={treasury10yRange}
-                    onRangeChange={(r) => (treasury10yRange = r)}
-                />
             </svelte:fragment>
 
             <!-- Signal Slot -->
@@ -3466,10 +3450,6 @@
                         title="Raw Values">📊</button
                     >
                 </div>
-                <TimeRangeSelector
-                    selectedRange={treasury2yRange}
-                    onRangeChange={(r) => (treasury2yRange = r)}
-                />
             </svelte:fragment>
 
             <!-- Signal Slot -->
@@ -3568,10 +3548,6 @@
                         title="Raw Values">📊</button
                     >
                 </div>
-                <TimeRangeSelector
-                    selectedRange={yieldCurveRange}
-                    onRangeChange={(r) => (yieldCurveRange = r)}
-                />
             </svelte:fragment>
 
             <!-- Signal Slot -->
@@ -3720,10 +3696,6 @@
                             (yieldCurve30y10yViewMode = "percentile")}>%</button
                     >
                 </div>
-                <TimeRangeSelector
-                    selectedRange={yieldCurve30y10yRange}
-                    onRangeChange={(r) => (yieldCurve30y10yRange = r)}
-                />
             </svelte:fragment>
 
             <svelte:fragment slot="signal">
@@ -3816,10 +3788,6 @@
                             (yieldCurve30y2yViewMode = "percentile")}>%</button
                     >
                 </div>
-                <TimeRangeSelector
-                    selectedRange={yieldCurve30y2yRange}
-                    onRangeChange={(r) => (yieldCurve30y2yRange = r)}
-                />
             </svelte:fragment>
 
             <svelte:fragment slot="signal">
@@ -3915,10 +3883,6 @@
                         >%</button
                     >
                 </div>
-                <TimeRangeSelector
-                    selectedRange={creditSpreadsRange}
-                    onRangeChange={(r) => (creditSpreadsRange = r)}
-                />
             </svelte:fragment>
 
             <svelte:fragment slot="chart">
@@ -3971,10 +3935,6 @@
                         on:click={() => (nfpViewMode = "percentile")}>%</button
                     >
                 </div>
-                <TimeRangeSelector
-                    selectedRange={nfpRange}
-                    onRangeChange={(r) => (nfpRange = r)}
-                />
             </svelte:fragment>
 
             <svelte:fragment slot="signal">
@@ -4055,10 +4015,6 @@
                         >%</button
                     >
                 </div>
-                <TimeRangeSelector
-                    selectedRange={joltsRange}
-                    onRangeChange={(r) => (joltsRange = r)}
-                />
             </svelte:fragment>
 
             <svelte:fragment slot="signal">
@@ -4141,10 +4097,6 @@
                         >%</button
                     >
                 </div>
-                <TimeRangeSelector
-                    selectedRange={stLouisStressRange}
-                    onRangeChange={(r) => (stLouisStressRange = r)}
-                />
             </svelte:fragment>
 
             <svelte:fragment slot="signal">
@@ -4226,10 +4178,6 @@
                             (kansasCityStressViewMode = "percentile")}>%</button
                     >
                 </div>
-                <TimeRangeSelector
-                    selectedRange={kansasCityStressRange}
-                    onRangeChange={(r) => (kansasCityStressRange = r)}
-                />
             </svelte:fragment>
 
             <svelte:fragment slot="signal">
@@ -4308,10 +4256,6 @@
                         >Spread</button
                     >
                 </div>
-                <TimeRangeSelector
-                    selectedRange={baaAaaRange}
-                    onRangeChange={(r) => (baaAaaRange = r)}
-                />
             </svelte:fragment>
 
             <svelte:fragment slot="signal">
@@ -4392,10 +4336,6 @@
                             title="Raw Values">📊</button
                         >
                     </div>
-                    <TimeRangeSelector
-                        selectedRange={item.range}
-                        onRangeChange={(r) => handleRangeChange(item.id, r)}
-                    />
                 </svelte:fragment>
 
                 <!-- Signal Slot -->
