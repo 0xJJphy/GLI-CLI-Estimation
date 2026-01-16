@@ -153,23 +153,26 @@
     </div>
 
     <!-- Footer Slot -->
-    <slot name="footer"></slot>
+    <div class="footer-wrapper">
+        <slot name="footer"></slot>
+    </div>
 </div>
 
 <style>
     .chart-card-v2 {
-        background: var(--card-bg-light, #ffffff);
-        border: 1px solid var(--card-border-light, rgba(0, 0, 0, 0.05));
+        background: var(--bg-secondary, #ffffff);
+        border: 1px solid var(--border-color, rgba(0, 0, 0, 0.05));
         border-radius: var(--card-border-radius, 12px);
-        padding: var(--card-padding, 16px);
+        padding: var(--card-padding, 1.25rem);
         display: flex;
         flex-direction: column;
         gap: 12px;
+        box-shadow: var(--card-shadow, 0 1px 3px rgba(0, 0, 0, 0.1));
     }
 
     .chart-card-v2.dark {
-        background: var(--card-bg-dark, rgba(30, 41, 59, 0.5));
-        border-color: var(--card-border-dark, rgba(255, 255, 255, 0.05));
+        background: var(--bg-secondary);
+        border-color: var(--border-color, rgba(255, 255, 255, 0.05));
     }
 
     /* Header */
@@ -246,6 +249,17 @@
         height: 200px;
         opacity: 0.5;
         font-size: 0.875rem;
+    }
+
+    /* Footer wrapper */
+    .footer-wrapper {
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid var(--border-color, rgba(255, 255, 255, 0.06));
+    }
+
+    .footer-wrapper:empty {
+        display: none;
     }
 
     /* Responsive */

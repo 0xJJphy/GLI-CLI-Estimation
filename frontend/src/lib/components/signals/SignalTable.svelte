@@ -1,178 +1,269 @@
 <!--
   SignalTable.svelte
   
-  A table component for displaying multiple metrics with optional signal status.
+  A flexible table component for displaying metrics with configurable columns.
+  Uses HTML table with rowspan for integrated signal display (like RiskModelTab).
   
   Props:
-  - rows: Array<{ label, value, signal?, color? }>
-  - columns: Array<string> (header labels, optional)
-  - compact: boolean
+  - columns: Array<{ key, label, width?, align?, format?, color? }>
+  - rows: Array<{ [key]: value, _signal?, _color? }>
+  - summary: { value, label, signal?, size? } - Optional summary in last column (rowspan)
   - showHeader: boolean
+  - compact: boolean
   
   Usage:
-  <SignalTable rows={[
-    { label: "SOFR", value: "3.64%", signal: "ok" },
-    { label: "IORB", value: "3.65%", signal: "ok" }
-  ]} />
+  <SignalTable
+    columns={[
+      { key: "rate", label: "RATE" },
+      { key: "value", label: "VALUE" }
+    ]}
+    rows={[
+      { rate: "SOFR", value: 3.64, _color: "#38bdf8" }
+    ]}
+    summary={{ value: "-1.0 bps", label: "SOFR-IORB", signal: "ok" }}
+    showHeader
+  />
 -->
-<script>
+<script context="module">
     /**
-     * @typedef {Object} TableRow
-     * @property {string} label - Row label
-     * @property {string|number} value - Row value
-     * @property {string} [signal] - Optional signal state
-     * @property {string} [color] - Optional custom color
+     * @typedef {Object} TableColumn
+     * @property {string} key
+     * @property {string} label
+     * @property {string} [width]
+     * @property {"left" | "center" | "right"} [align]
+     * @property {"text" | "percent" | "bps" | "currency"} [format]
      */
 
-    /** @type {TableRow[]} */
+    /**
+     * @typedef {Object} SummaryBox
+     * @property {string|number} value
+     * @property {string} label
+     * @property {string} [signal]
+     * @property {"small" | "medium" | "large"} [size]
+     */
+</script>
+
+<script>
+    /** @type {TableColumn[]} */
+    export let columns = [];
+
+    /** @type {any[]} */
     export let rows = [];
 
-    /** @type {string[]} */
-    export let columns = ["Indicator", "Value", "Status"];
-
-    /** @type {boolean} */
-    export let compact = false;
+    /** @type {SummaryBox|null} */
+    export let summary = null;
 
     /** @type {boolean} */
     export let showHeader = false;
 
     /** @type {boolean} */
+    export let compact = false;
+
+    /** @type {boolean} */
     export let darkMode = false;
 
-    // State to color mapping
     const stateColors = {
-        bullish: "var(--signal-bullish, #22c55e)",
-        bearish: "var(--signal-bearish, #ef4444)",
-        neutral: "var(--signal-neutral, #6b7280)",
-        warning: "var(--signal-warning, #f59e0b)",
-        ok: "var(--signal-ok, #10b981)",
-        danger: "var(--signal-danger, #dc2626)",
+        bullish: "#22c55e",
+        bearish: "#ef4444",
+        neutral: "#6b7280",
+        warning: "#f59e0b",
+        ok: "#10b981",
+        danger: "#dc2626",
     };
 
     function getSignalColor(signal) {
         return stateColors[signal] || stateColors.neutral;
     }
 
-    function formatSignalText(signal) {
-        if (!signal) return "";
-        return signal.toUpperCase();
+    function formatValue(value, format) {
+        if (value === undefined || value === null || value === "") return "";
+        switch (format) {
+            case "percent":
+                return typeof value === "number"
+                    ? `${value.toFixed(2)}%`
+                    : value;
+            case "bps":
+                return typeof value === "number"
+                    ? `${value.toFixed(1)} bps`
+                    : value;
+            case "currency":
+                return typeof value === "number"
+                    ? `$${value.toFixed(2)}`
+                    : value;
+            default:
+                return String(value);
+        }
+    }
+
+    function getColumnStyle(col, isHeader = false) {
+        const styles = [];
+        if (col.width) styles.push(`width: ${col.width}`);
+        if (col.align) styles.push(`text-align: ${col.align}`);
+        return styles.join("; ");
     }
 </script>
 
-<div class="signal-table" class:compact class:dark={darkMode}>
+<table class="signal-table" class:compact class:dark={darkMode}>
     {#if showHeader && columns.length > 0}
-        <div class="table-header">
-            {#each columns as col}
-                <span class="header-cell">{col}</span>
-            {/each}
-        </div>
-    {/if}
-
-    <div class="table-body">
-        {#each rows as row}
-            <div class="table-row">
-                <span class="cell label" style:color={row.color || "inherit"}>
-                    {row.label}
-                </span>
-                <span class="cell value">
-                    {row.value}
-                </span>
-                {#if row.signal}
-                    <span
-                        class="cell status"
-                        style:color={getSignalColor(row.signal)}
-                    >
-                        <span
-                            class="dot"
-                            style:background={getSignalColor(row.signal)}
-                        ></span>
-                        {formatSignalText(row.signal)}
-                    </span>
+        <thead>
+            <tr>
+                {#each columns as col}
+                    <th style={getColumnStyle(col, true)}>{col.label}</th>
+                {/each}
+                {#if summary}
+                    <th class="signal-col-header">SPREAD/SIGNAL</th>
                 {/if}
-            </div>
+            </tr>
+        </thead>
+    {/if}
+    <tbody>
+        {#each rows as row, rowIndex}
+            <tr class="table-row">
+                {#each columns as col, colIndex}
+                    <td
+                        style="{getColumnStyle(col)}; {row._color &&
+                        colIndex === 0
+                            ? `color: ${row._color}; font-weight: 600;`
+                            : ''}"
+                    >
+                        {formatValue(row[col.key], col.format)}
+                    </td>
+                {/each}
+
+                {#if summary && rowIndex === 0}
+                    <td
+                        class="signal-cell {summary.signal || 'neutral'}"
+                        rowspan={rows.length}
+                    >
+                        <div class="signal-content">
+                            <div
+                                class="signal-value"
+                                style:color={getSignalColor(summary.signal)}
+                            >
+                                {summary.value}
+                            </div>
+                            <div class="signal-label">{summary.label}</div>
+                            {#if summary.signal}
+                                <div
+                                    class="signal-status"
+                                    style:color={getSignalColor(summary.signal)}
+                                >
+                                    {#if summary.signal === "ok" || summary.signal === "bullish"}
+                                        ✅ OK
+                                    {:else if summary.signal === "warning"}
+                                        ⚠️ ELEVATED
+                                    {:else}
+                                        🚨 {summary.signal.toUpperCase()}
+                                    {/if}
+                                </div>
+                            {/if}
+                        </div>
+                    </td>
+                {/if}
+            </tr>
         {/each}
-    </div>
-</div>
+    </tbody>
+</table>
 
 <style>
     .signal-table {
         width: 100%;
-        font-size: 0.75rem;
+        border-collapse: collapse;
+        font-size: 0.8rem;
+        table-layout: fixed;
     }
 
-    .table-header {
-        display: flex;
-        gap: 16px;
-        padding: 8px 0;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    /* Data columns take 70%, signal column takes 30% */
+    .signal-table thead th:not(.signal-col-header) {
+        width: 35%; /* Split 70% between 2 columns */
+    }
+
+    .signal-table thead th.signal-col-header {
+        width: 30%;
+    }
+
+    .signal-table thead th {
+        padding: 10px 12px;
+        text-align: left;
         font-weight: 600;
         text-transform: uppercase;
-        font-size: 0.65rem;
+        font-size: 0.7rem;
         opacity: 0.7;
+        letter-spacing: 0.05em;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.03);
+        color: #94a3b8;
     }
 
-    .header-cell {
-        flex: 1;
+    .signal-table thead th.signal-col-header {
+        text-align: center;
     }
 
-    .table-body {
+    .signal-table tbody tr {
+        transition: background 0.15s ease;
+    }
+
+    .signal-table tbody tr:hover {
+        background: rgba(255, 255, 255, 0.03);
+    }
+
+    .signal-table tbody td {
+        padding: 10px 12px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        font-family: "JetBrains Mono", monospace;
+    }
+
+    .signal-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .compact tbody td {
+        padding: 6px 10px;
+    }
+
+    /* Signal cell (rowspan) */
+    .signal-cell {
+        vertical-align: middle;
+        text-align: center;
+        background: rgba(0, 0, 0, 0.15);
+        border-left: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 0 8px 8px 0;
+        min-width: 140px;
+    }
+
+    .signal-content {
         display: flex;
         flex-direction: column;
+        align-items: center;
         gap: 4px;
+        padding: 8px;
     }
 
-    .table-row {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-        padding: 6px 0;
-    }
-
-    .compact .table-row {
-        padding: 4px 0;
-        gap: 12px;
-    }
-
-    .cell {
-        flex: 1;
-    }
-
-    .cell.label {
-        font-weight: 500;
-    }
-
-    .cell.value {
+    .signal-value {
+        font-size: 1.2rem;
+        font-weight: 800;
         font-family: "JetBrains Mono", monospace;
-        text-align: right;
     }
 
-    .cell.status {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-weight: 600;
-        text-align: right;
-        justify-content: flex-end;
-    }
-
-    .dot {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        flex-shrink: 0;
-    }
-
-    /* Dark mode */
-    .dark .table-header {
-        border-color: rgba(255, 255, 255, 0.05);
-    }
-
-    /* Compact mode */
-    .compact {
+    .signal-label {
         font-size: 0.7rem;
+        opacity: 0.6;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
     }
 
-    .compact .cell.status {
-        font-size: 0.65rem;
+    .signal-status {
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-top: 4px;
+    }
+
+    /* Dark mode adjustments */
+    .dark thead th {
+        border-color: rgba(255, 255, 255, 0.06);
+    }
+
+    .dark tbody tr:hover {
+        background: rgba(255, 255, 255, 0.04);
     }
 </style>

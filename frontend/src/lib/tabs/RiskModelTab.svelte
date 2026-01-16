@@ -3,6 +3,7 @@
      * RiskModelTab.svelte
      * Displays Credit Liquidity Index (CLI) and risk metrics.
      */
+
     import Chart from "../components/Chart.svelte";
     import TimeRangeSelector from "../components/TimeRangeSelector.svelte";
     import StressPanel from "../components/StressPanel.svelte";
@@ -21,6 +22,9 @@
         PERCENTILE_CONFIG,
     } from "../utils/chartHelpers.js";
     import { getCutoffDate } from "../utils/helpers.js";
+    import ChartCardV2 from "../components/ChartCardV2.svelte";
+    import ChartStack from "../components/ChartStack.svelte";
+    import { SignalBadge, SignalTable } from "../components/signals";
 
     // Unified Props
     export let dashboardData = {};
@@ -1350,6 +1354,471 @@
         true,
     );
 
+    /** @type {import('../components/signals/SignalTable.svelte').TableColumn[]} */
+    $: sofrVolumeTableColumns = [
+        {
+            key: "indicator",
+            label: translations.indicator || "Indicator",
+            align: "left",
+        },
+        {
+            key: "value",
+            label: translations.repo_value || "Value",
+            align: "right",
+        },
+        {
+            key: "status",
+            label: translations.signal_status || "Status",
+            align: "center",
+        },
+    ];
+
+    $: sofrVolumeLatest =
+        getLatestValue(dashboardData.repo_stress?.sofr_volume) ?? 0;
+    $: sofrVolumeTableRows = [
+        {
+            indicator: "SOFR Volume",
+            value: `$${sofrVolumeLatest.toFixed(1)}B`,
+            status:
+                sofrVolumeLatest > 1000
+                    ? "✅ " + (translations.status_ok || "DEEP")
+                    : sofrVolumeLatest > 500
+                      ? "🔶 " + (translations.status_neutral || "MODERATE")
+                      : "⚠️ " + (translations.status_stress || "THIN"),
+            _color: "#06b6d4",
+        },
+    ];
+
+    // Yield Curve Regime Logic
+    $: yieldCurveLatestSpread = getLatestValue(dashboardData.yield_curve) ?? 0;
+    $: yieldCurvePrevSpread =
+        dashboardData.yield_curve?.[dashboardData.yield_curve?.length - 22] ??
+        yieldCurveLatestSpread;
+    $: yieldCurveSpreadChange = yieldCurveLatestSpread - yieldCurvePrevSpread;
+
+    $: treasury10yLatestValue = getLatestValue(dashboardData.treasury_10y) ?? 0;
+    $: treasury10yPrevValue =
+        dashboardData.treasury_10y?.[dashboardData.treasury_10y?.length - 22] ??
+        treasury10yLatestValue;
+    $: treasury10yRateChange = treasury10yLatestValue - treasury10yPrevValue;
+
+    /** @type {{ label: string, state: "bullish" | "bearish" | "neutral" | "warning" | "ok" | "danger", emoji: string, desc: string }} */
+    $: yieldCurveRegime = (() => {
+        if (yieldCurveLatestSpread < 0)
+            return {
+                label: "INVERTED",
+                state: "bearish",
+                emoji: "🔴",
+                desc: "Recession Signal",
+            };
+
+        if (yieldCurveSpreadChange > 0.05 && treasury10yRateChange < 0)
+            return {
+                label: "BULL STEEPENER",
+                state: "bullish",
+                emoji: "🟢",
+                desc: "Rates ↓, Spread ↑",
+            };
+        if (yieldCurveSpreadChange > 0.05 && treasury10yRateChange >= 0)
+            return {
+                label: "BEAR STEEPENER",
+                state: "warning",
+                emoji: "🟠",
+                desc: "Rates ↑, Spread ↑",
+            };
+        if (yieldCurveSpreadChange < -0.05 && treasury10yRateChange < 0)
+            return {
+                label: "BULL FLATTENER",
+                state: "neutral",
+                emoji: "🔵",
+                desc: "Rates ↓, Spread ↓",
+            };
+        if (yieldCurveSpreadChange < -0.05 && treasury10yRateChange >= 0)
+            return {
+                label: "BEAR FLATTENER",
+                state: "bearish",
+                emoji: "🔴",
+                desc: "Rates ↑, Spread ↓",
+            };
+        return {
+            label: "HOLD",
+            state: "neutral",
+            emoji: "⚪",
+            desc: "Little Change",
+        };
+    })();
+
+    /**
+     * Helper to determine yield curve regime for other curve pairs
+     * @param {number} spreadChange
+     * @param {number} rateChange
+     * @returns {{ label: string, class: "bullish" | "bearish" | "neutral" | "warning" }}
+     */
+    function getCurveRegime(spreadChange, rateChange) {
+        if (spreadChange > 0.03 && rateChange < 0)
+            return { label: "BULL STEEP", class: "bullish" };
+        if (spreadChange > 0.03 && rateChange >= 0)
+            return { label: "BEAR STEEP", class: "warning" };
+        if (spreadChange < -0.03 && rateChange < 0)
+            return { label: "BULL FLAT", class: "neutral" };
+        if (spreadChange < -0.03 && rateChange >= 0)
+            return { label: "BEAR FLAT", class: "bearish" };
+        return { label: "HOLD", class: "neutral" };
+    }
+
+    /** @type {import('../components/signals/SignalTable.svelte').TableColumn[]} */
+    $: yieldCurveTableColumns = [
+        { key: "metric", label: "Metric", align: "left" },
+        { key: "value", label: "Value", align: "right" },
+        { key: "change", label: "1M Change", align: "right" },
+    ];
+
+    $: yieldCurveTableRows = [
+        {
+            metric: "10Y-2Y Spread",
+            value: (yieldCurveLatestSpread * 100).toFixed(0) + " bps",
+            change: (yieldCurveSpreadChange * 100).toFixed(0) + " bps",
+        },
+        {
+            metric: "10Y Yield",
+            value: treasury10yLatestValue.toFixed(2) + "%",
+            change: (treasury10yRateChange * 100).toFixed(0) + " bps",
+        },
+    ];
+
+    /** @type {import('../components/signals/SignalTable.svelte').TableColumn[]} */
+    $: repoCorridorTableColumns = [
+        { key: "rate", label: translations.repo_rate || "Rate", align: "left" },
+        {
+            key: "value",
+            label: translations.repo_value || "Value",
+            align: "right",
+        },
+    ];
+
+    $: repoCorridorTableRows = [
+        {
+            rate: "SRF (Ceiling)",
+            value:
+                (
+                    getLatestValue(dashboardData.repo_stress?.srf_rate) ?? 0
+                ).toFixed(2) + "%",
+            _color: "#ef4444",
+        },
+        {
+            rate: "SOFR",
+            value:
+                (getLatestValue(dashboardData.repo_stress?.sofr) ?? 0).toFixed(
+                    2,
+                ) + "%",
+            _color: "#3b82f6",
+        },
+        {
+            rate: "IORB (Floor)",
+            value:
+                (getLatestValue(dashboardData.repo_stress?.iorb) ?? 0).toFixed(
+                    2,
+                ) + "%",
+            _color: "#22c55e",
+        },
+        {
+            rate: "RRP Award",
+            value:
+                (
+                    getLatestValue(dashboardData.repo_stress?.rrp_award) ?? 0
+                ).toFixed(2) + "%",
+            _color: "#8b5cf6",
+        },
+    ];
+
+    /** @type {import('../components/signals/SignalTable.svelte').SummaryBox} */
+    $: repoCorridorTableSummary = {
+        value: `${latestSofrToFloor.toFixed(1)} bps`,
+        label: "SOFR-IORB",
+        signal:
+            corridorStressLevel === "NORMAL"
+                ? "bullish"
+                : corridorStressLevel === "ELEVATED"
+                  ? "warning"
+                  : "bearish",
+    };
+
+    $: repoCorridorSubcharts = [
+        {
+            key: "srf",
+            data: srfUsageFiltered || [],
+            yaxisTitle: "SRF ($B)",
+            showGrid: true,
+        },
+    ];
+
+    /** @type {import('../components/signals/SignalTable.svelte').TableColumn[]} */
+    $: inflationExpectTableColumns = [
+        { key: "tenor", label: "Tenor", align: "left" },
+        { key: "value", label: "Value", align: "right" },
+    ];
+
+    $: inflationExpectTableRows = [
+        {
+            tenor: "1Y Expectation",
+            value:
+                (
+                    getLatestValue(
+                        dashboardData.inflation_expect?.Cleveland_1Y,
+                    ) ?? 0
+                ).toFixed(2) + "%",
+            _color: "#3b82f6",
+        },
+        {
+            tenor: "2Y Expectation",
+            value:
+                (
+                    getLatestValue(
+                        dashboardData.inflation_expect?.Cleveland_2Y,
+                    ) ?? 0
+                ).toFixed(2) + "%",
+            _color: "#1e3a8a",
+        },
+        {
+            tenor: "5Y Expectation",
+            value:
+                (
+                    getLatestValue(
+                        dashboardData.inflation_expect?.Cleveland_5Y,
+                    ) ?? 0
+                ).toFixed(2) + "%",
+            _color: "#f59e0b",
+        },
+        {
+            tenor: "10Y Expectation",
+            value:
+                (
+                    getLatestValue(
+                        dashboardData.inflation_expect?.Cleveland_10Y,
+                    ) ?? 0
+                ).toFixed(2) + "%",
+            _color: "#ef4444",
+        },
+    ];
+
+    /** @type {import('../components/signals/SignalTable.svelte').TableColumn[]} */
+    $: tipsMarketTableColumns = [
+        { key: "label", label: "Metric", align: "left" },
+        { key: "value", label: "Value", align: "right" },
+    ];
+
+    $: tipsMarketTableRows = (() => {
+        if (!signalsFromMetrics.tips?.latest) return [];
+        return [
+            {
+                label: "10Y Breakeven (%)",
+                value: (
+                    getLatestValue(dashboardData.tips?.breakeven) ?? 0
+                ).toFixed(2),
+            },
+            {
+                label: "10Y Real Rate (%)",
+                value: (
+                    getLatestValue(dashboardData.tips?.real_rate) ?? 0
+                ).toFixed(2),
+            },
+            {
+                label: "5Y5Y Forward (%)",
+                value: (
+                    getLatestValue(dashboardData.tips?.fwd_5y5y) ?? 0
+                ).toFixed(2),
+            },
+        ];
+    })();
+
+    // --- STRESS INDICES ---
+    /** @type {import("../components/signals/SignalTable.svelte").TableColumn[]} */
+    const stressIndexTableColumns = [
+        { key: "metric", label: "METRIC", align: "left" },
+        { key: "value", label: "VALUE", align: "right" },
+        { key: "percentile", label: "PCTL", align: "right" },
+        { key: "zscore", label: "Z-SCR", align: "right" },
+    ];
+
+    $: stLouisStressTableRows = (() => {
+        if (!signalsFromMetrics.st_louis_stress?.latest) return [];
+        const s = signalsFromMetrics.st_louis_stress.latest;
+        return [
+            {
+                metric: "STLFSI4 Index",
+                value: s.value?.toFixed(2),
+                percentile: `P${s.percentile?.toFixed(0)}`,
+                zscore: s.zScore?.toFixed(2),
+                _signal: {
+                    value: getStatusLabel(s.state),
+                    color: getSignalColor(s.state),
+                },
+            },
+        ];
+    })();
+
+    $: kansasCityStressTableRows = (() => {
+        if (!signalsFromMetrics.kansas_city_stress?.latest) return [];
+        const s = signalsFromMetrics.kansas_city_stress.latest;
+        return [
+            {
+                metric: "KCFSI Index",
+                value: s.value?.toFixed(2),
+                percentile: `P${s.percentile?.toFixed(0)}`,
+                zscore: s.zScore?.toFixed(2),
+                _signal: {
+                    value: getStatusLabel(s.state),
+                    color: getSignalColor(s.state),
+                },
+            },
+        ];
+    })();
+
+    $: baaAaaTableRows = (() => {
+        if (!signalsFromMetrics.baa_aaa_spread?.latest) return [];
+        const s = signalsFromMetrics.baa_aaa_spread.latest;
+        return [
+            {
+                metric: "BAA-AAA Spread",
+                value: s.value ? `${s.value.toFixed(2)}%` : "-",
+                percentile: `P${s.percentile?.toFixed(0)}`,
+                zscore: s.zScore?.toFixed(2),
+                _signal: {
+                    value: getStatusLabel(s.state),
+                    color: getSignalColor(s.state),
+                },
+            },
+        ];
+    })();
+
+    /** @type {import('../components/signals/SignalTable.svelte').TableColumn[]} */
+    $: yieldCurve3010TableColumns = [
+        { key: "label", label: "Metric" },
+        { key: "value", label: "Value (%)", align: "right" },
+        { key: "delta", label: "Δ1M (%)", align: "right" },
+        { key: "pct", label: "Percentile", align: "right" },
+    ];
+
+    $: yieldCurve3010TableRows = (() => {
+        if (!signalsFromMetrics.yield_curve_30y_10y?.latest) return [];
+        const s = signalsFromMetrics.yield_curve_30y_10y.latest;
+        const lastSpread = s.value;
+        const prevSpread =
+            dashboardData.yield_curve_30y_10y?.[
+                dashboardData.yield_curve_30y_10y?.length - 22
+            ] ?? lastSpread;
+        const spreadChange = lastSpread - prevSpread;
+
+        return [
+            {
+                label: "30Y-10Y Spread",
+                value: s.value?.toFixed(2),
+                delta: (spreadChange >= 0 ? "+" : "") + spreadChange.toFixed(2),
+                pct: `P${s.percentile?.toFixed(0)}`,
+            },
+        ];
+    })();
+
+    /** @type {import('../components/signals/SignalTable.svelte').TableColumn[]} */
+    $: yieldCurve302TableColumns = [
+        { key: "label", label: "Metric" },
+        { key: "value", label: "Value (%)", align: "right" },
+        { key: "delta", label: "Δ1M (%)", align: "right" },
+        { key: "pct", label: "Percentile", align: "right" },
+    ];
+
+    $: yieldCurve302TableRows = (() => {
+        if (!signalsFromMetrics.yield_curve_30y_2y?.latest) return [];
+        const s = signalsFromMetrics.yield_curve_30y_2y.latest;
+        const lastSpread = s.value;
+        const prevSpread =
+            dashboardData.yield_curve_30y_2y?.[
+                dashboardData.yield_curve_30y_2y?.length - 22
+            ] ?? lastSpread;
+        const spreadChange = lastSpread - prevSpread;
+
+        return [
+            {
+                label: "30Y-2Y Spread",
+                value: s.value?.toFixed(2),
+                delta: (spreadChange >= 0 ? "+" : "") + spreadChange.toFixed(2),
+                pct: `P${s.percentile?.toFixed(0)}`,
+            },
+        ];
+    })();
+
+    /** @type {import('../components/signals/SignalTable.svelte').TableColumn[]} */
+    $: creditSpreadsTableColumns = [
+        { key: "label", label: "Spread", align: "left" },
+        { key: "value", label: "Current", align: "right" },
+        { key: "status", label: "Status", align: "right" },
+    ];
+
+    $: creditSpreadsTableRows = (() => {
+        const hyVal = getLatestValue(dashboardData.hy_spread);
+        const igVal = getLatestValue(dashboardData.ig_spread);
+        const hyStress =
+            hyVal > 500
+                ? "🔴 Stress"
+                : hyVal > 400
+                  ? "🔶 Elevated"
+                  : "✅ Normal";
+        const igStress =
+            igVal > 150
+                ? "🔴 Stress"
+                : igVal > 120
+                  ? "🔶 Elevated"
+                  : "✅ Normal";
+
+        return [
+            {
+                label: "HY Spread",
+                value: hyVal ? `${hyVal.toFixed(0)} bps` : "N/A",
+                status: hyStress,
+                _color: "#ef4444",
+            },
+            {
+                label: "IG Spread",
+                value: igVal ? `${igVal.toFixed(0)} bps` : "N/A",
+                status: igStress,
+                _color: "#38bdf8",
+            },
+        ];
+    })();
+
+    /** @type {import('../components/signals/SignalTable.svelte').TableColumn[]} */
+    $: laborTableColumns = [
+        { key: "label", label: "Metric", align: "left" },
+        { key: "value", label: "Value", align: "right" },
+        { key: "pct", label: "Percentile", align: "right" },
+    ];
+
+    $: nfpTableRows = (() => {
+        if (!signalsFromMetrics.nfp?.latest) return [];
+        const s = signalsFromMetrics.nfp.latest;
+        return [
+            {
+                label: "NFP Change",
+                value: `${s.value?.toFixed(0)}k`,
+                pct: `P${s.percentile?.toFixed(0)}`,
+                _color: getSignalColor(s.state),
+            },
+        ];
+    })();
+
+    $: joltsTableRows = (() => {
+        if (!signalsFromMetrics.jolts?.latest) return [];
+        const s = signalsFromMetrics.jolts.latest;
+        return [
+            {
+                label: "JOLTS Openings",
+                value: `${s.value?.toFixed(2)}M`,
+                pct: `P${s.percentile?.toFixed(0)}`,
+                _color: getSignalColor(s.state),
+            },
+        ];
+    })();
+
     $: tipsData = filterWithCache(
         [
             {
@@ -1548,6 +2017,7 @@
     );
 
     // Inflation Expectations Signal (1Y < 2Y = Inverted = Bearish)
+    /** @type {"bullish" | "bearish" | "neutral" | "warning" | "ok" | "danger"} */
     $: inflationExpectSignal = (() => {
         const clev1y = dashboardData.inflation_swaps?.cleveland_1y;
         const clev2y = dashboardData.inflation_swaps?.cleveland_2y;
@@ -1631,6 +2101,18 @@
         );
     }
 
+    function getSignalColor(signal) {
+        const colors = {
+            bullish: "#22c55e",
+            bearish: "#ef4444",
+            neutral: "#6b7280",
+            warning: "#f59e0b",
+            ok: "#10b981",
+            danger: "#dc2626",
+        };
+        return colors[signal] || colors.neutral;
+    }
+
     // Z-Score Layouts (using original createZScoreBands from line 20)
     $: hyZLayout = {
         shapes: createZScoreBands(darkMode),
@@ -1680,6 +2162,24 @@
             side: "right",
             autorange: true,
         },
+    };
+
+    $: creditSpreadsZLayout = {
+        shapes: createZScoreBands(darkMode),
+        yaxis: { title: "Z-Score", autorange: true },
+        margin: { l: 60, r: 20, t: 20, b: 40 },
+        legend: { x: 0.01, y: 0.99, bgcolor: "rgba(0,0,0,0.0)" },
+    };
+
+    $: creditSpreadsPctLayout = {
+        shapes: createPercentileBands(darkMode, {
+            bullishPct: 30,
+            bearishPct: 70,
+            invert: true,
+        }),
+        yaxis: { title: "Percentile", range: [0, 100], autorange: false },
+        margin: { l: 60, r: 20, t: 20, b: 40 },
+        legend: { x: 0.01, y: 0.99, bgcolor: "rgba(0,0,0,0.0)" },
     };
 
     // Percentile Layouts (when viewMode is 'percentile')
@@ -2239,6 +2739,7 @@
     }
 
     // Unified signal derived from signal_metrics
+    /** @type {Record<string, { latest?: { state: "bullish" | "bearish" | "neutral" | "warning" | "ok" | "danger", value?: number, percentile?: number, reason?: string } }>} */
     $: signalsFromMetrics = dashboardData.signal_metrics || {};
 
     const signalConfig = [
@@ -2346,73 +2847,32 @@
 <div class="main-charts">
     <div class="grid-2">
         <!-- Inflation Expectations (Swap Rates / Cleveland Fed) Chart -->
-        <div class="chart-card" bind:this={inflationExpectCard}>
-            <div class="chart-header">
-                <h3>
-                    {translations.chart_inflation_swap_title ||
-                        "USD Inflation Swap Rates (Cleveland Fed)"}
-                </h3>
-                <div class="header-controls">
-                    <button
-                        class="download-card-btn"
-                        title="Download Full Card"
-                        on:click={() =>
-                            downloadCardAsImage(
-                                inflationExpectCard,
-                                "inflation_expectations",
-                            )}
-                    >
-                        📷
-                    </button>
-                    <TimeRangeSelector
-                        selectedRange={inflationExpectRange}
-                        onRangeChange={(r) => (inflationExpectRange = r)}
-                    />
-                    <span class="last-date"
-                        >{translations.last_data || "Last Data:"}
-                        {getLastDate("INFLATION_EXPECT_1Y")}</span
-                    >
-                </div>
-            </div>
-            <div
-                class="chart-legend"
-                style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px;"
-            >
-                <span class="legend-item">
-                    <span class="legend-dot" style="background: #3b82f6"></span>
-                    <span class="legend-label"
-                        >{translations.legend_1y || "1Y"}</span
-                    >
-                </span>
-                <span class="legend-item">
-                    <span class="legend-dot" style="background: #1e3a8a"></span>
-                    <span class="legend-label"
-                        >{translations.legend_2y || "2Y"}</span
-                    >
-                </span>
-                <span class="legend-item">
-                    <span class="legend-dot" style="background: #f59e0b"></span>
-                    <span class="legend-label"
-                        >{translations.legend_5y || "5Y"}</span
-                    >
-                </span>
-                <span class="legend-item">
-                    <span class="legend-dot" style="background: #ef4444"></span>
-                    <span class="legend-label"
-                        >{translations.legend_10y || "10Y"}</span
-                    >
-                </span>
-                <span class="legend-item">
-                    <span
-                        class="legend-dot"
-                        style="background: #10b981; border: 1px dashed rgba(255,255,255,0.5)"
-                    ></span>
-                    <span class="legend-label"
-                        >{translations.tips_fwd || "5Y5Y Fwd"}</span
-                    >
-                </span>
-            </div>
-            <div class="chart-content" style="height: 300px;">
+        <ChartCardV2
+            title={translations.chart_inflation_swap_title ||
+                "USD Inflation Swap Rates (Cleveland Fed)"}
+            description={translations.repo_corridor_desc ||
+                " Cleveland Fed inflation swap rates for various tenors. Inversion (1Y < 2Y) suggests market expectations of cooling inflation."}
+            {darkMode}
+            range={inflationExpectRange}
+            onRangeChange={(r) => (inflationExpectRange = r)}
+            lastDate={getLastDate("INFLATION_EXPECT_1Y")}
+            cardId="inflation_expectations"
+        >
+            <!-- Signal Slot -->
+            <svelte:fragment slot="signal">
+                <SignalBadge
+                    state={inflationExpectSignal}
+                    value={inflationExpectSignal === "bearish"
+                        ? translations.signal_inverted || "INVERTED"
+                        : inflationExpectSignal === "bullish"
+                          ? translations.signal_normal || "NORMAL"
+                          : translations.signal_neutral || "NEUTRAL"}
+                    label="Curve"
+                />
+            </svelte:fragment>
+
+            <!-- Chart Slot -->
+            <svelte:fragment slot="chart">
                 <Chart
                     {darkMode}
                     data={inflationExpectData}
@@ -2422,43 +2882,32 @@
                             autorange: true,
                         },
                         margin: { l: 50, r: 20, t: 10, b: 40 },
-                        showlegend: false,
+                        showlegend: true,
+                        legend: {
+                            orientation: "h",
+                            yanchor: "bottom",
+                            y: 1.02,
+                            xanchor: "center",
+                            x: 0.5,
+                        },
                     }}
                 />
-            </div>
+            </svelte:fragment>
 
-            <!-- Inflation Inversion Signal -->
-            <div
-                class="metrics-section"
-                style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;"
-            >
+            <!-- Footer Slot -->
+            <svelte:fragment slot="footer">
                 <div
-                    class="signal-item"
-                    style="background: rgba(0,0,0,0.15); border: none;"
+                    style="display: flex; flex-direction: column; gap: 12px; width: 100%;"
                 >
-                    <div class="signal-label">
-                        {translations.inflation_curve_signal ||
-                            "Inflation Curve Signal (1Y-2Y)"}
-                    </div>
-                    <div class="signal-status text-{inflationExpectSignal}">
-                        <span class="signal-dot"></span>
-                        {#if inflationExpectSignal === "bearish"}
-                            🚫 {translations.signal_inverted ||
-                                "INVERTED (Bearish)"}
-                        {:else if inflationExpectSignal === "bullish"}
-                            🐂 {translations.signal_normal ||
-                                "NORMAL (Bullish)"}
-                        {:else}
-                            ⚖️ {translations.signal_neutral || "NEUTRAL"}
-                        {/if}
-                    </div>
-                    <div class="signal-value">
-                        {translations.spread_1y_2y || "Spread (1Y-2Y)"}:
-                        <b>{inflationExpectInversionSpread.toFixed(2)}%</b>
-                    </div>
+                    <SignalTable
+                        columns={inflationExpectTableColumns}
+                        rows={inflationExpectTableRows}
+                        showHeader={false}
+                        {darkMode}
+                    />
                     <div
                         class="signal-reason"
-                        style="font-size: 11px; color: rgba(255,255,255,0.55); margin-top: 6px; font-style: italic;"
+                        style="font-size: 11px; color: var(--text-secondary); opacity: 0.7; font-style: italic; text-align: center;"
                     >
                         {#if inflationExpectSignal === "bearish"}
                             {translations.inflation_inverted_desc ||
@@ -2467,334 +2916,201 @@
                             {translations.inflation_normal_desc ||
                                 "1Y Swap above 2Y Swap: Market expects near-term inflation to remain elevated."}
                         {:else}
-                            {translations.inflation_neutral_desc ||
-                                "Curve is flat or mixed."}
+                            Curve is flat or stable.
                         {/if}
                     </div>
                 </div>
-            </div>
-        </div>
+            </svelte:fragment>
+        </ChartCardV2>
 
         <!-- TIPS / Inflation Expectations Chart -->
-        <div class="chart-card" bind:this={tipsCard}>
-            <div class="chart-header">
-                <h3>
-                    {translations.chart_inflation_exp ||
-                        "Inflation Expectations (TIPS Market)"}
-                </h3>
-                <div class="header-controls">
-                    <button
-                        class="download-card-btn"
-                        title="Download Full Card"
-                        on:click={() =>
-                            downloadCardAsImage(
-                                tipsCard,
-                                "tips_market_expectations",
-                            )}
-                    >
-                        📷
-                    </button>
-                    <TimeRangeSelector
-                        selectedRange={tipsRange}
-                        onRangeChange={(r) => (tipsRange = r)}
+        <ChartCardV2
+            title={translations.chart_inflation_exp ||
+                "Inflation Expectations (TIPS Market)"}
+            description={translations.tips_desc ||
+                "Market-implied inflation (Breakeven) and cost of money (Real Rates)."}
+            {darkMode}
+            range={tipsRange}
+            onRangeChange={(r) => (tipsRange = r)}
+            lastDate={getLastDate("TIPS_BREAKEVEN")}
+            cardId="tips_market_expectations"
+        >
+            <!-- Signal Slot -->
+            <svelte:fragment slot="signal">
+                {#if signalsFromMetrics.tips?.latest}
+                    {@const s = signalsFromMetrics.tips.latest}
+                    <SignalBadge
+                        state={s.state}
+                        value={getStatusLabel(s.state)}
+                        label="Macro"
                     />
-                    <span class="last-date"
-                        >{translations.last_data || "Last Data:"}
-                        {getLastDate("TIPS_BREAKEVEN")}</span
-                    >
-                </div>
-            </div>
-            <div class="chart-legend">
-                <span class="legend-item">
-                    <span class="legend-dot" style="background: #f59e0b"></span>
-                    <span class="legend-label"
-                        >{translations.tips_breakeven || "Breakeven"}</span
-                    >
-                    <span class="legend-desc"
-                        >{translations.tips_be_desc ||
-                            "Inflation expectations"}</span
-                    >
-                </span>
-                <span class="legend-item">
-                    <span class="legend-dot" style="background: #3b82f6"></span>
-                    <span class="legend-label"
-                        >{translations.tips_real_rate || "Real Rate"}</span
-                    >
-                    <span class="legend-desc"
-                        >{translations.tips_rr_desc || "Cost of money"}</span
-                    >
-                </span>
-                <span class="legend-item">
-                    <span class="legend-dot" style="background: #10b981"></span>
-                    <span class="legend-label"
-                        >{translations.tips_fwd || "5Y5Y Forward"}</span
-                    >
-                    <span class="legend-desc"
-                        >{translations.tips_fwd_desc ||
-                            "Long-term anchor"}</span
-                    >
-                </span>
-            </div>
-            <div class="chart-content">
+                {:else}
+                    <SignalBadge state="neutral" value="Loading..." />
+                {/if}
+            </svelte:fragment>
+
+            <!-- Chart Slot -->
+            <svelte:fragment slot="chart">
                 <Chart
                     {darkMode}
                     data={tipsData}
                     layout={tipsLayoutWithBands}
                 />
-            </div>
+            </svelte:fragment>
 
-            {#if signalsFromMetrics.tips?.latest}
-                {@const s = signalsFromMetrics.tips.latest}
+            <!-- Footer Slot -->
+            <svelte:fragment slot="footer">
                 <div
-                    class="metrics-section"
-                    style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;"
+                    style="display: flex; flex-direction: column; gap: 12px; width: 100%;"
                 >
+                    <SignalTable
+                        columns={tipsMarketTableColumns}
+                        rows={tipsMarketTableRows}
+                        showHeader={false}
+                        {darkMode}
+                    />
                     <div
-                        class="signal-item"
-                        style="background: rgba(0,0,0,0.15); border: none;"
+                        class="signal-reason"
+                        style="font-size: 11px; color: var(--text-secondary); opacity: 0.7; font-style: italic; text-align: center;"
                     >
-                        <div class="signal-label">
-                            {translations.tips_signal_label ||
-                                "TIPS Macro Signal"}
-                        </div>
-                        <div class="signal-status text-{s.state}">
-                            <span class="signal-dot"></span>
-                            {getStatusLabel(s.state)}
-                        </div>
-                        <div class="signal-value">
-                            {translations.repo_value || "Value"}: {s.value?.toFixed(
-                                2,
-                            ) ?? "N/A"} | {translations.percentile ||
-                                "Percentile"}: P{s.percentile?.toFixed(0) ??
-                                "N/A"}
-                        </div>
+                        {#if signalsFromMetrics.tips?.latest}
+                            {@const s = signalsFromMetrics.tips.latest}
+                            {getSignalReason("tips", s.state)}
+                        {:else if computedTipsSignal}
+                            {@const s = computedTipsSignal}
+                            {translations[s.reasonKey] || s.reasonKey}
+                        {:else}
+                            No active signal alert.
+                        {/if}
                     </div>
                 </div>
-            {:else if computedTipsSignal}
-                {@const s = computedTipsSignal}
-                <div
-                    class="metrics-section"
-                    style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;"
-                >
-                    <div
-                        class="signal-item"
-                        style="background: rgba(0,0,0,0.15); border: none;"
+            </svelte:fragment>
+        </ChartCardV2>
+
+        <!-- CLI Aggregate Chart -->
+        <ChartCardV2
+            title={translations.chart_cli_title ||
+                "Credit Liquidity Index (CLI Aggregate)"}
+            description={translations.cli ||
+                "Aggregates credit conditions, volatility, and lending."}
+            {darkMode}
+            range={cliRange}
+            onRangeChange={(r) => (cliRange = r)}
+            lastDate={getLastDate("NFCI")}
+            cardId="cli_aggregate"
+        >
+            <!-- Controls Slot -->
+            <svelte:fragment slot="controls">
+                <div class="view-mode-toggle">
+                    <button
+                        class:active={cliViewMode === "zscore"}
+                        on:click={() => (cliViewMode = "zscore")}>Z</button
                     >
-                        <div class="signal-label">
-                            {translations.tips_signal_label ||
-                                "TIPS Macro Signal"}
-                        </div>
-                        <div class="signal-status text-{s.state}">
-                            <span class="signal-dot"></span>
-                            {s.state === "warning"
-                                ? "⚠️ WARNING"
-                                : getStatusLabel(s.state)}
-                        </div>
+                    <button
+                        class:active={cliViewMode === "percentile"}
+                        on:click={() => (cliViewMode = "percentile")}>%</button
+                    >
+                </div>
+                <TimeRangeSelector
+                    selectedRange={cliRange}
+                    onRangeChange={(r) => (cliRange = r)}
+                />
+            </svelte:fragment>
+
+            <!-- Signal Slot -->
+            <svelte:fragment slot="signal">
+                {#if signalsFromMetrics.cli?.latest}
+                    {@const s = signalsFromMetrics.cli.latest}
+                    <SignalBadge
+                        state={s.state}
+                        value={getStatusLabel(s.state)}
+                        label="Stance"
+                    />
+                {/if}
+            </svelte:fragment>
+
+            <!-- Chart Slot -->
+            <svelte:fragment slot="chart">
+                <Chart {darkMode} data={cliChartData} layout={cliLayout} />
+            </svelte:fragment>
+
+            <!-- Footer Slot -->
+            <svelte:fragment slot="footer">
+                {#if signalsFromMetrics.cli?.latest}
+                    {@const s = signalsFromMetrics.cli.latest}
+                    <div
+                        style="display: flex; flex-direction: column; gap: 8px; width: 100%;"
+                    >
                         <div
-                            class="signal-value"
-                            style="display: flex; gap: 12px;"
+                            style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 500;"
                         >
-                            <span>BE: {s.valueBE?.toFixed(2) ?? "N/A"}%</span>
-                            <span>RR: {s.value?.toFixed(2) ?? "N/A"}%</span>
+                            <span
+                                >{translations.percentile || "Percentile"}</span
+                            >
+                            <span>P{s.percentile?.toFixed(0) ?? "N/A"}</span>
                         </div>
                         <div
                             class="signal-reason"
-                            style="font-size: 11px; color: rgba(255,255,255,0.55); margin-top: 6px; font-style: italic;"
+                            style="font-size: 11px; color: var(--text-secondary); opacity: 0.7; font-style: italic; text-align: center;"
                         >
-                            {translations[s.reasonKey] || s.reasonKey}
+                            {getSignalReason("cli", s.state)}
                         </div>
                     </div>
-                </div>
-            {:else}
-                <div
-                    class="metrics-section"
-                    style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;"
-                >
-                    <div
-                        class="signal-item"
-                        style="background: rgba(0,0,0,0.15); border: none;"
-                    >
-                        <div class="signal-label">
-                            {translations.tips_signal_label ||
-                                "TIPS Macro Signal"}
-                        </div>
-                        <div class="signal-status text-neutral">
-                            <span class="signal-dot"></span>
-                            {translations.refresh_data || "Loading..."}
-                        </div>
-                    </div>
-                </div>
-            {/if}
-        </div>
-
-        <!-- CLI Aggregate Chart -->
-        <div class="chart-card" bind:this={cliCard}>
-            <div class="chart-header">
-                <h3>
-                    {translations.chart_cli_title ||
-                        "Credit Liquidity Index (CLI Aggregate)"}
-                </h3>
-                <div class="header-controls">
-                    <button
-                        class="download-card-btn"
-                        title="Download Full Card"
-                        on:click={() =>
-                            downloadCardAsImage(cliCard, "cli_aggregate")}
-                    >
-                        📷
-                    </button>
-                    <div class="view-mode-toggle">
-                        <button
-                            class:active={cliViewMode === "zscore"}
-                            on:click={() => (cliViewMode = "zscore")}>Z</button
-                        >
-                        <button
-                            class:active={cliViewMode === "percentile"}
-                            on:click={() => (cliViewMode = "percentile")}
-                            >%</button
-                        >
-                    </div>
-                    <TimeRangeSelector
-                        selectedRange={cliRange}
-                        onRangeChange={(r) => (cliRange = r)}
-                    />
-                    <span class="last-date"
-                        >Last Data: {getLastDate("NFCI")}</span
-                    >
-                </div>
-            </div>
-            <p class="chart-description">
-                {translations.cli ||
-                    "Aggregates credit conditions, volatility, and lending."}
-                {cliViewMode === "percentile"
-                    ? translations.cli_desc_ext ||
-                      "↑ CLI = Easier credit (bullish) ↓ Contraction = Tighter (bearish)"
-                    : ""}
-            </p>
-            <div class="chart-content">
-                <Chart
-                    {darkMode}
-                    data={cliChartData}
-                    layout={cliLayout}
-                    cardContainer={cliCard}
-                    cardTitle="cli_aggregate"
-                />
-            </div>
-
-            <!-- Signal Box -->
-            {#if dashboardData.signal_metrics?.cli?.latest}
-                {@const s = dashboardData.signal_metrics.cli.latest}
-                <div class="signal-box">
-                    <div class="signal-header">
-                        {translations.cli_stance || "CLI STANCE"}
-                    </div>
-                    <div class="signal-badge {s.state}">
-                        {s.state === "bullish"
-                            ? "🟢"
-                            : s.state === "bearish"
-                              ? "🔴"
-                              : "⚪"}
-                        {getStatusLabel(s.state)}
-                    </div>
-                    <div class="signal-details">
-                        {translations.percentile || "Percentile"}: {s.percentile?.toFixed(
-                            0,
-                        ) ?? "N/A"}
-                        <span class="signal-hint">
-                            ({s.percentile >= 70
-                                ? translations.cli_top_30 || "Top 30%"
-                                : s.percentile <= 30
-                                  ? translations.cli_bottom_30 || "Bottom 30%"
-                                  : translations.cli_mid_range ||
-                                    "Middle range"})
-                        </span>
-                    </div>
-                    <div
-                        class="signal-reason"
-                        style="font-size: 11px; color: rgba(255,255,255,0.55); margin-top: 6px; font-style: italic;"
-                    >
-                        {getSignalReason("cli", s.state)}
-                    </div>
-                </div>
-            {/if}
-        </div>
+                {/if}
+            </svelte:fragment>
+        </ChartCardV2>
 
         <!-- CLI-GLI Divergence Analysis (Macro Coupling) -->
-        <div class="chart-card" bind:this={divergenceCard}>
-            <div class="chart-header">
-                <h3>
-                    {translations.chart_divergence ||
-                        "CLI-GLI Divergence (Macro Coupling)"}
-                </h3>
-                <div class="header-controls">
+        <ChartCardV2
+            title={translations.chart_divergence_title ||
+                "Liquidity-Activity Divergence"}
+            description={translations.divergence_desc ||
+                "Measures decoupling between credit liquidity (CLI) and economic activity (GLI)."}
+            {darkMode}
+            range={divergenceRange}
+            onRangeChange={(r) => (divergenceRange = r)}
+            cardId="cli_gli_divergence"
+        >
+            <!-- Controls Slot -->
+            <svelte:fragment slot="controls">
+                <div class="view-mode-toggle">
                     <button
-                        class="download-card-btn"
-                        title="Download Full Card"
-                        on:click={() =>
-                            downloadCardAsImage(
-                                divergenceCard,
-                                "cli_gli_divergence",
-                            )}
+                        class:active={divergenceViewMode === "zscore"}
+                        on:click={() => (divergenceViewMode = "zscore")}
+                        >Z</button
                     >
-                        📷
-                    </button>
-                    <div class="mode-selector">
-                        <button
-                            class:active={divergenceViewMode === "raw"}
-                            on:click={() => (divergenceViewMode = "raw")}
-                            >{translations.view_raw || "Raw"}</button
-                        >
-                        <button
-                            class:active={divergenceViewMode === "zscore"}
-                            on:click={() => (divergenceViewMode = "zscore")}
-                            >{translations.view_zscore || "Z-Score"}</button
-                        >
-                        <button
-                            class:active={divergenceViewMode === "percentile"}
-                            on:click={() => (divergenceViewMode = "percentile")}
-                            >{translations.view_percentile ||
-                                "Percentile"}</button
-                        >
-                    </div>
-                    <TimeRangeSelector
-                        selectedRange={divergenceRange}
-                        onRangeChange={(r) => (divergenceRange = r)}
+                    <button
+                        class:active={divergenceViewMode === "percentile"}
+                        on:click={() => (divergenceViewMode = "percentile")}
+                        >%</button
+                    >
+                </div>
+                <TimeRangeSelector
+                    selectedRange={divergenceRange}
+                    onRangeChange={(r) => (divergenceRange = r)}
+                />
+            </svelte:fragment>
+
+            <!-- Signal Slot -->
+            <svelte:fragment slot="signal">
+                {@const lastDiv = getLatestValue(
+                    dashboardData.macro_regime?.cli_gli_divergence,
+                )}
+                {#if lastDiv < -1}
+                    <SignalBadge state="warning" value="TRAP" label="Signal" />
+                {:else if lastDiv > 1}
+                    <SignalBadge
+                        state="bullish"
+                        value="EQUITY"
+                        label="Signal"
                     />
-                </div>
-            </div>
-            <p class="chart-description">
-                {@html translations.divergence_desc}
-            </p>
-            <div
-                class="divergence-guide"
-                style="font-size: 11px; margin: 10px 0 20px 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; opacity: 0.9;"
-            >
-                <div
-                    style="border-left: 3px solid #10b981; padding: 2px 0 2px 10px; line-height: 1.4;"
-                >
-                    <b style="color: #10b981;"
-                        >{translations.div_guide_eq.split(":")[0]}:</b
-                    >
-                    {translations.div_guide_eq.split(":")[1] || ""}
-                </div>
-                <div
-                    style="border-left: 3px solid #ef4444; padding: 2px 0 2px 10px; line-height: 1.4;"
-                >
-                    <b style="color: #ef4444;"
-                        >{translations.div_guide_trap.split(":")[0]}:</b
-                    >
-                    {translations.div_guide_trap.split(":")[1] || ""}
-                </div>
-                <div
-                    style="border-left: 3px solid #f59e0b; padding: 2px 0 2px 10px; line-height: 1.4;"
-                >
-                    <b style="color: #f59e0b;"
-                        >{translations.div_guide_excess.split(":")[0]}:</b
-                    >
-                    {translations.div_guide_excess.split(":")[1] || ""}
-                </div>
-            </div>
-            <div class="chart-content" style="height: 300px;">
+                {:else}
+                    <SignalBadge state="neutral" value="COUPLED" />
+                {/if}
+            </svelte:fragment>
+
+            <!-- Chart Slot -->
+            <svelte:fragment slot="chart">
                 <Chart
                     {darkMode}
                     data={divergenceViewMode === "zscore"
@@ -2812,399 +3128,157 @@
                                       : "Divergence (Z)",
                             zeroline: true,
                             zerolinecolor: darkMode ? "#ffffff" : "#000000",
-                            range:
-                                divergenceViewMode === "zscore"
-                                    ? [-4, 4]
-                                    : divergenceViewMode === "percentile"
-                                      ? [0, 100]
-                                      : undefined,
                         },
-                        shapes:
-                            divergenceViewMode === "zscore"
-                                ? [
-                                      {
-                                          type: "line",
-                                          xref: "paper",
-                                          yref: "y",
-                                          x0: 0,
-                                          x1: 1,
-                                          y0: 1.5,
-                                          y1: 1.5,
-                                          line: {
-                                              color: "rgba(16, 185, 129, 0.5)",
-                                              width: 1,
-                                              dash: "dash",
-                                          },
-                                      },
-                                      {
-                                          type: "line",
-                                          xref: "paper",
-                                          yref: "y",
-                                          x0: 0,
-                                          x1: 1,
-                                          y0: -1.5,
-                                          y1: -1.5,
-                                          line: {
-                                              color: "rgba(239, 68, 68, 0.5)",
-                                              width: 1,
-                                              dash: "dash",
-                                          },
-                                      },
-                                  ]
-                                : divergenceViewMode === "percentile"
-                                  ? [
-                                        {
-                                            type: "line",
-                                            xref: "paper",
-                                            yref: "y",
-                                            x0: 0,
-                                            x1: 1,
-                                            y0: 80,
-                                            y1: 80,
-                                            line: {
-                                                color: "rgba(16, 185, 129, 0.5)",
-                                                width: 1,
-                                                dash: "dash",
-                                            },
-                                        },
-                                        {
-                                            type: "line",
-                                            xref: "paper",
-                                            yref: "y",
-                                            x0: 0,
-                                            x1: 1,
-                                            y0: 20,
-                                            y1: 20,
-                                            line: {
-                                                color: "rgba(239, 68, 68, 0.5)",
-                                                width: 1,
-                                                dash: "dash",
-                                            },
-                                        },
-                                    ]
-                                  : [],
                         margin: { l: 50, r: 20, t: 20, b: 40 },
                     }}
                 />
-            </div>
-            <div class="latest-values">
-                <span
-                    >{translations.latest_value || "Latest Value"}:
-                    <b
-                        >{getLatestValue(
-                            dashboardData.macro_regime?.cli_gli_divergence,
-                        )?.toFixed(2) ?? "—"}</b
-                    ></span
-                >
-                {#if divergenceViewMode !== "raw"}
-                    <span class="view-mode-badge">
-                        {divergenceViewMode.toUpperCase()}:
-                        <b
-                            >{getLatestValue(
-                                dashboardData.signal_metrics
-                                    ?.cli_gli_divergence?.[divergenceViewMode],
-                            )?.toFixed(2) ?? "—"}{divergenceViewMode ===
-                            "percentile"
-                                ? "%"
-                                : ""}</b
-                        >
-                    </span>
-                {/if}
-            </div>
-            {#if (getLatestValue(dashboardData.macro_regime?.cli_gli_divergence) ?? 0) < -1}
-                <div
-                    class="signal-box warning"
-                    style="margin-top: 15px; border-left: 4px solid #ef4444; background: rgba(239, 68, 68, 0.1); padding: 12px;"
-                >
-                    <div
-                        style="font-weight: 700; color: #ef4444; margin-bottom: 4px;"
-                    >
-                        {translations.stat_liq_trap_title}
-                    </div>
-                    <div
-                        style="font-size: 12px; opacity: 0.9; line-height: 1.4;"
-                    >
-                        {translations.stat_liq_trap_desc}
-                    </div>
-                </div>
-            {/if}
-        </div>
+            </svelte:fragment>
 
-        <!-- Repo Stress Chart (Fed Rate Corridor) -->
-        <div class="chart-card" bind:this={repoCorridorCard}>
-            <div class="chart-header">
-                <h3>
-                    {translations.chart_repo_corridor ||
-                        "Fed Rate Corridor (SOFR vs Bounds)"}
-                </h3>
-                <div class="header-controls">
-                    <button
-                        class="download-card-btn"
-                        title="Download Full Card"
-                        on:click={() =>
-                            downloadCardAsImage(
-                                repoCorridorCard,
-                                "fed_rate_corridor",
-                            )}
-                    >
-                        📷
-                    </button>
-                    <TimeRangeSelector
-                        selectedRange={repoStressRange}
-                        onRangeChange={(r) => (repoStressRange = r)}
-                    />
-                    <span class="last-date"
-                        >{translations.last_data || "Last Data:"}
-                        {getLastDate("SOFR")}</span
-                    >
-                </div>
-            </div>
-
-            <!-- Corridor Metrics Header -->
-            <div
-                class="corridor-metrics"
-                style="display: flex; gap: 15px; margin-bottom: 12px; flex-wrap: wrap;"
-            >
+            <!-- Footer Slot -->
+            <svelte:fragment slot="footer">
                 <div
-                    class="metric-box"
-                    style="background: {darkMode
-                        ? 'rgba(255,255,255,0.05)'
-                        : 'rgba(0,0,0,0.03)'}; padding: 8px 12px; border-radius: 6px;"
+                    style="display: flex; flex-direction: column; gap: 12px; width: 100%;"
                 >
-                    <span style="font-size: 11px; opacity: 0.7;"
-                        >{translations.sofr_iorb_spread ||
-                            "SOFR-IORB Spread"}</span
-                    >
                     <div
-                        style="font-size: 16px; font-weight: 600; color: {corridorStressColor};"
+                        class="divergence-guide"
+                        style="font-size: 11px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; opacity: 0.8;"
                     >
-                        {latestSofrToFloor.toFixed(1)} bps
-                    </div>
-                </div>
-                <div
-                    class="metric-box"
-                    style="background: {darkMode
-                        ? 'rgba(255,255,255,0.05)'
-                        : 'rgba(0,0,0,0.03)'}; padding: 8px 12px; border-radius: 6px;"
-                >
-                    <span style="font-size: 11px; opacity: 0.7;"
-                        >{translations.gap_to_ceiling || "Gap to Ceiling"}</span
-                    >
-                    <div style="font-size: 16px; font-weight: 600;">
-                        {latestSofrToCeiling.toFixed(1)} bps
-                    </div>
-                </div>
-                <div
-                    class="metric-box"
-                    style="background: {darkMode
-                        ? 'rgba(255,255,255,0.05)'
-                        : 'rgba(0,0,0,0.03)'}; padding: 8px 12px; border-radius: 6px;"
-                >
-                    <span style="font-size: 11px; opacity: 0.7;"
-                        >{translations.status_label || "Status"}</span
-                    >
-                    <div
-                        style="font-size: 14px; font-weight: 600; color: {corridorStressColor};"
-                    >
-                        {corridorStressLevel}
-                    </div>
-                </div>
-                {#if latestSrfUsage > 0}
-                    <div
-                        class="metric-box"
-                        style="background: rgba(239, 68, 68, 0.1); padding: 8px 12px; border-radius: 6px; border-left: 3px solid #ef4444;"
-                    >
-                        <span style="font-size: 11px; opacity: 0.7;"
-                            >⚠️ SRF Usage</span
-                        >
                         <div
-                            style="font-size: 16px; font-weight: 600; color: #ef4444;"
+                            style="border-left: 3px solid #10b981; padding-left: 8px; line-height: 1.3;"
                         >
-                            ${latestSrfUsage.toFixed(1)}B
+                            <b style="color: #10b981;">EQUITY DRIVEN:</b> Activity
+                            leads liquidity.
+                        </div>
+                        <div
+                            style="border-left: 3px solid #ef4444; padding-left: 8px; line-height: 1.3;"
+                        >
+                            <b style="color: #ef4444;">LIQUIDITY TRAP:</b> Liquidity
+                            up, activity down.
+                        </div>
+                        <div
+                            style="border-left: 3px solid #f59e0b; padding-left: 8px; line-height: 1.3;"
+                        >
+                            <b style="color: #f59e0b;">EXCESS:</b> Asset inflation
+                            potential.
                         </div>
                     </div>
-                {/if}
-            </div>
 
-            <p class="chart-description">
-                {translations.repo_corridor_desc ||
-                    "SOFR should trade between IORB (floor) and SRF Rate (ceiling). Approaching ceiling or SRF usage signals funding stress."}
-            </p>
-            <div class="chart-content" style="height: 500px;">
-                <Chart
-                    {darkMode}
-                    data={repoFusedData}
-                    layout={repoFusedLayout}
-                    cardContainer={repoCorridorCard}
-                    cardTitle="fed_rate_corridor"
-                />
-            </div>
-
-            <!-- Corridor Legend -->
-            <div
-                class="corridor-legend"
-                style="display: flex; gap: 15px; margin-top: 10px; font-size: 11px; opacity: 0.8; flex-wrap: wrap;"
-            >
-                <span
-                    ><span style="color: #ef4444;">━━</span> SRF Rate: Fed lending
-                    ceiling</span
-                >
-                <span
-                    ><span style="color: #3b82f6; font-weight: bold;">━━</span> SOFR:
-                    Market rate</span
-                >
-                <span
-                    ><span style="color: #22c55e;">━━</span> IORB: Fed deposit floor</span
-                >
-            </div>
-
-            <!-- Compact Metrics Table -->
-            <div
-                class="metrics-section"
-                style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px;"
-            >
-                <div class="metrics-table-container">
-                    <table class="metrics-table compact">
-                        <thead>
-                            <tr>
-                                <th>{translations.repo_rate || "Rate"}</th>
-                                <th>{translations.repo_value || "Value"}</th>
-                                <th
-                                    >{translations.repo_spread_sig ||
-                                        "Spread/Signal"}</th
-                                >
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td style="color: #ef4444; font-weight: 600;"
-                                    >SRF (Ceiling)</td
-                                >
-                                <td
-                                    >{(
-                                        getLatestValue(
-                                            dashboardData.repo_stress?.srf_rate,
-                                        ) ?? 0
-                                    ).toFixed(2)}%</td
-                                >
-                                <td
-                                    rowspan="4"
-                                    style="vertical-align: middle; text-align: center; background: rgba(0,0,0,0.1); border-radius: 8px;"
-                                >
-                                    <div
-                                        style="font-weight: 800; font-size: 1.1rem; color: {corridorStressColor};"
-                                    >
-                                        {latestSofrToFloor.toFixed(1)} bps
-                                    </div>
-                                    <div style="font-size: 12px; opacity: 0.7;">
-                                        SOFR-IORB
-                                    </div>
-                                    <div
-                                        style="font-size: 14px; margin-top: 4px; color: {corridorStressColor};"
-                                    >
-                                        {#if corridorStressLevel === "NORMAL"}
-                                            ✅ OK
-                                        {:else if corridorStressLevel === "ELEVATED"}
-                                            ⚠️ ELEVATED
-                                        {:else}
-                                            🚨 STRESS
-                                        {/if}
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td style="color: #3b82f6; font-weight: 600;"
-                                    >SOFR</td
-                                >
-                                <td
-                                    >{(
-                                        getLatestValue(
-                                            dashboardData.repo_stress?.sofr,
-                                        ) ?? 0
-                                    ).toFixed(2)}%</td
-                                >
-                            </tr>
-                            <tr>
-                                <td style="color: #22c55e; font-weight: 600;"
-                                    >IORB (Floor)</td
-                                >
-                                <td
-                                    >{(
-                                        getLatestValue(
-                                            dashboardData.repo_stress?.iorb,
-                                        ) ?? 0
-                                    ).toFixed(2)}%</td
-                                >
-                            </tr>
-                            <tr>
-                                <td style="color: #8b5cf6; font-weight: 600;"
-                                    >RRP Award</td
-                                >
-                                <td
-                                    >{(
-                                        getLatestValue(
-                                            dashboardData.repo_stress
-                                                ?.rrp_award,
-                                        ) ?? 0
-                                    ).toFixed(2)}%</td
-                                >
-                            </tr>
-                        </tbody>
-                    </table>
+                    {#if (getLatestValue(dashboardData.macro_regime?.cli_gli_divergence) ?? 0) < -1}
+                        <div
+                            class="signal-reason"
+                            style="font-size: 11px; color: #ef4444; background: rgba(239, 68, 68, 0.05); padding: 8px; border-radius: 4px; border-left: 3px solid #ef4444; text-align: left;"
+                        >
+                            <b
+                                >⚠️ {translations.divergence_alert ||
+                                    "Divergence Alert"}</b
+                            >:
+                            {translations.divergence_alert_desc ||
+                                "Liquidity is rising while activity contracts. Historically a sign of 'Liquidity Trap' before regime shifts."}
+                        </div>
+                    {/if}
                 </div>
-            </div>
-        </div>
+            </svelte:fragment>
+        </ChartCardV2>
+
+        <!-- Repo Stress Chart (Fed Rate Corridor) -->
+        <ChartCardV2
+            title={translations.chart_repo_corridor ||
+                "Fed Rate Corridor (SOFR vs Bounds)"}
+            description={translations.repo_corridor_desc ||
+                "SOFR should trade between IORB (floor) and SRF Rate (ceiling). Approaching ceiling or SRF usage signals funding stress."}
+            {darkMode}
+            range={repoStressRange}
+            onRangeChange={(r) => (repoStressRange = r)}
+            lastDate={getLastDate("SOFR")}
+            cardId="fed_rate_corridor"
+        >
+            <!-- Signal Slot: Status & SRF Warning -->
+            <svelte:fragment slot="signal">
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    {#if latestSrfUsage > 1}
+                        <SignalBadge
+                            state="bearish"
+                            value={`$${latestSrfUsage.toFixed(1)}B`}
+                            label="SRF Usage"
+                        />
+                    {/if}
+                    <SignalBadge
+                        state={corridorStressLevel === "NORMAL"
+                            ? "bullish"
+                            : corridorStressLevel === "ELEVATED"
+                              ? "warning"
+                              : "bearish"}
+                        value={corridorStressLevel}
+                        label="Status"
+                    />
+                </div>
+            </svelte:fragment>
+
+            <!-- Chart Slot: Multi-Axis Stack -->
+            <svelte:fragment slot="chart">
+                <ChartStack
+                    {darkMode}
+                    height={500}
+                    mainRatio={0.72}
+                    mainData={repoStressData.map((t) => ({ ...t, yaxis: "y" }))}
+                    mainYAxisTitle="Rate (%)"
+                    subcharts={repoCorridorSubcharts}
+                />
+            </svelte:fragment>
+
+            <!-- Footer Slot: Rates Table with Integrated Signal -->
+            <svelte:fragment slot="footer">
+                <SignalTable
+                    columns={repoCorridorTableColumns}
+                    rows={repoCorridorTableRows}
+                    summary={repoCorridorTableSummary}
+                    showHeader
+                    {darkMode}
+                />
+            </svelte:fragment>
+        </ChartCardV2>
 
         <!-- SOFR Volume Chart -->
-        <div class="chart-card" bind:this={sofrVolumeCard}>
-            <div class="chart-header">
-                <h3>
-                    {translations.chart_sofr_volume ||
-                        "Repo Market Depth (SOFR Volume)"}
-                </h3>
-                <div class="header-controls">
+        <ChartCardV2
+            title={translations.chart_sofr_volume ||
+                "Repo Market Depth (SOFR Volume)"}
+            description={sofrVolumeViewMode === "raw"
+                ? translations.sofr_volume_desc ||
+                  "SOFR transaction volume measures repo market depth. Falling volume = early warning of dysfunction."
+                : "Rate of Change shows momentum. Sharp drops (<-10%) may signal stress."}
+            {darkMode}
+            range={sofrVolumeRange}
+            onRangeChange={(r) => (sofrVolumeRange = r)}
+            lastDate={getLastDate("SOFR_VOLUME")}
+            cardId="sofr_volume"
+        >
+            <!-- Controls Slot: View Mode Toggle -->
+            <svelte:fragment slot="controls">
+                <div class="view-mode-toggle">
                     <button
-                        class="download-card-btn"
-                        title="Download Full Card"
-                        on:click={() =>
-                            downloadCardAsImage(sofrVolumeCard, "sofr_volume")}
+                        class:active={sofrVolumeViewMode === "raw"}
+                        on:click={() => (sofrVolumeViewMode = "raw")}
+                        title="Raw Values">📊</button
                     >
-                        📷
-                    </button>
-                    <div class="mode-selector">
-                        <button
-                            class:active={sofrVolumeViewMode === "raw"}
-                            on:click={() => (sofrVolumeViewMode = "raw")}
-                            >Raw</button
-                        >
-                        <button
-                            class:active={sofrVolumeViewMode === "roc_5d"}
-                            on:click={() => (sofrVolumeViewMode = "roc_5d")}
-                            title="5-Day Rate of Change">ROC 5d</button
-                        >
-                        <button
-                            class:active={sofrVolumeViewMode === "roc_20d"}
-                            on:click={() => (sofrVolumeViewMode = "roc_20d")}
-                            title="20-Day Rate of Change">ROC 20d</button
-                        >
-                    </div>
-                    <TimeRangeSelector
-                        selectedRange={sofrVolumeRange}
-                        onRangeChange={(r) => (sofrVolumeRange = r)}
-                    />
-                    <span class="last-date"
-                        >{translations.last_data || "Last Data:"}
-                        {getLastDate("SOFR_VOLUME")}</span
+                    <button
+                        class:active={sofrVolumeViewMode === "roc_5d"}
+                        on:click={() => (sofrVolumeViewMode = "roc_5d")}
+                        title="5-Day Rate of Change">5D</button
+                    >
+                    <button
+                        class:active={sofrVolumeViewMode === "roc_20d"}
+                        on:click={() => (sofrVolumeViewMode = "roc_20d")}
+                        title="20-Day Rate of Change">20D</button
                     >
                 </div>
-            </div>
-            <p class="chart-description">
-                {sofrVolumeViewMode === "raw"
-                    ? translations.sofr_volume_desc ||
-                      "SOFR transaction volume measures repo market depth. Falling volume = early warning of dysfunction."
-                    : "Rate of Change shows momentum. Sharp drops (<-10%) may signal stress."}
-            </p>
-            <div class="chart-content" style="height: 300px;">
+                <TimeRangeSelector
+                    selectedRange={sofrVolumeRange}
+                    onRangeChange={(r) => (sofrVolumeRange = r)}
+                />
+            </svelte:fragment>
+
+            <!-- Chart Slot -->
+            <svelte:fragment slot="chart">
                 <Chart
                     {darkMode}
                     data={sofrVolumeViewMode === "roc_5d"
@@ -3246,106 +3320,74 @@
                               ],
                           }}
                 />
-            </div>
+            </svelte:fragment>
 
-            <!-- SOFR Volume Metrics -->
-            <div
-                class="metrics-section"
-                style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px;"
-            >
-                <div class="metrics-table-container">
-                    <table class="metrics-table compact">
-                        <thead>
-                            <tr>
-                                <th>{translations.indicator || "Indicator"}</th>
-                                <th>{translations.repo_value || "Value"}</th>
-                                <th>{translations.signal_status || "Status"}</th
-                                >
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td style="color: #06b6d4; font-weight: 600;"
-                                    >SOFR Volume</td
-                                >
-                                <td
-                                    >${(
-                                        getLatestValue(
-                                            dashboardData.repo_stress
-                                                ?.sofr_volume,
-                                        ) ?? 0
-                                    ).toFixed(1)}B</td
-                                >
-                                <td>
-                                    {#if getLatestValue(dashboardData.repo_stress?.sofr_volume) > 1000}
-                                        ✅ {translations.status_ok || "DEEP"}
-                                    {:else if getLatestValue(dashboardData.repo_stress?.sofr_volume) > 500}
-                                        🔶 {translations.status_neutral ||
-                                            "MODERATE"}
-                                    {:else}
-                                        ⚠️ {translations.status_stress ||
-                                            "THIN"}
-                                    {/if}
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+            <!-- Footer Slot: Metrics Table -->
+            <svelte:fragment slot="footer">
+                <SignalTable
+                    columns={sofrVolumeTableColumns}
+                    rows={sofrVolumeTableRows}
+                    showHeader
+                    {darkMode}
+                />
+            </svelte:fragment>
+        </ChartCardV2>
 
         <!-- Treasury 10Y Chart -->
-        <div class="chart-card" bind:this={treasury10yCard}>
-            <div class="chart-header">
-                <h3>
-                    {translations.chart_treasury_10y ||
-                        "10-Year Treasury Yield"}
-                </h3>
-                <div class="header-controls">
+        <!-- Treasury 10Y Chart -->
+        <ChartCardV2
+            title={translations.chart_treasury_10y || "10-Year Treasury Yield"}
+            description={translations.treasury_10y_desc ||
+                "10-Year Treasury Constant Maturity Yield. Key benchmark rate."}
+            {darkMode}
+            range={treasury10yRange}
+            onRangeChange={(r) => (treasury10yRange = r)}
+            lastDate={getLastDate("TREASURY_10Y_YIELD")}
+            cardId="treasury_10y"
+        >
+            <!-- Controls Slot: View Mode Toggle -->
+            <svelte:fragment slot="controls">
+                <div class="view-mode-toggle">
                     <button
-                        class="download-card-btn"
-                        title="Download Full Card"
-                        on:click={() =>
-                            downloadCardAsImage(
-                                treasury10yCard,
-                                "treasury_10y",
-                            )}
+                        class:active={treasury10yViewMode === "zscore"}
+                        on:click={() => (treasury10yViewMode = "zscore")}
+                        title="Z-Score">Z</button
                     >
-                        📷
-                    </button>
-                    <div class="view-mode-toggle">
-                        <button
-                            class:active={treasury10yViewMode === "zscore"}
-                            on:click={() => (treasury10yViewMode = "zscore")}
-                            title="Z-Score">Z</button
-                        >
-                        <button
-                            class:active={treasury10yViewMode === "percentile"}
-                            on:click={() =>
-                                (treasury10yViewMode = "percentile")}
-                            title="Percentile">%</button
-                        >
-                        <button
-                            class:active={treasury10yViewMode === "raw"}
-                            on:click={() => (treasury10yViewMode = "raw")}
-                            title="Raw Values">📊</button
-                        >
-                    </div>
-                    <TimeRangeSelector
-                        selectedRange={treasury10yRange}
-                        onRangeChange={(r) => (treasury10yRange = r)}
-                    />
-                    <span class="last-date"
-                        >{translations.last_data || "Last Data:"}
-                        {getLastDate("TREASURY_10Y_YIELD")}</span
+                    <button
+                        class:active={treasury10yViewMode === "percentile"}
+                        on:click={() => (treasury10yViewMode = "percentile")}
+                        title="Percentile">%</button
+                    >
+                    <button
+                        class:active={treasury10yViewMode === "raw"}
+                        on:click={() => (treasury10yViewMode = "raw")}
+                        title="Raw Values">📊</button
                     >
                 </div>
-            </div>
-            <p class="chart-description">
-                {translations.treasury_10y_desc ||
-                    "10-Year Treasury Constant Maturity Yield. Key benchmark rate."}
-            </p>
-            <div class="chart-content" style="height: 300px;">
+                <TimeRangeSelector
+                    selectedRange={treasury10yRange}
+                    onRangeChange={(r) => (treasury10yRange = r)}
+                />
+            </svelte:fragment>
+
+            <!-- Signal Slot -->
+            <svelte:fragment slot="signal">
+                {#if signalsFromMetrics.treasury_10y?.latest}
+                    {@const s = signalsFromMetrics.treasury_10y.latest}
+                    <SignalBadge
+                        state={s.state}
+                        value={treasury10yViewMode === "raw"
+                            ? s.value?.toFixed(2)
+                            : `P${s.percentile?.toFixed(0)}`}
+                        label={treasury10yViewMode === "raw"
+                            ? "Yield"
+                            : "Percentile"}
+                    />
+                {/if}
+            </svelte:fragment>
+
+            <!-- Chart Slot -->
+            <svelte:fragment slot="chart">
                 <Chart
                     {darkMode}
                     data={treasury10yViewMode === "raw"
@@ -3377,82 +3419,77 @@
                                 margin: { l: 50, r: 20, t: 20, b: 40 },
                             }}
                 />
-            </div>
-            {#if signalsFromMetrics.treasury_10y?.latest}
-                {@const s = signalsFromMetrics.treasury_10y.latest}
-                <div
-                    class="metrics-section"
-                    style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;"
-                >
+            </svelte:fragment>
+
+            <!-- Footer Slot: Reason -->
+            <svelte:fragment slot="footer">
+                {#if signalsFromMetrics.treasury_10y?.latest}
+                    {@const s = signalsFromMetrics.treasury_10y.latest}
                     <div
-                        class="signal-item"
-                        style="background: rgba(0,0,0,0.15); border: none;"
+                        class="signal-reason"
+                        style="font-size: 11px; color: var(--text-secondary); opacity: 0.7; font-style: italic; text-align: center;"
                     >
-                        <div class="signal-label">
-                            {translations.signal_status || "Signal Status"}
-                        </div>
-                        <div class="signal-status text-{s.state}">
-                            <span class="signal-dot"></span>
-                            {getStatusLabel(s.state)}
-                        </div>
-                        <div class="signal-value">
-                            {translations.current || "Current"}:
-                            <b>{s.value?.toFixed(2)}%</b>
-                            | {translations.percentile || "Percentile"}:
-                            <b>P{s.percentile?.toFixed(0)}</b>
-                        </div>
+                        {getSignalReason("treasury_10y", s.state)}
                     </div>
-                </div>
-            {/if}
-        </div>
+                {/if}
+            </svelte:fragment>
+        </ChartCardV2>
 
         <!-- Treasury 2Y Chart -->
-        <div class="chart-card" bind:this={treasury2yCard}>
-            <div class="chart-header">
-                <h3>
-                    {translations.chart_treasury_2y || "2-Year Treasury Yield"}
-                </h3>
-                <div class="header-controls">
+        <!-- Treasury 2Y Chart -->
+        <ChartCardV2
+            title={translations.chart_treasury_2y || "2-Year Treasury Yield"}
+            description={translations.treasury_2y_desc ||
+                "2-Year Treasury Constant Maturity Yield. Short-term rate."}
+            {darkMode}
+            range={treasury2yRange}
+            onRangeChange={(r) => (treasury2yRange = r)}
+            lastDate={getLastDate("TREASURY_2Y_YIELD")}
+            cardId="treasury_2y"
+        >
+            <!-- Controls Slot: View Mode Toggle -->
+            <svelte:fragment slot="controls">
+                <div class="view-mode-toggle">
                     <button
-                        class="download-card-btn"
-                        title="Download Full Card"
-                        on:click={() =>
-                            downloadCardAsImage(treasury2yCard, "treasury_2y")}
+                        class:active={treasury2yViewMode === "zscore"}
+                        on:click={() => (treasury2yViewMode = "zscore")}
+                        title="Z-Score">Z</button
                     >
-                        📷
-                    </button>
-                    <div class="view-mode-toggle">
-                        <button
-                            class:active={treasury2yViewMode === "zscore"}
-                            on:click={() => (treasury2yViewMode = "zscore")}
-                            title="Z-Score">Z</button
-                        >
-                        <button
-                            class:active={treasury2yViewMode === "percentile"}
-                            on:click={() => (treasury2yViewMode = "percentile")}
-                            title="Percentile">%</button
-                        >
-                        <button
-                            class:active={treasury2yViewMode === "raw"}
-                            on:click={() => (treasury2yViewMode = "raw")}
-                            title="Raw Values">📊</button
-                        >
-                    </div>
-                    <TimeRangeSelector
-                        selectedRange={treasury2yRange}
-                        onRangeChange={(r) => (treasury2yRange = r)}
-                    />
-                    <span class="last-date"
-                        >{translations.last_data || "Last Data:"}
-                        {getLastDate("TREASURY_2Y_YIELD")}</span
+                    <button
+                        class:active={treasury2yViewMode === "percentile"}
+                        on:click={() => (treasury2yViewMode = "percentile")}
+                        title="Percentile">%</button
+                    >
+                    <button
+                        class:active={treasury2yViewMode === "raw"}
+                        on:click={() => (treasury2yViewMode = "raw")}
+                        title="Raw Values">📊</button
                     >
                 </div>
-            </div>
-            <p class="chart-description">
-                {translations.treasury_2y_desc ||
-                    "2-Year Treasury Constant Maturity Yield. Short-term rate."}
-            </p>
-            <div class="chart-content" style="height: 300px;">
+                <TimeRangeSelector
+                    selectedRange={treasury2yRange}
+                    onRangeChange={(r) => (treasury2yRange = r)}
+                />
+            </svelte:fragment>
+
+            <!-- Signal Slot -->
+            <svelte:fragment slot="signal">
+                {#if signalsFromMetrics.treasury_2y?.latest}
+                    {@const s = signalsFromMetrics.treasury_2y.latest}
+                    <SignalBadge
+                        state={s.state}
+                        value={treasury2yViewMode === "raw"
+                            ? s.value?.toFixed(2)
+                            : `P${s.percentile?.toFixed(0)}`}
+                        label={treasury2yViewMode === "raw"
+                            ? "Yield"
+                            : "Percentile"}
+                    />
+                {/if}
+            </svelte:fragment>
+
+            <!-- Chart Slot -->
+            <svelte:fragment slot="chart">
                 <Chart
                     {darkMode}
                     data={treasury2yViewMode === "raw"
@@ -3484,79 +3521,70 @@
                                 margin: { l: 50, r: 20, t: 20, b: 40 },
                             }}
                 />
-            </div>
-            {#if signalsFromMetrics.treasury_2y?.latest}
-                {@const s = signalsFromMetrics.treasury_2y.latest}
-                <div
-                    class="metrics-section"
-                    style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;"
-                >
+            </svelte:fragment>
+
+            <!-- Footer Slot: Reason -->
+            <svelte:fragment slot="footer">
+                {#if signalsFromMetrics.treasury_2y?.latest}
+                    {@const s = signalsFromMetrics.treasury_2y.latest}
                     <div
-                        class="signal-item"
-                        style="background: rgba(0,0,0,0.15); border: none;"
+                        class="signal-reason"
+                        style="font-size: 11px; color: var(--text-secondary); opacity: 0.7; font-style: italic; text-align: center;"
                     >
-                        <div class="signal-label">
-                            {translations.signal_status || "Signal Status"}
-                        </div>
-                        <div class="signal-status text-{s.state}">
-                            <span class="signal-dot"></span>
-                            {getStatusLabel(s.state)}
-                        </div>
-                        <div class="signal-value">
-                            {translations.current || "Current"}:
-                            <b>{s.value?.toFixed(2)}%</b>
-                            | {translations.percentile || "Percentile"}:
-                            <b>P{s.percentile?.toFixed(0)}</b>
-                        </div>
+                        {getSignalReason("treasury_2y", s.state)}
                     </div>
-                </div>
-            {/if}
-        </div>
+                {/if}
+            </svelte:fragment>
+        </ChartCardV2>
 
         <!-- Yield Curve Spread (10Y - 2Y) Chart -->
-        <div class="chart-card" bind:this={yieldCurve2y10yCard}>
-            <div class="chart-header">
-                <h3>
-                    {translations.chart_yield_curve ||
-                        "Yield Curve (10Y-2Y Spread)"}
-                </h3>
-                <div class="header-controls">
+        <ChartCardV2
+            title={translations.chart_yield_curve ||
+                "Yield Curve (10Y-2Y Spread)"}
+            description={translations.yield_curve_desc ||
+                "Spread between 10-Year and 2-Year Treasury yields. Inversion often precedes recession."}
+            {darkMode}
+            range={yieldCurveRange}
+            onRangeChange={(r) => (yieldCurveRange = r)}
+            lastDate={getLastDate("TREASURY_10Y_YIELD")}
+            cardId="yield_curve_2y_10y"
+        >
+            <!-- Controls Slot -->
+            <svelte:fragment slot="controls">
+                <div class="view-mode-toggle">
                     <button
-                        class="download-card-btn"
-                        title="Download Full Card"
-                        on:click={() =>
-                            downloadCardAsImage(
-                                yieldCurve2y10yCard,
-                                "yield_curve_2y_10y",
-                            )}
+                        class:active={yieldCurveViewMode === "zscore"}
+                        on:click={() => (yieldCurveViewMode = "zscore")}
+                        >{translations.view_zscore || "Z-Score"}</button
                     >
-                        📷
-                    </button>
-                    <div class="mode-selector">
-                        <button
-                            class:active={yieldCurveViewMode === "raw"}
-                            on:click={() => (yieldCurveViewMode = "raw")}
-                            >{translations.view_raw || "Raw"}</button
-                        >
-                        <button
-                            class:active={yieldCurveViewMode === "zscore"}
-                            on:click={() => (yieldCurveViewMode = "zscore")}
-                            >{translations.view_zscore || "Z-Score"}</button
-                        >
-                        <button
-                            class:active={yieldCurveViewMode === "percentile"}
-                            on:click={() => (yieldCurveViewMode = "percentile")}
-                            >{translations.view_percentile ||
-                                "Percentile"}</button
-                        >
-                    </div>
-                    <TimeRangeSelector
-                        selectedRange={yieldCurveRange}
-                        onRangeChange={(r) => (yieldCurveRange = r)}
-                    />
+                    <button
+                        class:active={yieldCurveViewMode === "percentile"}
+                        on:click={() => (yieldCurveViewMode = "percentile")}
+                        >{translations.view_percentile || "Percentile"}</button
+                    >
+                    <button
+                        class:active={yieldCurveViewMode === "raw"}
+                        on:click={() => (yieldCurveViewMode = "raw")}
+                        title="Raw Values">📊</button
+                    >
                 </div>
-            </div>
-            <div class="chart-content" style="height: 300px;">
+                <TimeRangeSelector
+                    selectedRange={yieldCurveRange}
+                    onRangeChange={(r) => (yieldCurveRange = r)}
+                />
+            </svelte:fragment>
+
+            <!-- Signal Slot -->
+            <svelte:fragment slot="signal">
+                <SignalBadge
+                    state={yieldCurveRegime.state}
+                    value={yieldCurveRegime.label}
+                    label="Regime"
+                />
+            </svelte:fragment>
+
+            <!-- Chart Slot -->
+            <svelte:fragment slot="chart">
                 <Chart
                     {darkMode}
                     data={yieldCurveViewMode === "zscore"
@@ -3643,179 +3671,90 @@
                                     ]
                                   : yieldCurveLayout.shapes,
                     }}
-                    config={{ responsive: true, displayModeBar: false }}
                 />
-            </div>
+            </svelte:fragment>
 
-            <!-- Yield Curve Signal -->
-            {#if dashboardData.yield_curve?.length > 0}
-                {@const lastSpread = getLatestValue(dashboardData.yield_curve)}
-                {@const prevSpread =
-                    dashboardData.yield_curve?.[
-                        dashboardData.yield_curve?.length - 22
-                    ] ?? lastSpread}
-                {@const spreadChange = lastSpread - prevSpread}
-                {@const last10y = getLatestValue(dashboardData.treasury_10y)}
-                {@const prev10y =
-                    dashboardData.treasury_10y?.[
-                        dashboardData.treasury_10y?.length - 22
-                    ] ?? last10y}
-                {@const rateChange = last10y - prev10y}
-                {@const curveRegime = (() => {
-                    if (spreadChange > 0.05 && rateChange < 0)
-                        return {
-                            label: "BULL STEEPENING",
-                            class: "bullish",
-                            emoji: "🟢",
-                            desc: "Rates down, curve steepening - Risk-on for growth",
-                        };
-                    if (spreadChange > 0.05 && rateChange >= 0)
-                        return {
-                            label: "BEAR STEEPENING",
-                            class: "warning",
-                            emoji: "⚠️",
-                            desc: "Rates up, curve steepening - Inflation concerns",
-                        };
-                    if (spreadChange < -0.05 && rateChange < 0)
-                        return {
-                            label: "BULL FLATTENING",
-                            class: "neutral",
-                            emoji: "🔵",
-                            desc: "Rates down, curve flattening - Flight to safety",
-                        };
-                    if (spreadChange < -0.05 && rateChange >= 0)
-                        return {
-                            label: "BEAR FLATTENING",
-                            class: "bearish",
-                            emoji: "🔴",
-                            desc: "Rates up, curve flattening - Policy tightening",
-                        };
-                    return {
-                        label: "NEUTRAL",
-                        class: "neutral",
-                        emoji: "●",
-                        desc: "Minimal curve movement",
-                    };
-                })()}
-                <div class="signal-box" style="margin-top: 15px;">
+            <!-- Footer Slot -->
+            <svelte:fragment slot="footer">
+                <div style="display: flex; flex-direction: column; gap: 15px;">
+                    <SignalTable
+                        columns={yieldCurveTableColumns}
+                        rows={yieldCurveTableRows}
+                        {darkMode}
+                    />
                     <div
-                        class="signal-badge {lastSpread < 0
-                            ? 'bearish'
-                            : curveRegime.class}"
+                        class="signal-reason"
+                        style="font-size: 11px; color: var(--text-secondary); opacity: 0.7; font-style: italic; text-align: center;"
                     >
-                        {#if lastSpread < 0}
-                            🔴 {translations.yc_inverted || "INVERTED"}
-                        {:else}
-                            {curveRegime.emoji} {curveRegime.label}
-                        {/if}
-                    </div>
-                    <div
-                        class="signal-details"
-                        style="font-size: 12px; margin-top: 6px;"
-                    >
-                        <div style="margin-bottom: 4px;">
-                            <b>Spread:</b>
-                            {lastSpread?.toFixed(2)}% |
-                            <b>Δ1M:</b>
-                            <span
-                                class:text-bullish={spreadChange > 0}
-                                class:text-bearish={spreadChange < 0}
-                                >{spreadChange > 0
-                                    ? "+"
-                                    : ""}{spreadChange.toFixed(2)}%</span
-                            >
-                            |
-                            <b>10Y Δ:</b>
-                            <span
-                                class:text-bearish={rateChange > 0}
-                                class:text-bullish={rateChange < 0}
-                                >{rateChange > 0 ? "+" : ""}{rateChange.toFixed(
-                                    2,
-                                )}%</span
-                            >
-                        </div>
-                        <div style="color: var(--text-muted); font-size: 11px;">
-                            {curveRegime.desc}
-                        </div>
+                        {yieldCurveRegime.desc}
                     </div>
                 </div>
-            {/if}
-
-            {#if signalsFromMetrics.yield_curve?.latest}
-                {@const s = signalsFromMetrics.yield_curve.latest}
-                <div
-                    class="metrics-section"
-                    style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;"
-                >
-                    <div
-                        class="signal-item"
-                        style="background: rgba(0,0,0,0.15); border: none;"
-                    >
-                        <div class="signal-label">
-                            {translations.chart_yield_curve ||
-                                "Yield Curve Signal"}
-                        </div>
-                        <div class="signal-status text-{s.state}">
-                            <span class="signal-dot"></span>
-                            {getStatusLabel(s.state)}
-                        </div>
-                        <div class="signal-value">
-                            {translations.current || "Current"}:
-                            <b>{s.value?.toFixed(2)}%</b>
-                            | {translations.percentile || "Percentile"}:
-                            <b>P{s.percentile?.toFixed(0)}</b>
-                        </div>
-                    </div>
-                </div>
-            {/if}
-        </div>
+            </svelte:fragment>
+        </ChartCardV2>
 
         <!-- 30Y-10Y Yield Curve -->
-        <div class="chart-card" bind:this={yieldCurve30y10yCard}>
-            <div class="chart-header">
-                <h3>Yield Curve (30Y-10Y Spread)</h3>
-                <div class="header-controls">
+        <!-- 30Y-10Y Yield Curve -->
+        <ChartCardV2
+            bind:this={yieldCurve30y10yCard}
+            title="Yield Curve (30Y-10Y Spread)"
+            description={translations.yield_curve_30y10y_desc ||
+                "Long term curve steepness. Inversion = severe stress."}
+            {darkMode}
+            cardId="yield_curve_30y_10y"
+        >
+            <svelte:fragment slot="controls">
+                <div class="mode-selector">
                     <button
-                        class="download-card-btn"
-                        title="Download Full Card"
-                        on:click={() =>
-                            downloadCardAsImage(
-                                yieldCurve30y10yCard,
-                                "yield_curve_30y_10y",
-                            )}
+                        class:active={yieldCurve30y10yViewMode === "raw"}
+                        on:click={() => (yieldCurve30y10yViewMode = "raw")}
+                        >Raw</button
                     >
-                        📷
-                    </button>
-                    <div class="mode-selector">
-                        <button
-                            class:active={yieldCurve30y10yViewMode === "raw"}
-                            on:click={() => (yieldCurve30y10yViewMode = "raw")}
-                            >Raw</button
-                        >
-                        <button
-                            class:active={yieldCurve30y10yViewMode === "zscore"}
-                            on:click={() =>
-                                (yieldCurve30y10yViewMode = "zscore")}>Z</button
-                        >
-                        <button
-                            class:active={yieldCurve30y10yViewMode ===
-                                "percentile"}
-                            on:click={() =>
-                                (yieldCurve30y10yViewMode = "percentile")}
-                            >%</button
-                        >
-                    </div>
-                    <TimeRangeSelector
-                        selectedRange={yieldCurve30y10yRange}
-                        onRangeChange={(r) => (yieldCurve30y10yRange = r)}
-                    />
+                    <button
+                        class:active={yieldCurve30y10yViewMode === "zscore"}
+                        on:click={() => (yieldCurve30y10yViewMode = "zscore")}
+                        >Z</button
+                    >
+                    <button
+                        class:active={yieldCurve30y10yViewMode === "percentile"}
+                        on:click={() =>
+                            (yieldCurve30y10yViewMode = "percentile")}>%</button
+                    >
                 </div>
-            </div>
-            <p class="chart-description">
-                {translations.yield_curve_30y10y_desc ||
-                    "Long term curve steepness. Inversion = severe stress."}
-            </p>
-            <div class="chart-content" style="height: 280px;">
+                <TimeRangeSelector
+                    selectedRange={yieldCurve30y10yRange}
+                    onRangeChange={(r) => (yieldCurve30y10yRange = r)}
+                />
+            </svelte:fragment>
+
+            <svelte:fragment slot="signal">
+                {#if signalsFromMetrics.yield_curve_30y_10y?.latest && dashboardData.yield_curve_30y_10y?.length > 0}
+                    {@const s = signalsFromMetrics.yield_curve_30y_10y.latest}
+                    {@const lastSpread = s.value}
+                    {@const prevSpread =
+                        dashboardData.yield_curve_30y_10y?.[
+                            dashboardData.yield_curve_30y_10y?.length - 22
+                        ] ?? lastSpread}
+                    {@const spreadChange = lastSpread - prevSpread}
+                    {@const last30y = getLatestValue(
+                        dashboardData.treasury_30y,
+                    )}
+                    {@const prev30y =
+                        dashboardData.treasury_30y?.[
+                            dashboardData.treasury_30y?.length - 22
+                        ] ?? last30y}
+                    {@const rateChange = (last30y ?? 0) - (prev30y ?? 0)}
+                    {@const curveRegime = getCurveRegime(
+                        spreadChange,
+                        rateChange,
+                    )}
+                    <SignalBadge
+                        state={curveRegime.class}
+                        label={curveRegime.label}
+                    />
+                {/if}
+            </svelte:fragment>
+
+            <svelte:fragment slot="chart">
                 <Chart
                     {darkMode}
                     data={yieldCurve30y10yViewMode === "zscore"
@@ -3839,132 +3778,79 @@
                         margin: { l: 50, r: 20, t: 20, b: 40 },
                     }}
                 />
-            </div>
-            {#if signalsFromMetrics.yield_curve_30y_10y?.latest && dashboardData.yield_curve_30y_10y?.length > 0}
-                {@const s = signalsFromMetrics.yield_curve_30y_10y.latest}
-                {@const lastSpread = s.value}
-                {@const prevSpread =
-                    dashboardData.yield_curve_30y_10y?.[
-                        dashboardData.yield_curve_30y_10y?.length - 22
-                    ] ?? lastSpread}
-                {@const spreadChange = lastSpread - prevSpread}
-                {@const last30y = getLatestValue(dashboardData.treasury_30y)}
-                {@const prev30y =
-                    dashboardData.treasury_30y?.[
-                        dashboardData.treasury_30y?.length - 22
-                    ] ?? last30y}
-                {@const rateChange = (last30y ?? 0) - (prev30y ?? 0)}
-                {@const curveRegime = (() => {
-                    if (spreadChange > 0.03 && rateChange < 0)
-                        return {
-                            label: "BULL STEEP",
-                            class: "bullish",
-                            emoji: "🟢",
-                        };
-                    if (spreadChange > 0.03 && rateChange >= 0)
-                        return {
-                            label: "BEAR STEEP",
-                            class: "warning",
-                            emoji: "⚠️",
-                        };
-                    if (spreadChange < -0.03 && rateChange < 0)
-                        return {
-                            label: "BULL FLAT",
-                            class: "neutral",
-                            emoji: "🔵",
-                        };
-                    if (spreadChange < -0.03 && rateChange >= 0)
-                        return {
-                            label: "BEAR FLAT",
-                            class: "bearish",
-                            emoji: "🔴",
-                        };
-                    return { label: "HOLD", class: "neutral", emoji: "●" };
-                })()}
-                <div
-                    class="metrics-section"
-                    style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px;"
-                >
-                    <div
-                        class="signal-item"
-                        style="background: rgba(0,0,0,0.15); border: none;"
-                    >
-                        <div class="signal-label">
-                            Curve Signal | {curveRegime.emoji}
-                            {curveRegime.label}
-                        </div>
-                        <div
-                            class="signal-status text-{lastSpread < 0
-                                ? 'bearish'
-                                : curveRegime.class}"
-                        >
-                            <span class="signal-dot"></span>
-                            {lastSpread < 0
-                                ? "INVERTED"
-                                : getStatusLabel(s.state)}
-                        </div>
-                        <div class="signal-value">
-                            Spread: <b>{s.value?.toFixed(2)}%</b> | Δ1M:
-                            <span
-                                class:text-bullish={spreadChange > 0}
-                                class:text-bearish={spreadChange < 0}
-                                >{spreadChange >= 0
-                                    ? "+"
-                                    : ""}{spreadChange.toFixed(2)}%</span
-                            >
-                            | P{s.percentile?.toFixed(0)}
-                        </div>
-                    </div>
-                </div>
-            {/if}
-        </div>
+            </svelte:fragment>
+
+            <svelte:fragment slot="footer">
+                <SignalTable
+                    columns={yieldCurve3010TableColumns}
+                    rows={yieldCurve3010TableRows}
+                    showHeader
+                    {darkMode}
+                />
+            </svelte:fragment>
+        </ChartCardV2>
 
         <!-- 30Y-2Y Yield Curve (Full Spread) -->
-        <div class="chart-card" bind:this={yieldCurve30y2yCard}>
-            <div class="chart-header">
-                <h3>Yield Curve (30Y-2Y Full Spread)</h3>
-                <div class="header-controls">
+        <ChartCardV2
+            bind:this={yieldCurve30y2yCard}
+            title="Yield Curve (30Y-2Y Spread)"
+            description="Full yield curve slope (2Y to 30Y). Deep inversion = severe recession signal."
+            {darkMode}
+            cardId="yield_curve_30y_2y"
+        >
+            <svelte:fragment slot="controls">
+                <div class="mode-selector">
                     <button
-                        class="download-card-btn"
-                        title="Download Full Card"
-                        on:click={() =>
-                            downloadCardAsImage(
-                                yieldCurve30y2yCard,
-                                "yield_curve_30y_2y",
-                            )}
+                        class:active={yieldCurve30y2yViewMode === "raw"}
+                        on:click={() => (yieldCurve30y2yViewMode = "raw")}
+                        >Raw</button
                     >
-                        📷
-                    </button>
-                    <div class="mode-selector">
-                        <button
-                            class:active={yieldCurve30y2yViewMode === "raw"}
-                            on:click={() => (yieldCurve30y2yViewMode = "raw")}
-                            >Raw</button
-                        >
-                        <button
-                            class:active={yieldCurve30y2yViewMode === "zscore"}
-                            on:click={() =>
-                                (yieldCurve30y2yViewMode = "zscore")}>Z</button
-                        >
-                        <button
-                            class:active={yieldCurve30y2yViewMode ===
-                                "percentile"}
-                            on:click={() =>
-                                (yieldCurve30y2yViewMode = "percentile")}
-                            >%</button
-                        >
-                    </div>
-                    <TimeRangeSelector
-                        selectedRange={yieldCurve30y2yRange}
-                        onRangeChange={(r) => (yieldCurve30y2yRange = r)}
-                    />
+                    <button
+                        class:active={yieldCurve30y2yViewMode === "zscore"}
+                        on:click={() => (yieldCurve30y2yViewMode = "zscore")}
+                        >Z</button
+                    >
+                    <button
+                        class:active={yieldCurve30y2yViewMode === "percentile"}
+                        on:click={() =>
+                            (yieldCurve30y2yViewMode = "percentile")}>%</button
+                    >
                 </div>
-            </div>
-            <p class="chart-description">
-                Full yield curve slope (2Y to 30Y). Deep inversion = severe
-                recession signal.
-            </p>
-            <div class="chart-content" style="height: 280px;">
+                <TimeRangeSelector
+                    selectedRange={yieldCurve30y2yRange}
+                    onRangeChange={(r) => (yieldCurve30y2yRange = r)}
+                />
+            </svelte:fragment>
+
+            <svelte:fragment slot="signal">
+                {#if signalsFromMetrics.yield_curve_30y_2y?.latest && dashboardData.yield_curve_30y_2y?.length > 0}
+                    {@const s = signalsFromMetrics.yield_curve_30y_2y.latest}
+                    {@const lastSpread = s.value}
+                    {@const prevSpread =
+                        dashboardData.yield_curve_30y_2y?.[
+                            dashboardData.yield_curve_30y_2y?.length - 22
+                        ] ?? lastSpread}
+                    {@const spreadChange = lastSpread - prevSpread}
+                    {@const last30y = getLatestValue(
+                        dashboardData.treasury_30y,
+                    )}
+                    {@const prev30y =
+                        dashboardData.treasury_30y?.[
+                            dashboardData.treasury_30y?.length - 22
+                        ] ?? last30y}
+                    {@const rateChange = (last30y ?? 0) - (prev30y ?? 0)}
+                    {@const curveRegime = getCurveRegime(
+                        spreadChange,
+                        rateChange,
+                    )}
+                    <SignalBadge
+                        state={curveRegime.class}
+                        label={curveRegime.label}
+                    />
+                {/if}
+            </svelte:fragment>
+
+            <svelte:fragment slot="chart">
                 <Chart
                     {darkMode}
                     data={yieldCurve30y2yViewMode === "zscore"
@@ -3988,138 +3874,54 @@
                         margin: { l: 50, r: 20, t: 20, b: 40 },
                     }}
                 />
-            </div>
-            {#if signalsFromMetrics.yield_curve_30y_2y?.latest && dashboardData.yield_curve_30y_2y?.length > 0}
-                {@const s = signalsFromMetrics.yield_curve_30y_2y.latest}
-                {@const lastSpread = s.value}
-                {@const prevSpread =
-                    dashboardData.yield_curve_30y_2y?.[
-                        dashboardData.yield_curve_30y_2y?.length - 22
-                    ] ?? lastSpread}
-                {@const spreadChange = lastSpread - prevSpread}
-                {@const last30y = getLatestValue(dashboardData.treasury_30y)}
-                {@const prev30y =
-                    dashboardData.treasury_30y?.[
-                        dashboardData.treasury_30y?.length - 22
-                    ] ?? last30y}
-                {@const rateChange = (last30y ?? 0) - (prev30y ?? 0)}
-                {@const curveRegime = (() => {
-                    if (spreadChange > 0.05 && rateChange < 0)
-                        return {
-                            label: "BULL STEEP",
-                            class: "bullish",
-                            emoji: "🟢",
-                        };
-                    if (spreadChange > 0.05 && rateChange >= 0)
-                        return {
-                            label: "BEAR STEEP",
-                            class: "warning",
-                            emoji: "⚠️",
-                        };
-                    if (spreadChange < -0.05 && rateChange < 0)
-                        return {
-                            label: "BULL FLAT",
-                            class: "neutral",
-                            emoji: "🔵",
-                        };
-                    if (spreadChange < -0.05 && rateChange >= 0)
-                        return {
-                            label: "BEAR FLAT",
-                            class: "bearish",
-                            emoji: "🔴",
-                        };
-                    return { label: "HOLD", class: "neutral", emoji: "●" };
-                })()}
-                <div
-                    class="metrics-section"
-                    style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px;"
-                >
-                    <div
-                        class="signal-item"
-                        style="background: rgba(0,0,0,0.15); border: none;"
-                    >
-                        <div class="signal-label">
-                            Full Curve | {curveRegime.emoji}
-                            {curveRegime.label}
-                        </div>
-                        <div
-                            class="signal-status text-{lastSpread < 0
-                                ? 'bearish'
-                                : curveRegime.class}"
-                        >
-                            <span class="signal-dot"></span>
-                            {lastSpread < 0
-                                ? "INVERTED"
-                                : getStatusLabel(s.state)}
-                        </div>
-                        <div class="signal-value">
-                            Spread: <b>{s.value?.toFixed(2)}%</b> | Δ1M:
-                            <span
-                                class:text-bullish={spreadChange > 0}
-                                class:text-bearish={spreadChange < 0}
-                                >{spreadChange >= 0
-                                    ? "+"
-                                    : ""}{spreadChange.toFixed(2)}%</span
-                            >
-                            | P{s.percentile?.toFixed(0)}
-                        </div>
-                    </div>
-                </div>
-            {/if}
-        </div>
+            </svelte:fragment>
 
-        <div class="chart-card" bind:this={creditSpreadsCard}>
-            <div class="chart-header">
-                <h3>
-                    {translations.chart_credit_spreads ||
-                        "Credit Spreads (HY vs IG)"}
-                </h3>
-                <div class="header-controls">
+            <svelte:fragment slot="footer">
+                <SignalTable
+                    columns={yieldCurve302TableColumns}
+                    rows={yieldCurve302TableRows}
+                    showHeader
+                    {darkMode}
+                />
+            </svelte:fragment>
+        </ChartCardV2>
+
+        <!-- Credit Spreads -->
+        <ChartCardV2
+            bind:this={creditSpreadsCard}
+            title={translations.chart_credit_spreads ||
+                "Credit Spreads (HY vs IG)"}
+            description={translations.credit_spreads_desc ||
+                "High Yield (red) and Investment Grade (Sky Blue) credit spreads. Higher spreads = more risk aversion."}
+            {darkMode}
+            cardId="credit_spreads"
+            lastDate={getLastDate("HY_SPREAD")}
+        >
+            <svelte:fragment slot="controls">
+                <div class="mode-selector">
                     <button
-                        class="download-card-btn"
-                        title="Download Full Card"
-                        on:click={() =>
-                            downloadCardAsImage(
-                                creditSpreadsCard,
-                                "credit_spreads_hy_ig",
-                            )}
+                        class:active={creditSpreadsViewMode === "raw"}
+                        on:click={() => (creditSpreadsViewMode = "raw")}
+                        >Raw</button
                     >
-                        📷
-                    </button>
-                    <div class="mode-selector">
-                        <button
-                            class:active={creditSpreadsViewMode === "raw"}
-                            on:click={() => (creditSpreadsViewMode = "raw")}
-                            >Raw</button
-                        >
-                        <button
-                            class:active={creditSpreadsViewMode === "zscore"}
-                            on:click={() => (creditSpreadsViewMode = "zscore")}
-                            >Z</button
-                        >
-                        <button
-                            class:active={creditSpreadsViewMode ===
-                                "percentile"}
-                            on:click={() =>
-                                (creditSpreadsViewMode = "percentile")}
-                            >%</button
-                        >
-                    </div>
-                    <TimeRangeSelector
-                        selectedRange={creditSpreadsRange}
-                        onRangeChange={(r) => (creditSpreadsRange = r)}
-                    />
-                    <span class="last-date"
-                        >{translations.last_data || "Last Data:"}
-                        {getLastDate("HY_SPREAD")}</span
+                    <button
+                        class:active={creditSpreadsViewMode === "zscore"}
+                        on:click={() => (creditSpreadsViewMode = "zscore")}
+                        >Z</button
+                    >
+                    <button
+                        class:active={creditSpreadsViewMode === "percentile"}
+                        on:click={() => (creditSpreadsViewMode = "percentile")}
+                        >%</button
                     >
                 </div>
-            </div>
-            <p class="chart-description">
-                {translations.credit_spreads_desc ||
-                    "High Yield (red) and Investment Grade (Sky Blue) credit spreads. Higher spreads = more risk aversion."}
-            </p>
-            <div class="chart-content" style="height: 300px;">
+                <TimeRangeSelector
+                    selectedRange={creditSpreadsRange}
+                    onRangeChange={(r) => (creditSpreadsRange = r)}
+                />
+            </svelte:fragment>
+
+            <svelte:fragment slot="chart">
                 <Chart
                     {darkMode}
                     data={creditSpreadsViewMode === "zscore"
@@ -4128,172 +3930,61 @@
                           ? creditSpreadsPctData
                           : creditSpreadsData}
                     layout={creditSpreadsViewMode === "raw"
-                        ? {
-                              yaxis: {
-                                  title: "HY Spread (bps)",
-                                  side: "left",
-                                  autorange: true,
-                              },
-                              yaxis2: {
-                                  title: "IG Spread (bps)",
-                                  side: "right",
-                                  overlaying: "y",
-                                  autorange: true,
-                              },
-                              legend: {
-                                  x: 0.01,
-                                  y: 0.99,
-                                  bgcolor: "rgba(0,0,0,0.0)",
-                              },
-                              margin: { l: 60, r: 60, t: 20, b: 40 },
-                          }
+                        ? creditSpreadsLayout
                         : creditSpreadsViewMode === "percentile"
-                          ? {
-                                shapes: createPercentileBands(darkMode, {
-                                    bullishPct: 30,
-                                    bearishPct: 70,
-                                    invert: true,
-                                }),
-                                yaxis: { title: "Percentile", range: [0, 100] },
-                                legend: {
-                                    x: 0.01,
-                                    y: 0.99,
-                                    bgcolor: "rgba(0,0,0,0.0)",
-                                },
-                                margin: { l: 60, r: 20, t: 20, b: 40 },
-                            }
-                          : {
-                                shapes: createZScoreBands(darkMode),
-                                yaxis: { title: "Z-Score" },
-                                legend: {
-                                    x: 0.01,
-                                    y: 0.99,
-                                    bgcolor: "rgba(0,0,0,0.0)",
-                                },
-                                margin: { l: 60, r: 20, t: 20, b: 40 },
-                            }}
+                          ? creditSpreadsPctLayout
+                          : creditSpreadsZLayout}
                 />
-            </div>
+            </svelte:fragment>
 
-            <!-- Compact Metrics for Credit Spreads -->
-            <div
-                class="metrics-section"
-                style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px;"
-            >
-                <div class="metrics-table-container">
-                    <table class="metrics-table compact">
-                        <thead>
-                            <tr>
-                                <th>{translations.spread_type || "Spread"}</th>
-                                <th
-                                    >{translations.current_value ||
-                                        "Current"}</th
-                                >
-                                <th>{translations.status || "Status"}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td style="color: #ef4444; font-weight: 600;"
-                                    >HY</td
-                                >
-                                <td
-                                    >{(
-                                        getLatestValue(
-                                            dashboardData.hy_spread,
-                                        ) ?? 0
-                                    ).toFixed(0)} bps</td
-                                >
-                                <td>
-                                    {#if getLatestValue(dashboardData.hy_spread) > 500}
-                                        <span style="color: #ef4444;"
-                                            >🔴 Stress</span
-                                        >
-                                    {:else if getLatestValue(dashboardData.hy_spread) > 400}
-                                        <span style="color: #f59e0b;"
-                                            >🔶 Elevated</span
-                                        >
-                                    {:else}
-                                        <span style="color: #22c55e;"
-                                            >✅ Normal</span
-                                        >
-                                    {/if}
-                                </td>
-                            </tr>
-                            <tr>
-                                <td style="color: #38bdf8; font-weight: 600;"
-                                    >IG</td
-                                >
-                                <td
-                                    >{(
-                                        getLatestValue(
-                                            dashboardData.ig_spread,
-                                        ) ?? 0
-                                    ).toFixed(0)} bps</td
-                                >
-                                <td>
-                                    {#if getLatestValue(dashboardData.ig_spread) > 150}
-                                        <span style="color: #ef4444;"
-                                            >🔴 Stress</span
-                                        >
-                                    {:else if getLatestValue(dashboardData.ig_spread) > 100}
-                                        <span style="color: #f59e0b;"
-                                            >🔶 Elevated</span
-                                        >
-                                    {:else}
-                                        <span style="color: #22c55e;"
-                                            >✅ Normal</span
-                                        >
-                                    {/if}
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+            <svelte:fragment slot="footer">
+                <SignalTable
+                    columns={creditSpreadsTableColumns}
+                    rows={creditSpreadsTableRows}
+                    showHeader
+                    {darkMode}
+                />
+            </svelte:fragment>
+        </ChartCardV2>
 
         <!-- NEW: NFP (Non-Farm Payrolls) Chart -->
-        <div class="chart-card" bind:this={nfpCard}>
-            <div class="chart-header">
-                <h3>Non-Farm Payrolls (NFP)</h3>
-                <div class="header-controls">
+        <!-- NFP (Non-Farm Payrolls) Chart -->
+        <ChartCardV2
+            bind:this={nfpCard}
+            title="Non-Farm Payrolls (NFP)"
+            description="Monthly change in non-farm payrolls (thousands). Key labor market indicator. Above 150k = healthy, below 0 = contraction."
+            {darkMode}
+            cardId="nfp_employment"
+        >
+            <svelte:fragment slot="controls">
+                <div class="mode-selector">
                     <button
-                        class="download-card-btn"
-                        title="Download Full Card"
-                        on:click={() =>
-                            downloadCardAsImage(nfpCard, "nfp_employment")}
+                        class:active={nfpViewMode === "raw"}
+                        on:click={() => (nfpViewMode = "raw")}>Raw</button
                     >
-                        📷
-                    </button>
-                    <div class="view-mode-toggle">
-                        <button
-                            class:active={nfpViewMode === "raw"}
-                            on:click={() => (nfpViewMode = "raw")}
-                            title="Raw">📊</button
-                        >
-                        <button
-                            class:active={nfpViewMode === "zscore"}
-                            on:click={() => (nfpViewMode = "zscore")}
-                            title="Z-Score">Z</button
-                        >
-                        <button
-                            class:active={nfpViewMode === "percentile"}
-                            on:click={() => (nfpViewMode = "percentile")}
-                            title="Percentile">%</button
-                        >
-                    </div>
-                    <TimeRangeSelector
-                        selectedRange={nfpRange}
-                        onRangeChange={(r) => (nfpRange = r)}
-                    />
+                    <button
+                        class:active={nfpViewMode === "zscore"}
+                        on:click={() => (nfpViewMode = "zscore")}>Z</button
+                    >
+                    <button
+                        class:active={nfpViewMode === "percentile"}
+                        on:click={() => (nfpViewMode = "percentile")}>%</button
+                    >
                 </div>
-            </div>
-            <p class="chart-description">
-                Monthly change in non-farm payrolls (thousands). Key labor
-                market indicator. Above 150k = healthy, below 0 = contraction.
-            </p>
-            <div class="chart-content" style="height: 280px;">
+                <TimeRangeSelector
+                    selectedRange={nfpRange}
+                    onRangeChange={(r) => (nfpRange = r)}
+                />
+            </svelte:fragment>
+
+            <svelte:fragment slot="signal">
+                {#if signalsFromMetrics.nfp?.latest}
+                    {@const s = signalsFromMetrics.nfp.latest}
+                    <SignalBadge state={s.state} label="Labor Market Signal" />
+                {/if}
+            </svelte:fragment>
+
+            <svelte:fragment slot="chart">
                 <Chart
                     {darkMode}
                     data={nfpViewMode === "raw"
@@ -4308,7 +3999,10 @@
                                   bearishPct: 30,
                                   invert: false,
                               }),
-                              yaxis: { title: "Percentile", range: [-5, 105] },
+                              yaxis: {
+                                  title: "Percentile",
+                                  range: [-5, 105],
+                              },
                               margin: { l: 50, r: 20, t: 20, b: 40 },
                           }
                         : nfpViewMode === "zscore"
@@ -4324,75 +4018,57 @@
                                 margin: { l: 50, r: 20, t: 20, b: 40 },
                             }}
                 />
-            </div>
-            {#if signalsFromMetrics.nfp?.latest}
-                {@const s = signalsFromMetrics.nfp.latest}
-                <div
-                    class="metrics-section"
-                    style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px;"
-                >
-                    <div
-                        class="signal-item"
-                        style="background: rgba(0,0,0,0.15); border: none;"
-                    >
-                        <div class="signal-label">Labor Market Signal</div>
-                        <div class="signal-status text-{s.state}">
-                            <span class="signal-dot"></span>
-                            {getStatusLabel(s.state)}
-                        </div>
-                        <div class="signal-value">
-                            Change: <b>{s.value?.toFixed(0)}k</b> | Percentile:
-                            <b>P{s.percentile?.toFixed(0)}</b>
-                        </div>
-                    </div>
-                </div>
-            {/if}
-        </div>
+            </svelte:fragment>
+
+            <svelte:fragment slot="footer">
+                <SignalTable
+                    columns={laborTableColumns}
+                    rows={nfpTableRows}
+                    showHeader
+                    {darkMode}
+                />
+            </svelte:fragment>
+        </ChartCardV2>
 
         <!-- NEW: JOLTS Chart -->
-        <div class="chart-card" bind:this={joltsCard}>
-            <div class="chart-header">
-                <h3>Job Openings (JOLTS)</h3>
-                <div class="header-controls">
+        <!-- JOLTS Chart -->
+        <ChartCardV2
+            bind:this={joltsCard}
+            title="Job Openings (JOLTS)"
+            description="Job openings in millions. Higher = tighter labor market. Watch for JOLTS/Unemployed ratio trends."
+            {darkMode}
+            cardId="jolts_openings"
+        >
+            <svelte:fragment slot="controls">
+                <div class="mode-selector">
                     <button
-                        class="download-card-btn"
-                        title="Download Full Card"
-                        on:click={() =>
-                            downloadCardAsImage(
-                                joltsCard,
-                                "jolts_job_openings",
-                            )}
+                        class:active={joltsViewMode === "raw"}
+                        on:click={() => (joltsViewMode = "raw")}>Raw</button
                     >
-                        📷
-                    </button>
-                    <div class="view-mode-toggle">
-                        <button
-                            class:active={joltsViewMode === "raw"}
-                            on:click={() => (joltsViewMode = "raw")}
-                            title="Raw">📊</button
-                        >
-                        <button
-                            class:active={joltsViewMode === "zscore"}
-                            on:click={() => (joltsViewMode = "zscore")}
-                            title="Z-Score">Z</button
-                        >
-                        <button
-                            class:active={joltsViewMode === "percentile"}
-                            on:click={() => (joltsViewMode = "percentile")}
-                            title="Percentile">%</button
-                        >
-                    </div>
-                    <TimeRangeSelector
-                        selectedRange={joltsRange}
-                        onRangeChange={(r) => (joltsRange = r)}
-                    />
+                    <button
+                        class:active={joltsViewMode === "zscore"}
+                        on:click={() => (joltsViewMode = "zscore")}>Z</button
+                    >
+                    <button
+                        class:active={joltsViewMode === "percentile"}
+                        on:click={() => (joltsViewMode = "percentile")}
+                        >%</button
+                    >
                 </div>
-            </div>
-            <p class="chart-description">
-                Job openings in millions. Higher = tighter labor market. Watch
-                for JOLTS/Unemployed ratio trends.
-            </p>
-            <div class="chart-content" style="height: 280px;">
+                <TimeRangeSelector
+                    selectedRange={joltsRange}
+                    onRangeChange={(r) => (joltsRange = r)}
+                />
+            </svelte:fragment>
+
+            <svelte:fragment slot="signal">
+                {#if signalsFromMetrics.jolts?.latest}
+                    {@const s = signalsFromMetrics.jolts.latest}
+                    <SignalBadge state={s.state} label="Labor Demand Signal" />
+                {/if}
+            </svelte:fragment>
+
+            <svelte:fragment slot="chart">
                 <Chart
                     {darkMode}
                     data={joltsViewMode === "raw"
@@ -4407,7 +4083,10 @@
                                   bearishPct: 30,
                                   invert: false,
                               }),
-                              yaxis: { title: "Percentile", range: [-5, 105] },
+                              yaxis: {
+                                  title: "Percentile",
+                                  range: [-5, 105],
+                              },
                               margin: { l: 50, r: 20, t: 20, b: 40 },
                           }
                         : joltsViewMode === "zscore"
@@ -4423,77 +4102,59 @@
                                 margin: { l: 50, r: 20, t: 20, b: 40 },
                             }}
                 />
-            </div>
-            {#if signalsFromMetrics.jolts?.latest}
-                {@const s = signalsFromMetrics.jolts.latest}
-                <div
-                    class="metrics-section"
-                    style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px;"
-                >
-                    <div
-                        class="signal-item"
-                        style="background: rgba(0,0,0,0.15); border: none;"
-                    >
-                        <div class="signal-label">Labor Demand Signal</div>
-                        <div class="signal-status text-{s.state}">
-                            <span class="signal-dot"></span>
-                            {getStatusLabel(s.state)}
-                        </div>
-                        <div class="signal-value">
-                            Openings: <b>{s.value?.toFixed(1)}M</b> |
-                            Percentile: <b>P{s.percentile?.toFixed(0)}</b>
-                        </div>
-                    </div>
-                </div>
-            {/if}
-        </div>
+            </svelte:fragment>
+
+            <svelte:fragment slot="footer">
+                <SignalTable
+                    columns={laborTableColumns}
+                    rows={joltsTableRows}
+                    showHeader
+                    {darkMode}
+                />
+            </svelte:fragment>
+        </ChartCardV2>
 
         <!-- NEW: Financial Stress Indices Section -->
-        <div class="chart-card" bind:this={stLouisStressCard}>
-            <div class="chart-header">
-                <h3>St. Louis Financial Stress Index (STLFSI4)</h3>
-                <div class="header-controls">
+        <!-- St. Louis Financial Stress Index -->
+        <ChartCardV2
+            bind:this={stLouisStressCard}
+            title="St. Louis Financial Stress Index (STLFSI4)"
+            description="Weekly index measuring financial stress. Values above 0 = above-average stress."
+            {darkMode}
+            cardId="st_louis_financial_stress"
+        >
+            <svelte:fragment slot="controls">
+                <div class="mode-selector">
                     <button
-                        class="download-card-btn"
-                        title="Download Full Card"
-                        on:click={() =>
-                            downloadCardAsImage(
-                                stLouisStressCard,
-                                "st_louis_financial_stress",
-                            )}
+                        class:active={stLouisStressViewMode === "raw"}
+                        on:click={() => (stLouisStressViewMode = "raw")}
+                        >Raw</button
                     >
-                        📷
-                    </button>
-                    <div class="view-mode-toggle">
-                        <button
-                            class:active={stLouisStressViewMode === "zscore"}
-                            on:click={() => (stLouisStressViewMode = "zscore")}
-                            title="Z-Score">Z</button
-                        >
-                        <button
-                            class:active={stLouisStressViewMode ===
-                                "percentile"}
-                            on:click={() =>
-                                (stLouisStressViewMode = "percentile")}
-                            title="Percentile">%</button
-                        >
-                        <button
-                            class:active={stLouisStressViewMode === "raw"}
-                            on:click={() => (stLouisStressViewMode = "raw")}
-                            title="Raw Values">📊</button
-                        >
-                    </div>
-                    <TimeRangeSelector
-                        selectedRange={stLouisStressRange}
-                        onRangeChange={(r) => (stLouisStressRange = r)}
-                    />
+                    <button
+                        class:active={stLouisStressViewMode === "zscore"}
+                        on:click={() => (stLouisStressViewMode = "zscore")}
+                        >Z</button
+                    >
+                    <button
+                        class:active={stLouisStressViewMode === "percentile"}
+                        on:click={() => (stLouisStressViewMode = "percentile")}
+                        >%</button
+                    >
                 </div>
-            </div>
-            <p class="chart-description">
-                Weekly index measuring financial stress. Values above 0 =
-                above-average stress.
-            </p>
-            <div class="chart-content" style="height: 280px;">
+                <TimeRangeSelector
+                    selectedRange={stLouisStressRange}
+                    onRangeChange={(r) => (stLouisStressRange = r)}
+                />
+            </svelte:fragment>
+
+            <svelte:fragment slot="signal">
+                {#if signalsFromMetrics.st_louis_stress?.latest}
+                    {@const s = signalsFromMetrics.st_louis_stress.latest}
+                    <SignalBadge state={s.state} label="Signal Status" />
+                {/if}
+            </svelte:fragment>
+
+            <svelte:fragment slot="chart">
                 <Chart
                     {darkMode}
                     data={stLouisStressViewMode === "raw"
@@ -4508,7 +4169,10 @@
                                   bearishPct: 70,
                                   invert: true,
                               }),
-                              yaxis: { title: "Percentile", range: [-5, 105] },
+                              yaxis: {
+                                  title: "Percentile",
+                                  range: [-5, 105],
+                              },
                               margin: { l: 50, r: 20, t: 20, b: 40 },
                           }
                         : {
@@ -4524,77 +4188,58 @@
                               margin: { l: 50, r: 20, t: 20, b: 40 },
                           }}
                 />
-            </div>
-            {#if signalsFromMetrics.st_louis_stress?.latest}
-                {@const s = signalsFromMetrics.st_louis_stress.latest}
-                <div
-                    class="metrics-section"
-                    style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px;"
-                >
-                    <div
-                        class="signal-item"
-                        style="background: rgba(0,0,0,0.15); border: none;"
-                    >
-                        <div class="signal-label">Signal Status</div>
-                        <div class="signal-status text-{s.state}">
-                            <span class="signal-dot"></span>
-                            {getStatusLabel(s.state)}
-                        </div>
-                        <div class="signal-value">
-                            Index: <b>{s.value?.toFixed(2)}</b> | Percentile:
-                            <b>P{s.percentile?.toFixed(0)}</b>
-                        </div>
-                    </div>
-                </div>
-            {/if}
-        </div>
+            </svelte:fragment>
 
-        <div class="chart-card" bind:this={kansasCityStressCard}>
-            <div class="chart-header">
-                <h3>Kansas City Financial Stress Index (KCFSI)</h3>
-                <div class="header-controls">
+            <svelte:fragment slot="footer">
+                <SignalTable
+                    columns={stressIndexTableColumns}
+                    rows={stLouisStressTableRows}
+                    showHeader
+                    {darkMode}
+                />
+            </svelte:fragment>
+        </ChartCardV2>
+
+        <!-- Kansas City Financial Stress Index -->
+        <ChartCardV2
+            bind:this={kansasCityStressCard}
+            title="Kansas City Financial Stress Index (KCFSI)"
+            description="Monthly index from Kansas City Fed. Positive = stress above typical."
+            {darkMode}
+            cardId="kansas_city_financial_stress"
+        >
+            <svelte:fragment slot="controls">
+                <div class="mode-selector">
                     <button
-                        class="download-card-btn"
-                        title="Download Full Card"
-                        on:click={() =>
-                            downloadCardAsImage(
-                                kansasCityStressCard,
-                                "kansas_city_financial_stress",
-                            )}
+                        class:active={kansasCityStressViewMode === "raw"}
+                        on:click={() => (kansasCityStressViewMode = "raw")}
+                        >Raw</button
                     >
-                        📷
-                    </button>
-                    <div class="view-mode-toggle">
-                        <button
-                            class:active={kansasCityStressViewMode === "zscore"}
-                            on:click={() =>
-                                (kansasCityStressViewMode = "zscore")}
-                            title="Z-Score">Z</button
-                        >
-                        <button
-                            class:active={kansasCityStressViewMode ===
-                                "percentile"}
-                            on:click={() =>
-                                (kansasCityStressViewMode = "percentile")}
-                            title="Percentile">%</button
-                        >
-                        <button
-                            class:active={kansasCityStressViewMode === "raw"}
-                            on:click={() => (kansasCityStressViewMode = "raw")}
-                            title="Raw Values">📊</button
-                        >
-                    </div>
-                    <TimeRangeSelector
-                        selectedRange={kansasCityStressRange}
-                        onRangeChange={(r) => (kansasCityStressRange = r)}
-                    />
+                    <button
+                        class:active={kansasCityStressViewMode === "zscore"}
+                        on:click={() => (kansasCityStressViewMode = "zscore")}
+                        >Z</button
+                    >
+                    <button
+                        class:active={kansasCityStressViewMode === "percentile"}
+                        on:click={() =>
+                            (kansasCityStressViewMode = "percentile")}>%</button
+                    >
                 </div>
-            </div>
-            <p class="chart-description">
-                Monthly index from Kansas City Fed. Positive = stress above
-                typical.
-            </p>
-            <div class="chart-content" style="height: 280px;">
+                <TimeRangeSelector
+                    selectedRange={kansasCityStressRange}
+                    onRangeChange={(r) => (kansasCityStressRange = r)}
+                />
+            </svelte:fragment>
+
+            <svelte:fragment slot="signal">
+                {#if signalsFromMetrics.kansas_city_stress?.latest}
+                    {@const s = signalsFromMetrics.kansas_city_stress.latest}
+                    <SignalBadge state={s.state} label="Signal Status" />
+                {/if}
+            </svelte:fragment>
+
+            <svelte:fragment slot="chart">
                 <Chart
                     {darkMode}
                     data={kansasCityStressViewMode === "raw"
@@ -4609,7 +4254,10 @@
                                   bearishPct: 70,
                                   invert: true,
                               }),
-                              yaxis: { title: "Percentile", range: [-5, 105] },
+                              yaxis: {
+                                  title: "Percentile",
+                                  range: [-5, 105],
+                              },
                               margin: { l: 50, r: 20, t: 20, b: 40 },
                           }
                         : {
@@ -4625,71 +4273,58 @@
                               margin: { l: 50, r: 20, t: 20, b: 40 },
                           }}
                 />
-            </div>
-            {#if signalsFromMetrics.kansas_city_stress?.latest}
-                {@const s = signalsFromMetrics.kansas_city_stress.latest}
-                <div
-                    class="metrics-section"
-                    style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px;"
-                >
-                    <div
-                        class="signal-item"
-                        style="background: rgba(0,0,0,0.15); border: none;"
-                    >
-                        <div class="signal-label">Signal Status</div>
-                        <div class="signal-status text-{s.state}">
-                            <span class="signal-dot"></span>
-                            {getStatusLabel(s.state)}
-                        </div>
-                        <div class="signal-value">
-                            Index: <b>{s.value?.toFixed(2)}</b> | Percentile:
-                            <b>P{s.percentile?.toFixed(0)}</b>
-                        </div>
-                    </div>
-                </div>
-            {/if}
-        </div>
+            </svelte:fragment>
+
+            <svelte:fragment slot="footer">
+                <SignalTable
+                    columns={stressIndexTableColumns}
+                    rows={kansasCityStressTableRows}
+                    showHeader
+                    {darkMode}
+                />
+            </svelte:fragment>
+        </ChartCardV2>
 
         <!-- NEW: Corporate Bond Yields (BAA/AAA) -->
-        <div class="chart-card" bind:this={baaAaaCard}>
-            <div class="chart-header">
-                <h3>Corporate Yields (BAA/AAA) & Credit Quality Spread</h3>
-                <div class="header-controls">
+        <!-- Corporate Bond Yields (BAA/AAA) -->
+        <ChartCardV2
+            bind:this={baaAaaCard}
+            title="Corporate Yields (BAA/AAA) & Credit Quality Spread"
+            description={baaAaaViewMode === "spread"
+                ? "BAA-AAA spread = credit quality premium. Wider = more risk aversion."
+                : "BAA (red, lower quality IG) vs AAA (green, highest quality)."}
+            {darkMode}
+            cardId="corp_yields_baa_aaa"
+        >
+            <svelte:fragment slot="controls">
+                <div class="mode-selector">
                     <button
-                        class="download-card-btn"
-                        title="Download Full Card"
-                        on:click={() =>
-                            downloadCardAsImage(
-                                baaAaaCard,
-                                "corp_yields_baa_aaa",
-                            )}
+                        class:active={baaAaaViewMode === "raw"}
+                        on:click={() => (baaAaaViewMode = "raw")}>Yields</button
                     >
-                        📷
-                    </button>
-                    <div class="view-mode-toggle">
-                        <button
-                            class:active={baaAaaViewMode === "raw"}
-                            on:click={() => (baaAaaViewMode = "raw")}
-                            title="Yields">📊</button
-                        >
-                        <button
-                            class:active={baaAaaViewMode === "spread"}
-                            on:click={() => (baaAaaViewMode = "spread")}
-                            title="Spread">Δ</button
-                        >
-                    </div>
-                    <TimeRangeSelector
-                        selectedRange={baaAaaRange}
-                        onRangeChange={(r) => (baaAaaRange = r)}
-                    />
+                    <button
+                        class:active={baaAaaViewMode === "spread"}
+                        on:click={() => (baaAaaViewMode = "spread")}
+                        >Spread</button
+                    >
                 </div>
-            </div>
-            <p class="chart-description">
-                {baaAaaViewMode === "spread"
-                    ? "BAA-AAA spread = credit quality premium. Wider = more risk aversion."
-                    : "BAA (red, lower quality IG) vs AAA (green, highest quality)."}
-            </p>
-            <div class="chart-content" style="height: 280px;">
+                <TimeRangeSelector
+                    selectedRange={baaAaaRange}
+                    onRangeChange={(r) => (baaAaaRange = r)}
+                />
+            </svelte:fragment>
+
+            <svelte:fragment slot="signal">
+                {#if signalsFromMetrics.baa_aaa_spread?.latest}
+                    {@const s = signalsFromMetrics.baa_aaa_spread.latest}
+                    <SignalBadge
+                        state={s.state}
+                        label="Credit Quality Signal"
+                    />
+                {/if}
+            </svelte:fragment>
+
+            <svelte:fragment slot="chart">
                 <Chart
                     {darkMode}
                     data={baaAaaViewMode === "spread"
@@ -4715,116 +4350,88 @@
                               margin: { l: 60, r: 60, t: 20, b: 40 },
                           }}
                 />
-            </div>
-            {#if signalsFromMetrics.baa_aaa_spread?.latest}
-                {@const s = signalsFromMetrics.baa_aaa_spread.latest}
-                <div
-                    class="metrics-section"
-                    style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px;"
-                >
-                    <div
-                        class="signal-item"
-                        style="background: rgba(0,0,0,0.15); border: none;"
-                    >
-                        <div class="signal-label">Credit Quality Signal</div>
-                        <div class="signal-status text-{s.state}">
-                            <span class="signal-dot"></span>
-                            {getStatusLabel(s.state)}
-                        </div>
-                        <div class="signal-value">
-                            BAA-AAA Spread: <b>{s.value?.toFixed(2)}%</b> |
-                            Percentile: <b>P{s.percentile?.toFixed(0)}</b>
-                        </div>
-                    </div>
-                </div>
-            {/if}
-        </div>
+            </svelte:fragment>
+
+            <svelte:fragment slot="footer">
+                <SignalTable
+                    columns={stressIndexTableColumns}
+                    rows={baaAaaTableRows}
+                    showHeader
+                    {darkMode}
+                />
+            </svelte:fragment>
+        </ChartCardV2>
 
         <!-- Individual Indicators -->
         {#each creditIndicators as item, i}
-            <div class="chart-card" bind:this={creditIndicatorCards[i]}>
-                <div class="chart-header">
-                    <h3>{item.name}</h3>
-                    <div class="header-controls">
+            <ChartCardV2
+                title={item.name}
+                description={item.desc}
+                {darkMode}
+                range={item.range}
+                onRangeChange={(r) => handleRangeChange(item.id, r)}
+                lastDate={getLastDate(item.bank)}
+                cardId={item.id}
+            >
+                <!-- Controls Slot: View Mode Toggle -->
+                <svelte:fragment slot="controls">
+                    <div class="view-mode-toggle">
                         <button
-                            class="download-card-btn"
-                            title="Download Full Card"
-                            on:click={() =>
-                                downloadCardAsImage(
-                                    creditIndicatorCards[i],
-                                    item.id,
-                                )}
+                            class:active={item.viewMode === "zscore"}
+                            on:click={() => item.setViewMode("zscore")}
+                            title="Z-Score">Z</button
                         >
-                            📷
-                        </button>
-                        <div class="view-mode-toggle">
-                            <button
-                                class:active={item.viewMode === "zscore"}
-                                on:click={() => item.setViewMode("zscore")}
-                                title="Z-Score">Z</button
-                            >
-                            <button
-                                class:active={item.viewMode === "percentile"}
-                                on:click={() => item.setViewMode("percentile")}
-                                title="Percentile">%</button
-                            >
-                            <button
-                                class:active={item.viewMode === "raw"}
-                                on:click={() => item.setViewMode("raw")}
-                                title="Raw Values">📊</button
-                            >
-                        </div>
-                        <TimeRangeSelector
-                            selectedRange={item.range}
-                            onRangeChange={(r) => handleRangeChange(item.id, r)}
-                        />
-                        <span class="last-date"
-                            >{translations.last || "Last"}: {getLastDate(
-                                item.bank,
-                            )}</span
+                        <button
+                            class:active={item.viewMode === "percentile"}
+                            on:click={() => item.setViewMode("percentile")}
+                            title="Percentile">%</button
+                        >
+                        <button
+                            class:active={item.viewMode === "raw"}
+                            on:click={() => item.setViewMode("raw")}
+                            title="Raw Values">📊</button
                         >
                     </div>
-                </div>
-                <p class="chart-description">
-                    {item.desc}
-                </p>
-                <div class="chart-content">
-                    <Chart {darkMode} data={item.data} layout={item.layout} />
-                </div>
+                    <TimeRangeSelector
+                        selectedRange={item.range}
+                        onRangeChange={(r) => handleRangeChange(item.id, r)}
+                    />
+                </svelte:fragment>
 
-                {#if signalsFromMetrics[item.signalKey]?.latest}
-                    {@const s = signalsFromMetrics[item.signalKey].latest}
-                    <div
-                        class="metrics-section"
-                        style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;"
-                    >
+                <!-- Signal Slot -->
+                <svelte:fragment slot="signal">
+                    {#if signalsFromMetrics[item.signalKey]?.latest}
+                        {@const s = signalsFromMetrics[item.signalKey].latest}
+                        <SignalBadge
+                            state={s.state}
+                            value={item.viewMode === "raw"
+                                ? s.value?.toFixed(2)
+                                : `P${s.percentile?.toFixed(0)}`}
+                            label={item.viewMode === "raw"
+                                ? "Value"
+                                : "Percentile"}
+                        />
+                    {/if}
+                </svelte:fragment>
+
+                <!-- Chart Slot -->
+                <svelte:fragment slot="chart">
+                    <Chart {darkMode} data={item.data} layout={item.layout} />
+                </svelte:fragment>
+
+                <!-- Footer Slot: Reason -->
+                <svelte:fragment slot="footer">
+                    {#if signalsFromMetrics[item.signalKey]?.latest}
+                        {@const s = signalsFromMetrics[item.signalKey].latest}
                         <div
-                            class="signal-item"
-                            style="background: rgba(0,0,0,0.15); border: none;"
+                            class="signal-reason"
+                            style="font-size: 11px; color: var(--text-secondary); opacity: 0.7; font-style: italic; text-align: center;"
                         >
-                            <div class="signal-label">
-                                {translations.signal_status || "Signal Status"}
-                            </div>
-                            <div class="signal-status text-{s.state}">
-                                <span class="signal-dot"></span>
-                                {getStatusLabel(s.state)}
-                            </div>
-                            <div class="signal-value">
-                                {translations.repo_value || "Value"}:
-                                <b>{s.value?.toFixed(2) ?? "N/A"}</b>
-                                | {translations.percentile || "Percentile"}:
-                                <b>P{s.percentile?.toFixed(0) ?? "N/A"}</b>
-                            </div>
-                            <div
-                                class="signal-reason"
-                                style="font-size: 11px; color: rgba(255,255,255,0.55); margin-top: 6px; font-style: italic;"
-                            >
-                                {getSignalReason(item.signalKey, s.state)}
-                            </div>
+                            {getSignalReason(item.signalKey, s.state)}
                         </div>
-                    </div>
-                {/if}
-            </div>
+                    {/if}
+                </svelte:fragment>
+            </ChartCardV2>
         {/each}
     </div>
 </div>
@@ -5099,157 +4706,5 @@
         background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
         color: white;
         box-shadow: 0 2px 4px rgba(99, 102, 241, 0.35);
-    }
-
-    /* Signal Box for CLI */
-    .signal-box {
-        margin-top: 15px;
-        padding: 12px 16px;
-        background: rgba(0, 0, 0, 0.2);
-        border-radius: 8px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-    }
-    .signal-header {
-        font-size: 11px;
-        font-weight: 600;
-        color: rgba(255, 255, 255, 0.5);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 6px;
-    }
-    .signal-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 14px;
-        font-weight: 700;
-        padding: 4px 0;
-    }
-    .signal-badge.bullish {
-        color: #10b981;
-    }
-    .signal-badge.bearish {
-        color: #ef4444;
-    }
-    .signal-badge.neutral {
-        color: #94a3b8;
-    }
-    .signal-details {
-        font-size: 13px;
-        color: rgba(255, 255, 255, 0.7);
-        margin-top: 4px;
-    }
-    .signal-hint {
-        font-size: 11px;
-        color: rgba(255, 255, 255, 0.4);
-        margin-left: 4px;
-    }
-
-    /* Signal Item - for credit indicators */
-    .signal-item {
-        padding: 10px 12px;
-        border-radius: 6px;
-    }
-    .signal-label {
-        font-size: 11px;
-        font-weight: 600;
-        color: rgba(255, 255, 255, 0.5);
-        text-transform: uppercase;
-        margin-bottom: 4px;
-    }
-    .signal-status {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 13px;
-        font-weight: 700;
-    }
-    .signal-status.text-bullish {
-        color: #10b981;
-    }
-    .signal-status.text-bearish {
-        color: #ef4444;
-    }
-    .signal-status.text-neutral {
-        color: #94a3b8;
-    }
-    .signal-status.text-warning {
-        color: #f59e0b;
-    }
-    .signal-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: currentColor;
-    }
-    .signal-value {
-        font-size: 12px;
-        color: rgba(255, 255, 255, 0.6);
-        margin-top: 4px;
-    }
-
-    /* Chart description styling */
-    .chart-description {
-        font-size: 12px;
-        color: rgba(255, 255, 255, 0.65);
-        line-height: 1.5;
-        padding: 8px 12px;
-        background: rgba(0, 0, 0, 0.15);
-        border-radius: 6px;
-        border-left: 3px solid rgba(99, 102, 241, 0.5);
-        margin: 8px 0;
-    }
-
-    .view-mode-badge {
-        font-size: 11px;
-        background: rgba(59, 130, 246, 0.1);
-        color: #60a5fa;
-        padding: 2px 6px;
-        border-radius: 4px;
-        margin-left: 10px;
-        font-weight: 600;
-        border: 1px solid rgba(59, 130, 246, 0.2);
-    }
-
-    .latest-values {
-        display: flex;
-        justify-content: space-around;
-        padding: 8px 12px;
-        background: rgba(0, 0, 0, 0.15);
-        border-radius: 8px;
-        margin-top: 10px;
-        font-size: 0.85rem;
-    }
-
-    /* Chart legend styling */
-    .chart-legend {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 16px;
-        padding: 10px 14px;
-        background: rgba(0, 0, 0, 0.2);
-        border-radius: 8px;
-        margin: 8px 0 12px;
-    }
-    .legend-item {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }
-    .legend-dot {
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        flex-shrink: 0;
-    }
-    .legend-label {
-        font-size: 12px;
-        font-weight: 600;
-        color: rgba(255, 255, 255, 0.9);
-    }
-    .legend-desc {
-        font-size: 11px;
-        color: rgba(255, 255, 255, 0.45);
-        font-style: italic;
     }
 </style>

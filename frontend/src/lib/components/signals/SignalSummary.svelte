@@ -31,9 +31,12 @@
 
     /** @type {"horizontal" | "vertical"} */
     export let layout = "horizontal";
+
+    /** @type {"default" | "compact" | "large"} */
+    export let size = "default";
 </script>
 
-<div class="signal-summary {state} {layout}" class:dark={darkMode}>
+<div class="signal-summary {state} {layout} {size}" class:dark={darkMode}>
     <div class="content">
         <span class="value">{value}</span>
         <span class="label">{label}</span>
@@ -58,6 +61,20 @@
         background: rgba(0, 0, 0, 0.2);
     }
 
+    .signal-summary.compact {
+        padding: 6px 10px;
+        gap: 8px;
+    }
+
+    .signal-summary.large {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 16px;
+        min-width: 140px;
+        gap: 8px;
+        background: rgba(255, 255, 255, 0.03);
+    }
+
     .signal-summary.vertical {
         flex-direction: column;
         align-items: flex-start;
@@ -74,6 +91,16 @@
         font-size: 1.1rem;
         font-weight: 700;
         font-family: "JetBrains Mono", monospace;
+    }
+
+    .compact .value {
+        font-size: 0.9rem;
+    }
+
+    .large .value {
+        font-size: 1.4rem;
+        display: block;
+        margin-bottom: 4px;
     }
 
     .label {
@@ -93,6 +120,12 @@
         width: 8px;
         height: 8px;
         border-radius: 50%;
+    }
+
+    .large .label {
+        font-size: 0.85rem;
+        text-transform: none;
+        letter-spacing: normal;
     }
 
     .description {
