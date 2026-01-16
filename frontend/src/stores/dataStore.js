@@ -219,23 +219,39 @@ export const isLoading = writable(true);
 export const error = writable(null);
 export const selectedSource = writable('tv'); // 'tv' or 'fred'
 
+// Feature flag for domain-based loading (set to false for legacy behavior)
+export const USE_DOMAIN_LOADING = writable(false);
+
+// Import domain adapter
+import { fetchWithDomainAdapter } from './domainAdapter.js';
+
 export async function fetchData() {
     isLoading.set(true);
     let source;
+    let useDomains;
     selectedSource.subscribe(val => source = val)();
+    USE_DOMAIN_LOADING.subscribe(val => useDomains = val)();
 
     try {
-        const filename = `/dashboard_data_${source}.json`;
-        const response = await fetch(filename);
-        if (!response.ok) {
-            // Fallback to generic if specific not found
-            const fallback = await fetch('/dashboard_data.json');
-            if (!fallback.ok) throw new Error('Failed to fetch data');
-            const data = await fallback.json();
+        if (useDomains) {
+            // Use domain-based loading with adapter
+            console.log('[DataStore] Using domain-based loading');
+            const data = await fetchWithDomainAdapter(true);
             dashboardData.set(data);
         } else {
-            const data = await response.json();
-            dashboardData.set(data);
+            // Legacy loading
+            const filename = `/dashboard_data_${source}.json`;
+            const response = await fetch(filename);
+            if (!response.ok) {
+                // Fallback to generic if specific not found
+                const fallback = await fetch('/dashboard_data.json');
+                if (!fallback.ok) throw new Error('Failed to fetch data');
+                const data = await fallback.json();
+                dashboardData.set(data);
+            } else {
+                const data = await response.json();
+                dashboardData.set(data);
+            }
         }
     } catch (e) {
         console.error(e);
@@ -244,6 +260,7 @@ export async function fetchData() {
         isLoading.set(false);
     }
 }
+
 
 export async function fetchIndexesData() {
     indexesLoading.set(true);
