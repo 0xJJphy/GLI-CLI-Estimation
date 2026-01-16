@@ -964,6 +964,7 @@ def get_auction_demand_for_pipeline() -> Dict:
             'signal_description': demand.get('signal_description', ''),
             'by_type': demand.get('by_type', {}),
             'recent_auctions': demand.get('recent_auctions', []),
+            'raw_auctions': result.get('raw_auctions', []),  # Full historical list
             'metrics': demand.get('metrics', {}),
             'alerts': {
                 'status': alerts.get('status', 'NO_DATA'),
@@ -984,10 +985,12 @@ def get_auction_demand_for_pipeline() -> Dict:
             'signal_description': str(e),
             'by_type': {},
             'recent_auctions': [],
+            'raw_auctions': [],
             'metrics': {},
             'alerts': {'status': 'ERROR', 'counts': {}},
             'last_updated': datetime.now().isoformat()
         }
+
 
 
 # ==============================================================================
