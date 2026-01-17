@@ -47,16 +47,20 @@ class CLIDomain(BaseDomain):
             'nfci_risk': df.get('NFCI_RISK', pd.Series(dtype=float)),
             'lending_std': df.get('LENDING_STD', pd.Series(dtype=float)),
             'vix': df.get('VIX', pd.Series(dtype=float)),
+            'move': df.get('MOVE', pd.Series(dtype=float)),
+            'fx_vol': df.get('FX_VOL', pd.Series(dtype=float)),
         }
         
         # Weights for CLI calculation
         weights = {
-            'hy_spread': 0.25,
-            'ig_spread': 0.15,
-            'nfci_credit': 0.20,
-            'nfci_risk': 0.20,
+            'hy_spread': 0.20,
+            'ig_spread': 0.10,
+            'nfci_credit': 0.15,
+            'nfci_risk': 0.15,
             'lending_std': 0.10,
-            'vix': 0.10
+            'vix': 0.10,
+            'move': 0.10,
+            'fx_vol': 0.10
         }
         
         # Calculate Z-scores
@@ -66,7 +70,7 @@ class CLIDomain(BaseDomain):
                 series = series.ffill()
                 z = calculate_zscore(series, 252)
                 # Invert spread-type indicators (higher = worse conditions)
-                if name in ['hy_spread', 'ig_spread', 'lending_std', 'vix', 'nfci_credit', 'nfci_risk']:
+                if name in ['hy_spread', 'ig_spread', 'lending_std', 'vix', 'nfci_credit', 'nfci_risk', 'move', 'fx_vol']:
                     z = -z
                 z_scores[name] = z
         
@@ -96,10 +100,16 @@ class CLIDomain(BaseDomain):
             'vix': clean_for_json(components['vix'].ffill()),
         }
         
-        # Component Z-scores
-        result['components'] = {
-            f'{name}_z': clean_for_json(z) for name, z in z_scores.items()
-        }
+        # Component Z-scores and Percentiles
+        result['components'] = {}
+        for name, z in z_scores.items():
+            result['components'][f'{name}_z'] = clean_for_json(z)
+            
+            # Calculate percentile for component (raw series)
+            # Use 1260 window (5 years) approx
+            raw_series = components[name].ffill()
+            pct = rolling_percentile(raw_series, window=1260)
+            result['components'][f'{name}_pct'] = clean_for_json(pct)
         
         result['weights'] = weights
         

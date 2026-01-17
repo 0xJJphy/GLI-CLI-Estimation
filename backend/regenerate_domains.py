@@ -1,0 +1,145 @@
+
+import json
+import pandas as pd
+import numpy as np
+import os
+import sys
+
+# Add current directory to path to allow imports
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+from domains.cli import CLIDomain
+from domains.core import USSystemDomain, SharedDomain
+from domains.base import clean_for_json
+
+def regenerate():
+    print("Loading dashboard_data.json...")
+    try:
+        with open('data/dashboard_data.json', 'r') as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        print("Error: data/dashboard_data.json not found.")
+        return
+
+    dates = pd.to_datetime(data['dates'])
+    df = pd.DataFrame(index=dates)
+    
+    print(f"Loaded {len(dates)} rows.")
+
+    # Helper to safe load
+    def get_series(key, subkey=None):
+        if key not in data:
+            print(f"Warning: {key} not found")
+            return pd.Series(dtype=float, index=dates)
+        
+        val = data[key]
+        if subkey:
+            if isinstance(val, dict) and subkey in val:
+                val = val[subkey]
+            else:
+                print(f"Warning: {key}.{subkey} not found")
+                return pd.Series(dtype=float, index=dates)
+        
+        # Ensure length match
+        if isinstance(val, list):
+            if len(val) == len(dates):
+                return pd.Series(val, index=dates)
+            else:
+                print(f"Length mismatch for {key}: {len(val)} vs {len(dates)}")
+                # Try to pad or trim? simpler to just return nan
+                return pd.Series(dtype=float, index=dates)
+        return pd.Series(dtype=float, index=dates)
+
+    # Reconstruct columns for CLI
+    print("Reconstructing CLI inputs...")
+    df['HY_SPREAD'] = get_series('hy_spread')
+    df['IG_SPREAD'] = get_series('ig_spread')
+    df['NFCI_CREDIT'] = get_series('nfci_credit')
+    df['NFCI_RISK'] = get_series('nfci_risk')
+    df['LENDING_STD'] = get_series('lending')
+    df['VIX'] = get_series('vix')
+    df['MOVE'] = get_series('move')
+    df['FX_VOL'] = get_series('fx_vol')
+
+    # Reconstruct columns for US System
+    print("Reconstructing US System inputs...")
+    df['SOFR'] = get_series('repo_stress', 'sofr')
+    df['IORB'] = get_series('repo_stress', 'iorb')
+    df['SRF_USAGE'] = get_series('repo_stress', 'srf_usage')
+    
+    # Financial Stress
+    df['STLFSI4'] = get_series('st_louis_stress')
+    df['KCFSI'] = get_series('kansas_city_stress')
+    
+    # US Net Liq components are flattened in dashboard_data.json
+    df['RRP_USD'] = get_series('us_net_liq_rrp')
+    df['TGA_USD'] = get_series('us_net_liq_tga')
+    df['BANK_RESERVES'] = get_series('us_net_liq_reserves')
+    
+    # Net Liquidity is under 'us_net_liq' key directly (as list)
+    net_liq = get_series('us_net_liq')
+    
+    df['FED_USD'] = net_liq + df['TGA_USD'] + df['RRP_USD']
+
+    # Treasury Inputs
+    print("Reconstructing Treasury inputs...")
+    df['TREASURY_2Y_YIELD'] = get_series('treasury_2y')
+    df['TREASURY_5Y_YIELD'] = get_series('treasury_5y')
+    df['TREASURY_10Y_YIELD'] = get_series('treasury_10y')
+    df['TREASURY_30Y_YIELD'] = get_series('treasury_30y')
+    df['BAA_YIELD'] = get_series('baa_yield')
+    df['AAA_YIELD'] = get_series('aaa_yield')
+
+    # Fed Forecasts Inputs
+    print("Reconstructing Fed Forecasts inputs...")
+    # Map dashboard_data keys to what FedForecastsDomain expects
+    df['INFLATION_EXPECT_1Y'] = get_series('inflation_expect_1y')
+    df['CLEV_EXPINF_5Y'] = get_series('inflation_expect_5y') # Mapping to 5Y slot
+    df['CLEV_EXPINF_10Y'] = get_series('inflation_expect_10y') # Mapping to 10Y slot
+    # Also grab inflation if available
+    # cpi_yoy not in top keys list? 
+    # Use what we have.
+
+    # Process CLI
+    print("Processing CLI Domain...")
+    cli_dom = CLIDomain()
+    cli_res = cli_dom.process(df)
+    
+    # Process US System
+    print("Processing US System Domain...")
+    us_dom = USSystemDomain()
+    us_res = us_dom.process(df)
+
+    # Process Treasury
+    print("Processing Treasury Domain...")
+    from domains.treasury import TreasuryDomain
+    treasury_dom = TreasuryDomain()
+    treasury_res = treasury_dom.process(df)
+
+    # Process Fed Forecasts
+    print("Processing Fed Forecasts Domain...")
+    from domains.fed_forecasts import FedForecastsDomain
+    fed_dom = FedForecastsDomain()
+    fed_res = fed_dom.process(df)
+
+    # Save
+    os.makedirs('data/domains', exist_ok=True)
+    
+    with open('data/domains/cli.json', 'w') as f:
+        json.dump(cli_res, f)
+    print("Saved data/domains/cli.json")
+    
+    with open('data/domains/us_system.json', 'w') as f:
+        json.dump(us_res, f)
+    print("Saved data/domains/us_system.json")
+
+    with open('data/domains/treasury.json', 'w') as f:
+        json.dump(treasury_res, f)
+    print("Saved data/domains/treasury.json")
+
+    with open('data/domains/fed_forecasts.json', 'w') as f:
+        json.dump(fed_res, f)
+    print("Saved data/domains/fed_forecasts.json")
+
+if __name__ == "__main__":
+    regenerate()

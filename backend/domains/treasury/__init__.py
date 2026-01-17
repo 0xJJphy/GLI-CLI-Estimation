@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 from typing import Dict, Any
 
-from ..base import BaseDomain, clean_for_json, calculate_rocs
+from ..base import BaseDomain, clean_for_json, calculate_rocs, rolling_percentile
 
 # Import treasury data functions
 import sys
@@ -52,29 +52,27 @@ class TreasuryDomain(BaseDomain):
             if col in df.columns:
                 series = df[col].ffill()
                 result['yields'][name] = clean_for_json(series)
+                # Calculate percentile (5-year window approx)
+                result['yields'][f'{name}_pct'] = clean_for_json(rolling_percentile(series, window=1260))
         
         # Yield curves (spreads)
         result['curves'] = {}
         
-        if 'TREASURY_10Y_YIELD' in df.columns and 'TREASURY_2Y_YIELD' in df.columns:
-            y10 = df['TREASURY_10Y_YIELD'].ffill()
-            y2 = df['TREASURY_2Y_YIELD'].ffill()
-            result['curves']['10y_2y'] = clean_for_json(y10 - y2)
+        curve_definitions = [
+            ('10y_2y', 'TREASURY_10Y_YIELD', 'TREASURY_2Y_YIELD'),
+            ('30y_10y', 'TREASURY_30Y_YIELD', 'TREASURY_10Y_YIELD'),
+            ('30y_2y', 'TREASURY_30Y_YIELD', 'TREASURY_2Y_YIELD'),
+            ('10y_5y', 'TREASURY_10Y_YIELD', 'TREASURY_5Y_YIELD')
+        ]
         
-        if 'TREASURY_30Y_YIELD' in df.columns and 'TREASURY_10Y_YIELD' in df.columns:
-            y30 = df['TREASURY_30Y_YIELD'].ffill()
-            y10 = df['TREASURY_10Y_YIELD'].ffill()
-            result['curves']['30y_10y'] = clean_for_json(y30 - y10)
-        
-        if 'TREASURY_30Y_YIELD' in df.columns and 'TREASURY_2Y_YIELD' in df.columns:
-            y30 = df['TREASURY_30Y_YIELD'].ffill()
-            y2 = df['TREASURY_2Y_YIELD'].ffill()
-            result['curves']['30y_2y'] = clean_for_json(y30 - y2)
-        
-        if 'TREASURY_10Y_YIELD' in df.columns and 'TREASURY_5Y_YIELD' in df.columns:
-            y10 = df['TREASURY_10Y_YIELD'].ffill()
-            y5 = df['TREASURY_5Y_YIELD'].ffill()
-            result['curves']['10y_5y'] = clean_for_json(y10 - y5)
+        for name, long_col, short_col in curve_definitions:
+            if long_col in df.columns and short_col in df.columns:
+                long_val = df[long_col].ffill()
+                short_val = df[short_col].ffill()
+                spread = long_val - short_val
+                
+                result['curves'][name] = clean_for_json(spread)
+                result['curves'][f'{name}_pct'] = clean_for_json(rolling_percentile(spread, window=1260))
         
         # Corporate spreads (Moody's)
         if 'BAA_YIELD' in df.columns and 'AAA_YIELD' in df.columns:

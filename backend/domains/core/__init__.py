@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 from typing import Dict, Any, List
 
-from ..base import BaseDomain, clean_for_json, calculate_rocs
+from ..base import BaseDomain, clean_for_json, calculate_rocs, rolling_percentile
 
 
 class SharedDomain(BaseDomain):
@@ -256,6 +256,38 @@ class USSystemDomain(BaseDomain):
                 'rrp_usage': clean_for_json(rrp_usd),
                 'net_repo': clean_for_json(net_repo),
                 'net_repo_zscore': clean_for_json(self._calc_zscore(net_repo, 252)),
+            }
+            
+        # Repo Stress (SOFR - IORB Spread)
+        # Legacy dashboardData.repo_stress logic
+        sofr = df['SOFR'].ffill() if 'SOFR' in df.columns else pd.Series(0.0, index=df.index)
+        iorb = df['IORB'].ffill() if 'IORB' in df.columns else pd.Series(0.0, index=df.index)
+        repo_spread = sofr - iorb
+        
+        result['repo_stress'] = {
+            'total': clean_for_json(repo_spread), # Main spread value
+            'sofr': clean_for_json(sofr),
+            'iorb': clean_for_json(iorb),
+            'z_score': clean_for_json(self._calc_zscore(repo_spread, 252))
+        }
+        
+        # Financial Stress Indices
+        # St. Louis Fed Financial Stress Index (STLFSI4)
+        if 'STLFSI4' in df.columns:
+            stlfsi = df['STLFSI4'].ffill()
+            result['st_louis_stress'] = {
+                'total': clean_for_json(stlfsi),
+                'z_score': clean_for_json(self._calc_zscore(stlfsi, 1260)), # 5yr window
+                'percentile': clean_for_json(rolling_percentile(stlfsi, 1260))
+            }
+            
+        # Kansas City Financial Stress Index (KCFSI)
+        if 'KCFSI' in df.columns:
+            kcfsi = df['KCFSI'].ffill()
+            result['kansas_city_stress'] = {
+                'total': clean_for_json(kcfsi),
+                'z_score': clean_for_json(self._calc_zscore(kcfsi, 1260)), # 5yr window
+                'percentile': clean_for_json(rolling_percentile(kcfsi, 1260))
             }
         
         return result

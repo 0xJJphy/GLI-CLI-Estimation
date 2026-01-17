@@ -4,6 +4,7 @@
      * Displays Credit Liquidity Index (CLI) and risk metrics.
      */
 
+    import { onMount } from "svelte";
     import Chart from "../components/Chart.svelte";
     import TimeRangeSelector from "../components/TimeRangeSelector.svelte";
     import StressPanel from "../components/StressPanel.svelte";
@@ -25,12 +26,29 @@
     import ChartCardV2 from "../components/ChartCardV2.svelte";
     import ChartStack from "../components/ChartStack.svelte";
     import { SignalBadge, SignalTable } from "../components/signals";
+    import { loadRiskModelTabData } from "../utils/domainLoader.js";
 
     // Unified Props
     export let dashboardData = {};
     export let darkMode = false;
     export let language = "en";
     export let translations = {};
+
+    let modularRiskData = null;
+
+    // Reactive data loading: Re-run modular loader when legacy data updates
+    $: if (
+        dashboardData &&
+        (dashboardData.dates?.length > 0 ||
+            Object.keys(dashboardData).length > 5)
+    ) {
+        loadRiskModelTabData(dashboardData).then((data) => {
+            modularRiskData = data;
+        });
+    }
+
+    // Reactive merger: prioritization is modular > legacy
+    $: riskData = modularRiskData || dashboardData;
 
     // Local state for time range selectors (no longer props)
     let cliRange = "ALL";
@@ -127,7 +145,7 @@
     // --- Performance Optimization: Cached Indices ---
 
     $: rangeIndicesCache = (() => {
-        const d = dashboardData.dates;
+        const d = riskData.dates;
         if (!d || !Array.isArray(d)) return {};
         const ranges = ["1M", "3M", "6M", "1Y", "3Y", "5Y"];
 
@@ -158,13 +176,13 @@
 
     // Optimized filter function using the cache
     function filterWithCache(traceArray, range, autoTrim = true) {
-        if (!traceArray || !dashboardData.dates) return traceArray;
+        if (!traceArray || !riskData.dates) return traceArray;
         let indices =
             rangeIndicesCache[range] || rangeIndicesCache["ALL"] || [];
 
         if (range === "ALL" && autoTrim) {
             let firstValidIdx = -1;
-            const fullDates = dashboardData.dates;
+            const fullDates = riskData.dates;
             for (let i = 0; i < fullDates.length; i++) {
                 const hasData = traceArray.some((t) => {
                     const val = t.y ? t.y[i] : undefined;
@@ -184,7 +202,7 @@
 
         return traceArray.map((trace) => ({
             ...trace,
-            x: indices.map((i) => dashboardData.dates[i]),
+            x: indices.map((i) => riskData.dates[i]),
             y: indices.map((i) => (trace.y ? trace.y[i] : undefined)),
         }));
     }
@@ -242,18 +260,28 @@
 
     // Aggregate signal score: prefer backend signal_aggregate, fallback to client-side
     $: aggregateSignalScore = (() => {
+        // Default fallback when data is loading
+        const defaultScore = {
+            score: 0,
+            state: "neutral",
+            coverage: 0,
+            missing_keys: [],
+            confidence: 0,
+        };
+        if (!riskData || Object.keys(riskData).length === 0)
+            return defaultScore;
         // Use backend-computed aggregate if available (single source of truth)
-        if (dashboardData.signal_aggregate) {
-            return dashboardData.signal_aggregate;
+        if (riskData.signal_aggregate) {
+            return riskData.signal_aggregate;
         }
         // Fallback to client-side calculation
-        const signals = dashboardData.signals || {};
-        return calculateAggregateScore(signals);
+        const signals = riskData.signals || {};
+        return calculateAggregateScore(signals) || defaultScore;
     })();
 
     // Bull/Bear counts from STANCE_KEYS only
     $: signalCounts = (() => {
-        const signals = dashboardData.signals || {};
+        const signals = riskData.signals || {};
         let bullish = 0,
             bearish = 0,
             neutral = 0,
@@ -283,8 +311,8 @@
     $: cliData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.cli?.total || [],
+                x: riskData.dates,
+                y: riskData.cli?.total || [],
                 name: translations.chart_cli_z || "CLI Aggregate (Z-Score)",
                 type: "scatter",
                 mode: "lines",
@@ -299,8 +327,8 @@
     $: cliPercentileData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.signal_metrics?.cli?.percentile || [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.cli?.percentile || [],
                 name: translations.chart_cli_pct || "CLI (Percentile)",
                 type: "scatter",
                 mode: "lines",
@@ -314,8 +342,8 @@
     $: hyZData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.cli_components?.hy_z || [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.hy_spread?.zscore || [],
                 name: translations.chart_hy_z || "HY Spread (Z-Score)",
                 type: "scatter",
                 mode: "lines",
@@ -328,8 +356,8 @@
     $: hyPctData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.signal_metrics?.hy_spread?.percentile || [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.hy_spread?.percentile || [],
                 name: translations.chart_hy_pct || "HY Spread (Percentile)",
                 type: "scatter",
                 mode: "lines",
@@ -342,8 +370,8 @@
     $: hyRawData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.hy_spread || [],
+                x: riskData.dates,
+                y: riskData.hy_spread || [],
                 name: translations.chart_hy_raw || "HY Spread (bps)",
                 type: "scatter",
                 mode: "lines",
@@ -357,8 +385,8 @@
     $: igZData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.cli_components?.ig_z || [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.ig_spread?.zscore || [],
                 name: translations.chart_ig_z || "IG Spread (Z-Score)",
                 type: "scatter",
                 mode: "lines",
@@ -371,8 +399,8 @@
     $: igPctData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.signal_metrics?.ig_spread?.percentile || [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.ig_spread?.percentile || [],
                 name: translations.chart_ig_pct || "IG Spread (Percentile)",
                 type: "scatter",
                 mode: "lines",
@@ -385,8 +413,8 @@
     $: igRawData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.ig_spread || [],
+                x: riskData.dates,
+                y: riskData.ig_spread || [],
                 name: translations.chart_ig_raw || "IG Spread (bps)",
                 type: "scatter",
                 mode: "lines",
@@ -400,8 +428,8 @@
     $: nfciCreditZData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.signal_metrics?.nfci_credit?.zscore || [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.nfci_credit?.zscore || [],
                 name: "NFCI Credit (Z-Score)",
                 type: "scatter",
                 mode: "lines",
@@ -414,8 +442,8 @@
     $: nfciCreditPctData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.signal_metrics?.nfci_credit?.percentile || [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.nfci_credit?.percentile || [],
                 name: "NFCI Credit (Percentile)",
                 type: "scatter",
                 mode: "lines",
@@ -428,10 +456,10 @@
     $: nfciCreditRawData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
+                x: riskData.dates,
                 y:
-                    dashboardData.signal_metrics?.nfci_credit?.raw ||
-                    dashboardData.nfci_credit ||
+                    riskData.signal_metrics?.nfci_credit?.raw ||
+                    riskData.nfci_credit ||
                     [],
                 name: "NFCI Credit (Raw)",
                 type: "scatter",
@@ -446,8 +474,8 @@
     $: nfciRiskZData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.signal_metrics?.nfci_risk?.zscore || [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.nfci_risk?.zscore || [],
                 name: "NFCI Risk (Z-Score)",
                 type: "scatter",
                 mode: "lines",
@@ -460,8 +488,8 @@
     $: nfciRiskPctData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.signal_metrics?.nfci_risk?.percentile || [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.nfci_risk?.percentile || [],
                 name: "NFCI Risk (Percentile)",
                 type: "scatter",
                 mode: "lines",
@@ -474,10 +502,10 @@
     $: nfciRiskRawData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
+                x: riskData.dates,
                 y:
-                    dashboardData.signal_metrics?.nfci_risk?.raw ||
-                    dashboardData.nfci_risk ||
+                    riskData.signal_metrics?.nfci_risk?.raw ||
+                    riskData.nfci_risk ||
                     [],
                 name: "NFCI Risk (Raw)",
                 type: "scatter",
@@ -492,8 +520,8 @@
     $: lendingZData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.signal_metrics?.lending?.zscore || [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.lending?.zscore || [],
                 name: "Lending Standards (Z-Score)",
                 type: "scatter",
                 mode: "lines",
@@ -506,8 +534,8 @@
     $: lendingPctData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.signal_metrics?.lending?.percentile || [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.lending?.percentile || [],
                 name: "Lending Standards (Percentile)",
                 type: "scatter",
                 mode: "lines",
@@ -520,10 +548,10 @@
     $: lendingRawData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
+                x: riskData.dates,
                 y:
-                    dashboardData.signal_metrics?.lending?.raw ||
-                    dashboardData.lending ||
+                    riskData.signal_metrics?.lending?.raw ||
+                    riskData.lending ||
                     [],
                 name: "Lending Standards (% Net Tightening)",
                 type: "scatter",
@@ -538,8 +566,8 @@
     $: vixZData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.signal_metrics?.vix?.zscore || [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.vix?.zscore || [],
                 name: translations.chart_vix_z || "VIX (Z-Score)",
                 type: "scatter",
                 mode: "lines",
@@ -552,8 +580,8 @@
     $: vixPctData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.signal_metrics?.vix?.percentile || [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.vix?.percentile || [],
                 name: translations.chart_vix_pct || "VIX (Percentile)",
                 type: "scatter",
                 mode: "lines",
@@ -566,8 +594,8 @@
     $: vixRawData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.vix?.total || [],
+                x: riskData.dates,
+                y: riskData.vix?.total || [],
                 name: "VIX (Raw)",
                 type: "scatter",
                 mode: "lines",
@@ -581,8 +609,8 @@
     $: moveZData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.signal_metrics?.move?.zscore || [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.move?.zscore || [],
                 name: "MOVE (Z-Score)",
                 type: "scatter",
                 mode: "lines",
@@ -595,8 +623,8 @@
     $: movePctData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.signal_metrics?.move?.percentile || [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.move?.percentile || [],
                 name: "MOVE (Percentile)",
                 type: "scatter",
                 mode: "lines",
@@ -609,8 +637,8 @@
     $: moveRawData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.move?.total || [],
+                x: riskData.dates,
+                y: riskData.move?.total || [],
                 name: "MOVE Index",
                 type: "scatter",
                 mode: "lines",
@@ -624,8 +652,8 @@
     $: fxVolZData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.signal_metrics?.fx_vol?.zscore || [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.fx_vol?.zscore || [],
                 name: "DXY Realized Vol (Z-Score)",
                 type: "scatter",
                 mode: "lines",
@@ -638,8 +666,8 @@
     $: fxVolPctData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.signal_metrics?.fx_vol?.percentile || [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.fx_vol?.percentile || [],
                 name: "DXY Realized Vol (Percentile)",
                 type: "scatter",
                 mode: "lines",
@@ -652,8 +680,8 @@
     $: fxVolRawData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.fx_vol?.total || [],
+                x: riskData.dates,
+                y: riskData.fx_vol?.total || [],
                 name: "DXY Realized Vol (%)",
                 type: "scatter",
                 mode: "lines",
@@ -667,10 +695,10 @@
     $: treasury10yData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
+                x: riskData.dates,
                 y:
-                    dashboardData.signal_metrics?.treasury_10y?.raw ||
-                    dashboardData.treasury_10y ||
+                    riskData.signal_metrics?.treasury_10y?.raw ||
+                    riskData.treasury_10y ||
                     [],
                 name: translations.chart_treasury_10y || "10Y UST Yield (%)",
                 type: "scatter",
@@ -684,8 +712,8 @@
     $: treasury10yZData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.signal_metrics?.treasury_10y?.zscore || [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.treasury_10y?.zscore || [],
                 name:
                     translations.chart_treasury_10y_z || "10Y Yield (Z-Score)",
                 type: "scatter",
@@ -699,8 +727,8 @@
     $: treasury10yPctData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.signal_metrics?.treasury_10y?.percentile || [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.treasury_10y?.percentile || [],
                 name:
                     translations.chart_treasury_10y_pct ||
                     "10Y Yield (Percentile)",
@@ -715,10 +743,10 @@
     $: treasury2yData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
+                x: riskData.dates,
                 y:
-                    dashboardData.signal_metrics?.treasury_2y?.raw ||
-                    dashboardData.treasury_2y ||
+                    riskData.signal_metrics?.treasury_2y?.raw ||
+                    riskData.treasury_2y ||
                     [],
                 name: translations.chart_treasury_2y || "2Y UST Yield (%)",
                 type: "scatter",
@@ -732,8 +760,8 @@
     $: treasury2yZData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.signal_metrics?.treasury_2y?.zscore || [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.treasury_2y?.zscore || [],
                 name: translations.chart_treasury_2y_z || "2Y Yield (Z-Score)",
                 type: "scatter",
                 mode: "lines",
@@ -746,8 +774,8 @@
     $: treasury2yPctData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.signal_metrics?.treasury_2y?.percentile || [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.treasury_2y?.percentile || [],
                 name:
                     translations.chart_treasury_2y_pct ||
                     "2Y Yield (Percentile)",
@@ -762,8 +790,8 @@
     $: yieldCurveRawData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.yield_curve || [],
+                x: riskData.dates,
+                y: riskData.yield_curve || [],
                 name: translations.chart_yield_curve || "10Y-2Y Spread (%)",
                 type: "scatter",
                 mode: "lines",
@@ -778,8 +806,8 @@
     $: yieldCurveZData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.signal_metrics?.yield_curve?.zscore || [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.yield_curve?.zscore || [],
                 name:
                     translations.chart_yield_curve_z || "Yield Curve (Z-Score)",
                 type: "scatter",
@@ -793,8 +821,8 @@
     $: yieldCurvePctData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.signal_metrics?.yield_curve?.percentile || [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.yield_curve?.percentile || [],
                 name: "Yield Curve (Percentile)",
                 type: "scatter",
                 mode: "lines",
@@ -808,8 +836,8 @@
     $: treasury30yData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.treasury_30y || [],
+                x: riskData.dates,
+                y: riskData.treasury_30y || [],
                 name: "30Y UST Yield (%)",
                 type: "scatter",
                 mode: "lines",
@@ -822,8 +850,8 @@
     $: treasury30yZData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.signal_metrics?.treasury_30y?.zscore || [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.treasury_30y?.zscore || [],
                 name: "30Y Yield (Z-Score)",
                 type: "scatter",
                 mode: "lines",
@@ -836,8 +864,8 @@
     $: treasury30yPctData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.signal_metrics?.treasury_30y?.percentile || [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.treasury_30y?.percentile || [],
                 name: "30Y Yield (Percentile)",
                 type: "scatter",
                 mode: "lines",
@@ -851,8 +879,8 @@
     $: yieldCurve30y10yRawData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.yield_curve_30y_10y || [],
+                x: riskData.dates,
+                y: riskData.yield_curve_30y_10y || [],
                 name: "30Y-10Y Spread (%)",
                 type: "scatter",
                 mode: "lines",
@@ -867,10 +895,8 @@
     $: yieldCurve30y10yZData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y:
-                    dashboardData.signal_metrics?.yield_curve_30y_10y?.zscore ||
-                    [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.yield_curve_30y_10y?.zscore || [],
                 name: "30Y-10Y (Z-Score)",
                 type: "scatter",
                 mode: "lines",
@@ -883,10 +909,10 @@
     $: yieldCurve30y10yPctData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
+                x: riskData.dates,
                 y:
-                    dashboardData.signal_metrics?.yield_curve_30y_10y
-                        ?.percentile || [],
+                    riskData.signal_metrics?.yield_curve_30y_10y?.percentile ||
+                    [],
                 name: "30Y-10Y (Percentile)",
                 type: "scatter",
                 mode: "lines",
@@ -900,8 +926,8 @@
     $: yieldCurve30y2yRawData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.yield_curve_30y_2y || [],
+                x: riskData.dates,
+                y: riskData.yield_curve_30y_2y || [],
                 name: "30Y-2Y Spread (%)",
                 type: "scatter",
                 mode: "lines",
@@ -916,10 +942,8 @@
     $: yieldCurve30y2yZData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y:
-                    dashboardData.signal_metrics?.yield_curve_30y_2y?.zscore ||
-                    [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.yield_curve_30y_2y?.zscore || [],
                 name: "30Y-2Y (Z-Score)",
                 type: "scatter",
                 mode: "lines",
@@ -932,10 +956,10 @@
     $: yieldCurve30y2yPctData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
+                x: riskData.dates,
                 y:
-                    dashboardData.signal_metrics?.yield_curve_30y_2y
-                        ?.percentile || [],
+                    riskData.signal_metrics?.yield_curve_30y_2y?.percentile ||
+                    [],
                 name: "30Y-2Y (Percentile)",
                 type: "scatter",
                 mode: "lines",
@@ -949,8 +973,8 @@
     $: stLouisStressRawData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.st_louis_stress || [],
+                x: riskData.dates,
+                y: riskData.st_louis_stress || [],
                 name: translations.chart_stlfsi4_raw || "STLFSI4 (Raw)",
                 type: "scatter",
                 mode: "lines",
@@ -963,8 +987,8 @@
     $: stLouisStressZData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.signal_metrics?.st_louis_stress?.zscore || [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.st_louis_stress?.zscore || [],
                 name: "STLFSI4 (Z-Score)",
                 type: "scatter",
                 mode: "lines",
@@ -977,10 +1001,8 @@
     $: stLouisStressPctData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y:
-                    dashboardData.signal_metrics?.st_louis_stress?.percentile ||
-                    [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.st_louis_stress?.percentile || [],
                 name: "STLFSI4 (Percentile)",
                 type: "scatter",
                 mode: "lines",
@@ -994,8 +1016,8 @@
     $: kansasCityStressRawData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.kansas_city_stress || [],
+                x: riskData.dates,
+                y: riskData.kansas_city_stress || [],
                 name: translations.chart_kcfsi_raw || "KCFSI (Raw)",
                 type: "scatter",
                 mode: "lines",
@@ -1008,10 +1030,8 @@
     $: kansasCityStressZData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y:
-                    dashboardData.signal_metrics?.kansas_city_stress?.zscore ||
-                    [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.kansas_city_stress?.zscore || [],
                 name: "KCFSI (Z-Score)",
                 type: "scatter",
                 mode: "lines",
@@ -1024,10 +1044,10 @@
     $: kansasCityStressPctData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
+                x: riskData.dates,
                 y:
-                    dashboardData.signal_metrics?.kansas_city_stress
-                        ?.percentile || [],
+                    riskData.signal_metrics?.kansas_city_stress?.percentile ||
+                    [],
                 name: "KCFSI (Percentile)",
                 type: "scatter",
                 mode: "lines",
@@ -1041,16 +1061,16 @@
     $: baaAaaData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.baa_yield || [],
+                x: riskData.dates,
+                y: riskData.baa_yield || [],
                 name: "BAA Yield (%)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#ef4444", width: 2 },
             },
             {
-                x: dashboardData.dates,
-                y: dashboardData.aaa_yield || [],
+                x: riskData.dates,
+                y: riskData.aaa_yield || [],
                 name: "AAA Yield (%)",
                 type: "scatter",
                 mode: "lines",
@@ -1064,8 +1084,8 @@
     $: baaAaaSpreadData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.baa_aaa_spread || [],
+                x: riskData.dates,
+                y: riskData.baa_aaa_spread || [],
                 name: "BAA-AAA Spread (%)",
                 type: "scatter",
                 mode: "lines",
@@ -1081,12 +1101,12 @@
     $: nfpRawData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.fed_forecasts?.nfp_change || [],
+                x: riskData.dates,
+                y: riskData.fed_forecasts?.nfp_change || [],
                 name: "NFP MoM Change (k)",
                 type: "bar",
                 marker: {
-                    color: (dashboardData.fed_forecasts?.nfp_change || []).map(
+                    color: (riskData.fed_forecasts?.nfp_change || []).map(
                         (v) =>
                             v === null || v === undefined
                                 ? "rgba(0,0,0,0)"
@@ -1103,8 +1123,8 @@
     $: nfpZData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.signal_metrics?.nfp?.zscore || [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.nfp?.zscore || [],
                 name: "NFP (Z-Score)",
                 type: "scatter",
                 mode: "lines",
@@ -1117,8 +1137,8 @@
     $: nfpPctData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.signal_metrics?.nfp?.percentile || [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.nfp?.percentile || [],
                 name: "NFP (Percentile)",
                 type: "scatter",
                 mode: "lines",
@@ -1132,8 +1152,8 @@
     $: joltsRawData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.fed_forecasts?.jolts || [],
+                x: riskData.dates,
+                y: riskData.fed_forecasts?.jolts || [],
                 name: "JOLTS (M)",
                 type: "scatter",
                 mode: "lines",
@@ -1148,8 +1168,8 @@
     $: joltsZData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.signal_metrics?.jolts?.zscore || [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.jolts?.zscore || [],
                 name: "JOLTS (Z-Score)",
                 type: "scatter",
                 mode: "lines",
@@ -1162,8 +1182,8 @@
     $: joltsPctData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.signal_metrics?.jolts?.percentile || [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.jolts?.percentile || [],
                 name: "JOLTS (Percentile)",
                 type: "scatter",
                 mode: "lines",
@@ -1176,8 +1196,8 @@
     $: divergenceData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.macro_regime?.cli_gli_divergence || [],
+                x: riskData.dates,
+                y: riskData.macro_regime?.cli_gli_divergence || [],
                 name: translations.chart_divergence || "CLI-GLI Divergence",
                 type: "scatter",
                 mode: "lines",
@@ -1190,10 +1210,8 @@
     $: divergenceZData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y:
-                    dashboardData.signal_metrics?.cli_gli_divergence?.zscore ||
-                    [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.cli_gli_divergence?.zscore || [],
                 name:
                     translations.divergence_z_axis ||
                     "CLI-GLI Divergence (Z-Score)",
@@ -1208,10 +1226,10 @@
     $: divergencePctData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
+                x: riskData.dates,
                 y:
-                    dashboardData.signal_metrics?.cli_gli_divergence
-                        ?.percentile || [],
+                    riskData.signal_metrics?.cli_gli_divergence?.percentile ||
+                    [],
                 name: "CLI-GLI Divergence (Percentile)",
                 type: "scatter",
                 mode: "lines",
@@ -1225,8 +1243,8 @@
         [
             // SRF Rate (Ceiling) - red dashed line at top
             {
-                x: dashboardData.dates,
-                y: dashboardData.repo_stress?.srf_rate || [],
+                x: riskData.dates,
+                y: riskData.repo_stress?.srf_rate || [],
                 name: translations.repo_srf_ceiling || "SRF Rate (Ceiling)",
                 type: "scatter",
                 mode: "lines",
@@ -1235,8 +1253,8 @@
             },
             // SOFR (main rate we track) - prominent blue line
             {
-                x: dashboardData.dates,
-                y: dashboardData.repo_stress?.sofr || [],
+                x: riskData.dates,
+                y: riskData.repo_stress?.sofr || [],
                 name: "SOFR",
                 type: "scatter",
                 mode: "lines",
@@ -1245,8 +1263,8 @@
             },
             // IORB (Floor) - green dashed line
             {
-                x: dashboardData.dates,
-                y: dashboardData.repo_stress?.iorb || [],
+                x: riskData.dates,
+                y: riskData.repo_stress?.iorb || [],
                 name: translations.repo_iorb_floor || "IORB (Floor)",
                 type: "scatter",
                 mode: "lines",
@@ -1255,8 +1273,8 @@
             },
             // ON RRP Award (Lower Floor) - purple dotted
             {
-                x: dashboardData.dates,
-                y: dashboardData.repo_stress?.rrp_award || [],
+                x: riskData.dates,
+                y: riskData.repo_stress?.rrp_award || [],
                 name: "RRP Award (Lower Floor)",
                 type: "scatter",
                 mode: "lines",
@@ -1273,14 +1291,13 @@
     $: srfUsageFiltered = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.repo_stress?.srf_usage || [],
+                x: riskData.dates,
+                y: riskData.repo_stress?.srf_usage || [],
                 name: "SRF Usage ($B)",
                 type: "bar",
                 marker: {
-                    color: (dashboardData.repo_stress?.srf_usage || []).map(
-                        (v) =>
-                            v > 50 ? "#dc2626" : v > 20 ? "#f59e0b" : "#ef4444",
+                    color: (riskData.repo_stress?.srf_usage || []).map((v) =>
+                        v > 50 ? "#dc2626" : v > 20 ? "#f59e0b" : "#ef4444",
                     ),
                 },
                 hovertemplate: "SRF Usage: $%{y:.1f}B<extra></extra>",
@@ -1340,8 +1357,8 @@
     $: sofrVolumeData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.repo_stress?.sofr_volume || [],
+                x: riskData.dates,
+                y: riskData.repo_stress?.sofr_volume || [],
                 name: "SOFR Volume ($B)",
                 type: "scatter",
                 mode: "lines",
@@ -1374,7 +1391,7 @@
     ];
 
     $: sofrVolumeLatest =
-        getLatestValue(dashboardData.repo_stress?.sofr_volume) ?? 0;
+        getLatestValue(riskData.repo_stress?.sofr_volume) ?? 0;
     $: sofrVolumeTableRows = [
         {
             indicator: "SOFR Volume",
@@ -1390,15 +1407,15 @@
     ];
 
     // Yield Curve Regime Logic
-    $: yieldCurveLatestSpread = getLatestValue(dashboardData.yield_curve) ?? 0;
+    $: yieldCurveLatestSpread = getLatestValue(riskData.yield_curve) ?? 0;
     $: yieldCurvePrevSpread =
-        dashboardData.yield_curve?.[dashboardData.yield_curve?.length - 22] ??
+        riskData.yield_curve?.[riskData.yield_curve?.length - 22] ??
         yieldCurveLatestSpread;
     $: yieldCurveSpreadChange = yieldCurveLatestSpread - yieldCurvePrevSpread;
 
-    $: treasury10yLatestValue = getLatestValue(dashboardData.treasury_10y) ?? 0;
+    $: treasury10yLatestValue = getLatestValue(riskData.treasury_10y) ?? 0;
     $: treasury10yPrevValue =
-        dashboardData.treasury_10y?.[dashboardData.treasury_10y?.length - 22] ??
+        riskData.treasury_10y?.[riskData.treasury_10y?.length - 22] ??
         treasury10yLatestValue;
     $: treasury10yRateChange = treasury10yLatestValue - treasury10yPrevValue;
 
@@ -1500,33 +1517,31 @@
         {
             rate: "SRF (Ceiling)",
             value:
-                (
-                    getLatestValue(dashboardData.repo_stress?.srf_rate) ?? 0
-                ).toFixed(2) + "%",
+                (getLatestValue(riskData.repo_stress?.srf_rate) ?? 0).toFixed(
+                    2,
+                ) + "%",
             _color: "#ef4444",
         },
         {
             rate: "SOFR",
             value:
-                (getLatestValue(dashboardData.repo_stress?.sofr) ?? 0).toFixed(
-                    2,
-                ) + "%",
+                (getLatestValue(riskData.repo_stress?.sofr) ?? 0).toFixed(2) +
+                "%",
             _color: "#3b82f6",
         },
         {
             rate: "IORB (Floor)",
             value:
-                (getLatestValue(dashboardData.repo_stress?.iorb) ?? 0).toFixed(
-                    2,
-                ) + "%",
+                (getLatestValue(riskData.repo_stress?.iorb) ?? 0).toFixed(2) +
+                "%",
             _color: "#22c55e",
         },
         {
             rate: "RRP Award",
             value:
-                (
-                    getLatestValue(dashboardData.repo_stress?.rrp_award) ?? 0
-                ).toFixed(2) + "%",
+                (getLatestValue(riskData.repo_stress?.rrp_award) ?? 0).toFixed(
+                    2,
+                ) + "%",
             _color: "#8b5cf6",
         },
     ];
@@ -1563,9 +1578,7 @@
             tenor: "1Y Expectation",
             value:
                 (
-                    getLatestValue(
-                        dashboardData.inflation_swaps?.cleveland_1y,
-                    ) ?? 0
+                    getLatestValue(riskData.inflation_swaps?.cleveland_1y) ?? 0
                 ).toFixed(2) + "%",
             _color: "#3b82f6",
         },
@@ -1573,9 +1586,7 @@
             tenor: "2Y Expectation",
             value:
                 (
-                    getLatestValue(
-                        dashboardData.inflation_swaps?.cleveland_2y,
-                    ) ?? 0
+                    getLatestValue(riskData.inflation_swaps?.cleveland_2y) ?? 0
                 ).toFixed(2) + "%",
             _color: "#1e3a8a",
         },
@@ -1583,9 +1594,7 @@
             tenor: "5Y Expectation",
             value:
                 (
-                    getLatestValue(
-                        dashboardData.inflation_swaps?.cleveland_5y,
-                    ) ?? 0
+                    getLatestValue(riskData.inflation_swaps?.cleveland_5y) ?? 0
                 ).toFixed(2) + "%",
             _color: "#f59e0b",
         },
@@ -1593,9 +1602,7 @@
             tenor: "10Y Expectation",
             value:
                 (
-                    getLatestValue(
-                        dashboardData.inflation_swaps?.cleveland_10y,
-                    ) ?? 0
+                    getLatestValue(riskData.inflation_swaps?.cleveland_10y) ?? 0
                 ).toFixed(2) + "%",
             _color: "#ef4444",
         },
@@ -1612,21 +1619,21 @@
         return [
             {
                 label: "10Y Breakeven (%)",
-                value: (
-                    getLatestValue(dashboardData.tips?.breakeven) ?? 0
-                ).toFixed(2),
+                value: (getLatestValue(riskData.tips?.breakeven) ?? 0).toFixed(
+                    2,
+                ),
             },
             {
                 label: "10Y Real Rate (%)",
-                value: (
-                    getLatestValue(dashboardData.tips?.real_rate) ?? 0
-                ).toFixed(2),
+                value: (getLatestValue(riskData.tips?.real_rate) ?? 0).toFixed(
+                    2,
+                ),
             },
             {
                 label: "5Y5Y Forward (%)",
-                value: (
-                    getLatestValue(dashboardData.tips?.fwd_5y5y) ?? 0
-                ).toFixed(2),
+                value: (getLatestValue(riskData.tips?.fwd_5y5y) ?? 0).toFixed(
+                    2,
+                ),
             },
         ];
     })();
@@ -1704,8 +1711,8 @@
         const s = signalsFromMetrics.yield_curve_30y_10y.latest;
         const lastSpread = s.value;
         const prevSpread =
-            dashboardData.yield_curve_30y_10y?.[
-                dashboardData.yield_curve_30y_10y?.length - 22
+            riskData.yield_curve_30y_10y?.[
+                riskData.yield_curve_30y_10y?.length - 22
             ] ?? lastSpread;
         const spreadChange = lastSpread - prevSpread;
 
@@ -1732,8 +1739,8 @@
         const s = signalsFromMetrics.yield_curve_30y_2y.latest;
         const lastSpread = s.value;
         const prevSpread =
-            dashboardData.yield_curve_30y_2y?.[
-                dashboardData.yield_curve_30y_2y?.length - 22
+            riskData.yield_curve_30y_2y?.[
+                riskData.yield_curve_30y_2y?.length - 22
             ] ?? lastSpread;
         const spreadChange = lastSpread - prevSpread;
 
@@ -1755,8 +1762,8 @@
     ];
 
     $: creditSpreadsTableRows = (() => {
-        const hyVal = getLatestValue(dashboardData.hy_spread);
-        const igVal = getLatestValue(dashboardData.ig_spread);
+        const hyVal = getLatestValue(riskData.hy_spread);
+        const igVal = getLatestValue(riskData.ig_spread);
         const hyStress =
             hyVal > 500
                 ? "🔴 Stress"
@@ -1822,8 +1829,8 @@
     $: tipsData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.tips?.breakeven || [],
+                x: riskData.dates,
+                y: riskData.tips?.breakeven || [],
                 name: translations.tips_breakeven || "10Y Breakeven (%)",
                 type: "scatter",
                 mode: "lines",
@@ -1831,8 +1838,8 @@
                 yaxis: "y",
             },
             {
-                x: dashboardData.dates,
-                y: dashboardData.tips?.real_rate || [],
+                x: riskData.dates,
+                y: riskData.tips?.real_rate || [],
                 name: translations.tips_real_rate || "10Y Real Rate (%)",
                 type: "scatter",
                 mode: "lines",
@@ -1840,8 +1847,8 @@
                 yaxis: "y",
             },
             {
-                x: dashboardData.dates,
-                y: dashboardData.tips?.fwd_5y5y || [],
+                x: riskData.dates,
+                y: riskData.tips?.fwd_5y5y || [],
                 name: translations.tips_fwd || "5Y5Y Forward (%)",
                 type: "scatter",
                 mode: "lines",
@@ -1861,8 +1868,8 @@
     $: creditSpreadsData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.hy_spread || [],
+                x: riskData.dates,
+                y: riskData.hy_spread || [],
                 name: "HY Spread (bps)",
                 type: "scatter",
                 mode: "lines",
@@ -1870,8 +1877,8 @@
                 yaxis: "y",
             },
             {
-                x: dashboardData.dates,
-                y: dashboardData.ig_spread || [],
+                x: riskData.dates,
+                y: riskData.ig_spread || [],
                 name: "IG Spread (bps)",
                 type: "scatter",
                 mode: "lines",
@@ -1886,16 +1893,16 @@
     $: creditSpreadsZData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.signal_metrics?.hy_spread?.zscore || [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.hy_spread?.zscore || [],
                 name: "HY Spread (Z-Score)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#ef4444", width: 2 },
             },
             {
-                x: dashboardData.dates,
-                y: dashboardData.signal_metrics?.ig_spread?.zscore || [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.ig_spread?.zscore || [],
                 name: "IG Spread (Z-Score)",
                 type: "scatter",
                 mode: "lines",
@@ -1909,16 +1916,16 @@
     $: creditSpreadsPctData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.signal_metrics?.hy_spread?.percentile || [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.hy_spread?.percentile || [],
                 name: "HY Spread (Percentile)",
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#ef4444", width: 2 },
             },
             {
-                x: dashboardData.dates,
-                y: dashboardData.signal_metrics?.ig_spread?.percentile || [],
+                x: riskData.dates,
+                y: riskData.signal_metrics?.ig_spread?.percentile || [],
                 name: "IG Spread (Percentile)",
                 type: "scatter",
                 mode: "lines",
@@ -1932,8 +1939,8 @@
     $: sofrVolumeRoc5dData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.repo_stress?.sofr_volume_roc_5d || [],
+                x: riskData.dates,
+                y: riskData.repo_stress?.sofr_volume_roc_5d || [],
                 name: "SOFR Volume ROC 5D (%)",
                 type: "scatter",
                 mode: "lines",
@@ -1948,8 +1955,8 @@
     $: sofrVolumeRoc20dData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.repo_stress?.sofr_volume_roc_20d || [],
+                x: riskData.dates,
+                y: riskData.repo_stress?.sofr_volume_roc_20d || [],
                 name: "SOFR Volume ROC 20D (%)",
                 type: "scatter",
                 mode: "lines",
@@ -1965,8 +1972,8 @@
     $: inflationExpectData = filterWithCache(
         [
             {
-                x: dashboardData.dates,
-                y: dashboardData.inflation_swaps?.cleveland_1y || [],
+                x: riskData.dates,
+                y: riskData.inflation_swaps?.cleveland_1y || [],
                 name:
                     translations.chart_inflation_exp_1y ||
                     "1Y Inflation Exp. (%)",
@@ -1975,8 +1982,8 @@
                 line: { color: "#3b82f6", width: 2.5 },
             },
             {
-                x: dashboardData.dates,
-                y: dashboardData.inflation_swaps?.cleveland_2y || [],
+                x: riskData.dates,
+                y: riskData.inflation_swaps?.cleveland_2y || [],
                 name:
                     translations.chart_inflation_exp_2y ||
                     "2Y Inflation Exp. (%)",
@@ -1985,8 +1992,8 @@
                 line: { color: "#1e3a8a", width: 2 },
             },
             {
-                x: dashboardData.dates,
-                y: dashboardData.inflation_swaps?.cleveland_5y || [],
+                x: riskData.dates,
+                y: riskData.inflation_swaps?.cleveland_5y || [],
                 name:
                     translations.chart_inflation_exp_5y ||
                     "5Y Inflation Exp. (%)",
@@ -1995,8 +2002,8 @@
                 line: { color: "#f59e0b", width: 2 },
             },
             {
-                x: dashboardData.dates,
-                y: dashboardData.inflation_swaps?.cleveland_10y || [],
+                x: riskData.dates,
+                y: riskData.inflation_swaps?.cleveland_10y || [],
                 name:
                     translations.chart_inflation_exp_10y ||
                     "10Y Inflation Exp. (%)",
@@ -2005,8 +2012,8 @@
                 line: { color: "#ef4444", width: 2 },
             },
             {
-                x: dashboardData.dates,
-                y: dashboardData.tips?.fwd_5y5y || [],
+                x: riskData.dates,
+                y: riskData.tips?.fwd_5y5y || [],
                 name: translations.tips_fwd || "5Y5Y Forward (%)",
                 type: "scatter",
                 mode: "lines",
@@ -2019,8 +2026,8 @@
     // Inflation Expectations Signal (1Y < 2Y = Inverted = Bearish)
     /** @type {"bullish" | "bearish" | "neutral" | "warning" | "ok" | "danger"} */
     $: inflationExpectSignal = (() => {
-        const clev1y = dashboardData.inflation_swaps?.cleveland_1y;
-        const clev2y = dashboardData.inflation_swaps?.cleveland_2y;
+        const clev1y = riskData.inflation_swaps?.cleveland_1y;
+        const clev2y = riskData.inflation_swaps?.cleveland_2y;
         if (!clev1y || !clev2y || clev1y.length === 0 || clev2y.length === 0)
             return "neutral";
 
@@ -2037,8 +2044,8 @@
     })();
 
     $: inflationExpectInversionSpread = (() => {
-        const clev1y = dashboardData.inflation_swaps?.cleveland_1y;
-        const clev2y = dashboardData.inflation_swaps?.cleveland_2y;
+        const clev1y = riskData.inflation_swaps?.cleveland_1y;
+        const clev2y = riskData.inflation_swaps?.cleveland_2y;
         if (!clev1y || !clev2y || clev1y.length === 0 || clev2y.length === 0)
             return 0;
 
@@ -2051,12 +2058,12 @@
 
     // Local helper functions (no longer props)
     function getLastDate(seriesKey) {
-        if (!dashboardData.last_dates) return "N/A";
+        if (!riskData.last_dates) return "N/A";
         const key = seriesKey.toUpperCase();
         return (
-            dashboardData.last_dates[key] ||
-            dashboardData.last_dates[key + "_USD"] ||
-            dashboardData.last_dates[seriesKey] ||
+            riskData.last_dates[key] ||
+            riskData.last_dates[key + "_USD"] ||
+            riskData.last_dates[seriesKey] ||
             "N/A"
         );
     }
@@ -2381,10 +2388,10 @@
 
     // TIPS Composite Regime
     $: tipsRegimeSignals = (() => {
-        const dates = dashboardData.dates;
-        const be = dashboardData.tips?.breakeven;
-        const rr = dashboardData.tips?.real_rate;
-        const fwd = dashboardData.tips?.fwd_5y5y;
+        const dates = riskData.dates;
+        const be = riskData.tips?.breakeven;
+        const rr = riskData.tips?.real_rate;
+        const fwd = riskData.tips?.fwd_5y5y;
         if (!dates || !be || !rr || !fwd) return [];
         return dates.map((_, i) => {
             if (i < 63) return "neutral";
@@ -2413,7 +2420,7 @@
         ...tipsLayout,
         shapes: createRegimeShapes(
             tipsData[0]?.x || [],
-            dashboardData.dates,
+            riskData.dates,
             tipsRegimeSignals,
             darkMode,
         ),
@@ -2428,8 +2435,8 @@
 
     // Computed TIPS signal from frontend data (fallback if backend signal_metrics.tips not populated)
     $: computedTipsSignal = (() => {
-        const be = dashboardData.tips?.breakeven;
-        const rr = dashboardData.tips?.real_rate;
+        const be = riskData.tips?.breakeven;
+        const rr = riskData.tips?.real_rate;
         if (!be || !rr || be.length < 63) return null;
 
         const latestBE = be[be.length - 1];
@@ -2472,10 +2479,10 @@
     // SOFR approaching SRF ceiling (<5bps) = High stress
     // SRF Usage > 0 = Alert (banks using backstop)
     $: repoRegimeSignals = (() => {
-        const sofr = dashboardData.repo_stress?.sofr;
-        const iorb = dashboardData.repo_stress?.iorb;
-        const srfRate = dashboardData.repo_stress?.srf_rate;
-        const srfUsage = dashboardData.repo_stress?.srf_usage;
+        const sofr = riskData.repo_stress?.sofr;
+        const iorb = riskData.repo_stress?.iorb;
+        const srfRate = riskData.repo_stress?.srf_rate;
+        const srfUsage = riskData.repo_stress?.srf_usage;
         if (!sofr || !iorb) return [];
         return sofr.map((s, i) => {
             const spreadToFloor = (s - (iorb[i] || 0)) * 100; // bps above IORB
@@ -2495,15 +2502,15 @@
 
     // Latest corridor metrics for display
     $: latestSofrToFloor = (() => {
-        const arr = dashboardData.repo_stress?.sofr_to_floor;
+        const arr = riskData.repo_stress?.sofr_to_floor;
         return arr && arr.length > 0 ? arr[arr.length - 1] || 0 : 0;
     })();
     $: latestSofrToCeiling = (() => {
-        const arr = dashboardData.repo_stress?.sofr_to_ceiling;
+        const arr = riskData.repo_stress?.sofr_to_ceiling;
         return arr && arr.length > 0 ? arr[arr.length - 1] || 0 : 0;
     })();
     $: latestSrfUsage = (() => {
-        const arr = dashboardData.repo_stress?.srf_usage;
+        const arr = riskData.repo_stress?.srf_usage;
         return arr && arr.length > 0 ? arr[arr.length - 1] || 0 : 0;
     })();
     // Fed Rate Corridor Stress Classification:
@@ -2740,7 +2747,7 @@
 
     // Unified signal derived from signal_metrics
     /** @type {Record<string, { latest?: { state: "bullish" | "bearish" | "neutral" | "warning" | "ok" | "danger", value?: number, percentile?: number, reason?: string } }>} */
-    $: signalsFromMetrics = dashboardData.signal_metrics || {};
+    $: signalsFromMetrics = riskData.signal_metrics || {};
 
     const signalConfig = [
         { id: "cli", label: "CLI Stance" },
@@ -2776,7 +2783,7 @@
               : "neutral";
 
     // Stress Analysis reactive variable
-    $: stressAnalysis = dashboardData.stress_analysis || {};
+    $: stressAnalysis = riskData.stress_analysis || {};
 </script>
 
 <!-- Header with Aggregate Stance & Weighted Score -->
@@ -2820,9 +2827,9 @@
                 ? '#10b981'
                 : '#ef4444'}; font-weight: 700; margin-right: 8px;"
         >
-            {aggregateSignalScore.score >= 0
-                ? "+"
-                : ""}{aggregateSignalScore.score.toFixed(2)}
+            {(aggregateSignalScore?.score ?? 0) >= 0 ? "+" : ""}{(
+                aggregateSignalScore?.score ?? 0
+            ).toFixed(2)}
         </span>
         | {signalCounts.bullish}
         {translations.risk_bullish || "Bullish"}
@@ -2830,9 +2837,9 @@
         {translations.risk_bearish || "Bearish"}
         | {signalCounts.total}
         {translations.risk_factors || "Factors"}
-        {#if aggregateSignalScore.coverage < 1}
+        {#if (aggregateSignalScore?.coverage ?? 0) < 1}
             <span style="color: #f59e0b; margin-left: 8px;"
-                >({(aggregateSignalScore.coverage * 100).toFixed(0)}% {translations.coverage ||
+                >({((aggregateSignalScore?.coverage ?? 0) * 100).toFixed(0)}% {translations.coverage ||
                     "Coverage"})</span
             >
         {/if}
@@ -3086,7 +3093,7 @@
             <!-- Signal Slot -->
             <svelte:fragment slot="signal">
                 {@const lastDiv = getLatestValue(
-                    dashboardData.macro_regime?.cli_gli_divergence,
+                    riskData.macro_regime?.cli_gli_divergence,
                 )}
                 {#if lastDiv < -1}
                     <SignalBadge state="warning" value="TRAP" label="Signal" />
@@ -3155,7 +3162,7 @@
                         </div>
                     </div>
 
-                    {#if (getLatestValue(dashboardData.macro_regime?.cli_gli_divergence) ?? 0) < -1}
+                    {#if (getLatestValue(riskData.macro_regime?.cli_gli_divergence) ?? 0) < -1}
                         <div
                             class="signal-reason"
                             style="font-size: 11px; color: #ef4444; background: rgba(239, 68, 68, 0.05); padding: 8px; border-radius: 4px; border-left: 3px solid #ef4444; text-align: left;"
@@ -3699,20 +3706,18 @@
             </svelte:fragment>
 
             <svelte:fragment slot="signal">
-                {#if signalsFromMetrics.yield_curve_30y_10y?.latest && dashboardData.yield_curve_30y_10y?.length > 0}
+                {#if signalsFromMetrics.yield_curve_30y_10y?.latest && riskData.yield_curve_30y_10y?.length > 0}
                     {@const s = signalsFromMetrics.yield_curve_30y_10y.latest}
                     {@const lastSpread = s.value}
                     {@const prevSpread =
-                        dashboardData.yield_curve_30y_10y?.[
-                            dashboardData.yield_curve_30y_10y?.length - 22
+                        riskData.yield_curve_30y_10y?.[
+                            riskData.yield_curve_30y_10y?.length - 22
                         ] ?? lastSpread}
                     {@const spreadChange = lastSpread - prevSpread}
-                    {@const last30y = getLatestValue(
-                        dashboardData.treasury_30y,
-                    )}
+                    {@const last30y = getLatestValue(riskData.treasury_30y)}
                     {@const prev30y =
-                        dashboardData.treasury_30y?.[
-                            dashboardData.treasury_30y?.length - 22
+                        riskData.treasury_30y?.[
+                            riskData.treasury_30y?.length - 22
                         ] ?? last30y}
                     {@const rateChange = (last30y ?? 0) - (prev30y ?? 0)}
                     {@const curveRegime = getCurveRegime(
@@ -3791,20 +3796,18 @@
             </svelte:fragment>
 
             <svelte:fragment slot="signal">
-                {#if signalsFromMetrics.yield_curve_30y_2y?.latest && dashboardData.yield_curve_30y_2y?.length > 0}
+                {#if signalsFromMetrics.yield_curve_30y_2y?.latest && riskData.yield_curve_30y_2y?.length > 0}
                     {@const s = signalsFromMetrics.yield_curve_30y_2y.latest}
                     {@const lastSpread = s.value}
                     {@const prevSpread =
-                        dashboardData.yield_curve_30y_2y?.[
-                            dashboardData.yield_curve_30y_2y?.length - 22
+                        riskData.yield_curve_30y_2y?.[
+                            riskData.yield_curve_30y_2y?.length - 22
                         ] ?? lastSpread}
                     {@const spreadChange = lastSpread - prevSpread}
-                    {@const last30y = getLatestValue(
-                        dashboardData.treasury_30y,
-                    )}
+                    {@const last30y = getLatestValue(riskData.treasury_30y)}
                     {@const prev30y =
-                        dashboardData.treasury_30y?.[
-                            dashboardData.treasury_30y?.length - 22
+                        riskData.treasury_30y?.[
+                            riskData.treasury_30y?.length - 22
                         ] ?? last30y}
                     {@const rateChange = (last30y ?? 0) - (prev30y ?? 0)}
                     {@const curveRegime = getCurveRegime(
@@ -4399,18 +4402,17 @@
                         <div
                             class="roc-col"
                             class:plus={getLatestROC(
-                                dashboardData.gli?.rocs,
+                                riskData.gli?.rocs,
                                 period,
                             ) > 0}
                             class:minus={getLatestROC(
-                                dashboardData.gli?.rocs,
+                                riskData.gli?.rocs,
                                 period,
                             ) < 0}
                         >
-                            {getLatestROC(
-                                dashboardData.gli?.rocs,
-                                period,
-                            ).toFixed(2)}%
+                            {getLatestROC(riskData.gli?.rocs, period).toFixed(
+                                2,
+                            )}%
                         </div>
                     {/each}
                 </div>
@@ -4422,16 +4424,16 @@
                         <div
                             class="roc-col"
                             class:plus={getLatestROC(
-                                dashboardData.us_net_liq_rocs,
+                                riskData.us_net_liq_rocs,
                                 period,
                             ) > 0}
                             class:minus={getLatestROC(
-                                dashboardData.us_net_liq_rocs,
+                                riskData.us_net_liq_rocs,
                                 period,
                             ) < 0}
                         >
                             {getLatestROC(
-                                dashboardData.us_net_liq_rocs,
+                                riskData.us_net_liq_rocs,
                                 period,
                             ).toFixed(2)}%
                         </div>
@@ -4446,16 +4448,16 @@
                         <div
                             class="roc-col"
                             class:plus={getLatestROC(
-                                dashboardData.bank_rocs?.fed,
+                                riskData.bank_rocs?.fed,
                                 period,
                             ) > 0}
                             class:minus={getLatestROC(
-                                dashboardData.bank_rocs?.fed,
+                                riskData.bank_rocs?.fed,
                                 period,
                             ) < 0}
                         >
                             {getLatestROC(
-                                dashboardData.bank_rocs?.fed,
+                                riskData.bank_rocs?.fed,
                                 period,
                             ).toFixed(2)}%
                         </div>
@@ -4469,16 +4471,16 @@
                         <div
                             class="roc-col"
                             class:plus={getLatestROC(
-                                dashboardData.bank_rocs?.pboc,
+                                riskData.bank_rocs?.pboc,
                                 period,
                             ) > 0}
                             class:minus={getLatestROC(
-                                dashboardData.bank_rocs?.pboc,
+                                riskData.bank_rocs?.pboc,
                                 period,
                             ) < 0}
                         >
                             {getLatestROC(
-                                dashboardData.bank_rocs?.pboc,
+                                riskData.bank_rocs?.pboc,
                                 period,
                             ).toFixed(2)}%
                         </div>
@@ -4493,17 +4495,16 @@
                         <div
                             class="roc-col"
                             class:plus={getLatestROC(
-                                dashboardData.cli?.rocs,
+                                riskData.cli?.rocs,
                                 period,
                             ) > 0}
                             class:minus={getLatestROC(
-                                dashboardData.cli?.rocs,
+                                riskData.cli?.rocs,
                                 period,
                             ) < 0}
                         >
                             {(
-                                getLatestROC(dashboardData.cli?.rocs, period) ??
-                                0
+                                getLatestROC(riskData.cli?.rocs, period) ?? 0
                             ).toFixed(2)}%
                         </div>
                     {/each}
@@ -4516,19 +4517,16 @@
                         <div
                             class="roc-col"
                             class:plus={getLatestROC(
-                                dashboardData.tips?.rocs,
+                                riskData.tips?.rocs,
                                 period,
                             ) > 0}
                             class:minus={getLatestROC(
-                                dashboardData.tips?.rocs,
+                                riskData.tips?.rocs,
                                 period,
                             ) < 0}
                         >
                             {(
-                                getLatestROC(
-                                    dashboardData.tips?.rocs,
-                                    period,
-                                ) ?? 0
+                                getLatestROC(riskData.tips?.rocs, period) ?? 0
                             ).toFixed(2)}%
                         </div>
                     {/each}
@@ -4541,19 +4539,16 @@
                         <div
                             class="roc-col"
                             class:plus={getLatestROC(
-                                dashboardData.move?.rocs,
+                                riskData.move?.rocs,
                                 period,
                             ) > 0}
                             class:minus={getLatestROC(
-                                dashboardData.move?.rocs,
+                                riskData.move?.rocs,
                                 period,
                             ) < 0}
                         >
                             {(
-                                getLatestROC(
-                                    dashboardData.move?.rocs,
-                                    period,
-                                ) ?? 0
+                                getLatestROC(riskData.move?.rocs, period) ?? 0
                             ).toFixed(2)}%
                         </div>
                     {/each}
@@ -4566,19 +4561,16 @@
                         <div
                             class="roc-col"
                             class:plus={getLatestROC(
-                                dashboardData.fx_vol?.rocs,
+                                riskData.fx_vol?.rocs,
                                 period,
                             ) > 0}
                             class:minus={getLatestROC(
-                                dashboardData.fx_vol?.rocs,
+                                riskData.fx_vol?.rocs,
                                 period,
                             ) < 0}
                         >
                             {(
-                                getLatestROC(
-                                    dashboardData.fx_vol?.rocs,
-                                    period,
-                                ) ?? 0
+                                getLatestROC(riskData.fx_vol?.rocs, period) ?? 0
                             ).toFixed(2)}%
                         </div>
                     {/each}
@@ -4591,18 +4583,17 @@
                         <div
                             class="roc-col"
                             class:plus={getLatestROC(
-                                dashboardData.vix?.rocs,
+                                riskData.vix?.rocs,
                                 period,
                             ) > 0}
                             class:minus={getLatestROC(
-                                dashboardData.vix?.rocs,
+                                riskData.vix?.rocs,
                                 period,
                             ) < 0}
                         >
-                            {getLatestROC(
-                                dashboardData.vix?.rocs,
-                                period,
-                            )?.toFixed(2) ?? "0.00"}%
+                            {getLatestROC(riskData.vix?.rocs, period)?.toFixed(
+                                2,
+                            ) ?? "0.00"}%
                         </div>
                     {/each}
                 </div>

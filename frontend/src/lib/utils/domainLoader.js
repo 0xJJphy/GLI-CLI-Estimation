@@ -605,10 +605,295 @@ export async function loadOffshoreTabData(legacyData) {
 
 
 /**
- * Load data for UsDebtTab / Treasury
+ * Load data for RiskModelTab
  * @param {Object} legacyData - Legacy dashboard_data (fallback)
- * @returns {Promise<Object>} Data for Treasury tab
+ * @returns {Promise<Object>} Data for Risk Model tab
  */
+export async function loadRiskModelTabData(legacyData) {
+    if (!USE_MODULAR_DOMAINS) {
+        return legacyData;
+    }
+
+    try {
+        const [cli, gli, us_system, treasury, macro_regime, fed_forecasts, shared] = await Promise.all([
+            loadDomain('cli'),
+            loadDomain('gli'),
+            loadDomain('us_system'),
+            loadDomain('treasury'),
+            loadDomain('macro_regime'),
+            loadDomain('fed_forecasts'),
+            loadDomain('shared')
+        ]);
+
+        console.log('[RiskModelLoader] Successfully loaded from domain JSONs');
+
+        // Helper to align legacy arrays (start 2002) to shared dates (start 1970)
+        const alignToShared = (legacyArr) => {
+            if (!legacyArr || !Array.isArray(legacyArr) || legacyArr.length === 0) return legacyArr || [];
+            if (!legacyData?.dates || !shared?.dates) return legacyArr;
+
+            // If already matches shared length (e.g. from domain), return
+            if (legacyArr.length === shared.dates.length) return legacyArr;
+
+            // If matches legacy dates length, pad to align with shared
+            if (legacyArr.length === legacyData.dates.length) {
+                const offset = shared.dates.indexOf(legacyData.dates[0]);
+                if (offset > 0) {
+                    const padding = new Array(offset).fill(null);
+                    return [...padding, ...legacyArr];
+                }
+            }
+            return legacyArr;
+        };
+
+        const alignSignalObj = (obj) => {
+            if (!obj) return {};
+            return {
+                ...obj,
+                raw: alignToShared(obj.raw),
+                percentile: alignToShared(obj.percentile),
+                zscore: alignToShared(obj.zscore)
+            };
+        };
+
+        return {
+            dates: shared.dates,
+
+            // CLI Domain
+            cli: {
+                total: cli.total || alignToShared(legacyData?.cli?.total),
+                percentile: cli.percentile || alignToShared(legacyData?.cli?.percentile),
+                rocs: cli.rocs || legacyData?.cli?.rocs || {}
+            },
+
+            // GLI Data (Used for ROCs in RiskModelTab)
+            gli: {
+                total: gli.total || alignToShared(legacyData?.gli?.total),
+                rocs: gli.rocs || legacyData?.gli?.rocs || {}
+            },
+
+            // Raw spreads - needed for some charts (legacy field names)
+            hy_spread: cli.raw?.hy_spread || alignToShared(legacyData?.hy_spread),
+            ig_spread: cli.raw?.ig_spread || alignToShared(legacyData?.ig_spread),
+            hy_oasis: cli.raw?.hy_spread || alignToShared(legacyData?.hy_spread),
+            ig_oasis: cli.raw?.ig_spread || alignToShared(legacyData?.ig_spread),
+            nfci: {
+                credit: cli.raw?.nfci_credit || alignToShared(legacyData?.nfci?.credit || legacyData?.nfci_credit),
+                risk: cli.raw?.nfci_risk || alignToShared(legacyData?.nfci?.risk || legacyData?.nfci_risk)
+            },
+            nfci_credit: cli.raw?.nfci_credit || alignToShared(legacyData?.nfci_credit),
+            nfci_risk: cli.raw?.nfci_risk || alignToShared(legacyData?.nfci_risk),
+            lending_standards: cli.raw?.lending_std || alignToShared(legacyData?.lending || legacyData?.lending_standards),
+            lending: cli.raw?.lending_std || alignToShared(legacyData?.lending),
+            vix: cli.raw?.vix || alignToShared(legacyData?.vix?.total || legacyData?.vix),
+            move: cli.raw?.move || alignToShared(legacyData?.move?.total || legacyData?.move || legacyData?.move_index),
+            fx_vol: cli.raw?.fx_vol || alignToShared(legacyData?.fx_vol?.total || legacyData?.fx_vol),
+
+            // US System Domain (Net Liquidity)
+            us_net_liq: us_system.net_liquidity || alignToShared(legacyData?.us_net_liq),
+            us_net_liq_rrp: us_system.rrp || alignToShared(legacyData?.us_net_liq_rrp),
+            us_net_liq_tga: us_system.tga || alignToShared(legacyData?.us_net_liq_tga),
+            us_net_liq_reserves: us_system.bank_reserves || alignToShared(legacyData?.us_net_liq_reserves),
+            us_net_liq_rocs: us_system.net_liq_rocs || legacyData?.us_net_liq_rocs || {},
+            us_system_metrics: us_system.metrics || legacyData?.us_system_metrics || {},
+            reserves_metrics: us_system.reserves_metrics || legacyData?.reserves_metrics || {},
+
+            repo_operations: us_system.repo_operations || legacyData?.repo_operations || {},
+            repo_stress: {
+                sofr: us_system.repo_stress?.sofr || alignToShared(legacyData?.repo_stress?.sofr),
+                iorb: us_system.repo_stress?.iorb || alignToShared(legacyData?.repo_stress?.iorb),
+                srf_rate: us_system.repo_stress?.srf_rate || alignToShared(legacyData?.repo_stress?.srf_rate),
+                srf_usage: us_system.repo_stress?.srf_usage || alignToShared(legacyData?.repo_stress?.srf_usage),
+                sofr_volume: us_system.repo_stress?.sofr_volume || alignToShared(legacyData?.repo_stress?.sofr_volume),
+                sofr_to_floor: us_system.repo_stress?.sofr_to_floor || alignToShared(legacyData?.repo_stress?.sofr_to_floor),
+                sofr_to_ceiling: us_system.repo_stress?.sofr_to_ceiling || alignToShared(legacyData?.repo_stress?.sofr_to_ceiling),
+                sofr_volume_roc_5d: us_system.repo_stress?.sofr_volume_roc_5d || alignToShared(legacyData?.repo_stress?.sofr_volume_roc_5d),
+                sofr_volume_roc_20d: us_system.repo_stress?.sofr_volume_roc_20d || alignToShared(legacyData?.repo_stress?.sofr_volume_roc_20d),
+                rrp_award: us_system.repo_stress?.rrp_award || alignToShared(legacyData?.repo_stress?.rrp_award),
+            },
+
+            // Treasury Domain
+            treasury_10y: treasury.yields?.['10y'] || alignToShared(legacyData?.treasury_10y),
+            treasury_2y: treasury.yields?.['2y'] || alignToShared(legacyData?.treasury_2y),
+            treasury_5y: treasury.yields?.['5y'] || alignToShared(legacyData?.treasury_5y),
+            treasury_30y: treasury.yields?.['30y'] || alignToShared(legacyData?.treasury_30y),
+
+            yield_curve: treasury.curves?.['10y_2y'] || alignToShared(legacyData?.yield_curve),
+            yield_curve_30y_10y: treasury.curves?.['30y_10y'] || alignToShared(legacyData?.yield_curve_30y_10y),
+            yield_curve_30y_2y: treasury.curves?.['30y_2y'] || alignToShared(legacyData?.yield_curve_30y_2y),
+            yield_curve_10y_5y: treasury.curves?.['10y_5y'] || alignToShared(legacyData?.yield_curve_10y_5y),
+
+            // Fed Forecasts Domain
+            inflation_expect_1y: fed_forecasts.inflation_expectations?.cleveland_1y || alignToShared(legacyData?.inflation_expect_1y),
+            inflation_expect_5y: fed_forecasts.inflation_expectations?.cleveland_5y || alignToShared(legacyData?.inflation_expect_5y),
+            inflation_expect_10y: fed_forecasts.inflation_expectations?.cleveland_10y || alignToShared(legacyData?.inflation_expect_10y),
+
+            inflation_swaps: {
+                cleveland_1y: fed_forecasts.inflation_expectations?.cleveland_1y || alignToShared(legacyData?.inflation_swaps?.cleveland_1y || legacyData?.inflation_expect_1y),
+                cleveland_2y: fed_forecasts.inflation_expectations?.cleveland_2y || alignToShared(legacyData?.inflation_swaps?.cleveland_2y || legacyData?.inflation_expect_2y),
+                cleveland_5y: fed_forecasts.inflation_expectations?.cleveland_5y || alignToShared(legacyData?.inflation_swaps?.cleveland_5y || legacyData?.inflation_expect_5y),
+                cleveland_10y: fed_forecasts.inflation_expectations?.cleveland_10y || alignToShared(legacyData?.inflation_swaps?.cleveland_10y || legacyData?.inflation_expect_10y),
+            },
+
+            tips: {
+                breakeven: fed_forecasts.tips_ref?.breakeven || alignToShared(legacyData?.tips?.breakeven || legacyData?.tips_breakeven),
+                real_rate: fed_forecasts.tips_ref?.real_rate || alignToShared(legacyData?.tips?.real_rate || legacyData?.tips_real_rate),
+                fwd_5y5y: fed_forecasts.tips_ref?.fwd_5y5y || alignToShared(legacyData?.tips?.fwd_5y5y || legacyData?.tips_fwd_5y5y),
+            },
+
+            fed_forecasts: {
+                nfp: fed_forecasts.nfp || alignToShared(legacyData?.fed_forecasts?.nfp),
+                nfp_change: fed_forecasts.nfp_change || alignToShared(legacyData?.fed_forecasts?.nfp_change),
+                jolts: fed_forecasts.jolts || alignToShared(legacyData?.fed_forecasts?.jolts),
+                fed_funds: fed_forecasts.fed_funds_rate || alignToShared(legacyData?.fed_forecasts?.fed_funds || legacyData?.fed_funds_rate),
+                ...fed_forecasts
+            },
+
+            // Macro Regime Domain - both flattened and full object for different consumers
+            divergence: macro_regime.cli_gli_divergence || alignToShared(legacyData?.macro_regime?.cli_gli_divergence || legacyData?.divergence),
+            cli_gli_divergence: macro_regime.cli_gli_divergence || alignToShared(legacyData?.cli_gli_divergence || legacyData?.divergence),
+            signals: macro_regime.signals || legacyData.signals || {},
+            signal_aggregate: macro_regime.score || legacyData.signal_aggregate || null,
+            macro_regime: macro_regime || legacyData?.macro_regime || {}, // Pass full object for charts accessing nested paths
+            last_dates: legacyData.last_dates || {},
+
+            st_louis_stress: us_system.st_louis_stress?.total || legacyData?.st_louis_stress || [],
+            kansas_city_stress: us_system.kansas_city_stress?.total || legacyData?.kansas_city_stress || [],
+
+            // Construct signal_metrics to match legacy structure for RiskModelTab
+            // This is critical - must match keys and structure exactly
+            signal_metrics: {
+                ...legacyData.signal_metrics,
+                // CLI composite
+                cli: {
+                    raw: cli.total || alignToShared(legacyData?.signal_metrics?.cli?.raw || legacyData?.cli?.total),
+                    percentile: cli.percentile || alignToShared(legacyData?.signal_metrics?.cli?.percentile || legacyData?.cli?.percentile),
+                    zscore: cli.z_score || alignToShared(legacyData?.signal_metrics?.cli?.zscore || [])
+                },
+                // Credit spreads
+                hy_spread: {
+                    raw: cli.raw?.hy_spread || alignToShared(legacyData?.signal_metrics?.hy_spread?.raw || legacyData?.hy_spread),
+                    percentile: cli.components?.hy_spread_pct || alignToShared(legacyData?.signal_metrics?.hy_spread?.percentile),
+                    zscore: cli.components?.hy_spread_z || alignToShared(legacyData?.signal_metrics?.hy_spread?.zscore)
+                },
+                ig_spread: {
+                    raw: cli.raw?.ig_spread || alignToShared(legacyData?.signal_metrics?.ig_spread?.raw || legacyData?.ig_spread),
+                    percentile: cli.components?.ig_spread_pct || alignToShared(legacyData?.signal_metrics?.ig_spread?.percentile),
+                    zscore: cli.components?.ig_spread_z || alignToShared(legacyData?.signal_metrics?.ig_spread?.zscore)
+                },
+                // NFCI components
+                nfci_credit: {
+                    raw: cli.raw?.nfci_credit || alignToShared(legacyData?.signal_metrics?.nfci_credit?.raw),
+                    percentile: cli.components?.nfci_credit_pct || alignToShared(legacyData?.signal_metrics?.nfci_credit?.percentile),
+                    zscore: cli.components?.nfci_credit_z || alignToShared(legacyData?.signal_metrics?.nfci_credit?.zscore)
+                },
+                nfci_risk: {
+                    raw: cli.raw?.nfci_risk || alignToShared(legacyData?.signal_metrics?.nfci_risk?.raw),
+                    percentile: cli.components?.nfci_risk_pct || alignToShared(legacyData?.signal_metrics?.nfci_risk?.percentile),
+                    zscore: cli.components?.nfci_risk_z || alignToShared(legacyData?.signal_metrics?.nfci_risk?.zscore)
+                },
+                // Lending
+                lending: {
+                    raw: cli.raw?.lending_std || alignToShared(legacyData?.signal_metrics?.lending?.raw),
+                    percentile: cli.components?.lending_pct || alignToShared(legacyData?.signal_metrics?.lending?.percentile),
+                    zscore: cli.components?.lending_z || alignToShared(legacyData?.signal_metrics?.lending?.zscore)
+                },
+                // Vol metrics
+                vix: {
+                    raw: cli.raw?.vix || alignToShared(legacyData?.signal_metrics?.vix?.raw),
+                    percentile: cli.components?.vix_pct || alignToShared(legacyData?.signal_metrics?.vix?.percentile),
+                    zscore: cli.components?.vix_z || alignToShared(legacyData?.signal_metrics?.vix?.zscore)
+                },
+                move: {
+                    raw: cli.raw?.move || alignToShared(legacyData?.signal_metrics?.move?.raw),
+                    percentile: cli.components?.move_pct || alignToShared(legacyData?.signal_metrics?.move?.percentile),
+                    zscore: cli.components?.move_z || alignToShared(legacyData?.signal_metrics?.move?.zscore)
+                },
+                fx_vol: {
+                    raw: cli.raw?.fx_vol || alignToShared(legacyData?.signal_metrics?.fx_vol?.raw),
+                    percentile: cli.components?.fx_vol_pct || alignToShared(legacyData?.signal_metrics?.fx_vol?.percentile),
+                    zscore: cli.components?.fx_vol_z || alignToShared(legacyData?.signal_metrics?.fx_vol?.zscore)
+                },
+
+                // Treasury Metrics
+                treasury_10y: {
+                    raw: treasury.yields?.['10y'] || alignToShared(legacyData?.signal_metrics?.treasury_10y?.raw),
+                    percentile: treasury.yields?.['10y_pct'] || alignToShared(legacyData?.signal_metrics?.treasury_10y?.percentile),
+                    zscore: alignToShared(legacyData?.signal_metrics?.treasury_10y?.zscore)
+                },
+                treasury_2y: {
+                    raw: treasury.yields?.['2y'] || alignToShared(legacyData?.signal_metrics?.treasury_2y?.raw),
+                    percentile: treasury.yields?.['2y_pct'] || alignToShared(legacyData?.signal_metrics?.treasury_2y?.percentile)
+                },
+                treasury_30y: {
+                    percentile: treasury.yields?.['30y_pct'] || legacyData?.signal_metrics?.treasury_30y?.percentile || []
+                },
+                treasury_5y: {
+                    raw: treasury.yields?.['5y'] || legacyData?.signal_metrics?.treasury_5y?.raw || [],
+                    percentile: treasury.yields?.['5y_pct'] || legacyData?.signal_metrics?.treasury_5y?.percentile || []
+                },
+                // Treasury curves in signal_metrics
+                yield_curve: {
+                    raw: treasury.curves?.['10y_2y'] || alignToShared(legacyData?.signal_metrics?.yield_curve?.raw || legacyData?.yield_curve),
+                    percentile: treasury.curves?.['10y_2y_pct'] || alignToShared(legacyData?.signal_metrics?.yield_curve?.percentile)
+                },
+                yield_curve_30y_10y: {
+                    raw: treasury.curves?.['30y_10y'] || alignToShared(legacyData?.signal_metrics?.yield_curve_30y_10y?.raw),
+                    percentile: treasury.curves?.['30y_10y_pct'] || alignToShared(legacyData?.signal_metrics?.yield_curve_30y_10y?.percentile)
+                },
+                yield_curve_30y_2y: {
+                    raw: treasury.curves?.['30y_2y'] || alignToShared(legacyData?.signal_metrics?.yield_curve_30y_2y?.raw),
+                    percentile: treasury.curves?.['30y_2y_pct'] || alignToShared(legacyData?.signal_metrics?.yield_curve_30y_2y?.percentile)
+                },
+                // Stress Indices
+                st_louis_stress: {
+                    raw: us_system.st_louis_stress?.total || alignToShared(legacyData?.signal_metrics?.st_louis_stress?.raw),
+                    percentile: us_system.st_louis_stress?.percentile || alignToShared(legacyData?.signal_metrics?.st_louis_stress?.percentile),
+                    zscore: us_system.st_louis_stress?.z_score || alignToShared(legacyData?.signal_metrics?.st_louis_stress?.zscore)
+                },
+                kansas_city_stress: {
+                    raw: us_system.kansas_city_stress?.total || alignToShared(legacyData?.signal_metrics?.kansas_city_stress?.raw),
+                    percentile: us_system.kansas_city_stress?.percentile || alignToShared(legacyData?.signal_metrics?.kansas_city_stress?.percentile),
+                    zscore: us_system.kansas_city_stress?.z_score || alignToShared(legacyData?.signal_metrics?.kansas_city_stress?.zscore)
+                },
+                // Corporate yields
+                baa_yield: alignSignalObj(legacyData?.signal_metrics?.baa_yield),
+                aaa_yield: alignSignalObj(legacyData?.signal_metrics?.aaa_yield),
+                baa_aaa_spread: alignSignalObj(legacyData?.signal_metrics?.baa_aaa_spread),
+                // TIPS metrics  
+                tips_real_rate: alignSignalObj(legacyData?.signal_metrics?.tips_real_rate),
+                tips_breakeven: alignSignalObj(legacyData?.signal_metrics?.tips_breakeven),
+                tips: alignSignalObj(legacyData?.signal_metrics?.tips),
+                // Labor metrics
+                nfp: alignSignalObj(legacyData?.signal_metrics?.nfp),
+                jolts: alignSignalObj(legacyData?.signal_metrics?.jolts),
+                // Divergence metrics
+                cli_gli_divergence: {
+                    raw: macro_regime.cli_gli_divergence || alignToShared(legacyData?.signal_metrics?.cli_gli_divergence?.raw || legacyData?.divergence),
+                    percentile: alignToShared(legacyData?.signal_metrics?.cli_gli_divergence?.percentile),
+                    zscore: alignToShared(legacyData?.signal_metrics?.cli_gli_divergence?.zscore),
+                    momentum_pct: alignToShared(legacyData?.signal_metrics?.cli_gli_divergence?.momentum_pct),
+                    signal_series: alignToShared(legacyData?.signal_metrics?.cli_gli_divergence?.signal_series),
+                    latest: legacyData?.signal_metrics?.cli_gli_divergence?.latest || {}
+                }
+            },
+
+            // Fallback for fields not yet in domains or handled differently
+            credit_spreads: legacyData?.credit_spreads || {},
+            inflation_swaps_fallback: legacyData?.inflation_swaps || {},
+            stress_analysis: legacyData?.stress_analysis || {},
+
+            // Direct Corporate Yields fallback if not mapped in signal_metrics (for new charts)
+            baa_yield: treasury.corporate?.baa_yield || alignToShared(legacyData?.baa_yield),
+            aaa_yield: treasury.corporate?.aaa_yield || alignToShared(legacyData?.aaa_yield),
+            baa_aaa_spread: treasury.corporate?.baa_aaa_spread || alignToShared(legacyData?.baa_aaa_spread),
+        };
+    } catch (error) {
+        console.warn('[RiskModelLoader] FALLBACK: Using legacy data -', error.message);
+        return legacyData;
+    }
+}
+
 export async function loadTreasuryTabData(legacyData) {
     if (!USE_MODULAR_DOMAINS) {
         return {
@@ -666,4 +951,5 @@ export default {
     loadM2TabData,
     loadOffshoreTabData,
     loadTreasuryTabData,
+    loadRiskModelTabData,
 };
