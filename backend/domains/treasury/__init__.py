@@ -52,10 +52,10 @@ class TreasuryDomain(BaseDomain):
             if col in df.columns:
                 series = df[col].ffill()
                 result['yields'][name] = clean_for_json(series)
-                # Calculate percentile (5-year window approx)
-                result['yields'][f'{name}_pct'] = clean_for_json(rolling_percentile(series, window=1260))
-                # Calculate z-score (1-year window approx)
-                result['yields'][f'{name}_z'] = clean_for_json(calculate_zscore(series, window=252))
+                # Calculate percentile (Lifetime Expanding)
+                result['yields'][f'{name}_pct'] = clean_for_json(rolling_percentile(series, min_periods=100, expanding=True))
+                # Calculate z-score (Lifetime Expanding for Structural comparison)
+                result['yields'][f'{name}_z'] = clean_for_json(calculate_zscore(series, min_periods=100, expanding=True))
         
         # Yield curves (spreads)
         result['curves'] = {}
@@ -74,8 +74,10 @@ class TreasuryDomain(BaseDomain):
                 spread = long_val - short_val
                 
                 result['curves'][name] = clean_for_json(spread)
-                result['curves'][f'{name}_pct'] = clean_for_json(rolling_percentile(spread, window=1260))
-                result['curves'][f'{name}_z'] = clean_for_json(calculate_zscore(spread, window=252))
+                # Calculate percentile (Lifetime Expanding)
+                result['curves'][f'{name}_pct'] = clean_for_json(rolling_percentile(spread, min_periods=100, expanding=True))
+                # Calculate z-score (Lifetime Expanding)
+                result['curves'][f'{name}_z'] = clean_for_json(calculate_zscore(spread, min_periods=100, expanding=True))
         
         # Corporate spreads (Moody's)
         if 'BAA_YIELD' in df.columns and 'AAA_YIELD' in df.columns:

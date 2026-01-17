@@ -84,14 +84,20 @@ def calculate_rocs(series: pd.Series) -> Dict[str, pd.Series]:
     }
 
 
-def calculate_zscore(series: pd.Series, window: int = 252, min_periods: int = 100) -> pd.Series:
+def calculate_zscore(series: pd.Series, window: int = 252, min_periods: int = 100, expanding: bool = False) -> pd.Series:
     """Calculate rolling Z-score."""
     if series is None or series.empty:
         return pd.Series(dtype=float)
     
-    # Match regime_v2 logic: simple rolling mean/std with replace(0, nan) handling
-    rolling_mean = series.rolling(window, min_periods=min_periods).mean()
-    rolling_std = series.rolling(window, min_periods=min_periods).std().replace(0, np.nan)
+    if expanding:
+        # Expanding window (lifetime)
+        rolling_mean = series.expanding(min_periods=min_periods).mean()
+        rolling_std = series.expanding(min_periods=min_periods).std().replace(0, np.nan)
+    else:
+        # Match regime_v2 logic: simple rolling mean/std with replace(0, nan) handling
+        rolling_mean = series.rolling(window, min_periods=min_periods).mean()
+        rolling_std = series.rolling(window, min_periods=min_periods).std().replace(0, np.nan)
+    
     return (series - rolling_mean) / rolling_std
 
 

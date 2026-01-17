@@ -195,10 +195,10 @@ class USSystemDomain(BaseDomain):
     def name(self) -> str:
         return "us_system"
     
-    def _calc_zscore(self, series: pd.Series, window: int = 252) -> pd.Series:
+    def _calc_zscore(self, series: pd.Series, window: int = 252, min_periods: int = 100) -> pd.Series:
         """Calculate rolling Z-score."""
-        mean = series.rolling(window, min_periods=window // 4).mean()
-        std = series.rolling(window, min_periods=window // 4).std()
+        mean = series.rolling(window, min_periods=min_periods).mean()
+        std = series.rolling(window, min_periods=min_periods).std()
         return ((series - mean) / std.replace(0, np.nan))
     
     def process(self, df: pd.DataFrame, **kwargs) -> Dict[str, Any]:
@@ -282,7 +282,7 @@ class USSystemDomain(BaseDomain):
             result['st_louis_stress'] = {
                 'total': clean_for_json(stlfsi),
                 'z_score': clean_for_json(self._calc_zscore(stlfsi, 1260)), # 5yr window
-                'percentile': clean_for_json(rolling_percentile(stlfsi, 1260))
+                'percentile': clean_for_json(rolling_percentile(stlfsi, min_periods=100, expanding=True))
             }
             
         # Kansas City Financial Stress Index (KANSAS_CITY_STRESS)
@@ -291,7 +291,7 @@ class USSystemDomain(BaseDomain):
             result['kansas_city_stress'] = {
                 'total': clean_for_json(kcfsi),
                 'z_score': clean_for_json(self._calc_zscore(kcfsi, 1260)), # 5yr window
-                'percentile': clean_for_json(rolling_percentile(kcfsi, 1260))
+                'percentile': clean_for_json(rolling_percentile(kcfsi, min_periods=100, expanding=True))
             }
         
         return result
