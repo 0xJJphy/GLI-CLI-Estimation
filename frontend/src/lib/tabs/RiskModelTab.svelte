@@ -101,7 +101,7 @@
     let yieldCurveViewMode = "raw";
     let yieldCurve30y10yViewMode = "raw";
     let yieldCurve30y2yViewMode = "raw";
-    let divergenceViewMode = "raw";
+    let divergenceViewMode = "zscore";
     // New: Stress Indices
     let stLouisStressViewMode = "zscore";
     let kansasCityStressViewMode = "zscore";
@@ -186,7 +186,7 @@
             for (let i = 0; i < fullDates.length; i++) {
                 const hasData = traceArray.some((t) => {
                     const val = t.y ? t.y[i] : undefined;
-                    return val !== null && val !== undefined && val !== 0;
+                    return val !== null && val !== undefined;
                 });
                 if (hasData) {
                     firstValidIdx = i;
@@ -371,7 +371,10 @@
         [
             {
                 x: riskData.dates,
-                y: riskData.hy_spread || [],
+                y:
+                    riskData.signal_metrics?.hy_spread?.raw ||
+                    riskData.hy_spread ||
+                    [],
                 name: translations.chart_hy_raw || "HY Spread (bps)",
                 type: "scatter",
                 mode: "lines",
@@ -414,7 +417,10 @@
         [
             {
                 x: riskData.dates,
-                y: riskData.ig_spread || [],
+                y:
+                    riskData.signal_metrics?.ig_spread?.raw ||
+                    riskData.ig_spread ||
+                    [],
                 name: translations.chart_ig_raw || "IG Spread (bps)",
                 type: "scatter",
                 mode: "lines",
@@ -595,7 +601,7 @@
         [
             {
                 x: riskData.dates,
-                y: riskData.vix?.total || [],
+                y: riskData.signal_metrics?.vix?.raw || [],
                 name: "VIX (Raw)",
                 type: "scatter",
                 mode: "lines",
@@ -638,7 +644,7 @@
         [
             {
                 x: riskData.dates,
-                y: riskData.move?.total || [],
+                y: riskData.signal_metrics?.move?.raw || [],
                 name: "MOVE Index",
                 type: "scatter",
                 mode: "lines",
@@ -681,7 +687,7 @@
         [
             {
                 x: riskData.dates,
-                y: riskData.fx_vol?.total || [],
+                y: riskData.signal_metrics?.fx_vol?.raw || [],
                 name: "DXY Realized Vol (%)",
                 type: "scatter",
                 mode: "lines",
@@ -3683,6 +3689,8 @@
             description={translations.yield_curve_30y10y_desc ||
                 "Long term curve steepness. Inversion = severe stress."}
             {darkMode}
+            range={yieldCurve30y10yRange}
+            onRangeChange={(r) => (yieldCurve30y10yRange = r)}
             cardId="yield_curve_30y_10y"
         >
             <svelte:fragment slot="controls">
@@ -3773,6 +3781,8 @@
             title="Yield Curve (30Y-2Y Spread)"
             description="Full yield curve slope (2Y to 30Y). Deep inversion = severe recession signal."
             {darkMode}
+            range={yieldCurve30y2yRange}
+            onRangeChange={(r) => (yieldCurve30y2yRange = r)}
             cardId="yield_curve_30y_2y"
         >
             <svelte:fragment slot="controls">
@@ -3921,6 +3931,8 @@
             title="Non-Farm Payrolls (NFP)"
             description="Monthly change in non-farm payrolls (thousands). Key labor market indicator. Above 150k = healthy, below 0 = contraction."
             {darkMode}
+            range={nfpRange}
+            onRangeChange={(r) => (nfpRange = r)}
             cardId="nfp_employment"
         >
             <svelte:fragment slot="controls">
@@ -4000,6 +4012,8 @@
             title="Job Openings (JOLTS)"
             description="Job openings in millions. Higher = tighter labor market. Watch for JOLTS/Unemployed ratio trends."
             {darkMode}
+            range={joltsRange}
+            onRangeChange={(r) => (joltsRange = r)}
             cardId="jolts_openings"
         >
             <svelte:fragment slot="controls">
@@ -4080,6 +4094,8 @@
             title="St. Louis Financial Stress Index (STLFSI4)"
             description="Weekly index measuring financial stress. Values above 0 = above-average stress."
             {darkMode}
+            range={stLouisStressRange}
+            onRangeChange={(r) => (stLouisStressRange = r)}
             cardId="st_louis_financial_stress"
         >
             <svelte:fragment slot="controls">
@@ -4161,6 +4177,8 @@
             title="Kansas City Financial Stress Index (KCFSI)"
             description="Monthly index from Kansas City Fed. Positive = stress above typical."
             {darkMode}
+            range={kansasCityStressRange}
+            onRangeChange={(r) => (kansasCityStressRange = r)}
             cardId="kansas_city_financial_stress"
         >
             <svelte:fragment slot="controls">
@@ -4245,6 +4263,8 @@
                 ? "BAA-AAA spread = credit quality premium. Wider = more risk aversion."
                 : "BAA (red, lower quality IG) vs AAA (green, highest quality)."}
             {darkMode}
+            range={baaAaaRange}
+            onRangeChange={(r) => (baaAaaRange = r)}
             cardId="corp_yields_baa_aaa"
         >
             <svelte:fragment slot="controls">
