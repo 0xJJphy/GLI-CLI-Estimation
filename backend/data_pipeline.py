@@ -5005,9 +5005,9 @@ def run_pipeline():
             if not fng_series.empty:
                 df_hybrid_t['FEAR_GREED'] = fng_series.reindex(df_hybrid_t.index).ffill()
         
-        # Calculate FX Volatility from DXY (realized vol, annualized) if not already present
+        # Calculate FX Volatility from DXY (realized vol, annualized)
         # EVZ was discontinued Jan 2025, so we compute realized vol from DXY
-        if 'FX_VOL' not in df_hybrid_t.columns and 'DXY' in df_hybrid_t.columns:
+        if 'DXY' in df_hybrid_t.columns:
             dxy_series = df_hybrid_t['DXY'].ffill()
             if dxy_series.notna().sum() > 20:
                 dxy_returns = np.log(dxy_series).diff()
