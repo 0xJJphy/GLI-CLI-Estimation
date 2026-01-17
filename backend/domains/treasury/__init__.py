@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 from typing import Dict, Any
 
-from ..base import BaseDomain, clean_for_json, calculate_rocs, rolling_percentile
+from ..base import BaseDomain, clean_for_json, calculate_rocs, rolling_percentile, calculate_zscore
 
 # Import treasury data functions
 import sys
@@ -54,6 +54,8 @@ class TreasuryDomain(BaseDomain):
                 result['yields'][name] = clean_for_json(series)
                 # Calculate percentile (5-year window approx)
                 result['yields'][f'{name}_pct'] = clean_for_json(rolling_percentile(series, window=1260))
+                # Calculate z-score (1-year window approx)
+                result['yields'][f'{name}_z'] = clean_for_json(calculate_zscore(series, window=252))
         
         # Yield curves (spreads)
         result['curves'] = {}
@@ -73,6 +75,7 @@ class TreasuryDomain(BaseDomain):
                 
                 result['curves'][name] = clean_for_json(spread)
                 result['curves'][f'{name}_pct'] = clean_for_json(rolling_percentile(spread, window=1260))
+                result['curves'][f'{name}_z'] = clean_for_json(calculate_zscore(spread, window=252))
         
         # Corporate spreads (Moody's)
         if 'BAA_YIELD' in df.columns and 'AAA_YIELD' in df.columns:

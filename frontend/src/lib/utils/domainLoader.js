@@ -819,11 +819,12 @@ export async function loadRiskModelTabData(legacyData) {
                 treasury_10y: {
                     raw: treasury.yields?.['10y'] || alignToShared(legacyData?.signal_metrics?.treasury_10y?.raw),
                     percentile: treasury.yields?.['10y_pct'] || alignToShared(legacyData?.signal_metrics?.treasury_10y?.percentile),
-                    zscore: alignToShared(legacyData?.signal_metrics?.treasury_10y?.zscore)
+                    zscore: treasury.yields?.['10y_z'] || alignToShared(legacyData?.signal_metrics?.treasury_10y?.zscore)
                 },
                 treasury_2y: {
                     raw: treasury.yields?.['2y'] || alignToShared(legacyData?.signal_metrics?.treasury_2y?.raw),
-                    percentile: treasury.yields?.['2y_pct'] || alignToShared(legacyData?.signal_metrics?.treasury_2y?.percentile)
+                    percentile: treasury.yields?.['2y_pct'] || alignToShared(legacyData?.signal_metrics?.treasury_2y?.percentile),
+                    zscore: treasury.yields?.['2y_z'] || alignToShared(legacyData?.signal_metrics?.treasury_2y?.zscore)
                 },
                 treasury_30y: {
                     percentile: treasury.yields?.['30y_pct'] || legacyData?.signal_metrics?.treasury_30y?.percentile || []
@@ -835,15 +836,18 @@ export async function loadRiskModelTabData(legacyData) {
                 // Treasury curves in signal_metrics
                 yield_curve: {
                     raw: treasury.curves?.['10y_2y'] || alignToShared(legacyData?.signal_metrics?.yield_curve?.raw || legacyData?.yield_curve),
-                    percentile: treasury.curves?.['10y_2y_pct'] || alignToShared(legacyData?.signal_metrics?.yield_curve?.percentile)
+                    percentile: treasury.curves?.['10y_2y_pct'] || alignToShared(legacyData?.signal_metrics?.yield_curve?.percentile),
+                    zscore: treasury.curves?.['10y_2y_z'] || alignToShared(legacyData?.signal_metrics?.yield_curve?.zscore)
                 },
                 yield_curve_30y_10y: {
                     raw: treasury.curves?.['30y_10y'] || alignToShared(legacyData?.signal_metrics?.yield_curve_30y_10y?.raw),
-                    percentile: treasury.curves?.['30y_10y_pct'] || alignToShared(legacyData?.signal_metrics?.yield_curve_30y_10y?.percentile)
+                    percentile: treasury.curves?.['30y_10y_pct'] || alignToShared(legacyData?.signal_metrics?.yield_curve_30y_10y?.percentile),
+                    zscore: treasury.curves?.['30y_10y_z'] || alignToShared(legacyData?.signal_metrics?.yield_curve_30y_10y?.zscore)
                 },
                 yield_curve_30y_2y: {
                     raw: treasury.curves?.['30y_2y'] || alignToShared(legacyData?.signal_metrics?.yield_curve_30y_2y?.raw),
-                    percentile: treasury.curves?.['30y_2y_pct'] || alignToShared(legacyData?.signal_metrics?.yield_curve_30y_2y?.percentile)
+                    percentile: treasury.curves?.['30y_2y_pct'] || alignToShared(legacyData?.signal_metrics?.yield_curve_30y_2y?.percentile),
+                    zscore: treasury.curves?.['30y_2y_z'] || alignToShared(legacyData?.signal_metrics?.yield_curve_30y_2y?.zscore)
                 },
                 // Stress Indices
                 st_louis_stress: {
