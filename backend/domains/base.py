@@ -84,21 +84,26 @@ def calculate_rocs(series: pd.Series) -> Dict[str, pd.Series]:
     }
 
 
-def calculate_zscore(series: pd.Series, window: int = 252) -> pd.Series:
+def calculate_zscore(series: pd.Series, window: int = 252, min_periods: int = 100) -> pd.Series:
     """Calculate rolling Z-score."""
     if series is None or series.empty:
         return pd.Series(dtype=float)
     
-    rolling_mean = series.rolling(window, min_periods=window // 4).mean()
-    rolling_std = series.rolling(window, min_periods=window // 4).std()
+    # Match regime_v2 logic: simple rolling mean/std with replace(0, nan) handling
+    rolling_mean = series.rolling(window, min_periods=min_periods).mean()
+    rolling_std = series.rolling(window, min_periods=min_periods).std().replace(0, np.nan)
     return (series - rolling_mean) / rolling_std
 
 
-def rolling_percentile(series: pd.Series, window: int = 252 * 5, min_periods: int = 126) -> pd.Series:
+def rolling_percentile(series: pd.Series, window: int = 252 * 5, min_periods: int = 126, expanding: bool = False) -> pd.Series:
     """
-    Calculate rolling percentile rank of each value.
+    Calculate percentile rank.
     
-    Returns values between 0 and 100.
+    Args:
+        series: Input series
+        window: Rolling window size (ignored if expanding=True)
+        min_periods: Minimum points to calculate
+        expanding: If True, use expanding window (lifetime rank)
     """
     if series is None or series.empty:
         return pd.Series(dtype=float)
@@ -109,9 +114,13 @@ def rolling_percentile(series: pd.Series, window: int = 252 * 5, min_periods: in
         current = arr[-1]
         if np.isnan(current):
             return np.nan
+        # Rank logic: percent of values less than current
         return (arr[:-1] < current).sum() / (len(arr) - 1) * 100
     
-    return series.rolling(window, min_periods=min_periods).apply(percentile_rank, raw=True)
+    if expanding:
+        return series.expanding(min_periods=min_periods).apply(percentile_rank, raw=True)
+    else:
+        return series.rolling(window, min_periods=min_periods).apply(percentile_rank, raw=True)
 
 
 def get_safe_last_date(series: pd.Series) -> Optional[str]:

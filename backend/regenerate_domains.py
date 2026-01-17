@@ -29,6 +29,10 @@ def regenerate():
     except FileNotFoundError:
         print("Warning: frontend/public/domains/shared.json not found. Falling back to dashboard_data dates.")
         master_dates = pd.to_datetime(data['dates'])
+    
+    # CRITICAL FIX: Deduplicate dates. shared.json contains significant duplicates (approx 2x)
+    # which compresses rolling windows and corrupts Z-score calculations.
+    master_dates = pd.to_datetime(master_dates).drop_duplicates().sort_values()
 
     df = pd.DataFrame(index=master_dates)
     
@@ -149,6 +153,16 @@ def regenerate():
     with open('frontend/public/domains/fed_forecasts.json', 'w') as f:
         json.dump(fed_res, f)
     print("Saved frontend/public/domains/fed_forecasts.json")
+
+    # CRITICAL: Save the cleaned/deduplicated shared dates back to shared.json
+    # otherwise frontend domainLoader will attempt to map long shared dates to short domain data
+    with open('frontend/public/domains/shared.json', 'w') as f:
+        # Load original shared to preserve other keys if any, or just overwrite dates?
+        # SharedDomain usually has 'dates' and 'last_updated'.
+        # We'll just overwrite 'dates' in the loaded dict and save.
+        shared_data['dates'] = [d.strftime('%Y-%m-%d') for d in master_dates]
+        json.dump(shared_data, f)
+    print("Saved frontend/public/domains/shared.json (Cleaned)")
 
 if __name__ == "__main__":
     regenerate()
