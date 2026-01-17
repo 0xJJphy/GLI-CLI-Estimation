@@ -629,14 +629,14 @@ export async function loadRiskModelTabData(legacyData) {
 
         // Helper to align legacy arrays (start 2002) to shared dates (start 1970)
         const alignToShared = (legacyArr) => {
-            if (!legacyArr || !Array.isArray(legacyArr) || legacyArr.length === 0) return legacyArr || [];
-            if (!legacyData?.dates || !shared?.dates) return legacyArr;
+            if (!legacyArr || !Array.isArray(legacyArr) || legacyArr.length === 0) return null;
+            if (!shared?.dates) return legacyArr;
 
-            // If already matches shared length (e.g. from domain), return
+            // If already matches shared length (e.g. from aligned domain), return as is
             if (legacyArr.length === shared.dates.length) return legacyArr;
 
             // If matches legacy dates length, pad to align with shared
-            if (legacyArr.length === legacyData.dates.length) {
+            if (legacyData?.dates && legacyArr.length === legacyData.dates.length) {
                 const offset = shared.dates.indexOf(legacyData.dates[0]);
                 if (offset > 0) {
                     const padding = new Array(offset).fill(null);
@@ -700,16 +700,16 @@ export async function loadRiskModelTabData(legacyData) {
 
             repo_operations: us_system.repo_operations || legacyData?.repo_operations || {},
             repo_stress: {
-                sofr: us_system.repo_stress?.sofr || alignToShared(legacyData?.repo_stress?.sofr),
-                iorb: us_system.repo_stress?.iorb || alignToShared(legacyData?.repo_stress?.iorb),
-                srf_rate: us_system.repo_stress?.srf_rate || alignToShared(legacyData?.repo_stress?.srf_rate),
-                srf_usage: us_system.repo_stress?.srf_usage || alignToShared(legacyData?.repo_stress?.srf_usage),
-                sofr_volume: us_system.repo_stress?.sofr_volume || alignToShared(legacyData?.repo_stress?.sofr_volume),
-                sofr_to_floor: us_system.repo_stress?.sofr_to_floor || alignToShared(legacyData?.repo_stress?.sofr_to_floor),
-                sofr_to_ceiling: us_system.repo_stress?.sofr_to_ceiling || alignToShared(legacyData?.repo_stress?.sofr_to_ceiling),
-                sofr_volume_roc_5d: us_system.repo_stress?.sofr_volume_roc_5d || alignToShared(legacyData?.repo_stress?.sofr_volume_roc_5d),
-                sofr_volume_roc_20d: us_system.repo_stress?.sofr_volume_roc_20d || alignToShared(legacyData?.repo_stress?.sofr_volume_roc_20d),
-                rrp_award: us_system.repo_stress?.rrp_award || alignToShared(legacyData?.repo_stress?.rrp_award),
+                sofr: alignToShared(us_system.repo_stress?.sofr) || alignToShared(legacyData?.repo_stress?.sofr),
+                iorb: alignToShared(us_system.repo_stress?.iorb) || alignToShared(legacyData?.repo_stress?.iorb),
+                srf_rate: alignToShared(us_system.repo_stress?.srf_rate) || alignToShared(legacyData?.repo_stress?.srf_rate),
+                srf_usage: alignToShared(us_system.repo_stress?.srf_usage) || alignToShared(legacyData?.repo_stress?.srf_usage),
+                sofr_volume: alignToShared(us_system.repo_stress?.sofr_volume) || alignToShared(legacyData?.repo_stress?.sofr_volume),
+                sofr_to_floor: alignToShared(us_system.repo_stress?.sofr_to_floor) || alignToShared(legacyData?.repo_stress?.sofr_to_floor),
+                sofr_to_ceiling: alignToShared(us_system.repo_stress?.sofr_to_ceiling) || alignToShared(legacyData?.repo_stress?.sofr_to_ceiling),
+                sofr_volume_roc_5d: alignToShared(us_system.repo_stress?.sofr_volume_roc_5d) || alignToShared(legacyData?.repo_stress?.sofr_volume_roc_5d),
+                sofr_volume_roc_20d: alignToShared(us_system.repo_stress?.sofr_volume_roc_20d) || alignToShared(legacyData?.repo_stress?.sofr_volume_roc_20d),
+                rrp_award: alignToShared(us_system.repo_stress?.rrp_award) || alignToShared(legacyData?.repo_stress?.rrp_award),
             },
 
             // Treasury Domain
@@ -818,47 +818,50 @@ export async function loadRiskModelTabData(legacyData) {
                 // Treasury Metrics
                 treasury_10y: {
                     raw: treasury.yields?.['10y'] || alignToShared(legacyData?.signal_metrics?.treasury_10y?.raw),
-                    percentile: treasury.yields?.['10y_pct'] || alignToShared(legacyData?.signal_metrics?.treasury_10y?.percentile),
+                    percentile: treasury.yields?.['10y_p'] || treasury.yields?.['10y_pct'] || alignToShared(legacyData?.signal_metrics?.treasury_10y?.percentile),
                     zscore: treasury.yields?.['10y_z'] || alignToShared(legacyData?.signal_metrics?.treasury_10y?.zscore)
                 },
                 treasury_2y: {
                     raw: treasury.yields?.['2y'] || alignToShared(legacyData?.signal_metrics?.treasury_2y?.raw),
-                    percentile: treasury.yields?.['2y_pct'] || alignToShared(legacyData?.signal_metrics?.treasury_2y?.percentile),
+                    percentile: treasury.yields?.['2y_p'] || treasury.yields?.['2y_pct'] || alignToShared(legacyData?.signal_metrics?.treasury_2y?.percentile),
                     zscore: treasury.yields?.['2y_z'] || alignToShared(legacyData?.signal_metrics?.treasury_2y?.zscore)
                 },
                 treasury_30y: {
-                    percentile: treasury.yields?.['30y_pct'] || legacyData?.signal_metrics?.treasury_30y?.percentile || []
+                    raw: treasury.yields?.['30y'] || alignToShared(legacyData?.signal_metrics?.treasury_30y?.raw),
+                    percentile: treasury.yields?.['30y_p'] || treasury.yields?.['30y_pct'] || alignToShared(legacyData?.signal_metrics?.treasury_30y?.percentile),
+                    zscore: treasury.yields?.['30y_z'] || alignToShared(legacyData?.signal_metrics?.treasury_30y?.zscore)
                 },
                 treasury_5y: {
-                    raw: treasury.yields?.['5y'] || legacyData?.signal_metrics?.treasury_5y?.raw || [],
-                    percentile: treasury.yields?.['5y_pct'] || legacyData?.signal_metrics?.treasury_5y?.percentile || []
+                    raw: treasury.yields?.['5y'] || alignToShared(legacyData?.signal_metrics?.treasury_5y?.raw),
+                    percentile: treasury.yields?.['5y_p'] || treasury.yields?.['5y_pct'] || alignToShared(legacyData?.signal_metrics?.treasury_5y?.percentile),
+                    zscore: treasury.yields?.['5y_z'] || alignToShared(legacyData?.signal_metrics?.treasury_5y?.zscore)
                 },
                 // Treasury curves in signal_metrics
                 yield_curve: {
                     raw: treasury.curves?.['10y_2y'] || alignToShared(legacyData?.signal_metrics?.yield_curve?.raw || legacyData?.yield_curve),
-                    percentile: treasury.curves?.['10y_2y_pct'] || alignToShared(legacyData?.signal_metrics?.yield_curve?.percentile),
+                    percentile: treasury.curves?.['10y_2y_p'] || treasury.curves?.['10y_2y_pct'] || alignToShared(legacyData?.signal_metrics?.yield_curve?.percentile),
                     zscore: treasury.curves?.['10y_2y_z'] || alignToShared(legacyData?.signal_metrics?.yield_curve?.zscore)
                 },
                 yield_curve_30y_10y: {
                     raw: treasury.curves?.['30y_10y'] || alignToShared(legacyData?.signal_metrics?.yield_curve_30y_10y?.raw),
-                    percentile: treasury.curves?.['30y_10y_pct'] || alignToShared(legacyData?.signal_metrics?.yield_curve_30y_10y?.percentile),
+                    percentile: treasury.curves?.['30y_10y_p'] || treasury.curves?.['30y_10y_pct'] || alignToShared(legacyData?.signal_metrics?.yield_curve_30y_10y?.percentile),
                     zscore: treasury.curves?.['30y_10y_z'] || alignToShared(legacyData?.signal_metrics?.yield_curve_30y_10y?.zscore)
                 },
                 yield_curve_30y_2y: {
                     raw: treasury.curves?.['30y_2y'] || alignToShared(legacyData?.signal_metrics?.yield_curve_30y_2y?.raw),
-                    percentile: treasury.curves?.['30y_2y_pct'] || alignToShared(legacyData?.signal_metrics?.yield_curve_30y_2y?.percentile),
+                    percentile: treasury.curves?.['30y_2y_p'] || treasury.curves?.['30y_2y_pct'] || alignToShared(legacyData?.signal_metrics?.yield_curve_30y_2y?.percentile),
                     zscore: treasury.curves?.['30y_2y_z'] || alignToShared(legacyData?.signal_metrics?.yield_curve_30y_2y?.zscore)
                 },
                 // Stress Indices
                 st_louis_stress: {
-                    raw: us_system.st_louis_stress?.total || alignToShared(legacyData?.signal_metrics?.st_louis_stress?.raw),
-                    percentile: us_system.st_louis_stress?.percentile || alignToShared(legacyData?.signal_metrics?.st_louis_stress?.percentile),
-                    zscore: us_system.st_louis_stress?.z_score || alignToShared(legacyData?.signal_metrics?.st_louis_stress?.zscore)
+                    raw: alignToShared(us_system.st_louis_stress?.total) || alignToShared(legacyData?.signal_metrics?.st_louis_stress?.raw),
+                    percentile: alignToShared(us_system.st_louis_stress?.percentile) || alignToShared(legacyData?.signal_metrics?.st_louis_stress?.percentile),
+                    zscore: alignToShared(us_system.st_louis_stress?.z_score) || alignToShared(legacyData?.signal_metrics?.st_louis_stress?.zscore)
                 },
                 kansas_city_stress: {
-                    raw: us_system.kansas_city_stress?.total || alignToShared(legacyData?.signal_metrics?.kansas_city_stress?.raw),
-                    percentile: us_system.kansas_city_stress?.percentile || alignToShared(legacyData?.signal_metrics?.kansas_city_stress?.percentile),
-                    zscore: us_system.kansas_city_stress?.z_score || alignToShared(legacyData?.signal_metrics?.kansas_city_stress?.zscore)
+                    raw: alignToShared(us_system.kansas_city_stress?.total) || alignToShared(legacyData?.signal_metrics?.kansas_city_stress?.raw),
+                    percentile: alignToShared(us_system.kansas_city_stress?.percentile) || alignToShared(legacyData?.signal_metrics?.kansas_city_stress?.percentile),
+                    zscore: alignToShared(us_system.kansas_city_stress?.z_score) || alignToShared(legacyData?.signal_metrics?.kansas_city_stress?.zscore)
                 },
                 // Corporate yields
                 baa_yield: alignSignalObj(legacyData?.signal_metrics?.baa_yield),

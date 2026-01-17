@@ -13,42 +13,49 @@ from domains.core import USSystemDomain, SharedDomain
 from domains.base import clean_for_json
 
 def regenerate():
-    print("Loading dashboard_data.json...")
+    print("Loading backend/data/dashboard_data.json for source data...")
     try:
-        with open('data/dashboard_data.json', 'r') as f:
+        with open('backend/data/dashboard_data.json', 'r') as f:
             data = json.load(f)
     except FileNotFoundError:
-        print("Error: data/dashboard_data.json not found.")
+        print("Error: backend/data/dashboard_data.json not found.")
         return
 
-    dates = pd.to_datetime(data['dates'])
-    df = pd.DataFrame(index=dates)
-    
-    print(f"Loaded {len(dates)} rows.")
+    print("Loading frontend/public/domains/shared.json for master dates...")
+    try:
+        with open('frontend/public/domains/shared.json', 'r') as f:
+            shared_data = json.load(f)
+        master_dates = pd.to_datetime(shared_data['dates'])
+    except FileNotFoundError:
+        print("Warning: frontend/public/domains/shared.json not found. Falling back to dashboard_data dates.")
+        master_dates = pd.to_datetime(data['dates'])
 
-    # Helper to safe load
+    df = pd.DataFrame(index=master_dates)
+    
+    # Helper to safe load series from data and align to df index
     def get_series(key, subkey=None):
         if key not in data:
-            print(f"Warning: {key} not found")
-            return pd.Series(dtype=float, index=dates)
+            return pd.Series(np.nan, index=master_dates)
         
         val = data[key]
         if subkey:
             if isinstance(val, dict) and subkey in val:
                 val = val[subkey]
             else:
-                print(f"Warning: {key}.{subkey} not found")
-                return pd.Series(dtype=float, index=dates)
+                return pd.Series(np.nan, index=master_dates)
         
-        # Ensure length match
-        if isinstance(val, list):
-            if len(val) == len(dates):
-                return pd.Series(val, index=dates)
-            else:
-                print(f"Length mismatch for {key}: {len(val)} vs {len(dates)}")
-                # Try to pad or trim? simpler to just return nan
-                return pd.Series(dtype=float, index=dates)
-        return pd.Series(dtype=float, index=dates)
+        if not isinstance(val, list):
+            return pd.Series(np.nan, index=master_dates)
+            
+        # Create series with source dates and then reindex to master_dates
+        source_dates = pd.to_datetime(data['dates'])
+        if len(val) != len(source_dates):
+            # Try to handle cases where subkey might have different length
+            # Some segments like maturities/auctions inside 'treasury' are not series
+            return pd.Series(np.nan, index=master_dates)
+            
+        s = pd.Series(val, index=source_dates)
+        return s.reindex(master_dates)
 
     # Reconstruct columns for CLI
     print("Reconstructing CLI inputs...")
@@ -65,11 +72,13 @@ def regenerate():
     print("Reconstructing US System inputs...")
     df['SOFR'] = get_series('repo_stress', 'sofr')
     df['IORB'] = get_series('repo_stress', 'iorb')
+    df['SRF_RATE'] = get_series('repo_stress', 'srf_rate')
+    df['RRP_AWARD'] = get_series('repo_stress', 'rrp_award')
     df['SRF_USAGE'] = get_series('repo_stress', 'srf_usage')
     
     # Financial Stress
-    df['STLFSI4'] = get_series('st_louis_stress')
-    df['KCFSI'] = get_series('kansas_city_stress')
+    df['ST_LOUIS_STRESS'] = get_series('st_louis_stress')
+    df['KANSAS_CITY_STRESS'] = get_series('kansas_city_stress')
     
     # US Net Liq components are flattened in dashboard_data.json
     df['RRP_USD'] = get_series('us_net_liq_rrp')
@@ -123,23 +132,23 @@ def regenerate():
     fed_res = fed_dom.process(df)
 
     # Save
-    os.makedirs('data/domains', exist_ok=True)
+    os.makedirs('frontend/public/domains', exist_ok=True)
     
-    with open('data/domains/cli.json', 'w') as f:
+    with open('frontend/public/domains/cli.json', 'w') as f:
         json.dump(cli_res, f)
-    print("Saved data/domains/cli.json")
+    print("Saved frontend/public/domains/cli.json")
     
-    with open('data/domains/us_system.json', 'w') as f:
+    with open('frontend/public/domains/us_system.json', 'w') as f:
         json.dump(us_res, f)
-    print("Saved data/domains/us_system.json")
-
-    with open('data/domains/treasury.json', 'w') as f:
+    print("Saved frontend/public/domains/us_system.json")
+ 
+    with open('frontend/public/domains/treasury.json', 'w') as f:
         json.dump(treasury_res, f)
-    print("Saved data/domains/treasury.json")
-
-    with open('data/domains/fed_forecasts.json', 'w') as f:
+    print("Saved frontend/public/domains/treasury.json")
+ 
+    with open('frontend/public/domains/fed_forecasts.json', 'w') as f:
         json.dump(fed_res, f)
-    print("Saved data/domains/fed_forecasts.json")
+    print("Saved frontend/public/domains/fed_forecasts.json")
 
 if __name__ == "__main__":
     regenerate()

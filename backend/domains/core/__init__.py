@@ -262,28 +262,32 @@ class USSystemDomain(BaseDomain):
         # Legacy dashboardData.repo_stress logic
         sofr = df['SOFR'].ffill() if 'SOFR' in df.columns else pd.Series(0.0, index=df.index)
         iorb = df['IORB'].ffill() if 'IORB' in df.columns else pd.Series(0.0, index=df.index)
+        srf_rate = df['SRF_RATE'].ffill() if 'SRF_RATE' in df.columns else pd.Series(0.0, index=df.index)
+        rrp_award = df['RRP_AWARD'].ffill() if 'RRP_AWARD' in df.columns else pd.Series(0.0, index=df.index)
         repo_spread = sofr - iorb
         
         result['repo_stress'] = {
             'total': clean_for_json(repo_spread), # Main spread value
             'sofr': clean_for_json(sofr),
             'iorb': clean_for_json(iorb),
+            'srf_rate': clean_for_json(srf_rate),
+            'rrp_award': clean_for_json(rrp_award),
             'z_score': clean_for_json(self._calc_zscore(repo_spread, 252))
         }
         
         # Financial Stress Indices
-        # St. Louis Fed Financial Stress Index (STLFSI4)
-        if 'STLFSI4' in df.columns:
-            stlfsi = df['STLFSI4'].ffill()
+        # St. Louis Fed Financial Stress Index (ST_LOUIS_STRESS)
+        if 'ST_LOUIS_STRESS' in df.columns:
+            stlfsi = df['ST_LOUIS_STRESS'].ffill()
             result['st_louis_stress'] = {
                 'total': clean_for_json(stlfsi),
                 'z_score': clean_for_json(self._calc_zscore(stlfsi, 1260)), # 5yr window
                 'percentile': clean_for_json(rolling_percentile(stlfsi, 1260))
             }
             
-        # Kansas City Financial Stress Index (KCFSI)
-        if 'KCFSI' in df.columns:
-            kcfsi = df['KCFSI'].ffill()
+        # Kansas City Financial Stress Index (KANSAS_CITY_STRESS)
+        if 'KANSAS_CITY_STRESS' in df.columns:
+            kcfsi = df['KANSAS_CITY_STRESS'].ffill()
             result['kansas_city_stress'] = {
                 'total': clean_for_json(kcfsi),
                 'z_score': clean_for_json(self._calc_zscore(kcfsi, 1260)), # 5yr window
