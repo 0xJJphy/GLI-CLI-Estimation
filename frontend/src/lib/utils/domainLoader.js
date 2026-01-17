@@ -757,8 +757,8 @@ export async function loadRiskModelTabData(legacyData) {
             macro_regime: macro_regime || legacyData?.macro_regime || {}, // Pass full object for charts accessing nested paths
             last_dates: legacyData.last_dates || {},
 
-            st_louis_stress: us_system.st_louis_stress?.total || legacyData?.st_louis_stress || [],
-            kansas_city_stress: us_system.kansas_city_stress?.total || legacyData?.kansas_city_stress || [],
+            st_louis_stress: us_system.st_louis_stress?.total || alignToShared(legacyData?.st_louis_stress),
+            kansas_city_stress: us_system.kansas_city_stress?.total || alignToShared(legacyData?.kansas_city_stress),
 
             // Construct signal_metrics to match legacy structure for RiskModelTab
             // This is critical - must match keys and structure exactly
@@ -795,8 +795,8 @@ export async function loadRiskModelTabData(legacyData) {
                 // Lending
                 lending: {
                     raw: cli.raw?.lending_std || alignToShared(legacyData?.signal_metrics?.lending?.raw),
-                    percentile: cli.components?.lending_pct || alignToShared(legacyData?.signal_metrics?.lending?.percentile),
-                    zscore: cli.components?.lending_z || alignToShared(legacyData?.signal_metrics?.lending?.zscore)
+                    percentile: cli.components?.lending_std_pct || alignToShared(legacyData?.signal_metrics?.lending?.percentile),
+                    zscore: cli.components?.lending_std_z || alignToShared(legacyData?.signal_metrics?.lending?.zscore)
                 },
                 // Vol metrics
                 vix: {

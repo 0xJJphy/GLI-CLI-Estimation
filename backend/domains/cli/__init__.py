@@ -98,6 +98,8 @@ class CLIDomain(BaseDomain):
             'nfci_risk': clean_for_json(components['nfci_risk'].ffill()),
             'lending_std': clean_for_json(components['lending_std'].ffill()),
             'vix': clean_for_json(components['vix'].ffill()),
+            'move': clean_for_json(components['move'].ffill()),
+            'fx_vol': clean_for_json(components['fx_vol'].ffill()),
         }
         
         # Component Z-scores and Percentiles
