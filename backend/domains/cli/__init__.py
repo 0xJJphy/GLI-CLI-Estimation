@@ -9,6 +9,7 @@ import pandas as pd
 from typing import Dict, Any
 
 from ..base import BaseDomain, clean_for_json, calculate_rocs, calculate_zscore, rolling_percentile
+from analytics.regime_v2 import calculate_cli_v2
 
 
 class CLIDomain(BaseDomain):
@@ -83,7 +84,9 @@ class CLIDomain(BaseDomain):
                     # Legacy regime_v2 just uses the raw value (inverted)
                     z = calc_series
                 else:
-                    z = calculate_zscore(calc_series, window=252)
+                    # Fix: Use Expanding Window (Lifetime) for Z-Score to match Regime intent
+                    # Was defaulting to window=252 which is too volatile/short-term
+                    z = calculate_zscore(calc_series, min_periods=100, expanding=True)
                 
                 z_scores_raw[name] = z
                 
@@ -108,6 +111,14 @@ class CLIDomain(BaseDomain):
         result['total'] = clean_for_json(cli_total)
         result['percentile'] = clean_for_json(rolling_percentile(cli_total, min_periods=100, expanding=True))
         result['rocs'] = {k: clean_for_json(v) for k, v in calculate_rocs(cli_total).items()}
+        
+        # --- NEW: CLI V2 (Advanced Regime Signal) Integration ---
+        # Calculate V2 series using the strict regime_v2 logic
+        cli_v2_df = calculate_cli_v2(df)
+        
+        # Add V2 output series
+        result['v2_total'] = clean_for_json(cli_v2_df['CLI_V2'])
+        result['v2_percentile'] = clean_for_json(cli_v2_df['CLI_V2_PERCENTILE'])
         
         # Raw component values
         result['raw'] = {

@@ -149,8 +149,8 @@
         if (!d || !Array.isArray(d)) return {};
         const ranges = ["1M", "3M", "6M", "1Y", "3Y", "5Y"];
 
-        // Fix: Ignore dates before 1990 to prevent the "1970" x-axis issue
-        const minDate = new Date("1990-01-01");
+        // Fix: Ignore dates before 2000 to match Modern Regime visualization
+        const minDate = new Date("2000-01-01");
         const allValidIndices = d
             .map((dateStr, i) => ({ date: new Date(dateStr), index: i }))
             .filter((item) => item.date >= minDate)
@@ -320,6 +320,14 @@
                 fill: "tozeroy",
                 fillcolor: "rgba(16, 185, 129, 0.1)",
             },
+            {
+                x: riskData.dates,
+                y: riskData.signal_metrics?.cli?.v2_raw || [],
+                name: "CLI Regime Signal (Advanced)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#f59e0b", width: 2, dash: "dot" },
+            },
         ],
         cliRange,
     );
@@ -333,6 +341,14 @@
                 type: "scatter",
                 mode: "lines",
                 line: { color: "#10b981", width: 3 },
+            },
+            {
+                x: riskData.dates,
+                y: riskData.signal_metrics?.cli?.v2_percentile || [],
+                name: "CLI Regime (Percentile)",
+                type: "scatter",
+                mode: "lines",
+                line: { color: "#f59e0b", width: 2, dash: "dot" },
             },
         ],
         cliRange,
@@ -2127,36 +2143,37 @@
     }
 
     // Z-Score Layouts (using original createZScoreBands from line 20)
+    // For Stress Indicators: High Z = Stress (Red Top), so we invert colors
     $: hyZLayout = {
-        shapes: createZScoreBands(darkMode),
+        shapes: createZScoreBands(darkMode, { invertColors: true }),
         yaxis: { title: "Z-Score", dtick: 2.5, autorange: true },
     };
     $: igZLayout = {
-        shapes: createZScoreBands(darkMode),
+        shapes: createZScoreBands(darkMode, { invertColors: true }),
         yaxis: { title: "Z-Score", dtick: 2.5, autorange: true },
     };
     $: nfciCreditZLayout = {
-        shapes: createZScoreBands(darkMode),
+        shapes: createZScoreBands(darkMode, { invertColors: true }),
         yaxis: { title: "Z-Score", dtick: 2.5, autorange: true },
     };
     $: nfciRiskZLayout = {
-        shapes: createZScoreBands(darkMode),
+        shapes: createZScoreBands(darkMode, { invertColors: true }),
         yaxis: { title: "Z-Score", dtick: 2.5, autorange: true },
     };
     $: lendingZLayout = {
-        shapes: createZScoreBands(darkMode),
+        shapes: createZScoreBands(darkMode, { invertColors: true }),
         yaxis: { title: "Z-Score", dtick: 2.5, autorange: true },
     };
     $: vixZLayout = {
-        shapes: createZScoreBands(darkMode),
+        shapes: createZScoreBands(darkMode, { invertColors: true }),
         yaxis: { title: "Z-Score", dtick: 2.5, autorange: true },
     };
     $: moveZLayout = {
-        shapes: createZScoreBands(darkMode),
+        shapes: createZScoreBands(darkMode, { invertColors: true }),
         yaxis: { title: "Z-Score", dtick: 2.5, autorange: true },
     };
     $: fxVolZLayout = {
-        shapes: createZScoreBands(darkMode),
+        shapes: createZScoreBands(darkMode, { invertColors: true }),
         yaxis: { title: "Z-Score", dtick: 2.5, autorange: true },
     };
 

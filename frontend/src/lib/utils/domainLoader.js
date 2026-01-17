@@ -768,7 +768,10 @@ export async function loadRiskModelTabData(legacyData) {
                 cli: {
                     raw: cli.total || alignToShared(legacyData?.signal_metrics?.cli?.raw || legacyData?.cli?.total),
                     percentile: cli.percentile || alignToShared(legacyData?.signal_metrics?.cli?.percentile || legacyData?.cli?.percentile),
-                    zscore: cli.z_score || alignToShared(legacyData?.signal_metrics?.cli?.zscore || [])
+                    zscore: cli.z_score || alignToShared(legacyData?.signal_metrics?.cli?.zscore || []),
+                    // Advanced V2 (Regime) Metrics
+                    v2_raw: cli.v2_total || [],
+                    v2_percentile: cli.v2_percentile || []
                 },
                 // Credit spreads
                 hy_spread: {

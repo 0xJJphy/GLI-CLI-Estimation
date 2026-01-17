@@ -47,15 +47,23 @@ class TreasuryDomain(BaseDomain):
             '30y': 'TREASURY_30Y_YIELD'
         }
         
+        # CRITICAL: Filter pre-2000 data for stats to match Modern Regime
+        stats_cutoff = pd.Timestamp('2000-01-01')
+
         result['yields'] = {}
         for name, col in yield_cols.items():
             if col in df.columns:
                 series = df[col].ffill()
                 result['yields'][name] = clean_for_json(series)
-                # Calculate percentile (Lifetime Expanding)
-                result['yields'][f'{name}_pct'] = clean_for_json(rolling_percentile(series, min_periods=100, expanding=True))
-                # Calculate z-score (Lifetime Expanding for Structural comparison)
-                result['yields'][f'{name}_z'] = clean_for_json(calculate_zscore(series, min_periods=100, expanding=True))
+                
+                # Create stats context series (NaN before 2000 so expanding starts there)
+                stats_series = series.copy()
+                stats_series.loc[stats_series.index < stats_cutoff] = np.nan
+                
+                # Calculate percentile (Post-2000 Expanding)
+                result['yields'][f'{name}_pct'] = clean_for_json(rolling_percentile(stats_series, min_periods=100, expanding=True))
+                # Calculate z-score (Post-2000 Expanding)
+                result['yields'][f'{name}_z'] = clean_for_json(calculate_zscore(stats_series, min_periods=100, expanding=True))
         
         # Yield curves (spreads)
         result['curves'] = {}
@@ -74,10 +82,15 @@ class TreasuryDomain(BaseDomain):
                 spread = long_val - short_val
                 
                 result['curves'][name] = clean_for_json(spread)
-                # Calculate percentile (Lifetime Expanding)
-                result['curves'][f'{name}_pct'] = clean_for_json(rolling_percentile(spread, min_periods=100, expanding=True))
-                # Calculate z-score (Lifetime Expanding)
-                result['curves'][f'{name}_z'] = clean_for_json(calculate_zscore(spread, min_periods=100, expanding=True))
+                
+                # Apply same 2000 cutoff for curve stats
+                stats_series = spread.copy()
+                stats_series.loc[stats_series.index < stats_cutoff] = np.nan
+                
+                # Calculate percentile (Post-2000 Expanding)
+                result['curves'][f'{name}_pct'] = clean_for_json(rolling_percentile(stats_series, min_periods=100, expanding=True))
+                # Calculate z-score (Post-2000 Expanding)
+                result['curves'][f'{name}_z'] = clean_for_json(calculate_zscore(stats_series, min_periods=100, expanding=True))
         
         # Corporate spreads (Moody's)
         if 'BAA_YIELD' in df.columns and 'AAA_YIELD' in df.columns:

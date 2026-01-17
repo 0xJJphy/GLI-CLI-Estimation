@@ -266,12 +266,15 @@ class USSystemDomain(BaseDomain):
         rrp_award = df['RRP_AWARD'].ffill() if 'RRP_AWARD' in df.columns else pd.Series(0.0, index=df.index)
         repo_spread = sofr - iorb
         
+        srf_usage = df['SRF_USAGE'].ffill() if 'SRF_USAGE' in df.columns else pd.Series(0.0, index=df.index)
+
         result['repo_stress'] = {
             'total': clean_for_json(repo_spread), # Main spread value
             'sofr': clean_for_json(sofr),
             'iorb': clean_for_json(iorb),
             'srf_rate': clean_for_json(srf_rate),
             'rrp_award': clean_for_json(rrp_award),
+            'srf_usage': clean_for_json(srf_usage),  # Added per user request/frontend need
             'z_score': clean_for_json(self._calc_zscore(repo_spread, 252))
         }
         
