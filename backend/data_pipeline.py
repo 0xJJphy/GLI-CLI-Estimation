@@ -5005,6 +5005,14 @@ def run_pipeline():
             if not fng_series.empty:
                 df_hybrid_t['FEAR_GREED'] = fng_series.reindex(df_hybrid_t.index).ffill()
         
+        # Calculate FX Volatility from DXY (realized vol, annualized) if not already present
+        # EVZ was discontinued Jan 2025, so we compute realized vol from DXY
+        if 'FX_VOL' not in df_hybrid_t.columns and 'DXY' in df_hybrid_t.columns:
+            dxy_series = df_hybrid_t['DXY'].ffill()
+            if dxy_series.notna().sum() > 20:
+                dxy_returns = np.log(dxy_series).diff()
+                df_hybrid_t['FX_VOL'] = dxy_returns.rolling(21, min_periods=10).std() * np.sqrt(252) * 100
+        
         orchestrator = create_orchestrator(OUTPUT_DIR)
         orchestrator.run(df_hybrid_t, generate_legacy=False) # Skip legacy for now as it's done above
         print("  -> Modular domain files saved to backend/data/domains/")
