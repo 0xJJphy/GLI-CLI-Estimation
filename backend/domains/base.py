@@ -115,15 +115,22 @@ def rolling_percentile(series: pd.Series, window: int = 252 * 5, min_periods: in
         return pd.Series(dtype=float)
     
     def percentile_rank(arr):
-        if len(arr) < min_periods:
+        # Filter NaNs for accurate ranking in expanding windows with gaps
+        valid = arr[~np.isnan(arr)]
+        if len(valid) < min_periods:
             return np.nan
+        
         current = arr[-1]
         if np.isnan(current):
             return np.nan
-        # Rank logic: percent of values less than current
-        return (arr[:-1] < current).sum() / (len(arr) - 1) * 100
+            
+        # Rank logic: percent of VALID values less than current
+        # Note: valid includes current. We compare current to all valid history.
+        return (valid < current).sum() / (len(valid) - 1) * 100 if len(valid) > 1 else np.nan
     
     if expanding:
+        # For expanding, we need row-wise apply to handle growing history correctly
+        # raw=True passes numpy array which is faster
         return series.expanding(min_periods=min_periods).apply(percentile_rank, raw=True)
     else:
         return series.rolling(window, min_periods=min_periods).apply(percentile_rank, raw=True)
