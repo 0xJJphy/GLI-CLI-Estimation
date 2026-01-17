@@ -3877,6 +3877,8 @@
             {darkMode}
             cardId="credit_spreads"
             lastDate={getLastDate("HY_SPREAD")}
+            range={creditSpreadsRange}
+            onRangeChange={(r) => (creditSpreadsRange = r)}
         >
             <svelte:fragment slot="controls">
                 <div class="mode-selector">
