@@ -99,7 +99,7 @@ class TreasuryDomain(BaseDomain):
             result['corporate'] = {
                 'baa_yield': clean_for_json(baa),
                 'aaa_yield': clean_for_json(aaa),
-                'baa_aaa_spread': clean_for_json(baa - aaa)
+                'baa_aaa_spread': clean_for_json((baa - aaa) * 100)
             }
         
         # Treasury Maturities (actual data, not just reference)
