@@ -765,11 +765,21 @@ def calculate_stress_historical(
     
     credit_score = pd.Series(0.0, index=idx)
     
+    # HY Spread Normalization (expects BPS for thresholds)
+    hy_bps = hy_spread.copy()
+    mask_hy_pct = (hy_bps < 40)  # Assume < 40 is % (e.g. 5.0 %), typical HY is > 200bps
+    hy_bps.loc[mask_hy_pct] = hy_bps.loc[mask_hy_pct] * 100
+    
+    # IG Spread Normalization
+    ig_bps = ig_spread.copy()
+    mask_ig_pct = (ig_bps < 20)
+    ig_bps.loc[mask_ig_pct] = ig_bps.loc[mask_ig_pct] * 100
+
     # HY > 500bps = +2, > 400bps = +1
-    credit_score += np.where(hy_spread > 500, 2, np.where(hy_spread > 400, 1, 0))
+    credit_score += np.where(hy_bps > 500, 2, np.where(hy_bps > 400, 1, 0))
     
     # IG > 150bps = +1
-    credit_score += np.where(ig_spread > 150, 1, 0)
+    credit_score += np.where(ig_bps > 150, 1, 0)
     
     # NFCI > 0.5 = +2, > 0 = +1
     credit_score += np.where(nfci > 0.5, 2, np.where(nfci > 0, 1, 0))
