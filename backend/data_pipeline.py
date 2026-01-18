@@ -4651,7 +4651,7 @@ def run_pipeline():
             # Corporate Bond Yields (Moody's)
             'baa_yield': clean_for_json(df_t.get('BAA_YIELD', pd.Series(dtype=float))),
             'aaa_yield': clean_for_json(df_t.get('AAA_YIELD', pd.Series(dtype=float))),
-            'baa_aaa_spread': clean_for_json(df_t.get('BAA_YIELD', 0) - df_t.get('AAA_YIELD', 0)),
+            'baa_aaa_spread': clean_for_json((df_t.get('BAA_YIELD', pd.Series(dtype=float)) - df_t.get('AAA_YIELD', pd.Series(dtype=float))) * 100),
             # Crypto Narratives & Market Regimes
             'crypto_narratives': {
                 'regimes': clean_for_json(crypto_analytics['regime']),
