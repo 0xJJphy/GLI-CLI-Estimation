@@ -3715,12 +3715,12 @@
                             ? 'rgba(255, 255, 255, 0.08)'
                             : 'rgba(0, 0, 0, 0.1)'};"
                     >
-                        <div class="signal-header">YIELD CURVE SIGNAL</div>
+                        <div class="signal-header">10Y-2Y RECESSION SIGNAL</div>
                         <div class="signal-badge-row">
                             <SignalBadge
                                 state={yieldCurveRegime.state}
                                 label={yieldCurveRegime.label}
-                                value={`${((yieldCurveRegime.value ?? 0) * 100).toFixed(0)} bps`}
+                                value={`${((yieldCurveRegime.value ?? getLatestValue(riskData.yield_curve_10y_2y) ?? 0) * 100).toFixed(0)} bps`}
                             />
                         </div>
                         <div class="signal-desc">
@@ -3826,7 +3826,9 @@
                                 ? 'rgba(255, 255, 255, 0.08)'
                                 : 'rgba(0, 0, 0, 0.1)'};"
                         >
-                            <div class="signal-header">CURVE SIGNAL</div>
+                            <div class="signal-header">
+                                30Y-10Y CURVE SIGNAL
+                            </div>
                             <div class="signal-badge-row">
                                 <SignalBadge
                                     state={curveRegime.class}
@@ -3939,7 +3941,7 @@
                                 ? 'rgba(255, 255, 255, 0.08)'
                                 : 'rgba(0, 0, 0, 0.1)'};"
                         >
-                            <div class="signal-header">CURVE SIGNAL</div>
+                            <div class="signal-header">30Y-2Y CURVE SIGNAL</div>
                             <div class="signal-badge-row">
                                 <SignalBadge
                                     state={curveRegime.class}
@@ -4300,7 +4302,9 @@
                                 ? 'rgba(255, 255, 255, 0.08)'
                                 : 'rgba(0, 0, 0, 0.1)'};"
                         >
-                            <div class="signal-header">STRESS SIGNAL</div>
+                            <div class="signal-header">
+                                ST. LOUIS STRESS SIGNAL
+                            </div>
                             <div class="signal-badge-row">
                                 <SignalBadge
                                     {state}
@@ -4414,7 +4418,7 @@
                                 ? 'rgba(255, 255, 255, 0.08)'
                                 : 'rgba(0, 0, 0, 0.1)'};"
                         >
-                            <div class="signal-header">STRESS SIGNAL</div>
+                            <div class="signal-header">KCFSI STRESS SIGNAL</div>
                             <div class="signal-badge-row">
                                 <SignalBadge
                                     {state}
