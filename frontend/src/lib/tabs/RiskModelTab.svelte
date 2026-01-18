@@ -1673,18 +1673,21 @@
                 value: (getLatestValue(riskData.tips?.breakeven) ?? 0).toFixed(
                     2,
                 ),
+                _color: "#f59e0b",
             },
             {
                 label: "10Y Real Rate (%)",
                 value: (getLatestValue(riskData.tips?.real_rate) ?? 0).toFixed(
                     2,
                 ),
+                _color: "#3b82f6",
             },
             {
                 label: "5Y5Y Forward (%)",
                 value: (getLatestValue(riskData.tips?.fwd_5y5y) ?? 0).toFixed(
                     2,
                 ),
+                _color: "#10b981",
             },
         ];
     })();
@@ -1837,29 +1840,34 @@
     $: creditSpreadsTableRows = (() => {
         const hyVal = getLatestValue(riskData.hy_spread);
         const igVal = getLatestValue(riskData.ig_spread);
+
+        // Normalize to bps if value is likely percentage (e.g. 3.5 -> 350)
+        const hyBps = hyVal && hyVal < 20 ? hyVal * 100 : hyVal;
+        const igBps = igVal && igVal < 10 ? igVal * 100 : igVal;
+
         const hyStress =
-            hyVal > 500
+            hyBps > 500
                 ? "🔴 Stress"
-                : hyVal > 400
+                : hyBps > 400
                   ? "🔶 Elevated"
                   : "✅ Normal";
         const igStress =
-            igVal > 150
+            igBps > 150
                 ? "🔴 Stress"
-                : igVal > 120
+                : igBps > 120
                   ? "🔶 Elevated"
                   : "✅ Normal";
 
         return [
             {
                 label: "HY Spread",
-                value: hyVal ? `${hyVal.toFixed(0)} bps` : "N/A",
+                value: hyBps ? `${hyBps.toFixed(0)} bps` : "N/A",
                 status: hyStress,
                 _color: "#ef4444",
             },
             {
                 label: "IG Spread",
-                value: igVal ? `${igVal.toFixed(0)} bps` : "N/A",
+                value: igBps ? `${igBps.toFixed(0)} bps` : "N/A",
                 status: igStress,
                 _color: "#38bdf8",
             },
@@ -3747,6 +3755,7 @@
                     <SignalTable
                         columns={yieldCurveTableColumns}
                         rows={yieldCurveTableRows}
+                        showHeader={true}
                         {darkMode}
                     />
                     <div
@@ -4545,13 +4554,7 @@
             </svelte:fragment>
 
             <svelte:fragment slot="signal">
-                {#if signalsFromMetrics.baa_aaa_spread?.latest}
-                    {@const s = signalsFromMetrics.baa_aaa_spread.latest}
-                    <SignalBadge
-                        state={s.state}
-                        label="Credit Quality Signal"
-                    />
-                {/if}
+                <!-- Header Signal Removed -->
             </svelte:fragment>
 
             <svelte:fragment slot="chart">
@@ -4587,6 +4590,7 @@
                 {#if getLatestValue(riskData.corporate?.baa_aaa_spread) !== null}
                     {@const val =
                         getLatestValue(riskData.corporate?.baa_aaa_spread) ?? 0}
+                    {@const valBps = val < 10 ? val * 100 : val}
                     {@const state = val > 1.2 ? "bearish" : "bullish"}
                     <div
                         class="footer-signal-block"
@@ -4603,7 +4607,7 @@
                             <SignalBadge
                                 {state}
                                 label="Spread"
-                                value={`${(val * 100).toFixed(0)} bps`}
+                                value={`${valBps.toFixed(0)} bps`}
                             />
                         </div>
                         <div class="signal-desc">
