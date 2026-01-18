@@ -1758,21 +1758,32 @@
     ];
 
     $: yieldCurve3010TableRows = (() => {
-        if (!signalsFromMetrics.yield_curve_30y_10y?.latest) return [];
-        const s = signalsFromMetrics.yield_curve_30y_10y.latest;
-        const lastSpread = s.value;
-        const prevSpread =
-            riskData.yield_curve_30y_10y?.[
-                riskData.yield_curve_30y_10y?.length - 22
-            ] ?? lastSpread;
-        const spreadChange = lastSpread - prevSpread;
+        const s = signalsFromMetrics.yield_curve_30y_10y?.latest;
+        let lastSpread, prevSpread, percentile;
+
+        if (s) {
+            lastSpread = s.value;
+            prevSpread =
+                riskData.yield_curve_30y_10y?.[
+                    riskData.yield_curve_30y_10y?.length - 22
+                ] ?? lastSpread;
+            percentile = s.percentile;
+        } else {
+            // Fallback calculation using raw data
+            lastSpread = getLatestValue(riskData.yield_curve_30y_10y) ?? 0;
+            const arr = riskData.yield_curve_30y_10y || [];
+            prevSpread = arr.length > 22 ? arr[arr.length - 22] : lastSpread;
+            percentile = 50; // Default or could use getLatestValue(riskData.signal_metrics?.yield_curve_30y_10y?.percentile) if available
+        }
+
+        const spreadChange = (lastSpread ?? 0) - (prevSpread ?? 0);
 
         return [
             {
                 label: "30Y-10Y Spread",
-                value: s.value?.toFixed(2),
+                value: (lastSpread ?? 0).toFixed(2),
                 delta: (spreadChange >= 0 ? "+" : "") + spreadChange.toFixed(2),
-                pct: `P${s.percentile?.toFixed(0)}`,
+                pct: `P${percentile?.toFixed(0) ?? 50}`,
             },
         ];
     })();
@@ -1786,21 +1797,32 @@
     ];
 
     $: yieldCurve302TableRows = (() => {
-        if (!signalsFromMetrics.yield_curve_30y_2y?.latest) return [];
-        const s = signalsFromMetrics.yield_curve_30y_2y.latest;
-        const lastSpread = s.value;
-        const prevSpread =
-            riskData.yield_curve_30y_2y?.[
-                riskData.yield_curve_30y_2y?.length - 22
-            ] ?? lastSpread;
-        const spreadChange = lastSpread - prevSpread;
+        const s = signalsFromMetrics.yield_curve_30y_2y?.latest;
+        let lastSpread, prevSpread, percentile;
+
+        if (s) {
+            lastSpread = s.value;
+            prevSpread =
+                riskData.yield_curve_30y_2y?.[
+                    riskData.yield_curve_30y_2y?.length - 22
+                ] ?? lastSpread;
+            percentile = s.percentile;
+        } else {
+            // Fallback calculation using raw data
+            lastSpread = getLatestValue(riskData.yield_curve_30y_2y) ?? 0;
+            const arr = riskData.yield_curve_30y_2y || [];
+            prevSpread = arr.length > 22 ? arr[arr.length - 22] : lastSpread;
+            percentile = 50;
+        }
+
+        const spreadChange = (lastSpread ?? 0) - (prevSpread ?? 0);
 
         return [
             {
                 label: "30Y-2Y Spread",
-                value: s.value?.toFixed(2),
+                value: (lastSpread ?? 0).toFixed(2),
                 delta: (spreadChange >= 0 ? "+" : "") + spreadChange.toFixed(2),
-                pct: `P${s.percentile?.toFixed(0)}`,
+                pct: `P${percentile?.toFixed(0) ?? 50}`,
             },
         ];
     })();
@@ -3272,34 +3294,7 @@
                         showHeader
                         {darkMode}
                     />
-                    <div class="footer-signal-block">
-                        <div class="signal-header">REPO MARKET STATUS</div>
-                        <div class="signal-badge-row">
-                            {#if latestSrfUsage > 1}
-                                <SignalBadge
-                                    state="bearish"
-                                    value={`$${latestSrfUsage.toFixed(1)}B`}
-                                    label="SRF Usage"
-                                />
-                            {/if}
-                            <SignalBadge
-                                state={corridorStressLevel === "NORMAL"
-                                    ? "bullish"
-                                    : corridorStressLevel === "ELEVATED"
-                                      ? "warning"
-                                      : "bearish"}
-                                value={corridorStressLevel}
-                                label="Status"
-                            />
-                        </div>
-                        <div class="signal-desc">
-                            {corridorStressLevel === "HIGH"
-                                ? "Critical: SOFR near ceiling or significant SRF usage."
-                                : corridorStressLevel === "ELEVATED"
-                                  ? "Warning: Rates drifting higher within corridor."
-                                  : "Normal: SOFR trading comfortably within floor/ceiling."}
-                        </div>
-                    </div>
+                    <!-- Redundant Footer Signal Block Removed -->
                 </div>
             </svelte:fragment>
         </ChartCardV2>
@@ -3844,7 +3839,7 @@
                     <SignalTable
                         columns={yieldCurve3010TableColumns}
                         rows={yieldCurve3010TableRows}
-                        showHeader
+                        showHeader={true}
                         {darkMode}
                     />
                     {#if riskData.yield_curve_30y_10y?.length > 0}
@@ -4589,6 +4584,35 @@
 
             <svelte:fragment slot="footer">
                 <!-- SignalTable Removed (Redundant) -->
+                {#if getLatestValue(riskData.corporate?.baa_aaa_spread) !== null}
+                    {@const val =
+                        getLatestValue(riskData.corporate?.baa_aaa_spread) ?? 0}
+                    {@const state = val > 1.2 ? "bearish" : "bullish"}
+                    <div
+                        class="footer-signal-block"
+                        style="background: {darkMode
+                            ? 'rgba(255, 255, 255, 0.03)'
+                            : 'rgba(0, 0, 0, 0.05)'}; border-color: {darkMode
+                            ? 'rgba(255, 255, 255, 0.08)'
+                            : 'rgba(0, 0, 0, 0.1)'};"
+                    >
+                        <div class="signal-header">
+                            CALIDAD CREDITICIA (BAA-AAA)
+                        </div>
+                        <div class="signal-badge-row">
+                            <SignalBadge
+                                {state}
+                                label="Spread"
+                                value={`${(val * 100).toFixed(0)} bps`}
+                            />
+                        </div>
+                        <div class="signal-desc">
+                            {state === "bearish"
+                                ? "Expanding spreads signal credit deterioration."
+                                : "Tight spreads signal healthy credit markets."}
+                        </div>
+                    </div>
+                {/if}
             </svelte:fragment>
         </ChartCardV2>
 
