@@ -120,10 +120,10 @@ class CLIDomain(BaseDomain):
         result['v2_total'] = clean_for_json(cli_v2_df['CLI_V2'])
         result['v2_percentile'] = clean_for_json(cli_v2_df['CLI_V2_PERCENTILE'])
         
-        # Raw component values
+        # Raw component values (Normalized to BPS where applicable)
         result['raw'] = {
-            'hy_spread': clean_for_json(components['hy_spread'].ffill()),
-            'ig_spread': clean_for_json(components['ig_spread'].ffill()),
+            'hy_spread': clean_for_json(components['hy_spread'].ffill() * 100),   # Convert % to BPS
+            'ig_spread': clean_for_json(components['ig_spread'].ffill() * 100),   # Convert % to BPS
             'nfci_credit': clean_for_json(components['nfci_credit'].ffill()),
             'nfci_risk': clean_for_json(components['nfci_risk'].ffill()),
             'lending_std': clean_for_json(components['lending_std'].ffill()),

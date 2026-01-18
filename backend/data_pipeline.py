@@ -4633,8 +4633,8 @@ def run_pipeline():
                 'total': clean_for_json(df_t.get('FX_VOL', pd.Series(dtype=float))),
                 'rocs': {k: clean_for_json(v) for k, v in fx_vol_rocs.items()}
             },
-            'hy_spread': clean_for_json(df_t['HY_SPREAD']),
-            'ig_spread': clean_for_json(df_t['IG_SPREAD']),
+            'hy_spread': clean_for_json(df_t['HY_SPREAD'] * 100),
+            'ig_spread': clean_for_json(df_t['IG_SPREAD'] * 100),
             # Treasury Yields for stress analysis
             'treasury_30y': clean_for_json(df_t.get('TREASURY_30Y_YIELD', pd.Series(dtype=float))),
             'treasury_10y': clean_for_json(df_t.get('TREASURY_10Y_YIELD', pd.Series(dtype=float))),

@@ -1842,8 +1842,8 @@
         const igVal = getLatestValue(riskData.ig_spread);
 
         // Normalize to bps if value is likely percentage (e.g. 3.5 -> 350)
-        const hyBps = hyVal && hyVal < 20 ? hyVal * 100 : hyVal;
-        const igBps = igVal && igVal < 10 ? igVal * 100 : igVal;
+        const hyBps = hyVal;
+        const igBps = igVal;
 
         const hyStress =
             hyBps > 500
