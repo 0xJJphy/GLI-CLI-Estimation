@@ -3008,30 +3008,45 @@
 
             <!-- Footer Slot -->
             <svelte:fragment slot="footer">
-                {#if signalsFromMetrics.cli?.latest}
-                    {@const s = signalsFromMetrics.cli.latest}
-                    <div class="footer-signal-block">
+                {#if getLatestValue(riskData.cli?.total) !== null}
+                    {@const val = getLatestValue(riskData.cli?.total) ?? 0}
+                    {@const z =
+                        getLatestValue(riskData.signal_metrics?.cli?.zscore) ??
+                        val}
+                    {@const pct =
+                        getLatestValue(
+                            riskData.signal_metrics?.cli?.percentile,
+                        ) ?? 50}
+                    <div
+                        class="footer-signal-block"
+                        style="background: {darkMode
+                            ? 'rgba(255, 255, 255, 0.03)'
+                            : 'rgba(0, 0, 0, 0.05)'}; border-color: {darkMode
+                            ? 'rgba(255, 255, 255, 0.08)'
+                            : 'rgba(0, 0, 0, 0.1)'};"
+                    >
                         <div class="signal-header">SIGNAL STATUS</div>
                         <div class="signal-badge-row">
                             <SignalBadge
-                                state={s.state}
-                                value={s.value?.toFixed(2)}
-                                label={s.label || "Stance"}
+                                state={z > 0.5
+                                    ? "bullish"
+                                    : z < -0.5
+                                      ? "bearish"
+                                      : "neutral"}
+                                value={cliViewMode === "raw"
+                                    ? val?.toFixed(2)
+                                    : `P${pct?.toFixed(0)}`}
+                                label={cliViewMode === "raw"
+                                    ? "Index"
+                                    : "Percentile"}
                             />
-                            <!-- Percentile display -->
-                            <div
-                                style="font-size: 13px; font-weight: 500; margin-left: auto;"
-                            >
-                                <span
-                                    >{translations.percentile ||
-                                        "Percentile"}</span
-                                >
-                                <span>P{s.percentile?.toFixed(0) ?? "N/A"}</span
-                                >
-                            </div>
                         </div>
                         <div class="signal-desc">
-                            {s.desc || s.reason || "—"}
+                            {z > 0.5
+                                ? "Easier Credit Conditions (Supportive)."
+                                : z < -0.5
+                                  ? "Tighter Credit Conditions (Stress)."
+                                  : "Neutral Credit Conditions."}
                         </div>
                     </div>
                 {/if}
@@ -3692,13 +3707,20 @@
                         rows={yieldCurveTableRows}
                         {darkMode}
                     />
-                    <div class="footer-signal-block">
+                    <div
+                        class="footer-signal-block"
+                        style="background: {darkMode
+                            ? 'rgba(255, 255, 255, 0.03)'
+                            : 'rgba(0, 0, 0, 0.05)'}; border-color: {darkMode
+                            ? 'rgba(255, 255, 255, 0.08)'
+                            : 'rgba(0, 0, 0, 0.1)'};"
+                    >
                         <div class="signal-header">YIELD CURVE SIGNAL</div>
                         <div class="signal-badge-row">
                             <SignalBadge
                                 state={yieldCurveRegime.state}
-                                value={yieldCurveRegime.label}
-                                label="Regime"
+                                label={yieldCurveRegime.label}
+                                value={`${((yieldCurveRegime.value ?? 0) * 100).toFixed(0)} bps`}
                             />
                         </div>
                         <div class="signal-desc">
@@ -3796,13 +3818,20 @@
                             spreadChange,
                             rateChange,
                         )}
-                        <div class="footer-signal-block">
+                        <div
+                            class="footer-signal-block"
+                            style="background: {darkMode
+                                ? 'rgba(255, 255, 255, 0.03)'
+                                : 'rgba(0, 0, 0, 0.05)'}; border-color: {darkMode
+                                ? 'rgba(255, 255, 255, 0.08)'
+                                : 'rgba(0, 0, 0, 0.1)'};"
+                        >
                             <div class="signal-header">CURVE SIGNAL</div>
                             <div class="signal-badge-row">
                                 <SignalBadge
                                     state={curveRegime.class}
                                     label={curveRegime.label}
-                                    value={lastSpread.toFixed(2)}
+                                    value={`${(lastSpread * 100).toFixed(0)} bps`}
                                 />
                             </div>
                             <div class="signal-desc">
@@ -3902,13 +3931,20 @@
                             spreadChange,
                             rateChange,
                         )}
-                        <div class="footer-signal-block">
+                        <div
+                            class="footer-signal-block"
+                            style="background: {darkMode
+                                ? 'rgba(255, 255, 255, 0.03)'
+                                : 'rgba(0, 0, 0, 0.05)'}; border-color: {darkMode
+                                ? 'rgba(255, 255, 255, 0.08)'
+                                : 'rgba(0, 0, 0, 0.1)'};"
+                        >
                             <div class="signal-header">CURVE SIGNAL</div>
                             <div class="signal-badge-row">
                                 <SignalBadge
                                     state={curveRegime.class}
                                     label={curveRegime.label}
-                                    value={lastSpread.toFixed(2)}
+                                    value={`${(lastSpread * 100).toFixed(0)} bps`}
                                 />
                             </div>
                             <div class="signal-desc">
@@ -3976,6 +4012,35 @@
                     showHeader
                     {darkMode}
                 />
+                {#if getLatestValue(riskData.corporate?.baa_aaa_spread) !== null}
+                    {@const val =
+                        getLatestValue(riskData.corporate?.baa_aaa_spread) ?? 0}
+                    {@const state = val > 1.2 ? "bearish" : "bullish"}
+                    <div
+                        class="footer-signal-block"
+                        style="background: {darkMode
+                            ? 'rgba(255, 255, 255, 0.03)'
+                            : 'rgba(0, 0, 0, 0.05)'}; border-color: {darkMode
+                            ? 'rgba(255, 255, 255, 0.08)'
+                            : 'rgba(0, 0, 0, 0.1)'};"
+                    >
+                        <div class="signal-header">
+                            CALIDAD CREDITICIA (BAA-AAA)
+                        </div>
+                        <div class="signal-badge-row">
+                            <SignalBadge
+                                {state}
+                                label="Spread"
+                                value={`${(val * 100).toFixed(0)} bps`}
+                            />
+                        </div>
+                        <div class="signal-desc">
+                            {state === "bearish"
+                                ? "Expanding spreads signal credit deterioration."
+                                : "Tight spreads signal healthy credit markets."}
+                        </div>
+                    </div>
+                {/if}
             </svelte:fragment>
         </ChartCardV2>
 
@@ -4219,21 +4284,36 @@
                         showHeader
                         {darkMode}
                     />
-                    {#if signalsFromMetrics.st_louis_stress?.latest}
-                        {@const s = signalsFromMetrics.st_louis_stress.latest}
-                        <div class="footer-signal-block">
+                    {#if getLatestValue(riskData.signal_metrics?.st_louis_stress?.raw) !== null || getLatestValue(riskData.st_louis_stress) !== null}
+                        {@const val =
+                            getLatestValue(
+                                riskData.signal_metrics?.st_louis_stress?.raw,
+                            ) ??
+                            getLatestValue(riskData.st_louis_stress) ??
+                            0}
+                        {@const state = val > 0 ? "bearish" : "bullish"}
+                        <div
+                            class="footer-signal-block"
+                            style="background: {darkMode
+                                ? 'rgba(255, 255, 255, 0.03)'
+                                : 'rgba(0, 0, 0, 0.05)'}; border-color: {darkMode
+                                ? 'rgba(255, 255, 255, 0.08)'
+                                : 'rgba(0, 0, 0, 0.1)'};"
+                        >
                             <div class="signal-header">STRESS SIGNAL</div>
                             <div class="signal-badge-row">
                                 <SignalBadge
-                                    state={s.state}
-                                    label={s.label || "Status"}
-                                    value={s.value?.toFixed(2)}
+                                    {state}
+                                    label={state === "bearish"
+                                        ? "ELEVATED"
+                                        : "NORMAL"}
+                                    value={val?.toFixed(2)}
                                 />
                             </div>
                             <div class="signal-desc">
-                                {s.desc ||
-                                    s.reason ||
-                                    "Financial stress index status."}
+                                {state === "bearish"
+                                    ? "Financial stress is above average."
+                                    : "Financial stress is below average (Normal)."}
                             </div>
                         </div>
                     {/if}
@@ -4317,22 +4397,37 @@
                         showHeader
                         {darkMode}
                     />
-                    {#if signalsFromMetrics.kansas_city_stress?.latest}
-                        {@const s =
-                            signalsFromMetrics.kansas_city_stress.latest}
-                        <div class="footer-signal-block">
+                    {#if getLatestValue(riskData.signal_metrics?.kansas_city_stress?.raw) !== null || getLatestValue(riskData.kansas_city_stress) !== null}
+                        {@const val =
+                            getLatestValue(
+                                riskData.signal_metrics?.kansas_city_stress
+                                    ?.raw,
+                            ) ??
+                            getLatestValue(riskData.kansas_city_stress) ??
+                            0}
+                        {@const state = val > 0 ? "bearish" : "bullish"}
+                        <div
+                            class="footer-signal-block"
+                            style="background: {darkMode
+                                ? 'rgba(255, 255, 255, 0.03)'
+                                : 'rgba(0, 0, 0, 0.05)'}; border-color: {darkMode
+                                ? 'rgba(255, 255, 255, 0.08)'
+                                : 'rgba(0, 0, 0, 0.1)'};"
+                        >
                             <div class="signal-header">STRESS SIGNAL</div>
                             <div class="signal-badge-row">
                                 <SignalBadge
-                                    state={s.state}
-                                    label={s.label || "Status"}
-                                    value={s.value?.toFixed(2)}
+                                    {state}
+                                    label={state === "bearish"
+                                        ? "ELEVATED"
+                                        : "NORMAL"}
+                                    value={val?.toFixed(2)}
                                 />
                             </div>
                             <div class="signal-desc">
-                                {s.desc ||
-                                    s.reason ||
-                                    "Financial stress index status."}
+                                {state === "bearish"
+                                    ? "Financial stress is above average."
+                                    : "Financial stress is below average (Normal)."}
                             </div>
                         </div>
                     {/if}

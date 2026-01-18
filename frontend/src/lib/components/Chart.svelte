@@ -58,6 +58,7 @@
             },
             annotations: [],
             images: [],
+            showlegend: true,
         };
 
         if (watermarkVisible) {
