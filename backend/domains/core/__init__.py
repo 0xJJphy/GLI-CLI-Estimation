@@ -277,6 +277,24 @@ class USSystemDomain(BaseDomain):
             'srf_usage': clean_for_json(srf_usage),  # Added per user request/frontend need
             'z_score': clean_for_json(self._calc_zscore(repo_spread, 252))
         }
+
+        # --- PHASE 2: SIGNAL MIGRATION ---
+        result['signals'] = {} # Initialize signals dict
+        
+        # Repo Stress Signal
+        if 'SOFR' in df.columns:
+            sofr = df['SOFR'].ffill() if 'SOFR' in df.columns else pd.Series(0.0, index=df.index)
+            iorb = df['IORB'].ffill() if 'IORB' in df.columns else pd.Series(0.0, index=df.index)
+            srf_rate = df['SRF_RATE'].ffill() if 'SRF_RATE' in df.columns else pd.Series(0.0, index=df.index)
+            srf_usage = df['SRF_USAGE'].ffill() if 'SRF_USAGE' in df.columns else pd.Series(0.0, index=df.index)
+
+            repo_cols = {
+                'sofr': sofr,
+                'iorb': iorb,
+                'srf_rate': srf_rate,
+                'srf_usage': srf_usage
+            }
+            result['signals']['repo'] = self._calc_repo_stress(repo_cols)
         
         # Financial Stress Indices
         # St. Louis Fed Financial Stress Index (ST_LOUIS_STRESS)
@@ -298,6 +316,47 @@ class USSystemDomain(BaseDomain):
             }
         
         return result
+
+    def _calc_repo_stress(self, cols: Dict[str, pd.Series]) -> Dict[str, Any]:
+        """
+        Calculate Repo Market Stress based on Fed Rate Corridor.
+        
+        Logic:
+        - HIGH: SRF Usage > $1B (Banks tapping backstop) OR SOFR within 5bps of Ceiling.
+        - ELEVATED: SOFR > 10bps above IORB Floor OR SOFR within 10bps of Ceiling.
+        - NORMAL: SOFR trading near IORB (±5bps) with headroom.
+        """
+        sofr = cols['sofr']
+        iorb = cols['iorb']
+        srf_rate = cols['srf_rate']
+        srf_usage = cols['srf_usage']
+        
+        if sofr is None or iorb is None:
+            return {'state': 'neutral', 'value': 0, 'label': 'NO DATA'}
+            
+        last_sofr = sofr.iloc[-1]
+        last_iorb = iorb.iloc[-1]
+        
+        # Defaults if missing
+        last_srf_rate = srf_rate.iloc[-1] if not srf_rate.empty else 999.0
+        last_srf_usage = srf_usage.iloc[-1] if not srf_usage.empty else 0.0
+        
+        # Calculate spreads in bps
+        spread_to_floor = (last_sofr - last_iorb) * 100
+        spread_to_ceiling = (last_srf_rate - last_sofr) * 100
+        
+        # Stress Logic
+        if last_srf_usage > 1.0 or spread_to_ceiling < 5.0:
+            return {'state': 'bearish', 'label': 'HIGH STRESS', 'value': float(last_srf_usage), 'desc': 'SRF Usage / Ceiling Breach'}
+            
+        if spread_to_floor > 10.0 or spread_to_ceiling < 10.0:
+            return {'state': 'warning', 'label': 'ELEVATED', 'value': float(spread_to_floor), 'desc': 'SOFR drifting high'}
+            
+        if spread_to_floor < -5.0:
+            return {'state': 'neutral', 'label': 'EXCESS LIQ', 'value': float(spread_to_floor), 'desc': 'SOFR below IORB'}
+            
+        return {'state': 'bullish', 'label': 'NORMAL', 'value': float(spread_to_floor), 'desc': 'Inside Corridor'}
+
 
 
 class M2Domain(BaseDomain):

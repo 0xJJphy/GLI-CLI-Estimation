@@ -777,45 +777,55 @@ export async function loadRiskModelTabData(legacyData) {
                 hy_spread: {
                     raw: cli.raw?.hy_spread || alignToShared(legacyData?.signal_metrics?.hy_spread?.raw || legacyData?.hy_spread),
                     percentile: cli.components?.hy_spread_pct || alignToShared(legacyData?.signal_metrics?.hy_spread?.percentile),
-                    zscore: cli.components?.hy_spread_z || alignToShared(legacyData?.signal_metrics?.hy_spread?.zscore)
+                    zscore: cli.components?.hy_spread_z || alignToShared(legacyData?.signal_metrics?.hy_spread?.zscore),
+                    // Phase 2: Signal
+                    latest: cli.signals?.hy_spread || legacyData?.signal_metrics?.hy_spread?.latest
                 },
                 ig_spread: {
                     raw: cli.raw?.ig_spread || alignToShared(legacyData?.signal_metrics?.ig_spread?.raw || legacyData?.ig_spread),
                     percentile: cli.components?.ig_spread_pct || alignToShared(legacyData?.signal_metrics?.ig_spread?.percentile),
-                    zscore: cli.components?.ig_spread_z || alignToShared(legacyData?.signal_metrics?.ig_spread?.zscore)
+                    zscore: cli.components?.ig_spread_z || alignToShared(legacyData?.signal_metrics?.ig_spread?.zscore),
+                    // Phase 2: Signal
+                    latest: cli.signals?.ig_spread || legacyData?.signal_metrics?.ig_spread?.latest
                 },
                 // NFCI components
                 nfci_credit: {
                     raw: cli.raw?.nfci_credit || alignToShared(legacyData?.signal_metrics?.nfci_credit?.raw),
                     percentile: cli.components?.nfci_credit_pct || alignToShared(legacyData?.signal_metrics?.nfci_credit?.percentile),
-                    zscore: cli.components?.nfci_credit_z || alignToShared(legacyData?.signal_metrics?.nfci_credit?.zscore)
+                    zscore: cli.components?.nfci_credit_z || alignToShared(legacyData?.signal_metrics?.nfci_credit?.zscore),
+                    latest: cli.signals?.nfci_credit || legacyData?.signal_metrics?.nfci_credit?.latest
                 },
                 nfci_risk: {
                     raw: cli.raw?.nfci_risk || alignToShared(legacyData?.signal_metrics?.nfci_risk?.raw),
                     percentile: cli.components?.nfci_risk_pct || alignToShared(legacyData?.signal_metrics?.nfci_risk?.percentile),
-                    zscore: cli.components?.nfci_risk_z || alignToShared(legacyData?.signal_metrics?.nfci_risk?.zscore)
+                    zscore: cli.components?.nfci_risk_z || alignToShared(legacyData?.signal_metrics?.nfci_risk?.zscore),
+                    latest: cli.signals?.nfci_risk || legacyData?.signal_metrics?.nfci_risk?.latest
                 },
                 // Lending
                 lending: {
                     raw: cli.raw?.lending_std || alignToShared(legacyData?.signal_metrics?.lending?.raw),
                     percentile: cli.components?.lending_std_pct || alignToShared(legacyData?.signal_metrics?.lending?.percentile),
-                    zscore: cli.components?.lending_std_z || alignToShared(legacyData?.signal_metrics?.lending?.zscore)
+                    zscore: cli.components?.lending_std_z || alignToShared(legacyData?.signal_metrics?.lending?.zscore),
+                    latest: cli.signals?.lending_std || legacyData?.signal_metrics?.lending?.latest
                 },
                 // Vol metrics
                 vix: {
                     raw: cli.raw?.vix || alignToShared(legacyData?.signal_metrics?.vix?.raw),
                     percentile: cli.components?.vix_pct || alignToShared(legacyData?.signal_metrics?.vix?.percentile),
-                    zscore: cli.components?.vix_z || alignToShared(legacyData?.signal_metrics?.vix?.zscore)
+                    zscore: cli.components?.vix_z || alignToShared(legacyData?.signal_metrics?.vix?.zscore),
+                    latest: cli.signals?.vix || legacyData?.signal_metrics?.vix?.latest
                 },
                 move: {
                     raw: cli.raw?.move || alignToShared(legacyData?.signal_metrics?.move?.raw),
                     percentile: cli.components?.move_pct || alignToShared(legacyData?.signal_metrics?.move?.percentile),
-                    zscore: cli.components?.move_z || alignToShared(legacyData?.signal_metrics?.move?.zscore)
+                    zscore: cli.components?.move_z || alignToShared(legacyData?.signal_metrics?.move?.zscore),
+                    latest: cli.signals?.move || legacyData?.signal_metrics?.move?.latest
                 },
                 fx_vol: {
                     raw: cli.raw?.fx_vol || alignToShared(legacyData?.signal_metrics?.fx_vol?.raw),
                     percentile: cli.components?.fx_vol_pct || alignToShared(legacyData?.signal_metrics?.fx_vol?.percentile),
-                    zscore: cli.components?.fx_vol_z || alignToShared(legacyData?.signal_metrics?.fx_vol?.zscore)
+                    zscore: cli.components?.fx_vol_z || alignToShared(legacyData?.signal_metrics?.fx_vol?.zscore),
+                    latest: cli.signals?.fx_vol || legacyData?.signal_metrics?.fx_vol?.latest
                 },
 
                 // Treasury Metrics
@@ -843,7 +853,9 @@ export async function loadRiskModelTabData(legacyData) {
                 yield_curve: {
                     raw: treasury.curves?.['10y_2y'] || alignToShared(legacyData?.signal_metrics?.yield_curve?.raw || legacyData?.yield_curve),
                     percentile: treasury.curves?.['10y_2y_p'] || treasury.curves?.['10y_2y_pct'] || alignToShared(legacyData?.signal_metrics?.yield_curve?.percentile),
-                    zscore: treasury.curves?.['10y_2y_z'] || alignToShared(legacyData?.signal_metrics?.yield_curve?.zscore)
+                    zscore: treasury.curves?.['10y_2y_z'] || alignToShared(legacyData?.signal_metrics?.yield_curve?.zscore),
+                    // Phase 2: Yield Curve Regime
+                    latest: treasury.signals?.yield_curve || legacyData?.signal_metrics?.yield_curve?.latest
                 },
                 yield_curve_30y_10y: {
                     raw: treasury.curves?.['30y_10y'] || alignToShared(legacyData?.signal_metrics?.yield_curve_30y_10y?.raw),
@@ -873,7 +885,17 @@ export async function loadRiskModelTabData(legacyData) {
                 // TIPS metrics  
                 tips_real_rate: alignSignalObj(legacyData?.signal_metrics?.tips_real_rate),
                 tips_breakeven: alignSignalObj(legacyData?.signal_metrics?.tips_breakeven),
-                tips: alignSignalObj(legacyData?.signal_metrics?.tips),
+                tips: {
+                    ...alignSignalObj(legacyData?.signal_metrics?.tips),
+                    // Phase 2: TIPS Regime
+                    latest: treasury.signals?.tips || legacyData?.signal_metrics?.tips?.latest
+                },
+                inflation: {
+                    latest: treasury.signals?.inflation || legacyData?.signal_metrics?.inflation?.latest
+                },
+                repo: {
+                    latest: us_system.signals?.repo || legacyData?.signal_metrics?.repo?.latest
+                },
                 // Labor metrics
                 nfp: alignSignalObj(legacyData?.signal_metrics?.nfp),
                 jolts: alignSignalObj(legacyData?.signal_metrics?.jolts),

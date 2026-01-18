@@ -148,4 +148,116 @@ class CLIDomain(BaseDomain):
         
         result['weights'] = weights
         
+        # --- PHASE 2: SIGNAL MIGRATION ---
+        result['signals'] = {} # Initialize signals dict
+
+        # Generate signals for each CLI component
+        # Using z_scores_inverted where High Z = Good (Bullish) and Low Z = Bad (Bearish)
+        for name, z_series in z_scores_inverted.items():
+            result['signals'][name] = self._calc_cli_signal(name, z_series)
+
         return result
+    
+    def _calc_cli_signal(self, name: str, z_series: pd.Series) -> Dict[str, Any]:
+        """
+        Calculate Signal State based on Z-Score with Rich Text.
+        Input z_series is already inverted so that High Z (>0) is Good/Bullish.
+        """
+        if z_series is None or z_series.empty:
+            return {'state': 'neutral', 'label': 'NO DATA', 'desc': 'Insufficient data', 'value': 0}
+            
+        last_z = z_series.iloc[-1]
+        
+        if pd.isna(last_z):
+            return {'state': 'neutral', 'label': 'NO DATA', 'desc': 'Data is NaN', 'value': 0}
+            
+        # 1. Determine State (Standard Normal - High is Good/Bullish)
+        state = 'neutral'
+        if last_z > 1.0:
+            state = 'bullish'
+        elif last_z > 0.5:
+             state = 'bullish' # Leaning Bullish
+        elif last_z < -1.5:
+            state = 'bearish'
+        elif last_z < -0.5:
+            state = 'warning'
+            
+        # 2. component-specific Text Configuration
+        # Keys: hy_spread, ig_spread, nfci_credit, nfci_risk, lending_std, vix, move, fx_vol
+        
+        # Default text
+        label = "NORMAL"
+        desc = "Metrics are within normal historical range."
+        
+        # Specific configurations
+        # Note: "Bullish" here means Positive Risk Sentiment (Low Stress)
+        # "Bearish" means Negative Risk Sentiment (High Stress)
+        
+        texts = {
+            'hy_spread': {
+                'bullish': ('RISK ON', 'High Yield spreads are tight, favoring risk assets.'),
+                'warning': ('CAUTION', 'Spreads are beginning to widen.'),
+                'bearish': ('STRESS', 'HY Spreads blowing out. Credit stress imminent.'),
+                'neutral': ('NORMAL', 'Spreads within normal regime.')
+            },
+            'ig_spread': {
+                'bullish': ('STABLE', 'Investment Grade credit is stable.'),
+                'warning': ('WIDENING', 'IG spreads showing some pressure.'),
+                'bearish': ('DISTRESS', 'Significant stress in high-grade credit.'),
+                'neutral': ('NORMAL', 'IG markets functioning normally.')
+            },
+            'vix': {
+                'bullish': ('CALM', 'Volatility is suppressed. Supportive of carry.'),
+                'warning': ('ELEVATED', 'VIX is rising above baseline.'),
+                'bearish': ('FEAR', 'High volatility regime. Hedging expensive.'),
+                'neutral': ('NORMAL', 'Standard volatility environment.')
+            },
+             'move': {
+                'bullish': ('CALM', 'Bond market volatility is low.'),
+                'warning': ('NERVOUS', 'Treasury volatility ticking up.'),
+                'bearish': ('VOLATILE', 'Extreme bond market volatility.'),
+                'neutral': ('NORMAL', 'Bond vol within normal range.')
+            },
+            'fx_vol': {
+                'bullish': ('STABLE', 'Currency markets are quiet.'),
+                'warning': ('ACTIVE', 'FX volatility increasing.'),
+                'bearish': ('TURBULENT', 'Significant dislocation in FX markets.'),
+                'neutral': ('NORMAL', 'FX vol normal.')
+            },
+            'nfci_credit': {
+                'bullish': ('LOOSE', 'Credit conditions are accommodating.'),
+                'warning': ('TIGHTENING', 'Credit conditions starting to tighten.'),
+                'bearish': ('TIGHT', 'Financial conditions explicitly tight.'),
+                'neutral': ('NEUTRAL', 'Balanced financial conditions.')
+            },
+             'lending_std': {
+                'bullish': ('EASING', 'Banks are easing lending standards.'),
+                'warning': ('OBSERVING', 'Banks marginally tightening.'),
+                'bearish': ('RESTRICTIVE', 'Banks aggressively tightening credit.'),
+                'neutral': ('NEUTRAL', 'Lending standards unchanged.')
+            }
+        }
+        
+        # Fallback for nfci_risk or others
+        default_texts = {
+            'bullish': ('POSITIVE', 'Conditions represent a tailwind.'),
+            'warning': ('WATCH', 'Conditions deteriorating slightly.'),
+            'bearish': ('NEGATIVE', 'Conditions represent a headwind.'),
+            'neutral': ('NEUTRAL', 'Conditions are neutral.')
+        }
+
+        # Select Text
+        config = texts.get(name, default_texts)
+        if state in config:
+            label, desc = config[state]
+        else:
+            # Fallback if state matches nothing (unlikely)
+            label, desc = default_texts.get(state, ('UNKNOWN', 'Signal state undefined.'))
+
+        return {
+            'state': state,
+            'label': label,
+            'desc': desc,
+            'value': float(last_z),
+            'percentile': 0 # Optional
+        }

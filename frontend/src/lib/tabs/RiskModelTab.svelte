@@ -1443,47 +1443,30 @@
 
     /** @type {{ label: string, state: "bullish" | "bearish" | "neutral" | "warning" | "ok" | "danger", emoji: string, desc: string }} */
     $: yieldCurveRegime = (() => {
-        if (yieldCurveLatestSpread < 0)
-            return {
-                label: "INVERTED",
-                state: "bearish",
-                emoji: "🔴",
-                desc: "Recession Signal",
+        const signal = riskData.signal_metrics?.yield_curve?.latest;
+        if (signal) {
+            // Mapping Backend Signal to Frontend UI
+            const emojiMap = {
+                bullish: "🟢",
+                bearish: "🔴",
+                neutral: "🔵",
+                warning: "🟠",
+                ok: "✅",
+                danger: "⚠️",
             };
-
-        if (yieldCurveSpreadChange > 0.05 && treasury10yRateChange < 0)
             return {
-                label: "BULL STEEPENER",
-                state: "bullish",
-                emoji: "🟢",
-                desc: "Rates ↓, Spread ↑",
+                label: signal.label || "HOLD",
+                state: signal.state || "neutral",
+                emoji: emojiMap[signal.state] || "⚪",
+                desc: signal.desc || "Little Change",
             };
-        if (yieldCurveSpreadChange > 0.05 && treasury10yRateChange >= 0)
-            return {
-                label: "BEAR STEEPENER",
-                state: "warning",
-                emoji: "🟠",
-                desc: "Rates ↑, Spread ↑",
-            };
-        if (yieldCurveSpreadChange < -0.05 && treasury10yRateChange < 0)
-            return {
-                label: "BULL FLATTENER",
-                state: "neutral",
-                emoji: "🔵",
-                desc: "Rates ↓, Spread ↓",
-            };
-        if (yieldCurveSpreadChange < -0.05 && treasury10yRateChange >= 0)
-            return {
-                label: "BEAR FLATTENER",
-                state: "bearish",
-                emoji: "🔴",
-                desc: "Rates ↑, Spread ↓",
-            };
+        }
+        // Fallback or Loading
         return {
-            label: "HOLD",
+            label: "LOADING",
             state: "neutral",
-            emoji: "⚪",
-            desc: "Little Change",
+            emoji: "⏳",
+            desc: "Fetching Signal...",
         };
     })();
 
@@ -2048,21 +2031,8 @@
     // Inflation Expectations Signal (1Y < 2Y = Inverted = Bearish)
     /** @type {"bullish" | "bearish" | "neutral" | "warning" | "ok" | "danger"} */
     $: inflationExpectSignal = (() => {
-        const clev1y = riskData.inflation_swaps?.cleveland_1y;
-        const clev2y = riskData.inflation_swaps?.cleveland_2y;
-        if (!clev1y || !clev2y || clev1y.length === 0 || clev2y.length === 0)
-            return "neutral";
-
-        const last1y = clev1y[clev1y.length - 1];
-        const last2y = clev2y[clev2y.length - 1];
-
-        if (last1y === null || last2y === null) return "neutral";
-
-        // Inverted: 1Y < 2Y by more than 0.05pp = bearish (cooldown imminent)
-        if (last1y < last2y - 0.05) return "bearish";
-        // Normal: 1Y > 2Y = bullish (rising inflation expectations)
-        if (last1y > last2y + 0.05) return "bullish";
-        return "neutral";
+        const signal = riskData.signal_metrics?.inflation?.latest;
+        return signal?.state || "neutral";
     })();
 
     $: inflationExpectInversionSpread = (() => {
@@ -2105,29 +2075,6 @@
         if (series.length === 0) return 0;
         const val = series[series.length - 1];
         return val === null || val === undefined ? 0 : val;
-    }
-
-    // Signal justification text - uses translation keys
-    function getSignalReason(signalKey, state) {
-        // Map signalKey to translation prefix
-        const keyMap = {
-            hy_spread: "hy",
-            ig_spread: "ig",
-            nfci_credit: "nfci_credit",
-            nfci_risk: "nfci_risk",
-            lending: "lending",
-            vix: "vix",
-            cli: "cli",
-            repo: "repo",
-            tips: "tips",
-        };
-        const prefix = keyMap[signalKey] || signalKey;
-        const translationKey = `signal_${prefix}_${state}`;
-        return (
-            translations[translationKey] ||
-            translations[`signal_${prefix}_neutral`] ||
-            "—"
-        );
     }
 
     function getSignalColor(signal) {
@@ -2458,49 +2405,28 @@
 
     // Computed TIPS signal from frontend data (fallback if backend signal_metrics.tips not populated)
     $: computedTipsSignal = (() => {
-        const be = riskData.tips?.breakeven;
-        const rr = riskData.tips?.real_rate;
-        if (!be || !rr || be.length < 63) return null;
-
-        const latestBE = be[be.length - 1];
-        const latestRR = rr[rr.length - 1];
-        const beAvg =
-            be.slice(-252).reduce((a, b) => a + b, 0) /
-            Math.min(252, be.length);
-        const rrAvg =
-            rr.slice(-252).reduce((a, b) => a + b, 0) /
-            Math.min(252, rr.length);
-
-        const beHigh = latestBE > beAvg * 1.1;
-        const rrHigh = latestRR > rrAvg + 0.5;
-        const beLow = latestBE < beAvg * 0.9;
-        const rrLow = latestRR < rrAvg - 0.3;
-
-        let state = "neutral";
-        let reasonKey = "signal_tips_neutral";
-
-        if (beHigh && rrHigh) {
-            state = "warning";
-            reasonKey = "signal_tips_warning";
-        } else if (beHigh && !rrHigh) {
-            state = "bullish";
-            reasonKey = "signal_tips_bullish";
-        } else if (rrHigh && !beHigh) {
-            state = "bearish";
-            reasonKey = "signal_tips_bearish";
-        } else if (beLow && rrLow) {
-            state = "neutral";
-            reasonKey = "signal_tips_disinflation";
+        const signal = riskData.signal_metrics?.tips?.latest;
+        if (signal) {
+            // Map Backend state to translation key
+            // Backend states: bullish, bearish, neutral, warning
+            const reasonKeyMap = {
+                bullish: "signal_tips_bullish",
+                bearish: "signal_tips_bearish",
+                neutral: "signal_tips_neutral",
+                warning: "signal_tips_warning",
+            };
+            return {
+                state: signal.state,
+                value: signal.value, // Real Rate
+                valueBE: getLatestValue(riskData.tips?.breakeven),
+                reasonKey: reasonKeyMap[signal.state] || "signal_tips_neutral",
+            };
         }
-
-        return { state, value: latestRR, valueBE: latestBE, reasonKey };
+        return null;
     })();
 
     // Repo Regime - enhanced with corridor bounds
-    // SOFR ≈ IORB (within 5bps) = Normal/Bullish (adequate liquidity)
-    // SOFR >> IORB (>10bps above) = Bearish (liquidity stress, like Sept 2019)
-    // SOFR approaching SRF ceiling (<5bps) = High stress
-    // SRF Usage > 0 = Alert (banks using backstop)
+    // Keep historical series generator for Chart Background shapes (Legacy Visualization)
     $: repoRegimeSignals = (() => {
         const sofr = riskData.repo_stress?.sofr;
         const iorb = riskData.repo_stress?.iorb;
@@ -2508,17 +2434,16 @@
         const srfUsage = riskData.repo_stress?.srf_usage;
         if (!sofr || !iorb) return [];
         return sofr.map((s, i) => {
-            const spreadToFloor = (s - (iorb[i] || 0)) * 100; // bps above IORB
+            const spreadToFloor = (s - (iorb[i] || 0)) * 100;
             const spreadToCeiling = srfRate
                 ? ((srfRate[i] || 0) - s) * 100
-                : 999; // bps below SRF
+                : 999;
             const hasUsage = srfUsage && srfUsage[i] > 0;
             if (!Number.isFinite(spreadToFloor)) return "neutral";
-            // High stress: approaching ceiling or SRF usage
             if (spreadToCeiling < 5 || hasUsage) return "bearish";
-            if (spreadToFloor > 10) return "bearish"; // SOFR >> IORB = liquidity stress
-            if (spreadToFloor < -5) return "neutral"; // Excess liquidity
-            if (Math.abs(spreadToFloor) <= 5) return "bullish"; // Normal range
+            if (spreadToFloor > 10) return "bearish";
+            if (spreadToFloor < -5) return "neutral";
+            if (Math.abs(spreadToFloor) <= 5) return "bullish";
             return "neutral";
         });
     })();
@@ -2536,18 +2461,18 @@
         const arr = riskData.repo_stress?.srf_usage;
         return arr && arr.length > 0 ? arr[arr.length - 1] || 0 : 0;
     })();
-    // Fed Rate Corridor Stress Classification:
-    // - HIGH: SRF usage > $1B (banks tapping backstop) OR SOFR within 5bps of ceiling
-    // - ELEVATED: SOFR > 5bps above IORB floor OR < 10bps from ceiling
-    // - NORMAL: SOFR trading near IORB (±5bps) with comfortable ceiling headroom
-    // Note: Small SRF usage (<$1B) is normal operational noise, not stress
+
+    // Fed Rate Corridor Stress Classification (Backend Source)
     $: corridorStressLevel = (() => {
-        // HIGH stress: significant SRF usage or approaching ceiling
-        if (latestSrfUsage > 1 || latestSofrToCeiling < 5) return "HIGH";
-        // ELEVATED: SOFR drifting above floor or narrowing ceiling gap
-        if (latestSofrToFloor > 5 || latestSofrToCeiling < 10)
-            return "ELEVATED";
-        // NORMAL: SOFR ≈ IORB (within ±5bps), adequate ceiling headroom
+        const signal = riskData.signal_metrics?.repo?.latest;
+        if (signal) {
+            // Frontend expects: "HIGH", "ELEVATED", "NORMAL"
+            // Backend provides: "HIGH STRESS", "ELEVATED", "NORMAL", "EXCESS LIQ"
+            const label = signal.label || "NORMAL";
+            if (label.includes("HIGH")) return "HIGH";
+            if (label.includes("ELEVATED")) return "ELEVATED";
+            return "NORMAL";
+        }
         return "NORMAL";
     })();
     $: corridorStressColor =
@@ -2888,18 +2813,8 @@
             lastDate={getLastDate("INFLATION_EXPECT_1Y")}
             cardId="inflation_expectations"
         >
-            <!-- Signal Slot -->
-            <svelte:fragment slot="signal">
-                <SignalBadge
-                    state={inflationExpectSignal}
-                    value={inflationExpectSignal === "bearish"
-                        ? translations.signal_inverted || "INVERTED"
-                        : inflationExpectSignal === "bullish"
-                          ? translations.signal_normal || "NORMAL"
-                          : translations.signal_neutral || "NEUTRAL"}
-                    label="Curve"
-                />
-            </svelte:fragment>
+            <!-- Signal Slot (Empty/Removed) -->
+            <!-- svelte:fragment slot="signal" / -->
 
             <!-- Chart Slot -->
             <svelte:fragment slot="chart">
@@ -2919,6 +2834,10 @@
                             y: 1.02,
                             xanchor: "center",
                             x: 0.5,
+                            font: {
+                                size: 10,
+                                color: darkMode ? "#cbd5e1" : "#475569",
+                            },
                         },
                     }}
                 />
@@ -2935,20 +2854,49 @@
                         showHeader={false}
                         {darkMode}
                     />
-                    <div
-                        class="signal-reason"
-                        style="font-size: 11px; color: var(--text-secondary); opacity: 0.7; font-style: italic; text-align: center;"
-                    >
-                        {#if inflationExpectSignal === "bearish"}
-                            {translations.inflation_inverted_desc ||
-                                "1Y Swap below 2Y Swap: Market expects imminent cooldown/disinflation."}
-                        {:else if inflationExpectSignal === "bullish"}
-                            {translations.inflation_normal_desc ||
-                                "1Y Swap above 2Y Swap: Market expects near-term inflation to remain elevated."}
-                        {:else}
-                            Curve is flat or stable.
-                        {/if}
-                    </div>
+                    {#if signalsFromMetrics.inflation?.latest}
+                        {@const s = signalsFromMetrics.inflation.latest}
+                        <div class="footer-signal-block">
+                            <div class="signal-header">CURVE SIGNAL</div>
+                            <div class="signal-badge-row">
+                                <SignalBadge
+                                    state={s.state}
+                                    value={s.value?.toFixed(2)}
+                                    label={s.label || "Gap"}
+                                />
+                            </div>
+                            <div class="signal-desc">
+                                {s.desc || s.reason || "—"}
+                            </div>
+                        </div>
+                    {:else if inflationExpectSignal}
+                        <div class="footer-signal-block">
+                            <div class="signal-header">CURVE SIGNAL</div>
+                            <div class="signal-badge-row">
+                                <SignalBadge
+                                    state={inflationExpectSignal}
+                                    value={inflationExpectSignal === "bearish"
+                                        ? translations.signal_inverted ||
+                                          "INVERTED"
+                                        : inflationExpectSignal === "bullish"
+                                          ? translations.signal_normal ||
+                                            "NORMAL"
+                                          : translations.signal_neutral ||
+                                            "NEUTRAL"}
+                                    label="Curve"
+                                />
+                            </div>
+                            <div class="signal-desc">
+                                {inflationExpectSignal === "bearish"
+                                    ? translations.inflation_inverted_desc ||
+                                      "1Y Swap below 2Y Swap: Market expects imminent cooldown/disinflation."
+                                    : inflationExpectSignal === "bullish"
+                                      ? translations.inflation_normal_desc ||
+                                        "1Y Swap above 2Y Swap: Market expects near-term inflation to remain elevated."
+                                      : "Curve is flat or stable."}
+                            </div>
+                        </div>
+                    {/if}
                 </div>
             </svelte:fragment>
         </ChartCardV2>
@@ -2965,19 +2913,8 @@
             lastDate={getLastDate("TIPS_BREAKEVEN")}
             cardId="tips_market_expectations"
         >
-            <!-- Signal Slot -->
-            <svelte:fragment slot="signal">
-                {#if signalsFromMetrics.tips?.latest}
-                    {@const s = signalsFromMetrics.tips.latest}
-                    <SignalBadge
-                        state={s.state}
-                        value={getStatusLabel(s.state)}
-                        label="Macro"
-                    />
-                {:else}
-                    <SignalBadge state="neutral" value="Loading..." />
-                {/if}
-            </svelte:fragment>
+            <!-- Signal Slot (Empty/Removed) -->
+            <!-- svelte:fragment slot="signal" / -->
 
             <!-- Chart Slot -->
             <svelte:fragment slot="chart">
@@ -2999,20 +2936,38 @@
                         showHeader={false}
                         {darkMode}
                     />
-                    <div
-                        class="signal-reason"
-                        style="font-size: 11px; color: var(--text-secondary); opacity: 0.7; font-style: italic; text-align: center;"
-                    >
-                        {#if signalsFromMetrics.tips?.latest}
-                            {@const s = signalsFromMetrics.tips.latest}
-                            {getSignalReason("tips", s.state)}
-                        {:else if computedTipsSignal}
-                            {@const s = computedTipsSignal}
-                            {translations[s.reasonKey] || s.reasonKey}
-                        {:else}
-                            No active signal alert.
-                        {/if}
-                    </div>
+                    {#if signalsFromMetrics.tips?.latest}
+                        {@const s = signalsFromMetrics.tips.latest}
+                        <div class="footer-signal-block">
+                            <div class="signal-header">TIPS MACRO SIGNAL</div>
+                            <div class="signal-badge-row">
+                                <SignalBadge
+                                    state={s.state}
+                                    value={s.value?.toFixed(2)}
+                                    label={s.label || "Value"}
+                                />
+                            </div>
+                            <div class="signal-desc">
+                                {s.desc || s.reason || "—"}
+                            </div>
+                        </div>
+                    {:else if computedTipsSignal}
+                        {@const s = computedTipsSignal}
+                        <div class="footer-signal-block">
+                            <div class="signal-header">TIPS MACRO SIGNAL</div>
+                            <div class="signal-badge-row">
+                                <SignalBadge
+                                    state={s.state}
+                                    value={s.value?.toFixed(2)}
+                                    label={translations[s.reasonKey] ||
+                                        "Signal"}
+                                />
+                            </div>
+                            <div class="signal-desc">
+                                {translations[s.reasonKey] || s.reasonKey}
+                            </div>
+                        </div>
+                    {/if}
                 </div>
             </svelte:fragment>
         </ChartCardV2>
@@ -3043,17 +2998,8 @@
                 </div>
             </svelte:fragment>
 
-            <!-- Signal Slot -->
-            <svelte:fragment slot="signal">
-                {#if signalsFromMetrics.cli?.latest}
-                    {@const s = signalsFromMetrics.cli.latest}
-                    <SignalBadge
-                        state={s.state}
-                        value={getStatusLabel(s.state)}
-                        label="Stance"
-                    />
-                {/if}
-            </svelte:fragment>
+            <!-- Signal Slot (Empty/Removed) -->
+            <!-- svelte:fragment slot="signal" / -->
 
             <!-- Chart Slot -->
             <svelte:fragment slot="chart">
@@ -3064,22 +3010,28 @@
             <svelte:fragment slot="footer">
                 {#if signalsFromMetrics.cli?.latest}
                     {@const s = signalsFromMetrics.cli.latest}
-                    <div
-                        style="display: flex; flex-direction: column; gap: 8px; width: 100%;"
-                    >
-                        <div
-                            style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 500;"
-                        >
-                            <span
-                                >{translations.percentile || "Percentile"}</span
+                    <div class="footer-signal-block">
+                        <div class="signal-header">SIGNAL STATUS</div>
+                        <div class="signal-badge-row">
+                            <SignalBadge
+                                state={s.state}
+                                value={s.value?.toFixed(2)}
+                                label={s.label || "Stance"}
+                            />
+                            <!-- Percentile display -->
+                            <div
+                                style="font-size: 13px; font-weight: 500; margin-left: auto;"
                             >
-                            <span>P{s.percentile?.toFixed(0) ?? "N/A"}</span>
+                                <span
+                                    >{translations.percentile ||
+                                        "Percentile"}</span
+                                >
+                                <span>P{s.percentile?.toFixed(0) ?? "N/A"}</span
+                                >
+                            </div>
                         </div>
-                        <div
-                            class="signal-reason"
-                            style="font-size: 11px; color: var(--text-secondary); opacity: 0.7; font-style: italic; text-align: center;"
-                        >
-                            {getSignalReason("cli", s.state)}
+                        <div class="signal-desc">
+                            {s.desc || s.reason || "—"}
                         </div>
                     </div>
                 {/if}
@@ -3113,23 +3065,8 @@
                 </div>
             </svelte:fragment>
 
-            <!-- Signal Slot -->
-            <svelte:fragment slot="signal">
-                {@const lastDiv = getLatestValue(
-                    riskData.macro_regime?.cli_gli_divergence,
-                )}
-                {#if lastDiv < -1}
-                    <SignalBadge state="warning" value="TRAP" label="Signal" />
-                {:else if lastDiv > 1}
-                    <SignalBadge
-                        state="bullish"
-                        value="EQUITY"
-                        label="Signal"
-                    />
-                {:else}
-                    <SignalBadge state="neutral" value="COUPLED" />
-                {/if}
-            </svelte:fragment>
+            <!-- Signal Slot (Empty/Removed) -->
+            <!-- svelte:fragment slot="signal" / -->
 
             <!-- Chart Slot -->
             <svelte:fragment slot="chart">
@@ -3158,9 +3095,13 @@
 
             <!-- Footer Slot -->
             <svelte:fragment slot="footer">
+                {@const lastDiv = getLatestValue(
+                    riskData.macro_regime?.cli_gli_divergence,
+                )}
                 <div
                     style="display: flex; flex-direction: column; gap: 12px; width: 100%;"
                 >
+                    <!-- Color Guide -->
                     <div
                         class="divergence-guide"
                         style="font-size: 11px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; opacity: 0.8;"
@@ -3185,19 +3126,47 @@
                         </div>
                     </div>
 
-                    {#if (getLatestValue(riskData.macro_regime?.cli_gli_divergence) ?? 0) < -1}
-                        <div
-                            class="signal-reason"
-                            style="font-size: 11px; color: #ef4444; background: rgba(239, 68, 68, 0.05); padding: 8px; border-radius: 4px; border-left: 3px solid #ef4444; text-align: left;"
-                        >
-                            <b
-                                >⚠️ {translations.divergence_alert ||
-                                    "Divergence Alert"}</b
-                            >:
-                            {translations.divergence_alert_desc ||
-                                "Liquidity is rising while activity contracts. Historically a sign of 'Liquidity Trap' before regime shifts."}
+                    <!-- Footer Signal Block -->
+                    <div class="footer-signal-block">
+                        <div class="signal-header">DIVERGENCE SIGNAL</div>
+                        <div class="signal-badge-row">
+                            {#if (lastDiv ?? 0) < -1}
+                                <SignalBadge
+                                    state="warning"
+                                    value="TRAP"
+                                    label="Signal"
+                                />
+                            {:else if (lastDiv ?? 0) > 1}
+                                <SignalBadge
+                                    state="bullish"
+                                    value="EQUITY"
+                                    label="Signal"
+                                />
+                            {:else}
+                                <SignalBadge
+                                    state="neutral"
+                                    value="COUPLED"
+                                    label="Signal"
+                                />
+                            {/if}
+                            <!-- Numeric Value -->
+                            <span
+                                style="font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-left: auto;"
+                            >
+                                {(lastDiv ?? 0).toFixed(2)} σ
+                            </span>
                         </div>
-                    {/if}
+                        <div class="signal-desc">
+                            {#if (lastDiv ?? 0) < -1}
+                                {translations.divergence_alert_desc ||
+                                    "Liquidity is rising while activity contracts. Historically a sign of 'Liquidity Trap' before regime shifts."}
+                            {:else if (lastDiv ?? 0) > 1}
+                                Economic activity leading liquidity expansion.
+                            {:else}
+                                Credit and Activity are coupled.
+                            {/if}
+                        </div>
+                    </div>
                 </div>
             </svelte:fragment>
         </ChartCardV2>
@@ -3214,27 +3183,8 @@
             lastDate={getLastDate("SOFR")}
             cardId="fed_rate_corridor"
         >
-            <!-- Signal Slot: Status & SRF Warning -->
-            <svelte:fragment slot="signal">
-                <div style="display: flex; gap: 8px; align-items: center;">
-                    {#if latestSrfUsage > 1}
-                        <SignalBadge
-                            state="bearish"
-                            value={`$${latestSrfUsage.toFixed(1)}B`}
-                            label="SRF Usage"
-                        />
-                    {/if}
-                    <SignalBadge
-                        state={corridorStressLevel === "NORMAL"
-                            ? "bullish"
-                            : corridorStressLevel === "ELEVATED"
-                              ? "warning"
-                              : "bearish"}
-                        value={corridorStressLevel}
-                        label="Status"
-                    />
-                </div>
-            </svelte:fragment>
+            <!-- Signal Slot: Status & SRF Warning (Removed) -->
+            <!-- svelte:fragment slot="signal" / -->
 
             <!-- Chart Slot: Multi-Axis Stack -->
             <svelte:fragment slot="chart">
@@ -3250,13 +3200,45 @@
 
             <!-- Footer Slot: Rates Table with Integrated Signal -->
             <svelte:fragment slot="footer">
-                <SignalTable
-                    columns={repoCorridorTableColumns}
-                    rows={repoCorridorTableRows}
-                    summary={repoCorridorTableSummary}
-                    showHeader
-                    {darkMode}
-                />
+                <div
+                    style="display: flex; flex-direction: column; gap: 12px; width: 100%;"
+                >
+                    <SignalTable
+                        columns={repoCorridorTableColumns}
+                        rows={repoCorridorTableRows}
+                        summary={repoCorridorTableSummary}
+                        showHeader
+                        {darkMode}
+                    />
+                    <div class="footer-signal-block">
+                        <div class="signal-header">REPO MARKET STATUS</div>
+                        <div class="signal-badge-row">
+                            {#if latestSrfUsage > 1}
+                                <SignalBadge
+                                    state="bearish"
+                                    value={`$${latestSrfUsage.toFixed(1)}B`}
+                                    label="SRF Usage"
+                                />
+                            {/if}
+                            <SignalBadge
+                                state={corridorStressLevel === "NORMAL"
+                                    ? "bullish"
+                                    : corridorStressLevel === "ELEVATED"
+                                      ? "warning"
+                                      : "bearish"}
+                                value={corridorStressLevel}
+                                label="Status"
+                            />
+                        </div>
+                        <div class="signal-desc">
+                            {corridorStressLevel === "HIGH"
+                                ? "Critical: SOFR near ceiling or significant SRF usage."
+                                : corridorStressLevel === "ELEVATED"
+                                  ? "Warning: Rates drifting higher within corridor."
+                                  : "Normal: SOFR trading comfortably within floor/ceiling."}
+                        </div>
+                    </div>
+                </div>
             </svelte:fragment>
         </ChartCardV2>
 
@@ -3384,21 +3366,8 @@
                 </div>
             </svelte:fragment>
 
-            <!-- Signal Slot -->
-            <svelte:fragment slot="signal">
-                {#if signalsFromMetrics.treasury_10y?.latest}
-                    {@const s = signalsFromMetrics.treasury_10y.latest}
-                    <SignalBadge
-                        state={s.state}
-                        value={treasury10yViewMode === "raw"
-                            ? s.value?.toFixed(2)
-                            : `P${s.percentile?.toFixed(0)}`}
-                        label={treasury10yViewMode === "raw"
-                            ? "Yield"
-                            : "Percentile"}
-                    />
-                {/if}
-            </svelte:fragment>
+            <!-- Signal Slot (Empty) -->
+            <!-- svelte:fragment slot="signal" / -->
 
             <!-- Chart Slot -->
             <svelte:fragment slot="chart">
@@ -3437,13 +3406,40 @@
 
             <!-- Footer Slot: Reason -->
             <svelte:fragment slot="footer">
-                {#if signalsFromMetrics.treasury_10y?.latest}
-                    {@const s = signalsFromMetrics.treasury_10y.latest}
-                    <div
-                        class="signal-reason"
-                        style="font-size: 11px; color: var(--text-secondary); opacity: 0.7; font-style: italic; text-align: center;"
-                    >
-                        {getSignalReason("treasury_10y", s.state)}
+                {#if getLatestValue(riskData.treasury_10y) !== null}
+                    {@const val = getLatestValue(riskData.treasury_10y) ?? 0}
+                    {@const z =
+                        getLatestValue(
+                            riskData.signal_metrics?.treasury_10y?.zscore,
+                        ) ?? 0}
+                    {@const pct =
+                        getLatestValue(
+                            riskData.signal_metrics?.treasury_10y?.percentile,
+                        ) ?? 50}
+                    <div class="footer-signal-block">
+                        <div class="signal-header">SIGNAL STATUS</div>
+                        <div class="signal-badge-row">
+                            <SignalBadge
+                                state={z > 1.5
+                                    ? "bearish"
+                                    : z < -1.5
+                                      ? "bullish"
+                                      : "neutral"}
+                                value={treasury10yViewMode === "raw"
+                                    ? val?.toFixed(2)
+                                    : `P${pct?.toFixed(0)}`}
+                                label={treasury10yViewMode === "raw"
+                                    ? "Yield"
+                                    : "Percentile"}
+                            />
+                        </div>
+                        <div class="signal-desc">
+                            {z > 1.5
+                                ? "High Yields (Tightening)."
+                                : z < -1.5
+                                  ? "Low Yields (Stimulative)."
+                                  : "Yields in normal range."}
+                        </div>
                     </div>
                 {/if}
             </svelte:fragment>
@@ -3482,21 +3478,8 @@
                 </div>
             </svelte:fragment>
 
-            <!-- Signal Slot -->
-            <svelte:fragment slot="signal">
-                {#if signalsFromMetrics.treasury_2y?.latest}
-                    {@const s = signalsFromMetrics.treasury_2y.latest}
-                    <SignalBadge
-                        state={s.state}
-                        value={treasury2yViewMode === "raw"
-                            ? s.value?.toFixed(2)
-                            : `P${s.percentile?.toFixed(0)}`}
-                        label={treasury2yViewMode === "raw"
-                            ? "Yield"
-                            : "Percentile"}
-                    />
-                {/if}
-            </svelte:fragment>
+            <!-- Signal Slot (Empty) -->
+            <!-- svelte:fragment slot="signal" / -->
 
             <!-- Chart Slot -->
             <svelte:fragment slot="chart">
@@ -3535,13 +3518,40 @@
 
             <!-- Footer Slot: Reason -->
             <svelte:fragment slot="footer">
-                {#if signalsFromMetrics.treasury_2y?.latest}
-                    {@const s = signalsFromMetrics.treasury_2y.latest}
-                    <div
-                        class="signal-reason"
-                        style="font-size: 11px; color: var(--text-secondary); opacity: 0.7; font-style: italic; text-align: center;"
-                    >
-                        {getSignalReason("treasury_2y", s.state)}
+                {#if getLatestValue(riskData.treasury_2y) !== null}
+                    {@const val = getLatestValue(riskData.treasury_2y) ?? 0}
+                    {@const z =
+                        getLatestValue(
+                            riskData.signal_metrics?.treasury_2y?.zscore,
+                        ) ?? 0}
+                    {@const pct =
+                        getLatestValue(
+                            riskData.signal_metrics?.treasury_2y?.percentile,
+                        ) ?? 50}
+                    <div class="footer-signal-block">
+                        <div class="signal-header">SIGNAL STATUS</div>
+                        <div class="signal-badge-row">
+                            <SignalBadge
+                                state={z > 1.5
+                                    ? "bearish"
+                                    : z < -1.5
+                                      ? "bullish"
+                                      : "neutral"}
+                                value={treasury2yViewMode === "raw"
+                                    ? val?.toFixed(2)
+                                    : `P${pct?.toFixed(0)}`}
+                                label={treasury2yViewMode === "raw"
+                                    ? "Yield"
+                                    : "Percentile"}
+                            />
+                        </div>
+                        <div class="signal-desc">
+                            {z > 1.5
+                                ? "High Short-Term Rates."
+                                : z < -1.5
+                                  ? "Low Short-Term Rates."
+                                  : "Rates in normal range."}
+                        </div>
                     </div>
                 {/if}
             </svelte:fragment>
@@ -3580,14 +3590,8 @@
                 </div>
             </svelte:fragment>
 
-            <!-- Signal Slot -->
-            <svelte:fragment slot="signal">
-                <SignalBadge
-                    state={yieldCurveRegime.state}
-                    value={yieldCurveRegime.label}
-                    label="Regime"
-                />
-            </svelte:fragment>
+            <!-- Signal Slot (Empty) -->
+            <!-- svelte:fragment slot="signal" / -->
 
             <!-- Chart Slot -->
             <svelte:fragment slot="chart">
@@ -3688,11 +3692,18 @@
                         rows={yieldCurveTableRows}
                         {darkMode}
                     />
-                    <div
-                        class="signal-reason"
-                        style="font-size: 11px; color: var(--text-secondary); opacity: 0.7; font-style: italic; text-align: center;"
-                    >
-                        {yieldCurveRegime.desc}
+                    <div class="footer-signal-block">
+                        <div class="signal-header">YIELD CURVE SIGNAL</div>
+                        <div class="signal-badge-row">
+                            <SignalBadge
+                                state={yieldCurveRegime.state}
+                                value={yieldCurveRegime.label}
+                                label="Regime"
+                            />
+                        </div>
+                        <div class="signal-desc">
+                            {yieldCurveRegime.desc}
+                        </div>
                     </div>
                 </div>
             </svelte:fragment>
@@ -3730,31 +3741,8 @@
                 </div>
             </svelte:fragment>
 
-            <svelte:fragment slot="signal">
-                {#if signalsFromMetrics.yield_curve_30y_10y?.latest && riskData.yield_curve_30y_10y?.length > 0}
-                    {@const s = signalsFromMetrics.yield_curve_30y_10y.latest}
-                    {@const lastSpread = s.value}
-                    {@const prevSpread =
-                        riskData.yield_curve_30y_10y?.[
-                            riskData.yield_curve_30y_10y?.length - 22
-                        ] ?? lastSpread}
-                    {@const spreadChange = lastSpread - prevSpread}
-                    {@const last30y = getLatestValue(riskData.treasury_30y)}
-                    {@const prev30y =
-                        riskData.treasury_30y?.[
-                            riskData.treasury_30y?.length - 22
-                        ] ?? last30y}
-                    {@const rateChange = (last30y ?? 0) - (prev30y ?? 0)}
-                    {@const curveRegime = getCurveRegime(
-                        spreadChange,
-                        rateChange,
-                    )}
-                    <SignalBadge
-                        state={curveRegime.class}
-                        label={curveRegime.label}
-                    />
-                {/if}
-            </svelte:fragment>
+            <!-- Signal Slot (Empty) -->
+            <!-- svelte:fragment slot="signal" / -->
 
             <svelte:fragment slot="chart">
                 <Chart
@@ -3783,12 +3771,46 @@
             </svelte:fragment>
 
             <svelte:fragment slot="footer">
-                <SignalTable
-                    columns={yieldCurve3010TableColumns}
-                    rows={yieldCurve3010TableRows}
-                    showHeader
-                    {darkMode}
-                />
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <SignalTable
+                        columns={yieldCurve3010TableColumns}
+                        rows={yieldCurve3010TableRows}
+                        showHeader
+                        {darkMode}
+                    />
+                    {#if riskData.yield_curve_30y_10y?.length > 0}
+                        {@const lastSpread =
+                            getLatestValue(riskData.yield_curve_30y_10y) ?? 0}
+                        {@const prevSpread =
+                            riskData.yield_curve_30y_10y?.[
+                                riskData.yield_curve_30y_10y?.length - 22
+                            ] ?? lastSpread}
+                        {@const spreadChange = lastSpread - prevSpread}
+                        {@const last30y = getLatestValue(riskData.treasury_30y)}
+                        {@const prev30y =
+                            riskData.treasury_30y?.[
+                                riskData.treasury_30y?.length - 22
+                            ] ?? last30y}
+                        {@const rateChange = (last30y ?? 0) - (prev30y ?? 0)}
+                        {@const curveRegime = getCurveRegime(
+                            spreadChange,
+                            rateChange,
+                        )}
+                        <div class="footer-signal-block">
+                            <div class="signal-header">CURVE SIGNAL</div>
+                            <div class="signal-badge-row">
+                                <SignalBadge
+                                    state={curveRegime.class}
+                                    label={curveRegime.label}
+                                    value={lastSpread.toFixed(2)}
+                                />
+                            </div>
+                            <div class="signal-desc">
+                                {curveRegime.desc}
+                            </div>
+                        </div>
+                    {/if}
+                </div>
             </svelte:fragment>
         </ChartCardV2>
 
@@ -3822,31 +3844,8 @@
                 </div>
             </svelte:fragment>
 
-            <svelte:fragment slot="signal">
-                {#if signalsFromMetrics.yield_curve_30y_2y?.latest && riskData.yield_curve_30y_2y?.length > 0}
-                    {@const s = signalsFromMetrics.yield_curve_30y_2y.latest}
-                    {@const lastSpread = s.value}
-                    {@const prevSpread =
-                        riskData.yield_curve_30y_2y?.[
-                            riskData.yield_curve_30y_2y?.length - 22
-                        ] ?? lastSpread}
-                    {@const spreadChange = lastSpread - prevSpread}
-                    {@const last30y = getLatestValue(riskData.treasury_30y)}
-                    {@const prev30y =
-                        riskData.treasury_30y?.[
-                            riskData.treasury_30y?.length - 22
-                        ] ?? last30y}
-                    {@const rateChange = (last30y ?? 0) - (prev30y ?? 0)}
-                    {@const curveRegime = getCurveRegime(
-                        spreadChange,
-                        rateChange,
-                    )}
-                    <SignalBadge
-                        state={curveRegime.class}
-                        label={curveRegime.label}
-                    />
-                {/if}
-            </svelte:fragment>
+            <!-- Signal Slot (Removed) -->
+            <!-- svelte:fragment slot="signal" / -->
 
             <svelte:fragment slot="chart">
                 <Chart
@@ -3875,12 +3874,49 @@
             </svelte:fragment>
 
             <svelte:fragment slot="footer">
-                <SignalTable
-                    columns={yieldCurve302TableColumns}
-                    rows={yieldCurve302TableRows}
-                    showHeader
-                    {darkMode}
-                />
+                <div
+                    class="footer-wrapper-inner"
+                    style="display: flex; flex-direction: column; gap: 8px;"
+                >
+                    <SignalTable
+                        columns={yieldCurve302TableColumns}
+                        rows={yieldCurve302TableRows}
+                        showHeader
+                        {darkMode}
+                    />
+                    {#if riskData.yield_curve_30y_2y?.length > 0}
+                        {@const lastSpread =
+                            getLatestValue(riskData.yield_curve_30y_2y) ?? 0}
+                        {@const prevSpread =
+                            riskData.yield_curve_30y_2y?.[
+                                riskData.yield_curve_30y_2y?.length - 22
+                            ] ?? lastSpread}
+                        {@const spreadChange = lastSpread - prevSpread}
+                        {@const last30y = getLatestValue(riskData.treasury_30y)}
+                        {@const prev30y =
+                            riskData.treasury_30y?.[
+                                riskData.treasury_30y?.length - 22
+                            ] ?? last30y}
+                        {@const rateChange = (last30y ?? 0) - (prev30y ?? 0)}
+                        {@const curveRegime = getCurveRegime(
+                            spreadChange,
+                            rateChange,
+                        )}
+                        <div class="footer-signal-block">
+                            <div class="signal-header">CURVE SIGNAL</div>
+                            <div class="signal-badge-row">
+                                <SignalBadge
+                                    state={curveRegime.class}
+                                    label={curveRegime.label}
+                                    value={lastSpread.toFixed(2)}
+                                />
+                            </div>
+                            <div class="signal-desc">
+                                {curveRegime.desc}
+                            </div>
+                        </div>
+                    {/if}
+                </div>
             </svelte:fragment>
         </ChartCardV2>
 
@@ -4137,12 +4173,7 @@
                 </div>
             </svelte:fragment>
 
-            <svelte:fragment slot="signal">
-                {#if signalsFromMetrics.st_louis_stress?.latest}
-                    {@const s = signalsFromMetrics.st_louis_stress.latest}
-                    <SignalBadge state={s.state} label="Signal Status" />
-                {/if}
-            </svelte:fragment>
+            <!-- svelte:fragment slot="signal" / -->
 
             <svelte:fragment slot="chart">
                 <Chart
@@ -4181,12 +4212,32 @@
             </svelte:fragment>
 
             <svelte:fragment slot="footer">
-                <SignalTable
-                    columns={stressIndexTableColumns}
-                    rows={stLouisStressTableRows}
-                    showHeader
-                    {darkMode}
-                />
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <SignalTable
+                        columns={stressIndexTableColumns}
+                        rows={stLouisStressTableRows}
+                        showHeader
+                        {darkMode}
+                    />
+                    {#if signalsFromMetrics.st_louis_stress?.latest}
+                        {@const s = signalsFromMetrics.st_louis_stress.latest}
+                        <div class="footer-signal-block">
+                            <div class="signal-header">STRESS SIGNAL</div>
+                            <div class="signal-badge-row">
+                                <SignalBadge
+                                    state={s.state}
+                                    label={s.label || "Status"}
+                                    value={s.value?.toFixed(2)}
+                                />
+                            </div>
+                            <div class="signal-desc">
+                                {s.desc ||
+                                    s.reason ||
+                                    "Financial stress index status."}
+                            </div>
+                        </div>
+                    {/if}
+                </div>
             </svelte:fragment>
         </ChartCardV2>
 
@@ -4220,12 +4271,7 @@
                 </div>
             </svelte:fragment>
 
-            <svelte:fragment slot="signal">
-                {#if signalsFromMetrics.kansas_city_stress?.latest}
-                    {@const s = signalsFromMetrics.kansas_city_stress.latest}
-                    <SignalBadge state={s.state} label="Signal Status" />
-                {/if}
-            </svelte:fragment>
+            <!-- svelte:fragment slot="signal" / -->
 
             <svelte:fragment slot="chart">
                 <Chart
@@ -4264,12 +4310,33 @@
             </svelte:fragment>
 
             <svelte:fragment slot="footer">
-                <SignalTable
-                    columns={stressIndexTableColumns}
-                    rows={kansasCityStressTableRows}
-                    showHeader
-                    {darkMode}
-                />
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <SignalTable
+                        columns={stressIndexTableColumns}
+                        rows={kansasCityStressTableRows}
+                        showHeader
+                        {darkMode}
+                    />
+                    {#if signalsFromMetrics.kansas_city_stress?.latest}
+                        {@const s =
+                            signalsFromMetrics.kansas_city_stress.latest}
+                        <div class="footer-signal-block">
+                            <div class="signal-header">STRESS SIGNAL</div>
+                            <div class="signal-badge-row">
+                                <SignalBadge
+                                    state={s.state}
+                                    label={s.label || "Status"}
+                                    value={s.value?.toFixed(2)}
+                                />
+                            </div>
+                            <div class="signal-desc">
+                                {s.desc ||
+                                    s.reason ||
+                                    "Financial stress index status."}
+                            </div>
+                        </div>
+                    {/if}
+                </div>
             </svelte:fragment>
         </ChartCardV2>
 
@@ -4380,36 +4447,37 @@
                     </div>
                 </svelte:fragment>
 
-                <!-- Signal Slot -->
-                <svelte:fragment slot="signal">
-                    {#if signalsFromMetrics[item.signalKey]?.latest}
-                        {@const s = signalsFromMetrics[item.signalKey].latest}
-                        <SignalBadge
-                            state={s.state}
-                            value={item.viewMode === "raw"
-                                ? s.value?.toFixed(2)
-                                : `P${s.percentile?.toFixed(0)}`}
-                            label={item.viewMode === "raw"
-                                ? "Value"
-                                : "Percentile"}
-                        />
-                    {/if}
-                </svelte:fragment>
+                <!-- Signal Slot (Empty/Removed) -->
+                <!-- svelte:fragment slot="signal" / -->
 
                 <!-- Chart Slot -->
                 <svelte:fragment slot="chart">
                     <Chart {darkMode} data={item.data} layout={item.layout} />
                 </svelte:fragment>
 
-                <!-- Footer Slot: Reason -->
+                <!-- Footer Slot: Full Signal Block -->
                 <svelte:fragment slot="footer">
                     {#if signalsFromMetrics[item.signalKey]?.latest}
                         {@const s = signalsFromMetrics[item.signalKey].latest}
-                        <div
-                            class="signal-reason"
-                            style="font-size: 11px; color: var(--text-secondary); opacity: 0.7; font-style: italic; text-align: center;"
-                        >
-                            {getSignalReason(item.signalKey, s.state)}
+                        <div class="footer-signal-block">
+                            <div class="signal-header">SIGNAL STATUS</div>
+                            <div class="signal-badge-row">
+                                <SignalBadge
+                                    state={s.state}
+                                    value={item.viewMode === "raw"
+                                        ? s.value?.toFixed(2)
+                                        : item.viewMode === "percentile"
+                                          ? `P${s.percentile?.toFixed(0) || 0}`
+                                          : s.value?.toFixed(2)}
+                                    label={s.label ||
+                                        (item.viewMode === "raw"
+                                            ? "Value"
+                                            : "Z-Score")}
+                                />
+                            </div>
+                            <div class="signal-desc">
+                                {s.desc || s.reason || "—"}
+                            </div>
                         </div>
                     {/if}
                 </svelte:fragment>
@@ -4676,5 +4744,41 @@
         background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
         color: white;
         box-shadow: 0 2px 4px rgba(99, 102, 241, 0.35);
+    }
+
+    /* Signal Footer Block */
+    .footer-signal-block {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        width: 100%;
+        box-sizing: border-box; /* Ensure padding doesn't overflow */
+        margin-top: 8px;
+        align-items: center; /* Center children horizontally */
+        text-align: center; /* Center text */
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 6px;
+        padding: 8px 12px; /* Slight horizontal padding increase */
+    }
+    .signal-header {
+        font-size: 0.65rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-weight: 700;
+        color: var(--text-secondary); /* or a muted color */
+        opacity: 0.6;
+    }
+    .signal-badge-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .signal-desc {
+        font-size: 11px;
+        color: var(--text-secondary);
+        opacity: 0.8;
+        font-style: italic;
+        line-height: 1.4;
     }
 </style>
