@@ -1462,11 +1462,27 @@
             };
         }
         // Fallback or Loading
+        if (yieldCurveLatestSpread !== 0) {
+            const fallback = getCurveRegime(
+                yieldCurveSpreadChange,
+                treasury10yRateChange,
+                yieldCurveLatestSpread,
+            );
+            return {
+                label: fallback.label,
+                state: fallback.class,
+                emoji: "⚠️",
+                desc: fallback.desc,
+                value: fallback.value,
+            };
+        }
+
         return {
             label: "LOADING",
             state: "neutral",
             emoji: "⏳",
             desc: "Fetching Signal...",
+            value: 0,
         };
     })();
 
@@ -1474,18 +1490,48 @@
      * Helper to determine yield curve regime for other curve pairs
      * @param {number} spreadChange
      * @param {number} rateChange
-     * @returns {{ label: string, class: "bullish" | "bearish" | "neutral" | "warning" }}
+     * @param {number} [currentSpread]
+     * @returns {{ label: string, class: "bullish" | "bearish" | "neutral" | "warning", desc: string, value: number }}
      */
-    function getCurveRegime(spreadChange, rateChange) {
-        if (spreadChange > 0.03 && rateChange < 0)
-            return { label: "BULL STEEP", class: "bullish" };
-        if (spreadChange > 0.03 && rateChange >= 0)
-            return { label: "BEAR STEEP", class: "warning" };
-        if (spreadChange < -0.03 && rateChange < 0)
-            return { label: "BULL FLAT", class: "neutral" };
-        if (spreadChange < -0.03 && rateChange >= 0)
-            return { label: "BEAR FLAT", class: "bearish" };
-        return { label: "HOLD", class: "neutral" };
+    function getCurveRegime(spreadChange, rateChange, currentSpread = 0) {
+        if (spreadChange > 0.03 && rateChange < 0) {
+            return {
+                label: "BULL STEEPENER",
+                class: "bullish",
+                desc: "Bullish: Short rates falling faster than long rates.",
+                value: currentSpread,
+            };
+        }
+        if (spreadChange > 0.03 && rateChange > 0) {
+            return {
+                label: "BEAR STEEPENER",
+                class: "bearish",
+                desc: "Bearish: Long rates rising faster than short rates.",
+                value: currentSpread,
+            };
+        }
+        if (spreadChange < -0.03 && rateChange > 0) {
+            return {
+                label: "BEAR FLATTENER",
+                class: "bearish",
+                desc: "Bearish: Short rates rising faster than long rates.",
+                value: currentSpread,
+            };
+        }
+        if (spreadChange < -0.03 && rateChange < 0) {
+            return {
+                label: "BULL FLATTENER",
+                class: "bullish",
+                desc: "Bullish: Long rates falling faster than short rates.",
+                value: currentSpread,
+            };
+        }
+        return {
+            label: "NEUTRAL",
+            class: "neutral",
+            desc: "Little Change in shape.",
+            value: currentSpread,
+        };
     }
 
     /** @type {import('../components/signals/SignalTable.svelte').TableColumn[]} */
@@ -3720,7 +3766,7 @@
                             <SignalBadge
                                 state={yieldCurveRegime.state}
                                 label={yieldCurveRegime.label}
-                                value={`${((yieldCurveRegime.value ?? getLatestValue(riskData.yield_curve_10y_2y) ?? 0) * 100).toFixed(0)} bps`}
+                                value={`${((yieldCurveRegime.value ?? 0) * 100).toFixed(0)} bps`}
                             />
                         </div>
                         <div class="signal-desc">
@@ -3817,6 +3863,7 @@
                         {@const curveRegime = getCurveRegime(
                             spreadChange,
                             rateChange,
+                            lastSpread,
                         )}
                         <div
                             class="footer-signal-block"
@@ -3833,7 +3880,7 @@
                                 <SignalBadge
                                     state={curveRegime.class}
                                     label={curveRegime.label}
-                                    value={`${(lastSpread * 100).toFixed(0)} bps`}
+                                    value={`${(curveRegime.value * 100).toFixed(0)} bps`}
                                 />
                             </div>
                             <div class="signal-desc">
@@ -3932,6 +3979,7 @@
                         {@const curveRegime = getCurveRegime(
                             spreadChange,
                             rateChange,
+                            lastSpread,
                         )}
                         <div
                             class="footer-signal-block"
@@ -3946,7 +3994,7 @@
                                 <SignalBadge
                                     state={curveRegime.class}
                                     label={curveRegime.label}
-                                    value={`${(lastSpread * 100).toFixed(0)} bps`}
+                                    value={`${(curveRegime.value * 100).toFixed(0)} bps`}
                                 />
                             </div>
                             <div class="signal-desc">
