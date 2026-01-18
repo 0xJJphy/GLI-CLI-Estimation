@@ -51,51 +51,13 @@
     /** @type {string} */
     export let mainYAxisTitle = "";
 
+    /** @type {boolean} */
+    export let showLegend = false;
+
     // Gap between charts (8% of total height)
     const gapRatio = 0.08;
 
-    // Calculate domains for each subplot
-    function calculateDomains() {
-        const numSubcharts = subcharts.length;
-        if (numSubcharts === 0) {
-            return { main: [0, 1], subs: [] };
-        }
-
-        // Main chart takes mainRatio of height from top
-        const mainBottom = 1 - mainRatio;
-        const mainDomain = [mainBottom, 1];
-
-        // Remaining space for subcharts (with gap)
-        const subSpace = mainBottom - gapRatio;
-        const subHeight = subSpace / numSubcharts;
-
-        const subDomains = [];
-        for (let i = 0; i < numSubcharts; i++) {
-            const top = subSpace - i * subHeight;
-            const bottom = top - subHeight + gapRatio;
-            subDomains.push([Math.max(0, bottom), top]);
-        }
-
-        return { main: mainDomain, subs: subDomains };
-    }
-
-    $: domains = calculateDomains();
-
-    // Combine all traces with correct yaxis assignments
-    $: combinedData = [
-        // Main chart traces (yaxis: "y")
-        ...mainData.map((trace) => ({
-            ...trace,
-            yaxis: "y",
-        })),
-        // Subchart traces (yaxis: "y2", "y3", etc.)
-        ...subcharts.flatMap((config, i) =>
-            config.data.map((trace) => ({
-                ...trace,
-                yaxis: `y${i + 2}`,
-            })),
-        ),
-    ];
+    // ...
 
     // Build combined layout with all y-axes
     $: combinedLayout = {
@@ -132,7 +94,16 @@
             ]),
         ),
         margin: { t: 10, r: 50, l: 50, b: 40 },
-        showlegend: false,
+        showlegend: showLegend,
+        legend: showLegend
+            ? {
+                  orientation: "h",
+                  yanchor: "bottom",
+                  y: 1.02,
+                  xanchor: "center",
+                  x: 0.5,
+              }
+            : undefined,
     };
 </script>
 

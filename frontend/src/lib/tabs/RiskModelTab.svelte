@@ -3256,6 +3256,7 @@
                     mainData={repoStressData.map((t) => ({ ...t, yaxis: "y" }))}
                     mainYAxisTitle="Rate (%)"
                     subcharts={repoCorridorSubcharts}
+                    showLegend={true}
                 />
             </svelte:fragment>
 
@@ -4122,12 +4123,8 @@
                 </div>
             </svelte:fragment>
 
-            <svelte:fragment slot="signal">
-                {#if signalsFromMetrics.nfp?.latest}
-                    {@const s = signalsFromMetrics.nfp.latest}
-                    <SignalBadge state={s.state} label="Labor Market Signal" />
-                {/if}
-            </svelte:fragment>
+            <!-- Signal Slot (Moved to Footer) -->
+            <!-- svelte:fragment slot="signal" / -->
 
             <svelte:fragment slot="chart">
                 <Chart
@@ -4172,6 +4169,33 @@
                     showHeader
                     {darkMode}
                 />
+                {#if signalsFromMetrics.nfp?.latest}
+                    {@const s = signalsFromMetrics.nfp.latest}
+                    <div
+                        class="footer-signal-block"
+                        style="background: {darkMode
+                            ? 'rgba(255, 255, 255, 0.03)'
+                            : 'rgba(0, 0, 0, 0.05)'}; border-color: {darkMode
+                            ? 'rgba(255, 255, 255, 0.08)'
+                            : 'rgba(0, 0, 0, 0.1)'};"
+                    >
+                        <div class="signal-header">LABOR MARKET SIGNAL</div>
+                        <div class="signal-badge-row">
+                            <SignalBadge
+                                state={s.state}
+                                label="Status"
+                                value={getStatusLabel(s.state)}
+                            />
+                        </div>
+                        <div class="signal-desc">
+                            {s.state === "bullish"
+                                ? "Strong Labor Market."
+                                : s.state === "bearish"
+                                  ? "Weak Labor Market (Contraction)."
+                                  : "Neutral."}
+                        </div>
+                    </div>
+                {/if}
             </svelte:fragment>
         </ChartCardV2>
 
@@ -4204,12 +4228,8 @@
                 </div>
             </svelte:fragment>
 
-            <svelte:fragment slot="signal">
-                {#if signalsFromMetrics.jolts?.latest}
-                    {@const s = signalsFromMetrics.jolts.latest}
-                    <SignalBadge state={s.state} label="Labor Demand Signal" />
-                {/if}
-            </svelte:fragment>
+            <!-- Signal Slot (Moved to Footer) -->
+            <!-- svelte:fragment slot="signal" / -->
 
             <svelte:fragment slot="chart">
                 <Chart
@@ -4254,6 +4274,31 @@
                     showHeader
                     {darkMode}
                 />
+                {#if signalsFromMetrics.jolts?.latest}
+                    {@const s = signalsFromMetrics.jolts.latest}
+                    <div
+                        class="footer-signal-block"
+                        style="background: {darkMode
+                            ? 'rgba(255, 255, 255, 0.03)'
+                            : 'rgba(0, 0, 0, 0.05)'}; border-color: {darkMode
+                            ? 'rgba(255, 255, 255, 0.08)'
+                            : 'rgba(0, 0, 0, 0.1)'};"
+                    >
+                        <div class="signal-header">LABOR DEMAND SIGNAL</div>
+                        <div class="signal-badge-row">
+                            <SignalBadge
+                                state={s.state}
+                                label="Status"
+                                value={getStatusLabel(s.state)}
+                            />
+                        </div>
+                        <div class="signal-desc">
+                            {s.state === "bearish"
+                                ? "Labor demand weakening relative to unemployed."
+                                : "Labor demand healthy."}
+                        </div>
+                    </div>
+                {/if}
             </svelte:fragment>
         </ChartCardV2>
 
@@ -4328,12 +4373,7 @@
 
             <svelte:fragment slot="footer">
                 <div style="display: flex; flex-direction: column; gap: 8px;">
-                    <SignalTable
-                        columns={stressIndexTableColumns}
-                        rows={stLouisStressTableRows}
-                        showHeader
-                        {darkMode}
-                    />
+                    <!-- SignalTable Removed (Redundant) -->
                     {#if getLatestValue(riskData.signal_metrics?.st_louis_stress?.raw) !== null || getLatestValue(riskData.st_louis_stress) !== null}
                         {@const val =
                             getLatestValue(
@@ -4443,12 +4483,7 @@
 
             <svelte:fragment slot="footer">
                 <div style="display: flex; flex-direction: column; gap: 8px;">
-                    <SignalTable
-                        columns={stressIndexTableColumns}
-                        rows={kansasCityStressTableRows}
-                        showHeader
-                        {darkMode}
-                    />
+                    <!-- SignalTable Removed (Redundant) -->
                     {#if getLatestValue(riskData.signal_metrics?.kansas_city_stress?.raw) !== null || getLatestValue(riskData.kansas_city_stress) !== null}
                         {@const val =
                             getLatestValue(
@@ -4553,12 +4588,7 @@
             </svelte:fragment>
 
             <svelte:fragment slot="footer">
-                <SignalTable
-                    columns={stressIndexTableColumns}
-                    rows={baaAaaTableRows}
-                    showHeader
-                    {darkMode}
-                />
+                <!-- SignalTable Removed (Redundant) -->
             </svelte:fragment>
         </ChartCardV2>
 
