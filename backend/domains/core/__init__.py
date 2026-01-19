@@ -139,6 +139,9 @@ class GLIDomain(BaseDomain):
                 gli_total += df[col].ffill()
                 active_cbs += 1
         
+        # Inject GLI_TOTAL back into main DF for downstream domains (e.g. MacroRegime)
+        df['GLI_TOTAL'] = gli_total
+        
         result['total'] = clean_for_json(gli_total)
         result['constant_fx'] = clean_for_json(self._calc_constant_fx_gli(df))
         result['cb_count'] = active_cbs

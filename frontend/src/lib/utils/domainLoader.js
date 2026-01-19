@@ -71,6 +71,11 @@ export async function loadDomain(domainName, useCache = true) {
         }
 
         const data = await response.json();
+        // Debug logging for modular loading
+        if (USE_MODULAR_DOMAINS) {
+            console.log(`[DomainLoader] Loaded ${domainName} from ${url}`, { keys: Object.keys(data) });
+        }
+
         domainCache.set(domainName, data);
         return data;
     } catch (error) {

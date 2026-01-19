@@ -34,8 +34,6 @@ class MacroRegimeDomain(BaseDomain):
         if 'GLI_TOTAL' not in df.columns:
              print("CRITICAL ERROR: GLI_TOTAL missing from MacroRegimeDomain df input!")
              print("Columns:", df.columns.tolist())
-        else:
-             print(f"DEBUG: GLI_TOTAL present. Stats: count={df['GLI_TOTAL'].count()}, last={df['GLI_TOTAL'].iloc[-1]}")
 
         # Calculate CLI V2 first (dependency for regimes)
         cli_v2_df = calculate_cli_v2(df)
