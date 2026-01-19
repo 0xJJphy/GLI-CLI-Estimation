@@ -99,7 +99,7 @@ class TreasuryDomain(BaseDomain):
             result['corporate'] = {
                 'baa_yield': clean_for_json(baa),
                 'aaa_yield': clean_for_json(aaa),
-                'baa_aaa_spread': clean_for_json((baa - aaa) * 100)
+                'baa_aaa_spread': clean_for_json(baa - aaa) # Already in BPS from pipeline
             }
         
         # Treasury Maturities (actual data, not just reference)
@@ -150,15 +150,56 @@ class TreasuryDomain(BaseDomain):
                 df['TIPS_REAL_RATE']
             )
 
-        # 3. Yield Curve Regime (10Y-2Y)
-        # Uses Spread and 10Y Rate Change
-        if 'TREASURY_10Y_YIELD' in df.columns and 'TREASURY_2Y_YIELD' in df.columns:
-            result['signals']['yield_curve'] = self._calc_yield_curve_regime(
-                df['TREASURY_10Y_YIELD'], 
-                df['TREASURY_2Y_YIELD']
+        # 4. Corporate Spread Regime (BAA-AAA)
+        if 'BAA_YIELD' in df.columns and 'AAA_YIELD' in df.columns:
+            result['signals']['baa_aaa_spread'] = self._calc_corporate_regime(
+                df['BAA_YIELD'], 
+                df['AAA_YIELD']
             )
 
         return result
+
+    def _calc_corporate_regime(self, baa: pd.Series, aaa: pd.Series) -> Dict[str, Any]:
+        """
+        Calculate Corporate Credit Quality Spread Regime (BAA-AAA).
+        Wider spread = higher perceived credit risk = bearish.
+        """
+        b = baa.ffill()
+        a = aaa.ffill()
+        spread = b - a # Already in BPS from pipeline
+        
+        if spread.empty:
+            return {'state': 'neutral', 'value': 0}
+            
+        last_spread = spread.iloc[-1]
+        
+        # Mean since 2000 (structural regime)
+        stats_cutoff = pd.Timestamp('2000-01-01')
+        stats_series = spread.copy()
+        stats_series.loc[stats_series.index < stats_cutoff] = np.nan
+        
+        avg = stats_series.expanding(min_periods=100).mean().iloc[-1]
+        std = stats_series.expanding(min_periods=100).std().iloc[-1]
+        
+        if pd.isna(avg) or pd.isna(std):
+            return {'state': 'neutral', 'value': float(last_spread)}
+            
+        z = (last_spread - avg) / std
+        
+        state = 'neutral'
+        if z > 1.5:
+            state = 'bearish'
+        elif z > 0.5:
+            state = 'warning'
+        elif z < -1.0:
+            state = 'bullish'
+            
+        return {
+            'state': state,
+            'label': 'STRESSED' if state == 'bearish' else 'ELEVATED' if state == 'warning' else 'NORMAL',
+            'desc': 'Wider corporate spreads indicate credit stress.' if state != 'bullish' else 'Tight corporate spreads indicate strong credit quality.',
+            'value': float(last_spread)
+        }
 
     def _calc_inflation_regime(self, s1y: pd.Series, s2y: pd.Series) -> Dict[str, Any]:
         """

@@ -177,8 +177,13 @@
     // Optimized filter function using the cache
     function filterWithCache(traceArray, range, autoTrim = true) {
         if (!traceArray || !riskData.dates) return traceArray;
+
         let indices =
             rangeIndicesCache[range] || rangeIndicesCache["ALL"] || [];
+
+        // Safety: Ensure indices don't exceed current dates length (race condition guard)
+        const maxIdx = riskData.dates.length;
+        indices = indices.filter((i) => i < maxIdx);
 
         if (range === "ALL" && autoTrim) {
             let firstValidIdx = -1;
@@ -200,11 +205,16 @@
 
         if (indices.length === 0) return traceArray;
 
-        return traceArray.map((trace) => ({
-            ...trace,
-            x: indices.map((i) => riskData.dates[i]),
-            y: indices.map((i) => (trace.y ? trace.y[i] : undefined)),
-        }));
+        return traceArray.map((trace) => {
+            const hasY = Array.isArray(trace.y);
+            const yLen = hasY ? trace.y.length : 0;
+            return {
+                ...trace,
+                x: indices.map((i) => riskData.dates[i]),
+                // Safety: ensure y[i] is valid, otherwise use null to prevent shifts
+                y: indices.map((i) => (hasY && i < yLen ? trace.y[i] : null)),
+            };
+        });
     }
 
     // --- Internal Reactive Data Processing ---
@@ -1459,6 +1469,7 @@
                 state: signal.state || "neutral",
                 emoji: emojiMap[signal.state] || "⚪",
                 desc: signal.desc || "Little Change",
+                value: signal.value ?? yieldCurveLatestSpread,
             };
         }
         // Fallback or Loading
@@ -2808,6 +2819,17 @@
 
     // Stress Analysis reactive variable
     $: stressAnalysis = riskData.stress_analysis || {};
+    // Helper to find last non-zero value (for robust fallback against zero-padding)
+    function getLastValidValue(arr) {
+        if (!arr || !Array.isArray(arr)) return null;
+        for (let i = arr.length - 1; i >= 0; i--) {
+            const val = arr[i];
+            if (val !== null && val !== undefined && val !== 0) {
+                return val;
+            }
+        }
+        return null;
+    }
 </script>
 
 <!-- Header with Aggregate Stance & Weighted Score -->
@@ -3186,9 +3208,14 @@
 
             <!-- Footer Slot -->
             <svelte:fragment slot="footer">
-                {@const lastDiv = getLatestValue(
-                    riskData.macro_regime?.cli_gli_divergence,
-                )}
+                {@const lastDiv =
+                    getLastValidValue(riskData.cli_gli_divergence) ??
+                    getLastValidValue(
+                        riskData.macro_regime?.cli_gli_divergence,
+                    ) ??
+                    getLastValidValue(
+                        dashboardData?.macro_regime?.cli_gli_divergence,
+                    )}
                 <div
                     style="display: flex; flex-direction: column; gap: 12px; width: 100%;"
                 >
@@ -4067,10 +4094,17 @@
                     showHeader
                     {darkMode}
                 />
-                {#if getLatestValue(riskData.corporate?.baa_aaa_spread) !== null}
-                    {@const val =
-                        getLatestValue(riskData.corporate?.baa_aaa_spread) ?? 0}
-                    {@const state = val > 1.2 ? "bearish" : "bullish"}
+                {#if getLatestValue(riskData.signal_metrics?.hy_spread?.raw) !== null && getLatestValue(riskData.signal_metrics?.ig_spread?.raw) !== null}
+                    {@const hyVal =
+                        getLatestValue(
+                            riskData.signal_metrics?.hy_spread?.raw,
+                        ) ?? 0}
+                    {@const igVal =
+                        getLatestValue(
+                            riskData.signal_metrics?.ig_spread?.raw,
+                        ) ?? 0}
+                    {@const spreadDiff = hyVal - igVal}
+                    {@const state = spreadDiff > 450 ? "bearish" : "bullish"}
                     <div
                         class="footer-signal-block"
                         style="background: {darkMode
@@ -4079,20 +4113,18 @@
                             ? 'rgba(255, 255, 255, 0.08)'
                             : 'rgba(0, 0, 0, 0.1)'};"
                     >
-                        <div class="signal-header">
-                            CALIDAD CREDITICIA (BAA-AAA)
-                        </div>
+                        <div class="signal-header">PRIMA DE RIESGO (HY-IG)</div>
                         <div class="signal-badge-row">
                             <SignalBadge
                                 {state}
-                                label="Spread"
-                                value={`${(val * 100).toFixed(0)} bps`}
+                                label="HY Premium"
+                                value={`${spreadDiff.toFixed(0)} bps`}
                             />
                         </div>
                         <div class="signal-desc">
                             {state === "bearish"
-                                ? "Expanding spreads signal credit deterioration."
-                                : "Tight spreads signal healthy credit markets."}
+                                ? "High Yield (Junk) stress vs Investment Grade."
+                                : "Healthy risk appetite (Low HY Premium)."}
                         </div>
                     </div>
                 {/if}
@@ -4590,8 +4622,7 @@
                 {#if getLatestValue(riskData.corporate?.baa_aaa_spread) !== null}
                     {@const val =
                         getLatestValue(riskData.corporate?.baa_aaa_spread) ?? 0}
-                    {@const valBps = val < 10 ? val * 100 : val}
-                    {@const state = val > 1.2 ? "bearish" : "bullish"}
+                    {@const state = val > 120 ? "bearish" : "bullish"}
                     <div
                         class="footer-signal-block"
                         style="background: {darkMode
@@ -4607,7 +4638,7 @@
                             <SignalBadge
                                 {state}
                                 label="Spread"
-                                value={`${valBps.toFixed(0)} bps`}
+                                value={`${val.toFixed(0)} bps`}
                             />
                         </div>
                         <div class="signal-desc">

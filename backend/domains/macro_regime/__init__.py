@@ -30,6 +30,13 @@ class MacroRegimeDomain(BaseDomain):
     
     def process(self, df: pd.DataFrame, **kwargs) -> Dict[str, Any]:
         """Process macro regime data with V2A and V2B logic."""
+        # DEBUG: Check columns
+        if 'GLI_TOTAL' not in df.columns:
+             print("CRITICAL ERROR: GLI_TOTAL missing from MacroRegimeDomain df input!")
+             print("Columns:", df.columns.tolist())
+        else:
+             print(f"DEBUG: GLI_TOTAL present. Stats: count={df['GLI_TOTAL'].count()}, last={df['GLI_TOTAL'].iloc[-1]}")
+
         # Calculate CLI V2 first (dependency for regimes)
         cli_v2_df = calculate_cli_v2(df)
         
@@ -65,7 +72,31 @@ class MacroRegimeDomain(BaseDomain):
         for k in ['liquidity_z', 'credit_z', 'brakes_z', 'cli_gli_divergence', 
                   'cb_diffusion_13w', 'cb_hhi_13w']:
             if k in v2a_clean:
-                result[k] = v2a_clean[k]
+                # SPECIAL HANDLING: cli_gli_divergence
+                # If the last values are 0 (likely due to ffill padding of GLI vs daily CLI),
+                # we should set them to None so the frontend shows the last REAL value, not 0.
+                if k == 'cli_gli_divergence':
+                     series = v2a_data[k]
+                     # Find last non-zero valid index
+                     last_valid_idx = None
+                     if not series.empty:
+                         # Check backwards for first non-zero
+                         for i in range(len(series)-1, -1, -1):
+                             val = series.iloc[i]
+                             if pd.notnull(val) and abs(val) > 1e-6: # Treat near-zero as zero
+                                 last_valid_idx = i
+                                 break
+                     
+                     # If we found a valid end, everything after it should be None
+                     clean_series = clean_for_json(series)
+                     if last_valid_idx is not None and last_valid_idx < len(clean_series) - 1:
+                         # Replace trailing zeros/values with None
+                         for i in range(last_valid_idx + 1, len(clean_series)):
+                             clean_series[i] = None
+                     
+                     result[k] = clean_series
+                else:
+                    result[k] = v2a_clean[k]
                 
         return result
 

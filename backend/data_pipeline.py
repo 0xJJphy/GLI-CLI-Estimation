@@ -38,6 +38,9 @@ from treasury.treasury_refinancing_signal import get_treasury_refinancing_signal
 # Import Offshore Dollar Liquidity module
 from analytics.offshore_liquidity import get_offshore_liquidity_output
 
+# Import Macro Regime Domain
+from domains.macro_regime import MacroRegimeDomain
+
 # Import ETF Data module
 from connectors.etf_data import fetch_etf_data
 
@@ -3027,6 +3030,13 @@ def compute_signal_metrics(df: pd.DataFrame, cli_df: pd.DataFrame, window: int =
             'bullish_pct': 30,
             'bearish_pct': 70,
         },
+        'baa_aaa_spread': {
+            'source': df,
+            'col': 'BAA_AAA_SPREAD',  # Derived col
+            'invert': True,   # Spread bajo = bullish
+            'bullish_pct': 30,
+            'bearish_pct': 75,
+        },
         # NEW: Corporate Bond Yields
         'baa_yield': {
             'source': df,
@@ -3978,8 +3988,8 @@ def run_pipeline():
     df_fred_t['TGA_USD'] = df_fred['TGA'] / 1e6
     df_fred_t['RRP_USD'] = df_fred['RRP'] / 1e3
     df_fred_t['VIX'] = df_fred['VIX']
-    df_fred_t['HY_SPREAD'] = df_fred['HY_SPREAD']
-    df_fred_t['IG_SPREAD'] = df_fred['IG_SPREAD']
+    df_fred_t['HY_SPREAD'] = df_fred['HY_SPREAD'] * 100    # Convert % to BPS (Legacy FRED)
+    df_fred_t['IG_SPREAD'] = df_fred['IG_SPREAD'] * 100    # Convert % to BPS (Legacy FRED)
     df_fred_t['NFCI'] = df_fred['NFCI']
     df_fred_t['NFCI_CREDIT'] = df_fred['NFCI_CREDIT']
     df_fred_t['NFCI_RISK'] = df_fred['NFCI_RISK']
@@ -4023,8 +4033,8 @@ def run_pipeline():
     # Additional financial stress indices (New in Phase 3)
     df_fred_t['ST_LOUIS_STRESS'] = df_fred.get('ST_LOUIS_STRESS', pd.Series(dtype=float))
     df_fred_t['KANSAS_CITY_STRESS'] = df_fred.get('KANSAS_CITY_STRESS', pd.Series(dtype=float))
-    df_fred_t['BAA_YIELD'] = df_fred.get('BAA_YIELD', pd.Series(dtype=float))
-    df_fred_t['AAA_YIELD'] = df_fred.get('AAA_YIELD', pd.Series(dtype=float))
+    df_fred_t['BAA_YIELD'] = df_fred.get('BAA_YIELD', pd.Series(dtype=float)) * 100 # Convert % to BPS (Legacy FRED)
+    df_fred_t['AAA_YIELD'] = df_fred.get('AAA_YIELD', pd.Series(dtype=float)) * 100 # Convert % to BPS (Legacy FRED)
     df_fred_t['CB_LIQ_SWAPS'] = df_fred.get('CB_LIQ_SWAPS', pd.Series(dtype=float))
     # Offshore Liquidity series
     df_fred_t['OBFR'] = df_fred.get('OBFR', pd.Series(dtype=float))
@@ -4226,7 +4236,16 @@ def run_pipeline():
     def process_and_save_final(df_t, filename, silent=False):
         # Alignment: Ensure index is strictly daily for charts
         all_dates = pd.date_range(start=df_t.index.min(), end=df_t.index.max(), freq='D')
-        df_t = df_t.reindex(all_dates).ffill()
+        df_t = df_t.reindex(all_dates)
+        
+        # CRITICAL: Forward fill specific credit and yield columns to prevent nulls in derivative calculations (spreads, z-scores)
+        # This addresses the issue where "0 bps" or "0 sigma" appears due to missing late data points.
+        ffill_cols = ['HY_SPREAD', 'IG_SPREAD', 'BAA_YIELD', 'AAA_YIELD', 'TREASURY_10Y_YIELD', 'TREASURY_2Y_YIELD', 'TREASURY_30Y_YIELD', 'TREASURY_5Y_YIELD']
+        for col in ffill_cols:
+            if col in df_t.columns:
+                df_t[col] = df_t[col].ffill()
+        
+        df_t = df_t.ffill() # General fallback ffill
 
         # Data Trimming: Find the first date where major US series have data
         # Fed Assets (FED_USD) started being populated in FRED from 2002-12-18
@@ -4292,10 +4311,39 @@ def run_pipeline():
         cli_v2_df = calculate_cli_v2(df_t)
         df_t['CLI_V2'] = cli_v2_df['CLI_V2']  # Add to df_t for regime calculations
         
+        # INJECT GLI_TOTAL into df_t for MacroRegimeDomain
+        if 'GLI_TOTAL' in gli:
+            df_t['GLI_TOTAL'] = gli['GLI_TOTAL']
+
+        DATA_DIR = os.path.join(os.path.dirname(__file__), 'data') # Ensure defined
+
         # Regime V2A (Inflation-Aware) and V2B (Growth-Aware)
         regime_v2a = calculate_macro_regime_v2a(df_t)
         regime_v2b = calculate_macro_regime_v2b(df_t)
+
+        # ================================================================
+        # Modular Domain Processing (Macro Regime)
+        # ================================================================
+        # This generates the modular 'macro_regime.json' file required by the frontend
+        try:
+            macro_domain = MacroRegimeDomain()
+            macro_domain_output = macro_domain.process(df_t)
+            
+            # Save to modular JSON
+            domain_file_path = os.path.join(DATA_DIR, 'domains', 'macro_regime.json')
+            os.makedirs(os.path.dirname(domain_file_path), exist_ok=True)
+            with open(domain_file_path, 'w') as f:
+                json.dump(macro_domain_output, f)
+            print("Saved modular domain: macro_regime.json")
+        except Exception as e:
+            print(f"Error processing MacroRegimeDomain: {e}")
+            import traceback
+            traceback.print_exc()
         
+        # Add CLI-GLI Divergence to df_t so compute_signal_metrics can find it
+        if 'cli_gli_divergence' in regime_v2a:
+            df_t['CLI_GLI_DIVERGENCE'] = regime_v2a['cli_gli_divergence']
+
         # Historical Stress Dashboard
         stress_historical = calculate_stress_historical(df_t)
 
@@ -4398,6 +4446,11 @@ def run_pipeline():
 
         # --- Macro Regime (multi-factor) ---
         regime_metrics = calculate_macro_regime(df_t)
+        # CRITICAL: Integrate V2 metrics (divergence, etc) into the final metrics dict
+        if 'regime_v2a' in locals():
+            regime_metrics.update(regime_v2a)
+        
+        # Final safety: ensure CLI_GLI_DIVERGENCE is in df_t for compute_signal_metrics
         if 'cli_gli_divergence' in regime_metrics:
             df_t['CLI_GLI_DIVERGENCE'] = regime_metrics['cli_gli_divergence']
 
@@ -4605,7 +4658,14 @@ def run_pipeline():
                 'percentile': clean_for_json(rolling_percentile(df_t['CLI'], window=1260)),
                 'rocs': {k: clean_for_json(v) for k, v in cli_rocs.items()}
             },
-            'signal_metrics': compute_signal_metrics(df_t, cli_df, window=1260),
+            # Scale spreads to BPS for legacy signal_metrics so they don't show "0 bps" in frontend
+            'signal_metrics': (lambda d: compute_signal_metrics(
+                d.assign(
+                    BAA_AAA_SPREAD=(d.get('BAA_YIELD', 0) - d.get('AAA_YIELD', 0))*100
+                ), 
+                cli_df, 
+                window=1260
+            ))(df_t),
             'cli_components': {
                 'hy_z': clean_for_json(cli_df.get('HY_SPREAD_Z', pd.Series(dtype=float))),
                 'ig_z': clean_for_json(cli_df.get('IG_SPREAD_Z', pd.Series(dtype=float))),
@@ -4633,8 +4693,8 @@ def run_pipeline():
                 'total': clean_for_json(df_t.get('FX_VOL', pd.Series(dtype=float))),
                 'rocs': {k: clean_for_json(v) for k, v in fx_vol_rocs.items()}
             },
-            'hy_spread': clean_for_json(df_t['HY_SPREAD'] * 100),
-            'ig_spread': clean_for_json(df_t['IG_SPREAD'] * 100),
+            'hy_spread': clean_for_json(df_t['HY_SPREAD']), # Already in BPS
+            'ig_spread': clean_for_json(df_t['IG_SPREAD']), # Already in BPS
             # Treasury Yields for stress analysis
             'treasury_30y': clean_for_json(df_t.get('TREASURY_30Y_YIELD', pd.Series(dtype=float))),
             'treasury_10y': clean_for_json(df_t.get('TREASURY_10Y_YIELD', pd.Series(dtype=float))),
@@ -4649,9 +4709,11 @@ def run_pipeline():
             'st_louis_stress': clean_for_json(df_t.get('ST_LOUIS_STRESS', pd.Series(dtype=float))),
             'kansas_city_stress': clean_for_json(df_t.get('KANSAS_CITY_STRESS', pd.Series(dtype=float))),
             # Corporate Bond Yields (Moody's)
-            'baa_yield': clean_for_json(df_t.get('BAA_YIELD', pd.Series(dtype=float))),
-            'aaa_yield': clean_for_json(df_t.get('AAA_YIELD', pd.Series(dtype=float))),
-            'baa_aaa_spread': clean_for_json((df_t.get('BAA_YIELD', pd.Series(dtype=float)) - df_t.get('AAA_YIELD', pd.Series(dtype=float))) * 100),
+            'corporate': {
+                'baa_yield': clean_for_json(df_t.get('BAA_YIELD', pd.Series(dtype=float))),
+                'aaa_yield': clean_for_json(df_t.get('AAA_YIELD', pd.Series(dtype=float))),
+                'baa_aaa_spread': clean_for_json(df_t.get('BAA_YIELD', 0) - df_t.get('AAA_YIELD', 0)), # Already in BPS
+            },
             # Crypto Narratives & Market Regimes
             'crypto_narratives': {
                 'regimes': clean_for_json(crypto_analytics['regime']),

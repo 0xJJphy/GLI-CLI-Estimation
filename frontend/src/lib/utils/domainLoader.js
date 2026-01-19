@@ -632,18 +632,24 @@ export async function loadRiskModelTabData(legacyData) {
             if (!legacyArr || !Array.isArray(legacyArr) || legacyArr.length === 0) return null;
             if (!shared?.dates) return legacyArr;
 
-            // If already matches shared length (e.g. from aligned domain), return as is
+            // 1. If length matches and we suspect it's already aligned from a modular domain, return it
             if (legacyArr.length === shared.dates.length) return legacyArr;
 
-            // If matches legacy dates length, pad to align with shared
-            if (legacyData?.dates && legacyArr.length === legacyData.dates.length) {
-                const offset = shared.dates.indexOf(legacyData.dates[0]);
-                if (offset > 0) {
-                    const padding = new Array(offset).fill(null);
-                    return [...padding, ...legacyArr];
-                }
+            // 2. If we don't have legacy dates to map from, we can't align robustly
+            if (!legacyData?.dates || legacyData.dates.length === 0) return legacyArr;
+
+            // 3. Robust Date-Map Alignment: Ensures date X always maps to value X
+            // Normalize dates to YYYY-MM-DD for comparison
+            const normalize = (d) => (typeof d === 'string' ? d.split('T')[0] : '');
+
+            const legacyMap = new Map();
+            const len = Math.min(legacyArr.length, legacyData.dates.length);
+            for (let i = 0; i < len; i++) {
+                legacyMap.set(normalize(legacyData.dates[i]), legacyArr[i]);
             }
-            return legacyArr;
+
+            // Map every shared date to its legacy value or null
+            return shared.dates.map(d => legacyMap.get(normalize(d)) ?? null);
         };
 
         const alignSignalObj = (obj) => {
@@ -723,6 +729,9 @@ export async function loadRiskModelTabData(legacyData) {
             yield_curve_30y_2y: treasury.curves?.['30y_2y'] || alignToShared(legacyData?.yield_curve_30y_2y),
             yield_curve_10y_5y: treasury.curves?.['10y_5y'] || alignToShared(legacyData?.yield_curve_10y_5y),
 
+            // Corporate Yields (BAA/AAA) - Required by RiskModelTab footer logic
+            corporate: treasury.corporate || legacyData?.corporate || {},
+
             // Fed Forecasts Domain
             inflation_expect_1y: fed_forecasts.inflation_expectations?.cleveland_1y || alignToShared(legacyData?.inflation_expect_1y),
             inflation_expect_5y: fed_forecasts.inflation_expectations?.cleveland_5y || alignToShared(legacyData?.inflation_expect_5y),
@@ -751,7 +760,7 @@ export async function loadRiskModelTabData(legacyData) {
 
             // Macro Regime Domain - both flattened and full object for different consumers
             divergence: macro_regime.cli_gli_divergence || alignToShared(legacyData?.macro_regime?.cli_gli_divergence || legacyData?.divergence),
-            cli_gli_divergence: macro_regime.cli_gli_divergence || alignToShared(legacyData?.cli_gli_divergence || legacyData?.divergence),
+            cli_gli_divergence: macro_regime.cli_gli_divergence || alignToShared(legacyData?.macro_regime?.cli_gli_divergence || legacyData?.cli_gli_divergence || legacyData?.divergence),
             signals: macro_regime.signals || legacyData.signals || {},
             signal_aggregate: macro_regime.score || legacyData.signal_aggregate || null,
             macro_regime: macro_regime || legacyData?.macro_regime || {}, // Pass full object for charts accessing nested paths
@@ -827,6 +836,11 @@ export async function loadRiskModelTabData(legacyData) {
                     zscore: cli.components?.fx_vol_z || alignToShared(legacyData?.signal_metrics?.fx_vol?.zscore),
                     latest: cli.signals?.fx_vol || legacyData?.signal_metrics?.fx_vol?.latest
                 },
+                // Corporate Spreads (BAA-AAA)
+                baa_aaa_spread: {
+                    raw: treasury.corporate?.baa_aaa_spread || alignToShared(legacyData?.signal_metrics?.baa_aaa_spread?.raw),
+                    latest: treasury.signals?.baa_aaa_spread || legacyData?.signal_metrics?.baa_aaa_spread?.latest
+                },
 
                 // Treasury Metrics
                 treasury_10y: {
@@ -881,7 +895,6 @@ export async function loadRiskModelTabData(legacyData) {
                 // Corporate yields
                 baa_yield: alignSignalObj(legacyData?.signal_metrics?.baa_yield),
                 aaa_yield: alignSignalObj(legacyData?.signal_metrics?.aaa_yield),
-                baa_aaa_spread: alignSignalObj(legacyData?.signal_metrics?.baa_aaa_spread),
                 // TIPS metrics  
                 tips_real_rate: alignSignalObj(legacyData?.signal_metrics?.tips_real_rate),
                 tips_breakeven: alignSignalObj(legacyData?.signal_metrics?.tips_breakeven),
@@ -906,7 +919,7 @@ export async function loadRiskModelTabData(legacyData) {
                     zscore: alignToShared(legacyData?.signal_metrics?.cli_gli_divergence?.zscore),
                     momentum_pct: alignToShared(legacyData?.signal_metrics?.cli_gli_divergence?.momentum_pct),
                     signal_series: alignToShared(legacyData?.signal_metrics?.cli_gli_divergence?.signal_series),
-                    latest: legacyData?.signal_metrics?.cli_gli_divergence?.latest || {}
+                    latest: macro_regime.signals?.cli_gli_divergence || legacyData?.signal_metrics?.cli_gli_divergence?.latest || {}
                 }
             },
 

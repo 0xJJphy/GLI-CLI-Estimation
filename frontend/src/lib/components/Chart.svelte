@@ -131,16 +131,33 @@
             shapes: [...(shapes || []), ...(layout.shapes || [])],
         };
 
-        Plotly.newPlot(chartContainer, processedData, finalLayout, config);
+        let resizeObserver;
 
-        const resizeObserver = new ResizeObserver(() => {
-            Plotly.Plots.resize(chartContainer);
+        // Wrap in requestAnimationFrame to ensure DOM layout is computed before plotting
+        // This fixes the "bad x-axis" issue when switching tabs quickly
+        const rafId = requestAnimationFrame(() => {
+            if (!chartContainer) return; // Guard against unmount
+
+            Plotly.newPlot(
+                chartContainer,
+                processedData,
+                finalLayout,
+                config,
+            ).then(() => {
+                // Force a resize after first plot to ensure alignment
+                if (chartContainer) Plotly.Plots.resize(chartContainer);
+            });
+
+            resizeObserver = new ResizeObserver(() => {
+                if (chartContainer) Plotly.Plots.resize(chartContainer);
+            });
+            resizeObserver.observe(chartContainer);
         });
-        resizeObserver.observe(chartContainer);
 
         return () => {
-            resizeObserver.disconnect();
-            Plotly.purge(chartContainer);
+            cancelAnimationFrame(rafId);
+            if (resizeObserver) resizeObserver.disconnect();
+            if (chartContainer) Plotly.purge(chartContainer);
         };
     });
 

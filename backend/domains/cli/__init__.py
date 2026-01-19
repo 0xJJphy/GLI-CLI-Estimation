@@ -122,8 +122,8 @@ class CLIDomain(BaseDomain):
         
         # Raw component values (Normalized to BPS where applicable)
         result['raw'] = {
-            'hy_spread': clean_for_json(components['hy_spread'].ffill() * 100),   # Convert % to BPS
-            'ig_spread': clean_for_json(components['ig_spread'].ffill() * 100),   # Convert % to BPS
+            'hy_spread': clean_for_json(components['hy_spread'].ffill()), 
+            'ig_spread': clean_for_json(components['ig_spread'].ffill()), 
             'nfci_credit': clean_for_json(components['nfci_credit'].ffill()),
             'nfci_risk': clean_for_json(components['nfci_risk'].ffill()),
             'lending_std': clean_for_json(components['lending_std'].ffill()),
@@ -154,11 +154,13 @@ class CLIDomain(BaseDomain):
         # Generate signals for each CLI component
         # Using z_scores_inverted where High Z = Good (Bullish) and Low Z = Bad (Bearish)
         for name, z_series in z_scores_inverted.items():
-            result['signals'][name] = self._calc_cli_signal(name, z_series)
+            # Get the last raw value for the signal display (converted to float)
+            raw_val = float(components[name].iloc[-1]) if not components[name].empty else 0
+            result['signals'][name] = self._calc_cli_signal(name, z_series, raw_val)
 
         return result
     
-    def _calc_cli_signal(self, name: str, z_series: pd.Series) -> Dict[str, Any]:
+    def _calc_cli_signal(self, name: str, z_series: pd.Series, raw_val: float) -> Dict[str, Any]:
         """
         Calculate Signal State based on Z-Score with Rich Text.
         Input z_series is already inverted so that High Z (>0) is Good/Bullish.
@@ -258,6 +260,6 @@ class CLIDomain(BaseDomain):
             'state': state,
             'label': label,
             'desc': desc,
-            'value': float(last_z),
+            'value': float(raw_val),
             'percentile': 0 # Optional
         }
