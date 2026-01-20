@@ -12,6 +12,7 @@
     commoditiesData,
     fetchCommoditiesData,
   } from "./stores/dataStore";
+  import { preloadCriticalDomains } from "./lib/utils/domainLoader";
   import StatsCard from "./lib/components/StatsCard.svelte";
   import Chart from "./lib/components/Chart.svelte";
   import LightweightChart from "./lib/components/LightweightChart.svelte";
@@ -288,6 +289,8 @@
     fetchData();
     fetchIndexesData();
     fetchCommoditiesData();
+    // Preload critical modular domains to prevent empty charts on initial tab render
+    preloadCriticalDomains();
   });
 
   const setTab = (tab) => {

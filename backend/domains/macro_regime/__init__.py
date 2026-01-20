@@ -30,7 +30,8 @@ class MacroRegimeDomain(BaseDomain):
     
     def process(self, df: pd.DataFrame, **kwargs) -> Dict[str, Any]:
         """Process macro regime data with V2A and V2B logic."""
-        # DEBUG: Check columns
+        # DEBUG: Check columns and shape to diagnose persistent misalignment
+        print(f"DEBUG [MacroRegime]: Input DF Shape: {df.shape}")
         if 'GLI_TOTAL' not in df.columns:
              print("CRITICAL ERROR: GLI_TOTAL missing from MacroRegimeDomain df input!")
              print("Columns:", df.columns.tolist())
@@ -53,18 +54,34 @@ class MacroRegimeDomain(BaseDomain):
         stress_clean = {k: clean_for_json(v) for k, v in stress_historical.items()}
         
         # Combine into result
+        # CRITICAL FIX: Ensure all output series are reindexed to df.index to match Shared Dates (16k)
+        # This prevents 8k vs 16k mismatch which breaks frontend charts
+        def align_to_df(data_dict, index):
+            aligned = {}
+            for k, v in data_dict.items():
+                if isinstance(v, pd.Series):
+                    # Reindex and clean
+                    aligned[k] = clean_for_json(v.reindex(index))
+                else:
+                    aligned[k] = clean_for_json(v)
+            return aligned
+
         result = {
-            'v2a': v2a_clean,
-            'v2b': v2b_clean,
-            'stress_historical': stress_clean,
+            'v2a': align_to_df(v2a_data, df.index),
+            'v2b': align_to_df(v2b_data, df.index),
+            'stress_historical': align_to_df(stress_historical, df.index),
             # CLI data for comparison chart
-            'cli_v1': clean_for_json(df.get('CLI', pd.Series(0, index=df.index))),
-            'cli_v2': clean_for_json(cli_v2_df['CLI_V2']),
+            'cli_v1': clean_for_json(df.get('CLI', pd.Series(0, index=df.index)).reindex(df.index)),
+            'cli_v2': clean_for_json(cli_v2_df['CLI_V2'].reindex(df.index)),
             # Top-level legacy aliases for compatibility
-            'score': v2a_clean.get('score', []),
-            'regime_code': v2a_clean.get('regime_code', []),
-            'total_z': v2a_clean.get('total_z', []),
+            'score': clean_for_json(v2a_data.get('score', pd.Series(dtype=float)).reindex(df.index)),
+            'regime_code': clean_for_json(v2a_data.get('regime_code', pd.Series(dtype=float)).reindex(df.index)),
+            'total_z': clean_for_json(v2a_data.get('total_z', pd.Series(dtype=float)).reindex(df.index)),
         }
+
+        print(f"DEBUG [MacroRegime]: v2a output length: {len(result['score'])} vs DF index: {len(df.index)}")
+        if len(result['score']) != len(df.index):
+            print("WARNING: MacroRegime output length MISMATCH with DF index!")
         
         # Add diagnostic fields from v2a to top level if needed
         for k in ['liquidity_z', 'credit_z', 'brakes_z', 'cli_gli_divergence', 

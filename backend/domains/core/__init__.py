@@ -38,11 +38,13 @@ class SharedDomain(BaseDomain):
         Extract shared data.
         
         Args:
-            df: Main DataFrame
+            df: Main DataFrame (assumed to already have correct date range from pipeline)
         
         Returns:
             Dict with shared reference data
         """
+        # NOTE: We trust the input DataFrame to have the correct date range.
+        # Date alignment is now handled by the frontend loader if needed.
         result = {
             'dates': df.index.strftime('%Y-%m-%d').tolist(),
             'metadata': {

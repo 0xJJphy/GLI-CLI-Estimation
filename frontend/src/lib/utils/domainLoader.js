@@ -45,6 +45,135 @@ const DATA_BASE_URL = '';  // Base URL for data files (files are directly in pub
 // loadOffshoreTabData: builds chart1_fred_proxy nested structure
 const USE_MODULAR_DOMAINS = true;  // ENABLED for testing fixed mappings
 
+// Flag to track if critical domains have been preloaded
+let criticalDomainsLoaded = false;
+let preloadPromise = null;
+
+/**
+ * Preload critical domains on app initialization.
+ * This ensures data is cached BEFORE tabs try to render, preventing empty charts.
+ * Call this early in App.svelte onMount.
+ * @returns {Promise<void>}
+ */
+export async function preloadCriticalDomains() {
+    if (criticalDomainsLoaded) return; // Already loaded
+    if (preloadPromise) return preloadPromise; // Already in progress
+
+    preloadPromise = (async () => {
+        const criticalDomains = ['shared', 'macro_regime', 'cli', 'us_system', 'treasury'];
+        console.log('[DomainLoader] Preloading critical domains:', criticalDomains);
+
+        try {
+            await Promise.all(criticalDomains.map(name => loadDomain(name)));
+            criticalDomainsLoaded = true;
+            console.log('[DomainLoader] Critical domains preloaded successfully');
+        } catch (err) {
+            console.warn('[DomainLoader] Some domains failed to preload:', err.message);
+            // Continue anyway - individual tab loaders will retry
+        }
+    })();
+
+    return preloadPromise;
+}
+
+/**
+ * Check if critical domains are loaded
+ * @returns {boolean}
+ */
+export function areCriticalDomainsLoaded() {
+    return criticalDomainsLoaded;
+}
+
+// ============================================================
+// DATA ALIGNMENT UTILITIES
+// Ensure all data arrays match shared dates length
+// ============================================================
+
+/**
+ * Align a single array to the target length by slicing from the start.
+ * Assumes time series are end-aligned (both end at "today").
+ * @param {Array} arr - Array to align
+ * @param {number} targetLen - Target length (typically shared.dates.length)
+ * @returns {Array} Aligned array
+ */
+function alignArrayToLength(arr, targetLen) {
+    if (!Array.isArray(arr) || arr.length <= targetLen) return arr;
+    // Slice from start to match target length (keeps recent data)
+    return arr.slice(arr.length - targetLen);
+}
+
+/**
+ * Recursively align all arrays in an object to the target length.
+ * @param {Object} obj - Object containing data arrays
+ * @param {number} targetLen - Target length
+ * @param {number} [originalMaxLen] - Max length of arrays in object (for detection)
+ * @returns {Object} Object with aligned arrays
+ */
+function alignObjectToLength(obj, targetLen, originalMaxLen = null) {
+    if (!obj || typeof obj !== 'object') return obj;
+    if (Array.isArray(obj)) {
+        // Only align if array is longer than target (i.e., it's a data series, not short config arrays)
+        if (obj.length === originalMaxLen && obj.length > targetLen) {
+            return alignArrayToLength(obj, targetLen);
+        }
+        return obj;
+    }
+
+    const result = { ...obj };
+    for (const key in result) {
+        if (Array.isArray(result[key])) {
+            // Only align long arrays (data series), not short ones (like config arrays)
+            if (result[key].length === originalMaxLen && result[key].length > targetLen) {
+                result[key] = alignArrayToLength(result[key], targetLen);
+            }
+        } else if (typeof result[key] === 'object' && result[key] !== null) {
+            result[key] = alignObjectToLength(result[key], targetLen, originalMaxLen);
+        }
+    }
+    return result;
+}
+
+/**
+ * Detect the maximum array length in an object (recursively).
+ * Used to identify which arrays are data series vs config.
+ * @param {Object} obj - Object to analyze
+ * @returns {number} Maximum array length found
+ */
+function detectMaxArrayLength(obj) {
+    if (!obj || typeof obj !== 'object') return 0;
+    if (Array.isArray(obj)) return obj.length;
+
+    let maxLen = 0;
+    for (const key in obj) {
+        if (Array.isArray(obj[key])) {
+            maxLen = Math.max(maxLen, obj[key].length);
+        } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+            maxLen = Math.max(maxLen, detectMaxArrayLength(obj[key]));
+        }
+    }
+    return maxLen;
+}
+
+/**
+ * Align domain data to shared dates length.
+ * Call this after loading domain data to ensure consistency.
+ * @param {Object} data - Domain data object
+ * @param {number} sharedDatesLen - Length of shared dates array
+ * @returns {Object} Aligned data object
+ */
+export function alignToSharedDates(data, sharedDatesLen) {
+    if (!data || sharedDatesLen <= 0) return data;
+
+    const maxLen = detectMaxArrayLength(data);
+    if (maxLen <= sharedDatesLen) {
+        // Data is already aligned or shorter
+        return data;
+    }
+
+    console.warn(`[DomainLoader] Aligning data: ${maxLen} -> ${sharedDatesLen} (trimming ${maxLen - sharedDatesLen} points)`);
+    return alignObjectToLength(data, sharedDatesLen, maxLen);
+}
+
 /**
  * Load a single domain's data
  * @param {string} domainName - Name of the domain to load
@@ -291,8 +420,13 @@ export async function loadStablecoinsTabData(legacyData) {
         }
 
         console.log('[StablecoinsLoader] Successfully loaded from domain JSONs');
+
+        // Align stablecoin data to shared dates length
+        const datesLen = shared.dates?.length || 0;
+        const alignedData = alignToSharedDates(flattened, datesLen);
+
         return {
-            ...flattened,
+            ...alignedData,
             btc: shared.btc,
             dates: shared.dates, // Include dates for SFAI chart
         };
@@ -322,9 +456,14 @@ export async function loadGLITabData(legacyData) {
         ]);
 
         console.log('[GLILoader] Successfully loaded from domain JSONs');
+
+        // Align GLI data to shared dates length
+        const datesLen = shared.dates?.length || 0;
+        const alignedGli = alignToSharedDates(gli, datesLen);
+
         return {
             gli: {
-                ...gli,
+                ...alignedGli,
                 // CB data comes from shared domain
                 ...shared.central_banks
             },
@@ -356,14 +495,19 @@ export async function loadUSSystemTabData(legacyData) {
         ]);
 
         console.log('[USSystemLoader] Successfully loaded from domain JSONs');
+
+        // Align US System data to shared dates length
+        const datesLen = shared.dates?.length || 0;
+        const alignedUsSystem = alignToSharedDates(us_system, datesLen);
+
         return {
             us_net_liq: {
-                net_liquidity: us_system.net_liquidity,
+                net_liquidity: alignedUsSystem.net_liquidity,
                 fed: shared.central_banks?.fed,
-                rrp: us_system.rrp,
-                tga: us_system.tga,
-                bank_reserves: us_system.bank_reserves,
-                ...us_system.metrics
+                rrp: alignedUsSystem.rrp,
+                tga: alignedUsSystem.tga,
+                bank_reserves: alignedUsSystem.bank_reserves,
+                ...alignedUsSystem.metrics
             },
             dates: shared.dates
         };
@@ -393,8 +537,13 @@ export async function loadCryptoTabData(legacyData) {
         ]);
 
         console.log('[CryptoLoader] Successfully loaded from domain JSONs');
+
+        // Align crypto data to shared dates length
+        const datesLen = shared.dates?.length || 0;
+        const alignedCrypto = alignToSharedDates(crypto, datesLen);
+
         return {
-            crypto_analytics: crypto,
+            crypto_analytics: alignedCrypto,
             btc: shared.btc,
             dates: shared.dates
         };
@@ -428,9 +577,14 @@ export async function loadFedForecastsTabData(legacyData) {
         ]);
 
         console.log('[FedForecastsLoader] Successfully loaded from domain JSONs');
+
+        // Align fed forecasts data to shared dates length
+        const datesLen = shared.dates?.length || 0;
+        const alignedFedForecasts = alignToSharedDates(fed_forecasts, datesLen);
+
         return {
-            fed_forecasts,
-            inflation_swaps: fed_forecasts.inflation_swaps || {},
+            fed_forecasts: alignedFedForecasts,
+            inflation_swaps: alignedFedForecasts.inflation_swaps || {},
             dates: shared.dates
         };
     } catch {
@@ -469,15 +623,60 @@ export async function loadRegimesTabData(legacyData) {
         ]);
 
         console.log('[RegimesLoader] Successfully loaded from domain JSONs');
+
+        // ============================================================
+        // AUTO-ALIGNMENT FIX
+        // Ensure regime data matches shared dates length
+        // ============================================================
+        const dateLen = shared.dates ? shared.dates.length : 0;
+        let v2aData = macro_regime.v2a || macro_regime;
+        let v2bData = macro_regime.v2b || macro_regime;
+
+        const alignSeries = (arr) => {
+            if (Array.isArray(arr) && arr.length > dateLen) {
+                // Trim from start to match date length (assumes end alignment)
+                return arr.slice(arr.length - dateLen);
+            }
+            return arr;
+        };
+
+        const alignObject = (obj) => {
+            if (!obj) return obj;
+            const res = { ...obj };
+            for (const key in res) {
+                if (Array.isArray(res[key])) {
+                    res[key] = alignSeries(res[key]);
+                } else if (typeof res[key] === 'object' && res[key] !== null) {
+                    res[key] = alignObject(res[key]);
+                }
+            }
+            return res;
+        };
+
+        if (dateLen > 0) {
+            // Check if alignment is needed (using V2A score as proxy)
+            const v2aScoreLen = v2aData.score?.length || 0;
+            if (v2aScoreLen > dateLen) {
+                console.warn(`[RegimesLoader] Auto-aligning data: Trimming ${v2aScoreLen - dateLen} points to match ${dateLen} dates.`);
+                v2aData = alignObject(v2aData);
+                v2bData = alignObject(v2bData);
+                // Also align CLI and Stress if they come from macro_regime
+                if (macro_regime.cli_v1) macro_regime.cli_v1 = alignSeries(macro_regime.cli_v1);
+                if (macro_regime.cli_v2) macro_regime.cli_v2 = alignSeries(macro_regime.cli_v2);
+                if (macro_regime.stress_historical) macro_regime.stress_historical = alignObject(macro_regime.stress_historical);
+                if (macro_regime.stress) macro_regime.stress = alignObject(macro_regime.stress);
+            }
+        }
+
         return {
             macro_regime,
             // These might be nested in macro_regime or top-level in legacy
             // We favor the modular structure but provide compatibility
-            regime_v2a: macro_regime.v2a || macro_regime,
-            regime_v2b: macro_regime.v2b || macro_regime,
+            regime_v2a: v2aData,
+            regime_v2b: v2bData,
             // CLI data wrapper to match frontend expectation (cli.total, cli_v2.cli_v2)
-            cli: { total: macro_regime.cli_v1 || [] },
-            cli_v2: { cli_v2: macro_regime.cli_v2 || [] },
+            cli: { total: alignSeries(macro_regime.cli_v1 || []) },
+            cli_v2: { cli_v2: alignSeries(macro_regime.cli_v2 || []) },
             stress_historical: macro_regime.stress_historical || macro_regime.stress || {},
             signals: macro_regime.signals || {},
             btc: shared.btc || {},
@@ -528,8 +727,13 @@ export async function loadM2TabData(legacyData) {
         };
 
         console.log('[M2Loader] Successfully loaded from domain JSONs');
+
+        // Align M2 data to shared dates length
+        const datesLen = shared.dates?.length || 0;
+        const alignedMappedM2 = alignToSharedDates(mappedM2, datesLen);
+
         return {
-            m2: mappedM2,
+            m2: alignedMappedM2,
             // m2_weights and m2_bank_rocs are expected at top level by GlobalM2Tab
             m2_weights: m2.weights || {},
             m2_bank_rocs: m2.economy_rocs || {},

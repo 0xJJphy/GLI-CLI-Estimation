@@ -10,7 +10,9 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from domains.cli import CLIDomain
 from domains.core import USSystemDomain, SharedDomain
+from domains.macro_regime import MacroRegimeDomain
 from domains.base import clean_for_json
+from analytics.regime_v2 import calculate_cli_v2
 
 def regenerate():
     print("Loading backend/data/dashboard_data.json for source data...")
@@ -21,18 +23,12 @@ def regenerate():
         print("Error: backend/data/dashboard_data.json not found.")
         return
 
-    print("Loading frontend/public/domains/shared.json for master dates...")
-    try:
-        with open('frontend/public/domains/shared.json', 'r') as f:
-            shared_data = json.load(f)
-        master_dates = pd.to_datetime(shared_data['dates'])
-    except FileNotFoundError:
-        print("Warning: frontend/public/domains/shared.json not found. Falling back to dashboard_data dates.")
-        master_dates = pd.to_datetime(data['dates'])
+    # Use dates from dashboard_data.json (SOURCE OF TRUTH - 8452 dates from 2002-12-01)
+    # NOT from shared.json (which may contain stale/incorrect dates from previous runs)
+    master_dates = pd.to_datetime(data['dates'])
     
-    # CRITICAL FIX: Deduplicate dates. shared.json contains significant duplicates (approx 2x)
-    # which compresses rolling windows and corrupts Z-score calculations.
-    master_dates = pd.to_datetime(master_dates).drop_duplicates().sort_values()
+    # Deduplicate dates if needed (normally not needed for dashboard_data.json)
+    master_dates = master_dates.drop_duplicates().sort_values()
 
     df = pd.DataFrame(index=master_dates)
     
@@ -102,6 +98,9 @@ def regenerate():
     df['TREASURY_30Y_YIELD'] = get_series('treasury_30y')
     df['BAA_YIELD'] = get_series('baa_yield')
     df['AAA_YIELD'] = get_series('aaa_yield')
+    # Yield curve for regime calculations
+    if 'TREASURY_10Y_YIELD' in df.columns and 'TREASURY_2Y_YIELD' in df.columns:
+        df['YIELD_CURVE'] = df['TREASURY_10Y_YIELD'] - df['TREASURY_2Y_YIELD']
 
     # Fed Forecasts Inputs
     print("Reconstructing Fed Forecasts inputs...")
@@ -109,9 +108,24 @@ def regenerate():
     df['INFLATION_EXPECT_1Y'] = get_series('inflation_expect_1y')
     df['CLEV_EXPINF_5Y'] = get_series('inflation_expect_5y') # Mapping to 5Y slot
     df['CLEV_EXPINF_10Y'] = get_series('inflation_expect_10y') # Mapping to 10Y slot
-    # Also grab inflation if available
-    # cpi_yoy not in top keys list? 
-    # Use what we have.
+
+    # MacroRegime Inputs (for V2A and V2B calculations)
+    print("Reconstructing MacroRegime inputs...")
+    # GLI_TOTAL from gli.total
+    df['GLI_TOTAL'] = get_series('gli', 'total')
+    df['NET_LIQUIDITY'] = get_series('us_net_liq')
+    # M2 total for regime calculations
+    df['M2_TOTAL'] = get_series('m2', 'total')
+    # CLI for regime calculations
+    df['CLI'] = get_series('cli', 'total')
+    # TIPS Real Rate for brakes calculation
+    df['TIPS_REAL_RATE'] = get_series('tips_real')
+    df['TIPS_BREAKEVEN'] = get_series('tips_be')
+    
+    # NOTE: dashboard_data.json already has the correct date range (8452 dates from 2002-12-01).
+    # No additional trimming needed. Frontend auto-alignment handles any edge cases.
+    master_dates = df.index
+    print(f"Using {len(master_dates)} dates from dashboard_data.json (First: {master_dates[0].strftime('%Y-%m-%d')}, Last: {master_dates[-1].strftime('%Y-%m-%d')})")
 
     # Process CLI
     print("Processing CLI Domain...")
@@ -135,6 +149,29 @@ def regenerate():
     fed_dom = FedForecastsDomain()
     fed_res = fed_dom.process(df)
 
+    # Process MacroRegimeDomain (V2A and V2B regime scoring)
+    print("Processing MacroRegime Domain...")
+    try:
+        # CLI_V2 must be calculated and injected before regime processing
+        cli_v2_df = calculate_cli_v2(df)
+        df['CLI_V2'] = cli_v2_df['CLI_V2']
+        
+        macro_dom = MacroRegimeDomain()
+        macro_res = macro_dom.process(df)
+        
+        # Validate lengths match trimmed dates
+        score_len = len(macro_res.get('score', []))
+        dates_len = len(master_dates)
+        if score_len != dates_len:
+            print(f"  WARNING: Score length ({score_len}) != dates length ({dates_len})")
+        else:
+            print(f"  -> Regime data aligned: {score_len} points matching {dates_len} dates")
+    except Exception as e:
+        print(f"  ERROR processing MacroRegime: {e}")
+        import traceback
+        traceback.print_exc()
+        macro_res = None
+
     # Save
     os.makedirs('frontend/public/domains', exist_ok=True)
     
@@ -154,15 +191,26 @@ def regenerate():
         json.dump(fed_res, f)
     print("Saved frontend/public/domains/fed_forecasts.json")
 
-    # CRITICAL: Save the cleaned/deduplicated shared dates back to shared.json
-    # otherwise frontend domainLoader will attempt to map long shared dates to short domain data
+    # Save MacroRegime only if processing succeeded
+    if macro_res is not None:
+        with open('frontend/public/domains/macro_regime.json', 'w') as f:
+            json.dump(macro_res, f)
+        print("Saved frontend/public/domains/macro_regime.json")
+    else:
+        print("SKIPPED: macro_regime.json (processing failed)")
+
+    # Save shared.json with the canonical dates from dashboard_data
     with open('frontend/public/domains/shared.json', 'w') as f:
-        # Load original shared to preserve other keys if any, or just overwrite dates?
-        # SharedDomain usually has 'dates' and 'last_updated'.
-        # We'll just overwrite 'dates' in the loaded dict and save.
-        shared_data['dates'] = [d.strftime('%Y-%m-%d') for d in master_dates]
-        json.dump(shared_data, f)
-    print("Saved frontend/public/domains/shared.json (Cleaned)")
+        shared_output = {
+            'dates': [d.strftime('%Y-%m-%d') for d in master_dates],
+            'metadata': {
+                'data_start': master_dates[0].strftime('%Y-%m-%d'),
+                'data_end': master_dates[-1].strftime('%Y-%m-%d'),
+                'total_rows': len(master_dates),
+            }
+        }
+        json.dump(shared_output, f)
+    print(f"Saved frontend/public/domains/shared.json ({len(master_dates)} dates)")
 
 if __name__ == "__main__":
     regenerate()

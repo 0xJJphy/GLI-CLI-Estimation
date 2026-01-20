@@ -35,6 +35,7 @@
     export let translations = {};
 
     let modularRiskData = null;
+    let loading = true; // Track data loading state
 
     // Reactive data loading: Re-run modular loader when legacy data updates
     $: if (
@@ -42,9 +43,19 @@
         (dashboardData.dates?.length > 0 ||
             Object.keys(dashboardData).length > 5)
     ) {
-        loadRiskModelTabData(dashboardData).then((data) => {
-            modularRiskData = data;
-        });
+        loading = true;
+        loadRiskModelTabData(dashboardData)
+            .then((data) => {
+                modularRiskData = data;
+                loading = false;
+            })
+            .catch((err) => {
+                console.error(
+                    "[RiskModelTab] Error loading modular data:",
+                    err,
+                );
+                loading = false;
+            });
     }
 
     // Reactive merger: prioritization is modular > legacy
