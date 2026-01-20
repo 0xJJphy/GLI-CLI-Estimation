@@ -109,18 +109,27 @@
     };
 
     let modularData = null;
+    let loading = true; // Prevent rendering with legacy unaligned data
+
     onMount(async () => {
         try {
             modularData = await loadStablecoinsTabData(dashboardData);
-            console.log("Modular stableicons data loaded:", modularData);
+            console.log("Modular stablecoins data loaded:", modularData);
         } catch (e) {
             console.error("Error loading modular stablecoins data:", e);
+        } finally {
+            loading = false;
         }
     });
 
-    // Get stablecoin data from modularData (if available) or dashboardData
-    $: stablecoinsData = modularData || dashboardData.stablecoins || {};
-    $: stableDates = stablecoinsData.dates || dashboardData.dates || [];
+    // CRITICAL: Only use modularData when loaded to prevent rendering with unaligned legacy data
+    // If still loading, use empty objects to prevent charts from rendering with wrong data
+    $: stablecoinsData = loading
+        ? {}
+        : modularData || dashboardData.stablecoins || {};
+    $: stableDates = loading
+        ? []
+        : stablecoinsData.dates || dashboardData.dates || [];
     $: marketCaps = stablecoinsData.market_caps || {};
     $: totalSupply = stablecoinsData.total || [];
     $: prices = stablecoinsData.prices || {};

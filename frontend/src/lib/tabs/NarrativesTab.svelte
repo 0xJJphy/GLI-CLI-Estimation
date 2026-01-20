@@ -33,19 +33,22 @@
 
     // Modular data loading
     let modularCryptoData = null;
+    let loading = true; // Prevent rendering with legacy unaligned data
+
     onMount(async () => {
         try {
             modularCryptoData = await loadCryptoTabData(dashboardData);
             console.log("Modular Crypto/Narratives data loaded");
         } catch (e) {
             console.error("Error loading modular Crypto data:", e);
+        } finally {
+            loading = false;
         }
     });
 
-    // Use modular data directly with flat keys from crypto.json
-    // Keys: cai, regimes, narratives, btc_dominance, eth_dominance, total_mcap, btc_mcap, eth_mcap, rs_risk_btc, delta_rs_risk
-    $: cryptoData = modularCryptoData?.crypto_analytics || {};
-    $: legacyData = dashboardData.crypto_narratives || {};
+    // CRITICAL: Block data access until modularData is loaded to prevent race conditions
+    $: cryptoData = loading ? {} : modularCryptoData?.crypto_analytics || {};
+    $: legacyData = loading ? {} : dashboardData.crypto_narratives || {};
 
     // Data variable - prefer modular, fallback to legacy
     $: data = {

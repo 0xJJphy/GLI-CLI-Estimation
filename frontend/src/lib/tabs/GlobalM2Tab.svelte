@@ -57,26 +57,41 @@
 
     // Modular data loading
     let modularM2Data = null;
+    let loading = true; // Prevent rendering with legacy unaligned data
+
     onMount(async () => {
         try {
             modularM2Data = await loadM2TabData(dashboardData);
             console.log("Modular M2 data loaded");
         } catch (e) {
             console.error("Error loading modular M2 data:", e);
+        } finally {
+            loading = false;
         }
     });
 
-    // Merge modular data with dashboardData (modular takes precedence)
-    $: effectiveData = {
-        ...dashboardData,
-        m2: modularM2Data?.m2 || dashboardData.m2 || {},
-        dates: modularM2Data?.dates || dashboardData.dates || [],
-        m2_weights:
-            modularM2Data?.m2?.weights || dashboardData.m2_weights || {},
-        m2_bank_rocs:
-            modularM2Data?.m2?.bank_rocs || dashboardData.m2_bank_rocs || {},
-        last_dates: dashboardData.last_dates || {},
-    };
+    // CRITICAL: Block data access until modularData is loaded to prevent race conditions
+    // Return empty objects/arrays while loading to prevent charts from rendering with wrong data
+    $: effectiveData = loading
+        ? {
+              dates: [],
+              m2: {},
+              m2_weights: {},
+              m2_bank_rocs: {},
+              last_dates: {},
+          }
+        : {
+              ...dashboardData,
+              m2: modularM2Data?.m2 || dashboardData.m2 || {},
+              dates: modularM2Data?.dates || dashboardData.dates || [],
+              m2_weights:
+                  modularM2Data?.m2?.weights || dashboardData.m2_weights || {},
+              m2_bank_rocs:
+                  modularM2Data?.m2?.bank_rocs ||
+                  dashboardData.m2_bank_rocs ||
+                  {},
+              last_dates: dashboardData.last_dates || {},
+          };
 
     // M2 Aggregate mode options
     $: m2AggregateModes = [

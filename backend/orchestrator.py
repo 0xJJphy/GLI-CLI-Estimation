@@ -124,6 +124,30 @@ class DataOrchestrator:
         start_time = datetime.now()
         logger.info(f"Starting orchestration with {len(self._domains)} domains")
         
+        # ============================================================
+        # CRITICAL: Use Calendar Days index (not trading days)
+        # 
+        # Why calendar days:
+        # 1. Charts look continuous without weekend gaps
+        # 2. Traditional financial data: ffill prices on weekends (unchanged)
+        # 3. Crypto data: has real 24/7 prices on weekends
+        # 4. Matches dashboard_data.json (8,452 calendar days from 2002-12-01)
+        # ============================================================
+        VALID_DATA_START = pd.Timestamp('2002-12-01')
+        VALID_DATA_END = pd.Timestamp.today().normalize()
+        
+        # Create complete calendar day index
+        calendar_index = pd.date_range(start=VALID_DATA_START, end=VALID_DATA_END, freq='D')
+        
+        # Trim original DataFrame to valid range first
+        df = df[df.index >= VALID_DATA_START].copy()
+        
+        # Reindex to calendar days and forward-fill missing data (weekends for traditional assets)
+        original_len = len(df)
+        df = df.reindex(calendar_index).ffill()
+        
+        logger.info(f"Reindexed to calendar days: {original_len} trading days -> {len(df)} calendar days (with ffill)")
+        
         # Reset results for new run
         self._results = {}
         self._timing = {}
