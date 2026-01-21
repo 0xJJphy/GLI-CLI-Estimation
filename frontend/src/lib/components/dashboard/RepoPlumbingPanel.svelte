@@ -160,10 +160,11 @@
 
 <style>
     .panel {
-        background: var(--bg-card);
-        border-radius: var(--radius-lg);
-        padding: 1rem;
+        background: var(--bg-secondary);
+        border-radius: 16px;
+        padding: 1.5rem;
         border: 1px solid var(--border-color);
+        box-shadow: var(--card-shadow);
     }
 
     .panel-header {
@@ -190,18 +191,18 @@
     }
 
     .repo-status.low {
-        background: rgba(22, 163, 74, 0.2);
-        color: #16a34a;
+        background: var(--signal-ok-bg);
+        color: var(--signal-ok);
     }
 
     .repo-status.moderate {
-        background: rgba(202, 138, 4, 0.2);
-        color: #ca8a04;
+        background: var(--signal-neutral-bg);
+        color: var(--signal-warning);
     }
 
     .repo-status.high {
-        background: rgba(239, 68, 68, 0.2);
-        color: #ef4444;
+        background: var(--signal-bearish-bg);
+        color: var(--signal-bearish);
     }
 
     .repo-split {
@@ -239,15 +240,15 @@
     }
 
     .c-line.ceiling {
-        border-left: 3px solid #ef4444;
+        border-left: 3px solid var(--signal-bearish);
     }
 
     .c-line.sofr {
-        border-left: 3px solid var(--color-primary);
+        border-left: 3px solid var(--accent-primary);
     }
 
     .c-line.floor {
-        border-left: 3px solid #10b981;
+        border-left: 3px solid var(--signal-ok);
     }
 
     .c-line .l {
@@ -298,15 +299,15 @@
     }
 
     .f-metric .v.drain {
-        color: #ef4444;
+        color: var(--negative-color);
     }
 
     .f-metric .v.inject {
-        color: #10b981;
+        color: var(--positive-color);
     }
 
     .f-metric .v.warning {
-        color: #f59e0b;
+        color: var(--signal-warning);
     }
 
     .repo-desc {

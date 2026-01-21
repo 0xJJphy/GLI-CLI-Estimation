@@ -34,10 +34,11 @@
 <style>
     .alerts-panel {
         grid-column: 1 / -1;
-        background: var(--bg-card);
-        border-radius: var(--radius-lg);
-        padding: 1rem;
+        background: var(--bg-secondary);
+        border-radius: 16px;
+        padding: 1.5rem;
         border: 1px solid var(--border-color);
+        box-shadow: var(--card-shadow);
     }
 
     .alerts-header h3 {
@@ -63,22 +64,22 @@
     }
 
     .alert-item.danger {
-        border-left-color: var(--color-danger);
-        background: rgba(239, 68, 68, 0.1);
+        border-left-color: var(--signal-danger);
+        background: var(--signal-danger-bg);
     }
 
     .alert-item.warning {
-        border-left-color: var(--color-warning);
-        background: rgba(245, 158, 11, 0.1);
+        border-left-color: var(--signal-warning);
+        background: var(--signal-warning-bg);
     }
 
     .alert-item.info {
-        border-left-color: var(--color-info);
+        border-left-color: var(--accent-secondary);
         background: rgba(59, 130, 246, 0.1);
     }
 
     .alert-item.signal {
-        border-left-color: var(--color-primary);
+        border-left-color: var(--accent-primary);
         background: rgba(139, 92, 246, 0.1);
     }
 

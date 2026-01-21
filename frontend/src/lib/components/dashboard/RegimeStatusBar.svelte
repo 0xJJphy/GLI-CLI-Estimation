@@ -239,10 +239,11 @@
         gap: 1.5rem;
         align-items: center;
         justify-content: space-between;
-        background: var(--bg-card);
-        border-radius: var(--radius-lg);
-        padding: 1rem 1.5rem;
+        background: var(--bg-secondary);
+        border-radius: 16px;
+        padding: 1.5rem;
         border: 1px solid var(--border-color);
+        box-shadow: var(--card-shadow);
         margin-bottom: 1rem;
     }
 
@@ -301,11 +302,11 @@
     }
 
     .regime-label.bullish {
-        color: #10b981;
+        color: var(--signal-bullish);
     }
 
     .regime-label.bearish {
-        color: #ef4444;
+        color: var(--signal-bearish);
     }
 
     .regime-label.neutral {
@@ -317,11 +318,11 @@
     }
 
     .regime-trend.positive {
-        color: #10b981;
+        color: var(--positive-color);
     }
 
     .regime-trend.negative {
-        color: #ef4444;
+        color: var(--negative-color);
     }
 
     .regime-trend.neutral {
@@ -353,11 +354,11 @@
     }
 
     .comp-value.positive {
-        color: #10b981;
+        color: var(--positive-color);
     }
 
     .comp-value.negative {
-        color: #ef4444;
+        color: var(--negative-color);
     }
 
     .fomc-section {
@@ -386,7 +387,7 @@
 
     .fomc-today {
         font-weight: 700;
-        color: #ef4444;
+        color: var(--negative-color);
         animation: pulse 1.5s infinite;
     }
 
@@ -455,15 +456,15 @@
     }
 
     .prob-item.high {
-        background: rgba(16, 185, 129, 0.15);
+        background: var(--signal-ok-bg);
     }
 
     .prob-item.cut .prob-value {
-        color: #10b981;
+        color: var(--signal-ok);
     }
 
     .prob-item.hike .prob-value {
-        color: #ef4444;
+        color: var(--signal-bearish);
     }
 
     .prob-label {
@@ -484,11 +485,11 @@
     }
 
     .prob-change.up {
-        color: #10b981;
+        color: var(--positive-color);
     }
 
     .prob-change.down {
-        color: #ef4444;
+        color: var(--negative-color);
     }
 
     .signal-summary {
@@ -525,13 +526,13 @@
     }
 
     .net-count.positive {
-        background: rgba(16, 185, 129, 0.15);
-        color: #10b981;
+        background: var(--signal-ok-bg);
+        color: var(--signal-ok);
     }
 
     .net-count.negative {
-        background: rgba(239, 68, 68, 0.15);
-        color: #ef4444;
+        background: var(--signal-bearish-bg);
+        color: var(--signal-bearish);
     }
 
     @media (max-width: 900px) {

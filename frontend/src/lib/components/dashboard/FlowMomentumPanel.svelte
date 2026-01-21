@@ -112,10 +112,11 @@
 
 <style>
     .panel {
-        background: var(--bg-card);
-        border-radius: var(--radius-lg);
-        padding: 1rem;
+        background: var(--bg-secondary);
+        border-radius: 16px;
+        padding: 1.5rem;
         border: 1px solid var(--border-color);
+        box-shadow: var(--card-shadow);
     }
 
     .panel-header {
@@ -164,11 +165,11 @@
     }
 
     .flow-val.positive {
-        color: #10b981;
+        color: var(--positive-color);
     }
 
     .flow-val.negative {
-        color: #ef4444;
+        color: var(--negative-color);
     }
 
     .flow-zscore {
@@ -179,13 +180,13 @@
     }
 
     .flow-zscore.high {
-        background: rgba(16, 185, 129, 0.15);
-        color: #10b981;
+        background: var(--signal-ok-bg);
+        color: var(--signal-ok);
     }
 
     .flow-zscore.low {
-        background: rgba(239, 68, 68, 0.15);
-        color: #ef4444;
+        background: var(--signal-bearish-bg);
+        color: var(--signal-bearish);
     }
 
     .cb-contributions {
@@ -233,11 +234,11 @@
     }
 
     .contrib-bar.positive {
-        background: #10b981;
+        background: var(--positive-color);
     }
 
     .contrib-bar.negative {
-        background: #ef4444;
+        background: var(--negative-color);
     }
 
     .contrib-val {
@@ -247,10 +248,10 @@
     }
 
     .contrib-val.positive {
-        color: #10b981;
+        color: var(--positive-color);
     }
 
     .contrib-val.negative {
-        color: #ef4444;
+        color: var(--negative-color);
     }
 </style>

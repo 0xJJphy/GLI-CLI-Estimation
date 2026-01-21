@@ -54,10 +54,10 @@
                         class="stress-bar"
                         style="width: {(dim.score / dim.max) *
                             100}%; background: {dim.score >= 4
-                            ? '#ef4444'
+                            ? 'var(--signal-bearish)'
                             : dim.score >= 2
-                              ? '#f59e0b'
-                              : '#10b981'}"
+                              ? 'var(--signal-warning)'
+                              : 'var(--signal-ok)'}"
                     ></div>
                 </div>
                 <span class="stress-value">{dim.score}/{dim.max}</span>
@@ -71,10 +71,11 @@
 
 <style>
     .panel {
-        background: var(--bg-card);
-        border-radius: var(--radius-lg);
-        padding: 1rem;
+        background: var(--bg-secondary);
+        border-radius: 16px;
+        padding: 1.5rem;
         border: 1px solid var(--border-color);
+        box-shadow: var(--card-shadow);
     }
 
     .panel-header {
@@ -115,23 +116,23 @@
     }
 
     .stress-level.critical {
-        background: rgba(239, 68, 68, 0.2);
-        color: #ef4444;
+        background: var(--signal-bearish-bg);
+        color: var(--signal-bearish);
     }
 
     .stress-level.high {
-        background: rgba(234, 88, 12, 0.2);
-        color: #ea580c;
+        background: var(--signal-warning-bg);
+        color: var(--signal-warning);
     }
 
     .stress-level.moderate {
-        background: rgba(202, 138, 4, 0.2);
-        color: #ca8a04;
+        background: var(--signal-neutral-bg);
+        color: var(--signal-warning);
     }
 
     .stress-level.low {
-        background: rgba(22, 163, 74, 0.2);
-        color: #16a34a;
+        background: var(--signal-ok-bg);
+        color: var(--signal-ok);
     }
 
     .stress-grid {

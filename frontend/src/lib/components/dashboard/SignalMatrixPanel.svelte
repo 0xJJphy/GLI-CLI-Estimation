@@ -105,10 +105,11 @@
 
 <style>
     .panel {
-        background: var(--bg-card);
-        border-radius: var(--radius-lg);
-        padding: 1rem;
+        background: var(--bg-secondary);
+        border-radius: 16px;
+        padding: 1.5rem;
         border: 1px solid var(--border-color);
+        box-shadow: var(--card-shadow);
     }
 
     .panel-header {
@@ -142,17 +143,17 @@
     }
 
     .weighted-score-pill.bullish {
-        background: rgba(16, 185, 129, 0.2);
-        color: #10b981;
+        background: var(--signal-ok-bg);
+        color: var(--signal-ok);
     }
 
     .weighted-score-pill.bearish {
-        background: rgba(239, 68, 68, 0.2);
-        color: #ef4444;
+        background: var(--signal-bearish-bg);
+        color: var(--signal-bearish);
     }
 
     .weighted-score-pill.neutral {
-        background: rgba(107, 114, 128, 0.2);
+        background: var(--signal-neutral-bg);
         color: var(--text-secondary);
     }
 
@@ -170,13 +171,13 @@
     }
 
     .driver-tag.bullish {
-        background: rgba(16, 185, 129, 0.15);
-        color: #10b981;
+        background: var(--signal-ok-bg);
+        color: var(--signal-ok);
     }
 
     .driver-tag.bearish {
-        background: rgba(239, 68, 68, 0.15);
-        color: #ef4444;
+        background: var(--signal-bearish-bg);
+        color: var(--signal-bearish);
     }
 
     .aggregate-badge {
@@ -187,13 +188,13 @@
     }
 
     .aggregate-badge.bullish {
-        background: rgba(16, 185, 129, 0.2);
-        color: #10b981;
+        background: var(--signal-ok-bg);
+        color: var(--signal-ok);
     }
 
     .aggregate-badge.bearish {
-        background: rgba(239, 68, 68, 0.2);
-        color: #ef4444;
+        background: var(--signal-bearish-bg);
+        color: var(--signal-bearish);
     }
 
     .aggregate-badge.neutral {
@@ -258,11 +259,11 @@
     }
 
     .delta-cell.positive {
-        color: #10b981;
+        color: var(--positive-color);
     }
 
     .delta-cell.negative {
-        color: #ef4444;
+        color: var(--negative-color);
     }
 
     .signal-cell {
