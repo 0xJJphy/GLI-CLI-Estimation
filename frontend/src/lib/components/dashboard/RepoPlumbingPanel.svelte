@@ -165,6 +165,13 @@
         padding: 1.5rem;
         border: 1px solid var(--border-color);
         box-shadow: var(--card-shadow);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .panel:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.15);
+        border-color: var(--accent-secondary);
     }
 
     .panel-header {
@@ -236,7 +243,7 @@
         gap: 0.75rem;
         padding: 0.4rem 0.6rem;
         border-radius: var(--radius-sm);
-        background: var(--bg-elevated);
+        background: var(--bg-tertiary);
     }
 
     .c-line.ceiling {
@@ -282,7 +289,7 @@
         flex-direction: column;
         gap: 0.2rem;
         padding: 0.5rem;
-        background: var(--bg-elevated);
+        background: var(--bg-tertiary);
         border-radius: var(--radius-sm);
     }
 

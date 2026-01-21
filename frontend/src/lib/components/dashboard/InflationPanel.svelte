@@ -131,9 +131,16 @@
     .panel {
         background: var(--bg-secondary);
         border-radius: 16px;
-        padding: 1.5rem;
+        padding: 1.25rem;
         border: 1px solid var(--border-color);
         box-shadow: var(--card-shadow);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .panel:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.15);
+        border-color: var(--accent-secondary);
     }
 
     .panel.wide {
@@ -151,50 +158,68 @@
 
     .panel-title {
         margin: 0;
-        font-size: 0.95rem;
+        font-size: 1rem;
+        font-weight: 700;
         color: var(--text-primary);
-        font-weight: 600;
         font-family: var(--font-mono);
+        display: flex;
+        align-items: center;
+        gap: 8px;
     }
 
     .inflation-signal {
+        padding: 4px 12px;
+        border-radius: 6px;
         font-size: 0.75rem;
-        font-weight: 500;
-        padding: 0.2rem 0.5rem;
-        border-radius: var(--radius-sm);
-        background: var(--bg-elevated);
+        font-weight: 600;
     }
 
-    .inflation-signal.steepening {
-        color: var(--signal-warning);
+    .inflation-signal.bullish {
+        background: rgba(245, 158, 11, 0.2);
+        color: #f59e0b;
     }
 
-    .inflation-signal.flattening {
-        color: var(--signal-ok);
+    .inflation-signal.bearish {
+        background: rgba(59, 130, 246, 0.2);
+        color: #3b82f6;
     }
 
     .inflation-signal.neutral {
-        color: var(--text-secondary);
+        background: rgba(107, 114, 128, 0.2);
+        color: #9ca3af;
+    }
+
+    .inflation-signal.warning {
+        background: rgba(245, 158, 11, 0.3);
+        color: #f59e0b;
+        border: 1px solid rgba(245, 158, 11, 0.5);
+    }
+
+    .inflation-signal.danger {
+        background: rgba(239, 68, 68, 0.3);
+        color: #ef4444;
+        border: 1px solid rgba(239, 68, 68, 0.5);
     }
 
     .actual-inflation {
-        display: flex;
-        gap: 1.5rem;
-        margin-bottom: 1rem;
-        flex-wrap: wrap;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin-bottom: 16px;
     }
 
     .actual-item {
         display: flex;
         flex-direction: column;
-        gap: 0.2rem;
-        padding: 0.5rem 0.75rem;
-        background: var(--bg-elevated);
-        border-radius: var(--radius-sm);
+        align-items: center;
+        gap: 4px;
+        padding: 10px;
+        background: var(--bg-tertiary);
+        border-radius: 8px;
     }
 
     .actual-item.target {
-        border: 1px solid var(--accent-primary);
+        border: 1px solid rgba(239, 68, 68, 0.3);
     }
 
     .actual-label {
@@ -205,14 +230,16 @@
 
     .actual-value {
         font-family: var(--font-mono);
-        font-weight: 600;
-        font-size: 0.9rem;
-        color: var(--text-primary);
+        font-weight: 700;
+        font-size: 1.25rem; /* Larger like in screenshot */
+        color: #f1f5f9;
+        margin-top: 4px;
     }
 
     .target-badge {
         font-size: 0.6rem;
-        color: var(--accent-primary);
+        color: #ef4444;
+        font-weight: 600;
     }
 
     .inflation-table {
@@ -258,12 +285,12 @@
 
     .metric-delta.positive,
     .metric-roc.positive {
-        color: var(--signal-bearish);
+        color: #ef4444; /* Red = inflation rising = bearish */
     }
 
     .metric-delta.negative,
     .metric-roc.negative {
-        color: var(--signal-ok);
+        color: #10b981; /* Green = inflation falling = bullish */
     }
 
     .inflation-note {

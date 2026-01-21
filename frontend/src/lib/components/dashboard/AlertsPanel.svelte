@@ -39,6 +39,13 @@
         padding: 1.5rem;
         border: 1px solid var(--border-color);
         box-shadow: var(--card-shadow);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .alerts-panel:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.15);
+        border-color: var(--accent-secondary);
     }
 
     .alerts-header h3 {
@@ -60,7 +67,7 @@
         padding: 0.75rem;
         border-radius: var(--radius-md);
         background: var(--bg-elevated);
-        border-left: 3px solid var(--border-color);
+        border-left: 4px solid var(--border-color);
     }
 
     .alert-item.danger {

@@ -128,20 +128,30 @@
 <style>
     .narrative-assessment {
         display: grid;
-        grid-template-columns: 1fr 300px;
-        gap: 1.5rem;
-        background: var(--bg-secondary);
-        border-radius: 16px;
-        padding: 1.5rem;
-        border: 1px solid var(--border-color);
-        box-shadow: var(--card-shadow);
-        margin-bottom: 1rem;
+        grid-template-columns: 1fr 400px;
+        gap: 20px;
+        background: linear-gradient(
+            135deg,
+            var(--bg-secondary, #1e293b) 0%,
+            var(--bg-tertiary, #334155) 100%
+        );
+        border-radius: 20px;
+        border: 1px solid var(--border-color, #475569);
+        overflow: hidden;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    }
+
+    .narrative-assessment:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.4);
+        border-color: var(--accent-secondary);
     }
 
     .narrative-main {
+        padding: 24px;
         display: flex;
         flex-direction: column;
-        gap: 1rem;
+        gap: 20px;
     }
 
     .narrative-headline {
@@ -151,28 +161,32 @@
     }
 
     .narrative-headline .label {
-        font-size: 0.65rem;
+        font-size: 0.75rem;
+        font-weight: 800;
+        color: #60a5fa;
         text-transform: uppercase;
-        color: var(--text-muted);
-        letter-spacing: 0.5px;
+        letter-spacing: 2px;
     }
 
     .narrative-headline h2 {
         margin: 0;
-        font-size: 1.1rem;
-        font-weight: 700;
-        color: var(--text-primary);
+        font-size: 1.75rem;
+        font-weight: 800;
+        color: var(--text-primary, #f1f5f9);
+        line-height: 1.2;
     }
 
     .recommendation-badge {
         display: inline-block;
-        padding: 0.3rem 0.6rem;
-        background: var(--bg-tertiary);
-        border-radius: var(--radius-sm);
-        font-size: 0.75rem;
-        color: var(--accent-primary);
-        font-weight: 500;
-        width: fit-content;
+        align-self: flex-start;
+        margin-top: 8px;
+        padding: 6px 14px;
+        background: rgba(96, 165, 250, 0.15);
+        color: #60a5fa;
+        border: 1px solid rgba(96, 165, 250, 0.3);
+        border-radius: 99px;
+        font-size: 0.85rem;
+        font-weight: 700;
     }
 
     .narrative-details {
@@ -196,27 +210,32 @@
 
     .detail-group ul {
         margin: 0;
-        padding-left: 1.2rem;
-        font-size: 0.8rem;
-        color: var(--text-secondary);
+        padding: 0;
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
     }
 
     .detail-group ul li {
-        margin-bottom: 0.25rem;
+        font-size: 0.9rem;
+        color: var(--text-secondary, #cbd5e1);
+        padding-left: 12px;
+        position: relative;
     }
 
     .detail-group.risks ul li {
-        color: var(--signal-warning);
+        border-left: 2px solid #ef4444;
     }
 
     .detail-group.positives ul li {
-        color: var(--signal-ok);
+        border-left: 2px solid #10b981;
     }
 
     .catalyst-next-7d {
-        background: var(--bg-elevated);
-        border-radius: var(--radius-md);
-        padding: 1rem;
+        background: rgba(0, 0, 0, 0.2);
+        padding: 24px;
+        border-left: 1px solid var(--border-color, #475569);
     }
 
     .catalyst-next-7d .panel-header h3 {
@@ -234,7 +253,11 @@
     .summ-item {
         display: flex;
         flex-direction: column;
-        gap: 0.15rem;
+        gap: 2px;
+        background: var(--bg-secondary, #1e293b);
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px solid var(--border-color, #334155);
     }
 
     .summ-item .l {
@@ -290,18 +313,18 @@
     }
 
     .s-risk.low {
-        background: var(--signal-ok-bg);
-        color: var(--signal-ok);
+        background: rgba(16, 185, 129, 0.2);
+        color: #10b981;
     }
 
     .s-risk.medium {
-        background: var(--signal-warning-bg);
-        color: var(--signal-warning);
+        background: rgba(245, 158, 11, 0.2);
+        color: #f59e0b;
     }
 
     .s-risk.high {
-        background: var(--signal-danger-bg);
-        color: var(--signal-danger);
+        background: rgba(239, 68, 68, 0.2);
+        color: #ef4444;
     }
 
     .no-catalysts {

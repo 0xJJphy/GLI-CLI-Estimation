@@ -1,1484 +1,739 @@
 <script>
     /**
-     * DashboardTab.svelte
-     * Main dashboard displaying GLI, Net Liquidity, CLI, Regime and Impulse Analysis.
-     * Fully encapsulated: imports stores directly and computes all data internally.
+     * Dashboard3.svelte - QUANT EXECUTIVE DASHBOARD (Component-Based)
+     *
+     * Complete implementation using 9 extracted reusable components.
+     * This replaces Dashboard2.svelte with better maintainability.
      */
-    import Chart from "../components/Chart.svelte";
-    import LightweightChart from "../components/LightweightChart.svelte";
     import StatsCard from "../components/StatsCard.svelte";
-    import SignalBadge from "../components/SignalBadge.svelte";
-    import TimeRangeSelector from "../components/TimeRangeSelector.svelte";
 
-    // Import stores directly
-    import { dashboardData, latestStats } from "../../stores/dataStore";
+    // Import all dashboard components
+    import {
+        RegimeStatusBar,
+        StressPanel,
+        SignalMatrixPanel,
+        AlertsPanel,
+        FlowMomentumPanel,
+        RepoPlumbingPanel,
+        ExecutiveNarrativePanel,
+        BtcFundamentalsPanel,
+        InflationPanel,
+    } from "../components/dashboard";
+
+    // Import stores
+    import { dashboardData } from "../../stores/dataStore";
     import {
         darkMode,
-        language,
         currentTranslations,
+        t,
     } from "../../stores/settingsStore";
 
-    // Import utility functions
+    // Import utilities
+    import { getLatestValue } from "../utils/helpers.js";
     import {
-        filterPlotlyData,
-        getLastDate as getLastDateHelper,
-        getLatestValue,
-        calculateZScore,
-        calculateBtcRoc,
-        findOptimalLag,
-    } from "../utils/helpers.js";
-
-    // Translations prop (can be passed or derived from store)
-    export let translations = {};
-
-    // ========================================================================
-    // LOCAL STATE (all managed internally)
-    // ========================================================================
-    let gliRange = "ALL";
-    let gliShowConstantFx = false;
-    let netLiqRange = "ALL";
-    let cliRange = "ALL";
-    let cliCompRange = "ALL";
-    let impulseRange = "ALL";
-    let regimeLag = 42;
-    let btcRocPeriod = 21;
-    let btcLag = 0;
-    let normalizeImpulse = true;
-    let showComposite = false;
-    let optimalLagLabel = "N/A";
-
-    // Load optimized params on mount
+        calcDelta,
+        calcRoc,
+        formatValue,
+    } from "../utils/dashboardHelpers.js";
     import { onMount } from "svelte";
-    onMount(async () => {
-        try {
-            const response = await fetch("/regime_params.json");
-            if (response.ok) {
-                const params = await response.json();
-                if (params.recommended_offset_days !== undefined) {
-                    regimeLag = params.recommended_offset_days;
-                }
-            }
-        } catch (e) {
-            console.warn("Could not load optimized regime params", e);
-        }
+
+    // ========================================================================
+    // FOMC COUNTDOWN
+    // ========================================================================
+    let fomcCountdown = { days: 0, hours: 0, isToday: false };
+    let nextFomcHasSEP = false;
+    let nextMeetingProbs = null;
+
+    onMount(() => {
+        updateFomcCountdown();
+        const interval = setInterval(updateFomcCountdown, 60000);
+        return () => clearInterval(interval);
     });
 
-    // ========================================================================
-    // HELPER FUNCTIONS
-    // ========================================================================
-    function getLastDate(key) {
-        return getLastDateHelper($dashboardData, key);
-    }
-
-    function shiftData(dates, values, lagDays) {
-        if (!dates || !values || dates.length !== values.length)
-            return { x: dates || [], y: values || [] };
-        if (lagDays === 0) return { x: dates, y: values };
-
-        const shiftedX = [];
-        const shiftedY = [];
-
-        for (let i = 0; i < values.length; i++) {
-            if (values[i] === null || values[i] === undefined) continue;
-            const originalDate = new Date(dates[i]);
-            const shiftedDate = new Date(originalDate);
-            shiftedDate.setDate(shiftedDate.getDate() + lagDays);
-            const shiftedDateStr = shiftedDate.toISOString().split("T")[0];
-            shiftedX.push(shiftedDateStr);
-            shiftedY.push(values[i]);
+    function updateFomcCountdown() {
+        const meetings = $dashboardData.fed_forecasts?.fomc_dates || [];
+        const now = new Date();
+        for (const meeting of meetings) {
+            const meetingDate = new Date(meeting.date + "T14:00:00-05:00");
+            if (meetingDate > now) {
+                nextFomcHasSEP = meeting.has_sep || false;
+                nextMeetingProbs = meeting.probs || null;
+                const diff = meetingDate.getTime() - now.getTime();
+                fomcCountdown = {
+                    days: Math.floor(diff / (1000 * 60 * 60 * 24)),
+                    hours: Math.floor(
+                        (diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60),
+                    ),
+                    isToday: diff < 24 * 60 * 60 * 1000,
+                };
+                break;
+            }
         }
-        return { x: shiftedX, y: shiftedY };
     }
 
     // ========================================================================
-    // REACTIVE CHART DATA COMPUTATIONS
+    // REGIME COMPUTATIONS
     // ========================================================================
-
-    // GLI Chart Data
-    $: gliDataSource = gliShowConstantFx
-        ? $dashboardData.gli?.constant_fx
-        : $dashboardData.gli?.total;
-    $: gliDataRaw = [
-        {
-            x: $dashboardData.dates,
-            y: gliDataSource,
-            name: gliShowConstantFx
-                ? "GLI Constant-FX"
-                : "GLI Total (Spot USD)",
-            type: "scatter",
-            mode: "lines",
-            line: {
-                color: gliShowConstantFx ? "#10b981" : "#6366f1",
-                width: 3,
-                shape: "spline",
-            },
-        },
-    ];
-    $: gliData = filterPlotlyData(gliDataRaw, $dashboardData.dates, gliRange);
-
-    // Net Liquidity Chart Data
-    $: netLiqDataRaw = [
-        {
-            x: $dashboardData.dates,
-            y: $dashboardData.us_net_liq,
-            name: "US Net Liquidity",
-            type: "scatter",
-            mode: "lines",
-            line: { color: "#10b981", width: 3, shape: "spline" },
-        },
-    ];
-    $: netLiqData = filterPlotlyData(
-        netLiqDataRaw,
-        $dashboardData.dates,
-        netLiqRange,
-    );
-
-    // CLI Chart Data
-    $: cliDataRaw = [
-        {
-            x: $dashboardData.dates,
-            y: $dashboardData.cli?.total,
-            name: "CLI",
-            type: "scatter",
-            mode: "lines",
-            line: { color: "#f59e0b", width: 3, shape: "spline" },
-        },
-    ];
-    $: cliData = filterPlotlyData(cliDataRaw, $dashboardData.dates, cliRange);
-
-    // CLI Component Data
-    $: cliComponentDataRaw = $dashboardData.cli_components
-        ? [
-              {
-                  x: $dashboardData.dates,
-                  y: $dashboardData.cli_components.hy_z?.map((v) => v * 0.25),
-                  name: "HY Spread",
-                  type: "scatter",
-                  mode: "lines",
-                  line: { color: "#ef4444", width: 2, shape: "spline" },
-                  stackgroup: "cli",
-              },
-              {
-                  x: $dashboardData.dates,
-                  y: $dashboardData.cli_components.ig_z?.map((v) => v * 0.15),
-                  name: "IG Spread",
-                  type: "scatter",
-                  mode: "lines",
-                  line: { color: "#f59e0b", width: 2, shape: "spline" },
-                  stackgroup: "cli",
-              },
-              {
-                  x: $dashboardData.dates,
-                  y: $dashboardData.cli_components.nfci_credit_z?.map(
-                      (v) => v * 0.2,
-                  ),
-                  name: "NFCI Credit",
-                  type: "scatter",
-                  mode: "lines",
-                  line: { color: "#3b82f6", width: 2, shape: "spline" },
-                  stackgroup: "cli",
-              },
-              {
-                  x: $dashboardData.dates,
-                  y: $dashboardData.cli_components.nfci_risk_z?.map(
-                      (v) => v * 0.2,
-                  ),
-                  name: "NFCI Risk",
-                  type: "scatter",
-                  mode: "lines",
-                  line: { color: "#8b5cf6", width: 2, shape: "spline" },
-                  stackgroup: "cli",
-              },
-              {
-                  x: $dashboardData.dates,
-                  y: $dashboardData.cli_components.lending_z?.map(
-                      (v) => v * 0.1,
-                  ),
-                  name: "Lending",
-                  type: "scatter",
-                  mode: "lines",
-                  line: { color: "#10b981", width: 2, shape: "spline" },
-                  stackgroup: "cli",
-              },
-              {
-                  x: $dashboardData.dates,
-                  y: $dashboardData.cli_components.vix_z?.map((v) => v * 0.1),
-                  name: "VIX",
-                  type: "scatter",
-                  mode: "lines",
-                  line: { color: "#64748b", width: 2, shape: "spline" },
-                  stackgroup: "cli",
-              },
-          ]
-        : [];
-    $: cliComponentData = filterPlotlyData(
-        cliComponentDataRaw,
-        $dashboardData.dates,
-        cliCompRange,
-    );
-
-    // ========================================================================
-    // REGIME CHART DATA
-    // ========================================================================
-    $: regimeLCData = (() => {
-        const currentOffset = regimeLag;
-        if (!$dashboardData.dates || !$dashboardData.btc?.price) return [];
-
-        const dates = $dashboardData.dates;
-        const prices = $dashboardData.btc.price;
-        const regimeScore = $dashboardData.macro_regime?.score || [];
-        const lastDate = dates[dates.length - 1];
-
-        const bgData = [];
-        const btcData = [];
-
-        const addDays = (dateStr, days) => {
-            const d = new Date(dateStr);
-            d.setDate(d.getDate() + days);
-            return d.toISOString().split("T")[0];
-        };
-
-        const scoreToColor = (score) => {
-            const s = Number(score);
-            if (isNaN(s)) return "rgba(148, 163, 184, 0.05)";
-            const deviation = (s - 50) / 50;
-            const absDeviation = Math.abs(deviation);
-            const alpha = 0.08 + absDeviation * 0.18;
-            if (deviation > 0.02)
-                return `rgba(16, 185, 129, ${alpha.toFixed(2)})`;
-            else if (deviation < -0.02)
-                return `rgba(239, 68, 68, ${alpha.toFixed(2)})`;
-            else return `rgba(148, 163, 184, 0.08)`;
-        };
-
-        for (let i = 0; i < dates.length; i++) {
-            if (prices[i] !== undefined && prices[i] !== null) {
-                btcData.push({ time: dates[i], value: prices[i] });
-            }
-        }
-
-        const totalDates = dates.length + currentOffset;
-        for (let targetIdx = 0; targetIdx < totalDates; targetIdx++) {
-            let targetDate;
-            if (targetIdx < dates.length) {
-                targetDate = dates[targetIdx];
-            } else if (lastDate) {
-                const daysToAdd = targetIdx - (dates.length - 1);
-                targetDate = addDays(lastDate, daysToAdd);
-            }
-            const sourceIdx = targetIdx - currentOffset;
-            if (sourceIdx >= 0 && sourceIdx < regimeScore.length) {
-                const score = regimeScore[sourceIdx];
-                const color = scoreToColor(score);
-                if (color && targetDate) {
-                    bgData.push({ time: targetDate, value: 1, color });
-                }
-            }
-        }
-
-        return [
-            {
-                name: "Regime",
-                type: "histogram",
-                data: bgData,
-                color: "transparent",
-                options: {
-                    priceScaleId: "left",
-                    priceFormat: { type: "custom", formatter: () => "" },
-                    scaleMargins: { top: 0, bottom: 0 },
-                },
-            },
-            {
-                name: "BTC Price",
-                type: "area",
-                data: btcData,
-                color: "#94a3b8",
-                topColor: "rgba(148, 163, 184, 0.4)",
-                bottomColor: "rgba(148, 163, 184, 0.01)",
-                width: 2,
-            },
-        ];
+    $: regimeScore = (() => {
+        const mr = $dashboardData.macro_regime;
+        if (!mr?.score?.length) return 50;
+        return mr.score[mr.score.length - 1] ?? 50;
     })();
 
-    // ========================================================================
-    // IMPULSE CHART DATA
-    // ========================================================================
-    $: btcRocTrace = (() => {
-        if (!$dashboardData.btc || !$dashboardData.btc.price) return null;
-        const prices = $dashboardData.btc.price || [];
-        const dates = $dashboardData.dates;
-        if (!prices.length) return null;
-
-        const computed = calculateBtcRoc(prices, dates, btcRocPeriod, 0);
-        const yRaw = computed.map((p) => p.y);
-        const useZ = normalizeImpulse || showComposite;
-        const yFinal = useZ ? calculateZScore(yRaw) : yRaw;
-
-        return {
-            x: computed.map((p) => p.x),
-            y: yFinal,
-            name: `BTC ROC (${btcRocPeriod}d)${useZ ? " [Z]" : ""}`,
-            type: "scatter",
-            mode: "lines",
-            line: { color: "#94a3b8", width: 2, dash: "solid" },
-            yaxis: useZ ? "y" : "y2",
-            opacity: 0.8,
-        };
+    $: regimeCode = (() => {
+        const mr = $dashboardData.macro_regime;
+        if (!mr?.regime_code?.length) return 0;
+        return mr.regime_code[mr.regime_code.length - 1] ?? 0;
     })();
 
-    $: compositeData = (() => {
-        if (!showComposite || !$dashboardData.flow_metrics) return null;
-        const g = calculateZScore(
-            $dashboardData.flow_metrics.gli_impulse_13w || [],
-        );
-        const n = calculateZScore(
-            $dashboardData.flow_metrics.net_liquidity_impulse_13w || [],
-        );
-        const c = calculateZScore(
-            $dashboardData.flow_metrics.cli_momentum_4w || [],
-        );
-        if (!g.length) return null;
-
-        const comp = g.map((val, i) => {
-            if (val == null || n[i] == null || c[i] == null) return null;
-            return (val + n[i] + c[i]) / 3;
-        });
-
-        const prices = $dashboardData.btc?.price || [];
-        const fullRoc = prices.map((curr, i) => {
-            if (i < btcRocPeriod) return null;
-            const past = prices[i - btcRocPeriod];
-            if (!past) return null;
-            return ((curr - past) / past) * 100;
-        });
-
-        const best = findOptimalLag(
-            $dashboardData.dates,
-            comp,
-            fullRoc,
-            0,
-            120,
-        );
-        optimalLagLabel = `Best Offset: +${best.lag}d (Corr: ${best.corr !== null && best.corr !== undefined ? best.corr.toFixed(2) : "0.00"})`;
-
-        return comp;
-    })();
-
-    $: compositeShifted = showComposite
-        ? shiftData($dashboardData.dates, compositeData, btcLag)
-        : null;
-    $: gliImpulseShifted = shiftData(
-        $dashboardData.dates,
-        $dashboardData.flow_metrics?.gli_impulse_13w,
-        btcLag,
-    );
-    $: netLiqImpulseShifted = shiftData(
-        $dashboardData.dates,
-        $dashboardData.flow_metrics?.net_liquidity_impulse_13w,
-        btcLag,
-    );
-    $: cliMomentumShifted = shiftData(
-        $dashboardData.dates,
-        $dashboardData.flow_metrics?.cli_momentum_4w,
-        btcLag,
-    );
-
-    $: gliY = normalizeImpulse
-        ? calculateZScore(gliImpulseShifted.y)
-        : gliImpulseShifted.y;
-    $: netLiqY = normalizeImpulse
-        ? calculateZScore(netLiqImpulseShifted.y)
-        : netLiqImpulseShifted.y;
-    $: cliY = normalizeImpulse
-        ? calculateZScore(cliMomentumShifted.y)
-        : cliMomentumShifted.y;
-
-    $: impulseDataRaw = showComposite
-        ? [
-              {
-                  x: compositeShifted?.x || [],
-                  y: compositeShifted?.y || [],
-                  name:
-                      "Composite Liquidity (Z)" +
-                      (btcLag !== 0 ? ` [${btcLag}d]` : ""),
-                  type: "scatter",
-                  mode: "lines",
-                  line: { color: "#8b5cf6", width: 3, shape: "spline" },
-              },
-              ...(btcRocTrace ? [btcRocTrace] : []),
-          ]
-        : [
-              {
-                  x: gliImpulseShifted.x,
-                  y: gliY,
-                  name:
-                      "GLI Impulse (13W)" +
-                      (btcLag !== 0
-                          ? ` [${btcLag > 0 ? "+" : ""}${btcLag}d]`
-                          : ""),
-                  type: "scatter",
-                  mode: "lines",
-                  line: { color: "#3b82f6", width: 2, shape: "spline" },
-              },
-              {
-                  x: netLiqImpulseShifted.x,
-                  y: netLiqY,
-                  name: "NetLiq Impulse (13W)",
-                  type: "scatter",
-                  mode: "lines",
-                  line: { color: "#10b981", width: 2, shape: "spline" },
-              },
-              {
-                  x: cliMomentumShifted.x,
-                  y: cliY,
-                  name: "CLI Momentum (4W)",
-                  type: "scatter",
-                  mode: "lines",
-                  line: { color: "#f59e0b", width: 2, shape: "spline" },
-              },
-              ...(btcRocTrace ? [btcRocTrace] : []),
-          ];
-
-    $: impulseData = filterPlotlyData(
-        impulseDataRaw,
-        $dashboardData.dates,
-        impulseRange,
-    );
-
-    $: impulseLayout = {
-        yaxis: {
-            title:
-                normalizeImpulse || showComposite
-                    ? "Z-Score (σ)"
-                    : "Impulse ($ Trillion)",
-            gridcolor: $darkMode ? "#334155" : "#e2e8f0",
-        },
-        yaxis2: {
-            title: "BTC ROC (%)",
-            overlaying: "y",
-            side: "right",
-            showgrid: false,
-            visible: !(normalizeImpulse || showComposite),
-        },
-        margin: { t: 30, b: 30, l: 50, r: 50 },
-        legend: { orientation: "h", y: 1.1 },
-    };
-
-    // ========================================================================
-    // METRICS COMPUTATIONS
-    // ========================================================================
-    $: gliWeights = Object.entries($dashboardData.gli_weights || {})
-        .map(([id, weight]) => {
-            const rocs = $dashboardData.bank_rocs?.[id] || {};
+    $: regimeTrend = (() => {
+        const accel = getLatestValue($dashboardData.flow_metrics?.gli_accel);
+        if (accel === null || accel === undefined)
+            return { label: "→", class: "neutral" };
+        if (accel > 0.1)
             return {
-                id,
-                name: id.toUpperCase(),
-                weight,
-                isLiability: false,
-                m1: rocs["1M"]?.[rocs["1M"].length - 1] || 0,
-                m3: rocs["3M"]?.[rocs["3M"].length - 1] || 0,
-                m6: rocs["6M"]?.[rocs["6M"].length - 1] || 0,
-                y1: rocs["1Y"]?.[rocs["1Y"].length - 1] || 0,
-                imp1: rocs["impact_1m"]?.[rocs["impact_1m"].length - 1] || 0,
-                imp3: rocs["impact_3m"]?.[rocs["impact_3m"].length - 1] || 0,
-                imp1y: rocs["impact_1y"]?.[rocs["impact_1y"].length - 1] || 0,
+                label: `↗️ ${$currentTranslations.regime_accelerating || "Accelerating"}`,
+                class: "positive",
             };
-        })
-        .sort((a, b) => b.weight - a.weight);
-
-    $: usSystemMetrics = $dashboardData.us_system_rocs
-        ? Object.entries($dashboardData.us_system_rocs).map(([id, data]) => {
-              const labels = {
-                  fed: "Fed Assets",
-                  rrp: "Fed RRP",
-                  tga: "Treasury TGA",
-              };
-              return {
-                  id,
-                  name: labels[id] || id.toUpperCase(),
-                  isLiability: id !== "fed",
-                  m1: data["1M"]?.[data["1M"].length - 1] || 0,
-                  m3: data["3M"]?.[data["3M"].length - 1] || 0,
-                  y1: data["1Y"]?.[data["1Y"].length - 1] || 0,
-                  imp1: data["impact_1m"]?.[data["impact_1m"].length - 1] || 0,
-                  imp3: data["impact_3m"]?.[data["impact_3m"].length - 1] || 0,
-                  imp1y: data["impact_1y"]?.[data["impact_1y"].length - 1] || 0,
-                  delta1: data["delta_1m"]?.[data["delta_1m"].length - 1] || 0,
-              };
-          })
-        : [];
-
-    $: usSystemTotal = usSystemMetrics.reduce(
-        (acc, item) => ({
-            delta1: acc.delta1 + item.delta1,
-            imp1: acc.imp1 + item.imp1,
-            imp3: acc.imp3 + item.imp3,
-            imp1y: acc.imp1y + item.imp1y,
-        }),
-        { delta1: 0, imp1: 0, imp3: 0, imp1y: 0 },
-    );
-
-    // ========================================================================
-    // SIGNAL AND REGIME COMPUTATIONS
-    // ========================================================================
-    $: gliSignal = (() => {
-        const gliRocs =
-            $dashboardData.bank_rocs?.total || $dashboardData.gli?.rocs;
-        if (!gliRocs) return "neutral";
-        const m1 = getLatestValue(gliRocs["1M"]);
-        if (m1 > 0.5) return "bullish";
-        if (m1 < -0.5) return "bearish";
-        return "neutral";
-    })();
-
-    $: liqSignal = (() => {
-        const flow = $dashboardData.flow_metrics;
-        if (!flow) return "neutral";
-        const impulse = getLatestValue(flow.net_liquidity_impulse_13w);
-        if (impulse > 0.1) return "bullish";
-        if (impulse < -0.1) return "bearish";
-        return "neutral";
-    })();
-
-    $: liquidityScore = (() => {
-        const macroRegime = $dashboardData.macro_regime;
-        if (
-            !macroRegime ||
-            !macroRegime.score ||
-            macroRegime.score.length === 0
-        )
-            return 50;
-        const latest = macroRegime.score[macroRegime.score.length - 1];
-        return latest !== null && latest !== undefined ? latest : 50;
+        if (accel < -0.1)
+            return {
+                label: `↘️ ${$currentTranslations.regime_decelerating || "Decelerating"}`,
+                class: "negative",
+            };
+        return {
+            label: `→ ${$currentTranslations.stable || "Stable"}`,
+            class: "neutral",
+        };
     })();
 
     $: regimeDiagnostics = (() => {
         const mr = $dashboardData.macro_regime;
         if (!mr)
-            return { liquidity_z: 0, credit_z: 0, brakes_z: 0, total_z: 0 };
-        const getLatest = (arr) => {
-            if (!arr || arr.length === 0) return 0;
-            const val = arr[arr.length - 1];
-            return val !== null && val !== undefined ? val : 0;
-        };
+            return {
+                liquidity_z: 0,
+                credit_z: 0,
+                brakes_z: 0,
+                total_z: 0,
+                confidence: 0,
+            };
+        const getLatest = (arr) =>
+            arr?.length ? (arr[arr.length - 1] ?? 0) : 0;
+        const tz = getLatest(mr.total_z);
         return {
             liquidity_z: getLatest(mr.liquidity_z),
             credit_z: getLatest(mr.credit_z),
             brakes_z: getLatest(mr.brakes_z),
-            total_z: getLatest(mr.total_z),
+            total_z: tz,
+            confidence: Math.min(100, Math.abs(tz) * 40),
         };
     })();
 
-    $: currentRegimeId = (() => {
-        const macroRegime = $dashboardData.macro_regime;
-        if (
-            !macroRegime ||
-            !macroRegime.regime_code ||
-            macroRegime.regime_code.length === 0
-        )
-            return "neutral";
-        const lastCode =
-            macroRegime.regime_code[macroRegime.regime_code.length - 1];
-        if (lastCode === 1) return "bullish";
-        if (lastCode === -1) return "bearish";
-        return "neutral";
+    $: currentFedRate = getLatestValue(
+        $dashboardData.fed_forecasts?.fed_funds_rate,
+    );
+    $: currentSOFR = getLatestValue($dashboardData.repo_stress?.sofr);
+
+    // ========================================================================
+    // NARRATIVE & CATALYSTS
+    // ========================================================================
+    $: assessment = $dashboardData.stress_analysis?.overall_assessment || {
+        headline:
+            $currentTranslations.market_in_transition || "MARKET IN TRANSITION",
+        key_risks: [
+            $currentTranslations.no_major_stress ||
+                "No major stress signals detected",
+        ],
+        key_positives: [
+            $currentTranslations.liquidity_stable ||
+                "Liquidity conditions stable",
+        ],
+        recommendation:
+            $currentTranslations.monitor_closely ||
+            "Monitor closely for regime changes",
+    };
+
+    $: treasurySettlements =
+        $dashboardData["treasury_settlements"]?.grouped || [];
+    $: next7dSettlements = treasurySettlements.filter((s) => {
+        const date = new Date(s.date);
+        const now = new Date();
+        const nextWeek = new Date();
+        nextWeek.setDate(now.getDate() + 7);
+        return date >= now && date <= nextWeek;
+    });
+
+    $: totalNext7dAmount = next7dSettlements.reduce(
+        (acc, s) => acc + (s.amount || 0),
+        0,
+    );
+    $: rrpBuffer = getLatestValue($dashboardData.us_net_liq_rrp) * 1000;
+
+    // ========================================================================
+    // STRESS ANALYSIS
+    // ========================================================================
+    $: stressDimensions = [
+        {
+            id: "inflation",
+            label: "🔥 Inflation",
+            score: $dashboardData.stress_analysis?.inflation_stress?.score ?? 0,
+            max: 7,
+            level:
+                $dashboardData.stress_analysis?.inflation_stress?.level ??
+                "LOW",
+        },
+        {
+            id: "liquidity",
+            label: "💧 Liquidity",
+            score: $dashboardData.stress_analysis?.liquidity_stress?.score ?? 0,
+            max: 7,
+            level:
+                $dashboardData.stress_analysis?.liquidity_stress?.level ??
+                "LOW",
+        },
+        {
+            id: "credit",
+            label: "💳 Credit",
+            score: $dashboardData.stress_analysis?.credit_stress?.score ?? 0,
+            max: 7,
+            level:
+                $dashboardData.stress_analysis?.credit_stress?.level ?? "LOW",
+        },
+        {
+            id: "volatility",
+            label: "🌪️ Volatility",
+            score:
+                $dashboardData.stress_analysis?.volatility_stress?.score ?? 0,
+            max: 6,
+            level:
+                $dashboardData.stress_analysis?.volatility_stress?.level ??
+                "LOW",
+        },
+    ];
+
+    $: totalStress = stressDimensions.reduce((acc, d) => acc + d.score, 0);
+
+    // ========================================================================
+    // SIGNAL MATRIX
+    // ========================================================================
+    $: signalMetrics = $dashboardData.signal_metrics || {};
+
+    $: signalMatrix = [
+        { id: "cli", label: "CLI Stance", icon: "💳" },
+        { id: "hy_spread", label: "HY Spread", icon: "📊" },
+        { id: "ig_spread", label: "IG Spread", icon: "📈" },
+        { id: "nfci_credit", label: "NFCI Credit", icon: "🏦" },
+        { id: "nfci_risk", label: "NFCI Risk", icon: "⚠️" },
+        { id: "lending", label: "Lending (SLOOS)", icon: "🏠" },
+        { id: "vix", label: "VIX", icon: "📉" },
+        { id: "move", label: "MOVE Index", icon: "📊" },
+        { id: "fx_vol", label: "FX Volatility", icon: "💱" },
+        { id: "tips_real_rate", label: "Real Rates", icon: "📈" },
+        { id: "yield_curve", label: "Yield Curve", icon: "📐" },
+    ].map((signal) => {
+        const data = signalMetrics[signal.id]?.latest || {};
+        const percentileSeries = signalMetrics[signal.id]?.percentile || [];
+        let delta = data.delta_1m ?? data.roc_1m ?? null;
+        if (delta === null && percentileSeries.length > 22) {
+            const current = percentileSeries[percentileSeries.length - 1];
+            const past = percentileSeries[percentileSeries.length - 1 - 22];
+            if (current !== null && past !== null) delta = current - past;
+        }
+        return {
+            ...signal,
+            state: data.state || "neutral",
+            value: data.value ?? data.z_score ?? null,
+            percentile: data.percentile ?? null,
+            delta,
+        };
+    });
+
+    $: bullCount = signalMatrix.filter((s) => s.state === "bullish").length;
+    $: bearCount = signalMatrix.filter((s) => s.state === "bearish").length;
+
+    $: signalWeights = {
+        cli: 0.2,
+        hy_spread: 0.15,
+        ig_spread: 0.1,
+        nfci_credit: 0.1,
+        nfci_risk: 0.1,
+        lending: 0.1,
+        tips_real_rate: 0.1,
+        repo: 0.15,
+    };
+
+    $: weightedScoreInfo = (() => {
+        let score = 0;
+        const drivers = [];
+        signalMatrix.forEach((s) => {
+            const weight = signalWeights[s.id] || 0.05;
+            const sValue =
+                s.state === "bullish" ? 1 : s.state === "bearish" ? -1 : 0;
+            score += sValue * weight;
+            if (s.state !== "neutral") {
+                drivers.push({
+                    id: s.id,
+                    label: s.label,
+                    impact: sValue * weight,
+                    state: s.state,
+                });
+            }
+        });
+        return {
+            score: Math.round(score * 100),
+            topDrivers: drivers
+                .sort((a, b) => Math.abs(b.impact) - Math.abs(a.impact))
+                .slice(0, 3),
+        };
     })();
 
-    $: currentRegime = (() => {
-        const isEs = $language === "es";
-        switch (currentRegimeId) {
-            case "bullish":
-                return {
-                    name: $currentTranslations.regime_bullish || "Bullish",
-                    emoji: "🐂",
-                    color: "bullish",
-                    desc: isEs
-                        ? "Expansión Sincronizada: Tanto la liquidez Global como la de EE.UU. están expandiéndose."
-                        : "Synchronized Expansion: Both Global and US liquidity are expanding.",
-                    details: isEs
-                        ? "Entorno favorable para activos de riesgo."
-                        : "Favorable environment for risk assets.",
-                };
-            case "bearish":
-                return {
-                    name: $currentTranslations.regime_bearish || "Bearish",
-                    emoji: "🐻",
-                    color: "bearish",
-                    desc: isEs
-                        ? "Contracción Sincronizada: Tanto la liquidez Global como la de EE.UU. se están contrayendo."
-                        : "Synchronized Contraction: Both Global and US liquidity are contracting.",
-                    details: isEs
-                        ? "Entorno defensivo/adverso para activos de riesgo."
-                        : "Defensive/Headwind environment for risk assets.",
-                };
-            default:
-                return {
-                    name: $currentTranslations.regime_neutral || "Neutral",
-                    emoji: "⚖️",
-                    color: "neutral",
-                    desc: isEs
-                        ? "Régimen Mixto/Divergente: Señales contradictorias entre liquidez Global y doméstica."
-                        : "Mixed/Divergent Regime: Conflicting signals between Global and domestic liquidity.",
-                    details: isEs
-                        ? "Comportamiento lateral o errático esperado."
-                        : "Choppy or sideways price action expected.",
-                };
+    $: aggregateSignal =
+        weightedScoreInfo.score > 15
+            ? "bullish"
+            : weightedScoreInfo.score < -15
+              ? "bearish"
+              : "neutral";
+
+    // ========================================================================
+    // FLOW MOMENTUM
+    // ========================================================================
+    $: flowData = [
+        {
+            name: "Global Liquidity (GLI)",
+            impulse4w: getLatestValue(
+                $dashboardData.flow_metrics?.gli_impulse_4w,
+            ),
+            impulse13w: getLatestValue(
+                $dashboardData.flow_metrics?.gli_impulse_13w,
+            ),
+            accel: getLatestValue($dashboardData.flow_metrics?.gli_accel),
+            zscore: getLatestValue(
+                $dashboardData.flow_metrics?.gli_impulse_zscore,
+            ),
+        },
+        {
+            name: "Global M2",
+            impulse4w: getLatestValue(
+                $dashboardData.flow_metrics?.m2_impulse_4w,
+            ),
+            impulse13w: getLatestValue(
+                $dashboardData.flow_metrics?.m2_impulse_13w,
+            ),
+            accel: getLatestValue($dashboardData.flow_metrics?.m2_accel),
+            zscore: getLatestValue(
+                $dashboardData.flow_metrics?.m2_impulse_zscore,
+            ),
+        },
+        {
+            name: "US Net Liquidity",
+            impulse4w: getLatestValue(
+                $dashboardData.us_system_metrics?.netliq_delta_4w,
+            ),
+            impulse13w: getLatestValue(
+                $dashboardData.us_system_metrics?.netliq_delta_13w,
+            ),
+            accel: null,
+            zscore: getLatestValue(
+                $dashboardData.us_system_metrics?.liquidity_score,
+            ),
+        },
+    ];
+
+    $: cbContributions = [
+        { name: "FED", key: "fed_contrib_13w" },
+        { name: "PBOC", key: "pboc_contrib_13w" },
+        { name: "ECB", key: "ecb_contrib_13w" },
+        { name: "BOJ", key: "boj_contrib_13w" },
+        { name: "BOE", key: "boe_contrib_13w" },
+    ]
+        .map((cb) => ({
+            name: cb.name,
+            contrib: getLatestValue($dashboardData.flow_metrics?.[cb.key]),
+        }))
+        .sort((a, b) => Math.abs(b.contrib || 0) - Math.abs(a.contrib || 0));
+
+    // ========================================================================
+    // REPO METRICS
+    // ========================================================================
+    $: repoMetrics = {
+        srfUsage:
+            getLatestValue($dashboardData.repo_operations?.srf_usage) ??
+            getLatestValue($dashboardData.repo_stress?.srf_usage) ??
+            0,
+        rrpUsage:
+            getLatestValue($dashboardData.repo_operations?.rrp_usage) ??
+            getLatestValue($dashboardData.us_net_liq_rrp) ??
+            0,
+        netRepo: getLatestValue($dashboardData.repo_operations?.net_repo) ?? 0,
+        netRepoZscore:
+            getLatestValue($dashboardData.repo_operations?.net_repo_zscore) ??
+            0,
+        sofr: getLatestValue($dashboardData.repo_stress?.sofr) ?? 0,
+        iorb: getLatestValue($dashboardData.repo_stress?.iorb) ?? 0,
+        srfRate: getLatestValue($dashboardData.repo_stress?.srf_rate) ?? 0,
+        rrpAward: getLatestValue($dashboardData.repo_stress?.rrp_award) ?? 0,
+        sofrVolume:
+            getLatestValue($dashboardData.repo_stress?.sofr_volume) ?? 0,
+        cumulative30d: 0,
+    };
+
+    $: repoStressLevel = (() => {
+        if (repoMetrics.srfUsage > 10)
+            return {
+                label: t($currentTranslations, "status_high") || "HIGH",
+                class: "high",
+                key: "alrt_repo_high_title",
+                desc:
+                    t($currentTranslations, "repo_srf_activated") ||
+                    "SRF activated - banks tapping Fed backstop",
+            };
+        const sofrIorbSpread =
+            repoMetrics.sofr && repoMetrics.iorb
+                ? (repoMetrics.sofr - repoMetrics.iorb) * 100
+                : 0;
+        if (sofrIorbSpread > 5)
+            return {
+                label: t($currentTranslations, "status_elevated") || "ELEVATED",
+                class: "moderate",
+                key: "alrt_repo_elevated_title",
+                desc:
+                    t($currentTranslations, "repo_funding_pressure") ||
+                    "SOFR above IORB - funding pressure",
+            };
+        if (repoMetrics.netRepoZscore > 1.5)
+            return {
+                label: t($currentTranslations, "status_watch") || "WATCH",
+                class: "moderate",
+                key: "alrt_repo_watch_title",
+                desc:
+                    t($currentTranslations, "repo_net_elevated") ||
+                    "Net repo elevated vs historical",
+            };
+        return {
+            label: t($currentTranslations, "status_normal") || "NORMAL",
+            class: "low",
+            key: null,
+            desc:
+                $currentTranslations.repo_normal_desc ||
+                "Repo markets functioning normally",
+        };
+    })();
+
+    // ========================================================================
+    // INFLATION
+    // ========================================================================
+    $: actualInflation = {
+        cpi: getLatestValue($dashboardData.fed_forecasts?.cpi_yoy),
+        coreCpi: getLatestValue($dashboardData.fed_forecasts?.core_cpi_yoy),
+        pce: getLatestValue($dashboardData.fed_forecasts?.pce_yoy),
+        corePce: getLatestValue($dashboardData.fed_forecasts?.core_pce_yoy),
+    };
+
+    $: inflationMetrics = [
+        {
+            id: "clev_1y",
+            label: "Cleveland Fed 1Y",
+            source: "Swap",
+            value: getLatestValue($dashboardData.inflation_swaps?.cleveland_1y),
+            delta1m: calcDelta(
+                $dashboardData.inflation_swaps?.cleveland_1y,
+                22,
+            ),
+            roc1m: calcRoc($dashboardData.inflation_swaps?.cleveland_1y, 22),
+            roc3m: calcRoc($dashboardData.inflation_swaps?.cleveland_1y, 66),
+        },
+        {
+            id: "clev_2y",
+            label: "Cleveland Fed 2Y",
+            source: "Swap",
+            value: getLatestValue($dashboardData.inflation_swaps?.cleveland_2y),
+            delta1m: calcDelta(
+                $dashboardData.inflation_swaps?.cleveland_2y,
+                22,
+            ),
+            roc1m: calcRoc($dashboardData.inflation_swaps?.cleveland_2y, 22),
+            roc3m: calcRoc($dashboardData.inflation_swaps?.cleveland_2y, 66),
+        },
+        {
+            id: "tips_be_5y",
+            label: "TIPS Breakeven 5Y",
+            source: "TIPS",
+            value: getLatestValue($dashboardData.inflation_expect_5y),
+            delta1m: calcDelta($dashboardData.inflation_expect_5y, 22),
+            roc1m: calcRoc($dashboardData.inflation_expect_5y, 22),
+            roc3m: calcRoc($dashboardData.inflation_expect_5y, 66),
+        },
+        {
+            id: "tips_be_10y",
+            label: "TIPS Breakeven 10Y",
+            source: "TIPS",
+            value: getLatestValue($dashboardData.inflation_expect_10y),
+            delta1m: calcDelta($dashboardData.inflation_expect_10y, 22),
+            roc1m: calcRoc($dashboardData.inflation_expect_10y, 22),
+            roc3m: calcRoc($dashboardData.inflation_expect_10y, 66),
+        },
+
+        {
+            id: "tips_5y5y",
+            label: "5Y5Y Forward",
+            source: "TIPS",
+            value: getLatestValue($dashboardData.tips?.fwd_5y5y),
+            delta1m: calcDelta($dashboardData.tips?.fwd_5y5y, 22),
+            roc1m: calcRoc($dashboardData.tips?.fwd_5y5y, 22),
+            roc3m: calcRoc($dashboardData.tips?.fwd_5y5y, 66),
+        },
+        {
+            id: "tips_real",
+            label: "10Y Real Rate",
+            source: "TIPS",
+            value: getLatestValue($dashboardData.tips?.real_rate),
+            delta1m: calcDelta($dashboardData.tips?.real_rate, 22),
+            roc1m: calcRoc($dashboardData.tips?.real_rate, 22),
+            roc3m: calcRoc($dashboardData.tips?.real_rate, 66),
+        },
+        {
+            id: "umich",
+            label: "UMich 1Y Expect",
+            source: "Survey",
+            value: getLatestValue(
+                $dashboardData.inflation_swaps?.umich_expectations,
+            ),
+            delta1m: calcDelta(
+                $dashboardData.inflation_swaps?.umich_expectations,
+                22,
+            ),
+            roc1m: calcRoc(
+                $dashboardData.inflation_swaps?.umich_expectations,
+                22,
+            ),
+            roc3m: calcRoc(
+                $dashboardData.inflation_swaps?.umich_expectations,
+                66,
+            ),
+        },
+    ];
+
+    $: inflationCurveSignal = (() => {
+        const clev1y = getLatestValue(
+            $dashboardData.inflation_swaps?.cleveland_1y,
+        );
+        const clev2y = getLatestValue(
+            $dashboardData.inflation_swaps?.cleveland_2y,
+        );
+        if (!clev1y || !clev2y)
+            return { label: "N/A", class: "neutral", spread: 0, desc: "" };
+        const spread = clev1y - clev2y;
+        if (spread < -0.05)
+            return {
+                label: "INVERTED",
+                class: "bearish",
+                spread,
+                desc: "Market expects disinflation",
+            };
+        if (spread > 0.05)
+            return {
+                label: "STEEP",
+                class: "bullish",
+                spread,
+                desc: "Near-term inflation elevated",
+            };
+        return {
+            label: "FLAT",
+            class: "neutral",
+            spread,
+            desc: "Inflation expectations stable",
+        };
+    })();
+
+    // ========================================================================
+    // BTC
+    // ========================================================================
+    $: btcPrice = getLatestValue($dashboardData.btc?.price);
+    $: btcFairValue = getLatestValue(
+        $dashboardData.btc?.fair_value_v2 || $dashboardData.btc?.fair_value,
+    );
+    $: btcDeviation =
+        btcPrice && btcFairValue
+            ? ((btcPrice - btcFairValue) / btcFairValue) * 100
+            : null;
+    $: btcZscore = getLatestValue(
+        $dashboardData.btc?.zscore_v2 || $dashboardData.btc?.zscore,
+    );
+    $: btcDrawdown = getLatestValue($dashboardData.btc?.drawdown);
+    $: btcRealizedVol = getLatestValue($dashboardData.btc?.realized_vol_30d);
+
+    // ========================================================================
+    // ALERTS
+    // ========================================================================
+    $: alerts = (() => {
+        const alertList = [];
+        if (totalStress >= 15) {
+            alertList.push({
+                type: "danger",
+                icon: "🚨",
+                title:
+                    t($currentTranslations, "alrt_critical_stress_title") ||
+                    "CRITICAL STRESS",
+                msg: (
+                    t($currentTranslations, "alrt_critical_stress_msg") ||
+                    "Total stress at {score}/27"
+                ).replace("{score}", String(totalStress)),
+                severity: "critical",
+            });
+        } else if (totalStress >= 10) {
+            alertList.push({
+                type: "warning",
+                icon: "⚠️",
+                title:
+                    t($currentTranslations, "alrt_high_stress_title") ||
+                    "HIGH STRESS",
+                msg: (
+                    t($currentTranslations, "alrt_high_stress_msg") ||
+                    "Total stress at {score}/27"
+                ).replace("{score}", String(totalStress)),
+                severity: "high",
+            });
         }
+        if (repoStressLevel.key) {
+            alertList.push({
+                type: "warning",
+                icon: "🏛️",
+                title: repoStressLevel.label,
+                msg: repoStressLevel.desc,
+                severity: "medium",
+            });
+        }
+        return alertList.slice(0, 6);
     })();
 </script>
 
-<!-- Stats Cards -->
-{#if $latestStats}
-    <div class="stats-grid">
+<div class="dashboard-quant" class:dark={$darkMode}>
+    <!-- EXECUTIVE NARRATIVE -->
+    <ExecutiveNarrativePanel
+        {assessment}
+        {next7dSettlements}
+        {totalNext7dAmount}
+        {rrpBuffer}
+        dark={$darkMode}
+    />
+
+    <!-- REGIME STATUS BAR -->
+    <RegimeStatusBar
+        {regimeScore}
+        {regimeCode}
+        {regimeDiagnostics}
+        {regimeTrend}
+        {fomcCountdown}
+        {nextFomcHasSEP}
+        {nextMeetingProbs}
+        {currentFedRate}
+        {currentSOFR}
+        {bullCount}
+        {bearCount}
+    />
+
+    <!-- LIQUIDITY ENGINE (StatsCards) -->
+    <div class="stats-grid liquidity-engine">
         <StatsCard
-            title={translations.stat_gli || "Global Liquidity Index"}
-            value={$latestStats.gli?.value}
-            change={$latestStats.gli?.change}
-            period="7d"
+            title={$currentTranslations.indicator_fed || "FED ASSETS"}
+            value={getLatestValue($dashboardData.gli?.fed)}
+            change={calcDelta($dashboardData.gli?.fed, 5)}
+            period="1w"
             suffix="T"
-            icon="🌍"
+            icon="🏦"
         />
         <StatsCard
-            title={translations.stat_us_net || "US Net Liquidity"}
-            value={$latestStats.us_net_liq?.value}
-            change={$latestStats.us_net_liq?.change}
-            period="7d"
+            title={$currentTranslations.stat_bank_reserves || "BANK RESERVES"}
+            value={getLatestValue($dashboardData.us_net_liq_reserves)}
+            change={calcDelta($dashboardData.us_net_liq_reserves, 5)}
+            period="1w"
             suffix="T"
-            icon="🇺🇸"
+            icon="🛡️"
         />
         <StatsCard
-            title={translations.stat_cli || "Credit Liquidity Index"}
-            value={$latestStats.cli?.value}
-            change={$latestStats.cli?.change}
-            period="7d"
-            suffix="Z"
-            icon="💳"
-            precision={3}
+            title={$currentTranslations.stat_rrp_usage || "ON RRP USAGE"}
+            value={getLatestValue($dashboardData.us_net_liq_rrp)}
+            change={calcDelta($dashboardData.us_net_liq_rrp, 5)}
+            period="1w"
+            suffix="T"
+            icon="📉"
         />
         <StatsCard
-            title={translations.stat_vix || "VIX"}
-            value={$latestStats.vix?.value}
-            change={$latestStats.vix?.change}
-            period="7d"
-            icon="🌪️"
+            title={$currentTranslations.stat_tga_balance || "TGA BALANCE"}
+            value={getLatestValue($dashboardData.us_net_liq_tga)}
+            change={calcDelta($dashboardData.us_net_liq_tga, 5)}
+            period="1w"
+            suffix="T"
+            icon="🏛️"
         />
     </div>
-{/if}
 
-<div class="main-charts">
-    <!-- GLI Chart with Metrics Sidebar -->
-    <div class="chart-card wide">
-        <div class="gli-layout">
-            <div class="chart-main">
-                <div class="chart-header">
-                    <div class="label-group">
-                        <h3>
-                            {translations.stat_gli || "GLI"} ({$dashboardData
-                                .gli?.cb_count || 15}
-                            {translations.nav_dashboard === "Dashboard"
-                                ? "Banks"
-                                : "Bancos"})
-                        </h3>
-                        <SignalBadge type={gliSignal} text={gliSignal} />
-                    </div>
-                    <div class="header-controls">
-                        <div class="fx-toggle">
-                            <button
-                                class="fx-btn"
-                                class:active={!gliShowConstantFx}
-                                on:click={() => (gliShowConstantFx = false)}
-                                >{translations.spot_usd || "Spot USD"}</button
-                            >
-                            <button
-                                class="fx-btn"
-                                class:active={gliShowConstantFx}
-                                on:click={() => (gliShowConstantFx = true)}
-                                >{translations.const_fx || "Const FX"}</button
-                            >
-                        </div>
-                        <TimeRangeSelector
-                            selectedRange={gliRange}
-                            onRangeChange={(r) => (gliRange = r)}
-                        />
-                        <span class="last-date"
-                            >{translations.last || "Last:"}
-                            {getLastDate("GLI_TOTAL")}</span
-                        >
-                    </div>
-                </div>
-                <p class="chart-description">
-                    {translations.gli ||
-                        "Sum of 15 major central bank balance sheets in USD."}
-                </p>
-                <div class="chart-content">
-                    <Chart darkMode={$darkMode} data={gliData} />
-                </div>
-            </div>
+    <!-- ALERTS PANEL -->
+    <AlertsPanel {alerts} />
 
-            <div class="metrics-sidebar">
-                <!-- Data Health Panel -->
-                <div class="metrics-section data-health-section">
-                    <h4 style="display: flex; align-items: center; gap: 8px;">
-                        <span class="health-dot"></span>
-                        {translations.data_health || "Data Health"}
-                    </h4>
-                    <div class="metrics-table-container">
-                        <table class="metrics-table health-table">
-                            <thead>
-                                <tr>
-                                    <th>{translations.series || "Series"}</th>
-                                    <th
-                                        >{translations.real_date ||
-                                            "Last Date"}</th
-                                    >
-                                    <th>{translations.freshness || "Age"}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {#each Object.entries($dashboardData.series_metadata || {}) as [id, meta]}
-                                    <tr>
-                                        <td><strong>{id}</strong></td>
-                                        <td>{meta.last_date || "N/A"}</td>
-                                        <td>
-                                            <span
-                                                class="freshness-tag"
-                                                class:stale={meta.freshness > 7}
-                                            >
-                                                {meta.freshness === 0
-                                                    ? "Today"
-                                                    : (meta.freshness || "?") +
-                                                      "d"}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                {/each}
-                            </tbody>
-                        </table>
-                    </div>
-                    {#if $dashboardData.series_metadata?.GLI?.cb_count}
-                        <div class="coverage-note">
-                            {translations.active_cbs || "Active CBs"}:
-                            <strong
-                                >{$dashboardData.series_metadata.GLI
-                                    .cb_count}/15</strong
-                            >
-                        </div>
-                    {/if}
-                </div>
-
-                <!-- GLI Composition -->
-                <div class="metrics-section">
-                    <h4>{translations.chart_gli_comp || "GLI Composition"}</h4>
-                    <div class="metrics-table-container">
-                        <table class="metrics-table">
-                            <thead>
-                                <tr>
-                                    <th>Bank</th>
-                                    <th>Wgt</th>
-                                    <th>1M</th>
-                                    <th
-                                        title={translations.impact_1m ||
-                                            "Impact 1M"}>Imp</th
-                                    >
-                                    <th>3M</th>
-                                    <th
-                                        title={translations.impact_3m ||
-                                            "Impact 3M"}>Imp</th
-                                    >
-                                    <th>1Y</th>
-                                    <th
-                                        title={translations.impact_1y ||
-                                            "Impact 1Y"}>Imp</th
-                                    >
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {#each gliWeights.slice(0, 10) as bank}
-                                    <tr>
-                                        <td>{bank.name}</td>
-                                        <td>{bank.weight.toFixed(0)}%</td>
-                                        <td
-                                            class="roc-val"
-                                            class:positive={bank.m1 > 0}
-                                            class:negative={bank.m1 < 0}
-                                            >{bank.m1.toFixed(1)}%</td
-                                        >
-                                        <td
-                                            class="roc-val impact-cell"
-                                            class:positive={bank.imp1 > 0}
-                                            class:negative={bank.imp1 < 0}
-                                            >{bank.imp1.toFixed(2)}%</td
-                                        >
-                                        <td
-                                            class="roc-val"
-                                            class:positive={bank.m3 > 0}
-                                            class:negative={bank.m3 < 0}
-                                            >{bank.m3.toFixed(1)}%</td
-                                        >
-                                        <td
-                                            class="roc-val impact-cell"
-                                            class:positive={bank.imp3 > 0}
-                                            class:negative={bank.imp3 < 0}
-                                            >{bank.imp3.toFixed(2)}%</td
-                                        >
-                                        <td
-                                            class="roc-val"
-                                            class:positive={bank.y1 > 0}
-                                            class:negative={bank.y1 < 0}
-                                            >{bank.y1.toFixed(1)}%</td
-                                        >
-                                        <td
-                                            class="roc-val impact-cell"
-                                            class:positive={bank.imp1y > 0}
-                                            class:negative={bank.imp1y < 0}
-                                            >{bank.imp1y.toFixed(2)}%</td
-                                        >
-                                    </tr>
-                                {/each}
-                            </tbody>
-                        </table>
-                    </div>
-                    <p
-                        style="font-size: 10px; color: #94a3b8; margin-top: 8px;"
-                    >
-                        {translations.impact_note_gli ||
-                            "* Imp = contribution to GLI change."}
-                    </p>
-                </div>
-
-                <!-- Flow Impulse -->
-                <div class="metrics-section" style="margin-top: 24px;">
-                    <h4>⚡ {translations.flow_impulse || "Flow Impulse"}</h4>
-                    <p
-                        class="section-note"
-                        style="font-size: 11px; margin-bottom: 12px; color: var(--text-muted);"
-                    >
-                        {translations.flow_desc ||
-                            "13-week rolling change in liquidity."}
-                    </p>
-                    <div class="metrics-table-container">
-                        <table class="metrics-table">
-                            <thead>
-                                <tr>
-                                    <th>{translations.economy || "Economy"}</th>
-                                    <th>Impulse (13W)</th>
-                                    <th>Accel</th>
-                                    <th>Z-Score</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {#each [{ name: "Global Liquidity", key: "gli" }, { name: "Global M2", key: "m2" }] as aggregate}
-                                    <tr>
-                                        <td
-                                            ><strong>{aggregate.name}</strong
-                                            ></td
-                                        >
-                                        <td
-                                            class="roc-val"
-                                            class:positive={getLatestValue(
-                                                $dashboardData.flow_metrics?.[
-                                                    `${aggregate.key}_impulse_13w`
-                                                ],
-                                            ) > 0}
-                                            class:negative={getLatestValue(
-                                                $dashboardData.flow_metrics?.[
-                                                    `${aggregate.key}_impulse_13w`
-                                                ],
-                                            ) < 0}
-                                        >
-                                            {getLatestValue(
-                                                $dashboardData.flow_metrics?.[
-                                                    `${aggregate.key}_impulse_13w`
-                                                ],
-                                            )?.toFixed(2)}T
-                                        </td>
-                                        <td
-                                            class="roc-val"
-                                            class:positive={getLatestValue(
-                                                $dashboardData.flow_metrics?.[
-                                                    `${aggregate.key}_accel`
-                                                ],
-                                            ) > 0}
-                                            class:negative={getLatestValue(
-                                                $dashboardData.flow_metrics?.[
-                                                    `${aggregate.key}_accel`
-                                                ],
-                                            ) < 0}
-                                        >
-                                            {getLatestValue(
-                                                $dashboardData.flow_metrics?.[
-                                                    `${aggregate.key}_accel`
-                                                ],
-                                            )?.toFixed(2)}T
-                                        </td>
-                                        <td
-                                            class="signal-cell"
-                                            class:plus={getLatestValue(
-                                                $dashboardData.flow_metrics?.[
-                                                    `${aggregate.key}_impulse_zscore`
-                                                ],
-                                            ) > 1}
-                                            class:minus={getLatestValue(
-                                                $dashboardData.flow_metrics?.[
-                                                    `${aggregate.key}_impulse_zscore`
-                                                ],
-                                            ) < -1}
-                                        >
-                                            {getLatestValue(
-                                                $dashboardData.flow_metrics?.[
-                                                    `${aggregate.key}_impulse_zscore`
-                                                ],
-                                            )?.toFixed(2)}σ
-                                        </td>
-                                    </tr>
-                                {/each}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- CB Contribution -->
-                <div class="metrics-section" style="margin-top: 24px;">
-                    <h4>
-                        🏦 {translations.cb_contribution || "CB Contribution"}
-                    </h4>
-                    <div class="metrics-table-container">
-                        <table class="metrics-table">
-                            <thead>
-                                <tr>
-                                    <th>CB</th>
-                                    <th>Contrib Δ13W</th>
-                                    <th>Signal</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {#each [{ name: "Fed", key: "fed" }, { name: "ECB", key: "ecb" }, { name: "BoJ", key: "boj" }, { name: "PBoC", key: "pboc" }, { name: "BoE", key: "boe" }] as cb}
-                                    {#if getLatestValue($dashboardData.flow_metrics?.[`${cb.key}_contrib_13w`]) !== undefined}
-                                        <tr>
-                                            <td>{cb.name}</td>
-                                            <td
-                                                class="roc-val"
-                                                class:positive={getLatestValue(
-                                                    $dashboardData
-                                                        .flow_metrics?.[
-                                                        `${cb.key}_contrib_13w`
-                                                    ],
-                                                ) > 0}
-                                                class:negative={getLatestValue(
-                                                    $dashboardData
-                                                        .flow_metrics?.[
-                                                        `${cb.key}_contrib_13w`
-                                                    ],
-                                                ) < 0}
-                                            >
-                                                {getLatestValue(
-                                                    $dashboardData
-                                                        .flow_metrics?.[
-                                                        `${cb.key}_contrib_13w`
-                                                    ],
-                                                )?.toFixed(1)}%
-                                            </td>
-                                            <td
-                                                class="signal-cell"
-                                                class:plus={getLatestValue(
-                                                    $dashboardData
-                                                        .flow_metrics?.[
-                                                        `${cb.key}_contrib_13w`
-                                                    ],
-                                                ) > 20}
-                                                class:minus={getLatestValue(
-                                                    $dashboardData
-                                                        .flow_metrics?.[
-                                                        `${cb.key}_contrib_13w`
-                                                    ],
-                                                ) < -5}
-                                            >
-                                                {getLatestValue(
-                                                    $dashboardData
-                                                        .flow_metrics?.[
-                                                        `${cb.key}_contrib_13w`
-                                                    ],
-                                                ) > 20
-                                                    ? "Driver"
-                                                    : getLatestValue(
-                                                            $dashboardData
-                                                                .flow_metrics?.[
-                                                                `${cb.key}_contrib_13w`
-                                                            ],
-                                                        ) < -5
-                                                      ? "QT"
-                                                      : "—"}
-                                            </td>
-                                        </tr>
-                                    {/if}
-                                {/each}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Net Liquidity Chart -->
-    <div class="chart-card wide">
-        <div class="gli-layout">
-            <div class="chart-main">
-                <div class="chart-header">
-                    <div class="label-group">
-                        <h3>
-                            {translations.chart_us_net_liq ||
-                                "US Net Liquidity"}
-                        </h3>
-                        <SignalBadge type={liqSignal} text={liqSignal} />
-                    </div>
-                    <div class="header-controls">
-                        <TimeRangeSelector
-                            selectedRange={netLiqRange}
-                            onRangeChange={(r) => (netLiqRange = r)}
-                        />
-                        <span class="last-date"
-                            >{translations.last_data || "Last Data:"}
-                            {getLastDate("FED")}</span
-                        >
-                    </div>
-                </div>
-                <p class="chart-description">
-                    {translations.net_liq || "Fed Balance Sheet - TGA - RRP"}
-                </p>
-                <div class="chart-content">
-                    <Chart darkMode={$darkMode} data={netLiqData} />
-                </div>
-            </div>
-
-            <div class="metrics-sidebar">
-                <div class="metrics-section">
-                    <h4>
-                        {translations.chart_us_comp || "US System Components"}
-                    </h4>
-                    <div class="metrics-table-container">
-                        <table class="metrics-table">
-                            <thead>
-                                <tr>
-                                    <th>Acc</th>
-                                    <th>1M</th>
-                                    <th title="Absolute change in Billions USD"
-                                        >Δ$1M</th
-                                    >
-                                    <th
-                                        title={translations.impact_us ||
-                                            "Impact"}>Imp</th
-                                    >
-                                    <th>3M</th>
-                                    <th
-                                        title={translations.impact_us ||
-                                            "Impact"}>Imp</th
-                                    >
-                                    <th>1Y</th>
-                                    <th
-                                        title={translations.impact_us ||
-                                            "Impact"}>Imp</th
-                                    >
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {#each usSystemMetrics as item}
-                                    <tr>
-                                        <td>{item.name}</td>
-                                        <td
-                                            class="roc-val"
-                                            class:positive={(!item.isLiability &&
-                                                item.m1 > 0) ||
-                                                (item.isLiability &&
-                                                    item.m1 < 0)}
-                                            class:negative={(!item.isLiability &&
-                                                item.m1 < 0) ||
-                                                (item.isLiability &&
-                                                    item.m1 > 0)}
-                                            >{item.m1.toFixed(1)}%</td
-                                        >
-                                        <td
-                                            class="roc-val"
-                                            class:positive={(!item.isLiability &&
-                                                item.delta1 > 0) ||
-                                                (item.isLiability &&
-                                                    item.delta1 < 0)}
-                                            class:negative={(!item.isLiability &&
-                                                item.delta1 < 0) ||
-                                                (item.isLiability &&
-                                                    item.delta1 > 0)}
-                                            >{item.delta1 > 0
-                                                ? "+"
-                                                : ""}{item.delta1.toFixed(
-                                                0,
-                                            )}B</td
-                                        >
-                                        <td
-                                            class="roc-val impact-cell"
-                                            class:positive={item.imp1 > 0}
-                                            class:negative={item.imp1 < 0}
-                                            >{item.imp1.toFixed(2)}%</td
-                                        >
-                                        <td
-                                            class="roc-val"
-                                            class:positive={(!item.isLiability &&
-                                                item.m3 > 0) ||
-                                                (item.isLiability &&
-                                                    item.m3 < 0)}
-                                            class:negative={(!item.isLiability &&
-                                                item.m3 < 0) ||
-                                                (item.isLiability &&
-                                                    item.m3 > 0)}
-                                            >{item.m3.toFixed(1)}%</td
-                                        >
-                                        <td
-                                            class="roc-val impact-cell"
-                                            class:positive={item.imp3 > 0}
-                                            class:negative={item.imp3 < 0}
-                                            >{item.imp3.toFixed(2)}%</td
-                                        >
-                                        <td
-                                            class="roc-val"
-                                            class:positive={(!item.isLiability &&
-                                                item.y1 > 0) ||
-                                                (item.isLiability &&
-                                                    item.y1 < 0)}
-                                            class:negative={(!item.isLiability &&
-                                                item.y1 < 0) ||
-                                                (item.isLiability &&
-                                                    item.y1 > 0)}
-                                            >{item.y1.toFixed(1)}%</td
-                                        >
-                                        <td
-                                            class="roc-val impact-cell"
-                                            class:positive={item.imp1y > 0}
-                                            class:negative={item.imp1y < 0}
-                                            >{item.imp1y.toFixed(2)}%</td
-                                        >
-                                    </tr>
-                                {/each}
-                                <tr class="total-row">
-                                    <td><strong>TOTAL</strong></td>
-                                    <td>-</td>
-                                    <td
-                                        class="roc-val"
-                                        class:positive={usSystemTotal.delta1 >
-                                            0}
-                                        class:negative={usSystemTotal.delta1 <
-                                            0}
-                                        >{usSystemTotal.delta1 > 0
-                                            ? "+"
-                                            : ""}{usSystemTotal.delta1.toFixed(
-                                            0,
-                                        )}B</td
-                                    >
-                                    <td
-                                        class="roc-val impact-cell"
-                                        class:positive={usSystemTotal.imp1 > 0}
-                                        class:negative={usSystemTotal.imp1 < 0}
-                                        >{usSystemTotal.imp1.toFixed(2)}%</td
-                                    >
-                                    <td>-</td>
-                                    <td
-                                        class="roc-val impact-cell"
-                                        class:positive={usSystemTotal.imp3 > 0}
-                                        class:negative={usSystemTotal.imp3 < 0}
-                                        >{usSystemTotal.imp3.toFixed(2)}%</td
-                                    >
-                                    <td>-</td>
-                                    <td
-                                        class="roc-val impact-cell"
-                                        class:positive={usSystemTotal.imp1y > 0}
-                                        class:negative={usSystemTotal.imp1y < 0}
-                                        >{usSystemTotal.imp1y.toFixed(2)}%</td
-                                    >
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- CLI Chart -->
-    <div class="chart-card wide">
-        <div class="chart-header">
-            <div class="label-group">
-                <h3>Credit Liquidity Index (CLI)</h3>
-            </div>
-            <div class="header-controls">
-                <TimeRangeSelector
-                    selectedRange={cliRange}
-                    onRangeChange={(r) => (cliRange = r)}
-                />
-                <span class="last-date">Last Data: {getLastDate("NFCI")}</span>
-            </div>
-        </div>
-        <p class="chart-description">
-            {translations.cli || "Credit conditions indicator."}
-        </p>
-        <div class="chart-content">
-            <Chart darkMode={$darkMode} data={cliData} />
-        </div>
-    </div>
-
-    <!-- CLI Components -->
-    <div class="chart-card wide">
-        <div class="chart-header">
-            <div class="label-group">
-                <h3>CLI Component Contributions</h3>
-            </div>
-            <div class="header-controls">
-                <TimeRangeSelector
-                    selectedRange={cliCompRange}
-                    onRangeChange={(r) => (cliCompRange = r)}
-                />
-            </div>
-        </div>
-        <div class="chart-content">
-            <Chart darkMode={$darkMode} data={cliComponentData} />
-        </div>
-    </div>
-
-    <!-- Regime Panel -->
-    <div class="regime-card wide">
-        <div class="regime-header">
-            <span class="regime-title"
-                >{translations.regime_signal || "Macro Regime"}</span
-            >
-            <div class="regime-badge bg-{currentRegime.color}">
-                <span>{currentRegime.emoji}</span>
-                <span>{currentRegime.name}</span>
-            </div>
-
-            <div
-                class="control-group"
-                style="display: flex; align-items: center; gap: 8px; margin-left: auto; margin-right: 16px;"
-            >
-                <span
-                    style="font-size: 11px; color: var(--text-muted); opacity: 0.7;"
-                    >Offset (Days):</span
-                >
-                <input
-                    type="range"
-                    min="0"
-                    max="365"
-                    step="1"
-                    bind:value={regimeLag}
-                    style="width: 80px;"
-                    title="{regimeLag} days"
-                />
-                <span
-                    style="font-size: 11px; min-width: 25px; text-align: right; color: var(--text-primary); font-family: monospace;"
-                    >{regimeLag}</span
-                >
-            </div>
-
-            <div class="liquidity-score">
-                <span class="score-label">Score:</span>
-                <span
-                    class="score-val"
-                    class:high={liquidityScore >= 70}
-                    class:low={liquidityScore <= 30}
-                    >{liquidityScore?.toFixed(0) ?? 50}</span
-                >
-            </div>
-        </div>
-        <div class="regime-body">
-            <p class="regime-description">{currentRegime.desc}</p>
-            <p class="regime-details">{currentRegime.details}</p>
-
-            <div
-                class="regime-formula"
-                style="margin-top: 12px; padding: 10px; background: var(--card-bg-alt, rgba(0,0,0,0.15)); border-radius: 6px; font-size: 11px;"
-            >
-                <h4
-                    style="margin: 0 0 6px 0; font-size: 12px; color: var(--text-primary);"
-                >
-                    {translations.regime_formula_title || "Score Formula"}
-                </h4>
-                <p
-                    style="margin: 0 0 4px 0; color: var(--text-muted); font-family: monospace; line-height: 1.4;"
-                >
-                    {translations.regime_formula_desc ||
-                        "Score = 50 + 15 × (Liquidity_Z + Credit_Z - Brakes_Z)"}
-                </p>
-                <p style="margin: 0; color: #10b981;">
-                    • {translations.regime_score_bullish ||
-                        "Score > 65 = Risk-ON"}
-                </p>
-                <p style="margin: 0 0 8px 0; color: #ef4444;">
-                    • {translations.regime_score_bearish ||
-                        "Score < 35 = Risk-OFF"}
-                </p>
-
-                <div
-                    style="margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-color, rgba(255,255,255,0.1));"
-                >
-                    <p
-                        style="margin: 0 0 4px 0; font-size: 10px; color: var(--text-muted);"
-                    >
-                        {$language === "es"
-                            ? "Valores Actuales:"
-                            : "Current Values:"}
-                    </p>
-                    <div
-                        style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;"
-                    >
-                        <span
-                            style="color: {regimeDiagnostics.liquidity_z >= 0
-                                ? '#10b981'
-                                : '#ef4444'};"
-                            >Liquidity: {regimeDiagnostics.liquidity_z >= 0
-                                ? "+"
-                                : ""}{regimeDiagnostics.liquidity_z.toFixed(
-                                2,
-                            )}</span
-                        >
-                        <span
-                            style="color: {regimeDiagnostics.credit_z >= 0
-                                ? '#10b981'
-                                : '#ef4444'};"
-                            >Credit: {regimeDiagnostics.credit_z >= 0
-                                ? "+"
-                                : ""}{regimeDiagnostics.credit_z.toFixed(
-                                2,
-                            )}</span
-                        >
-                        <span
-                            style="color: {regimeDiagnostics.brakes_z >= 0
-                                ? '#10b981'
-                                : '#ef4444'};"
-                            >Brakes: {regimeDiagnostics.brakes_z >= 0
-                                ? "+"
-                                : ""}{regimeDiagnostics.brakes_z.toFixed(
-                                2,
-                            )}</span
-                        >
-                        <span
-                            style="font-weight: 600; color: {regimeDiagnostics.total_z >=
-                            0
-                                ? '#10b981'
-                                : '#ef4444'};"
-                            >Total Z: {regimeDiagnostics.total_z >= 0
-                                ? "+"
-                                : ""}{regimeDiagnostics.total_z.toFixed(2)} → {regimeDiagnostics.total_z >
-                            0.5
-                                ? "🐂"
-                                : regimeDiagnostics.total_z < -0.5
-                                  ? "🐻"
-                                  : "⚖️"}</span
-                        >
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div
-            class="regime-chart-container"
-            style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top:10px; height: 450px; display: flex; flex-direction: column;"
-        >
-            <p
-                style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.4;"
-            >
-                {translations.regime_chart_desc ||
-                    "BTC price with regime background coloring."}
-            </p>
-            <div style="flex: 1; min-height: 0;">
-                <LightweightChart
-                    darkMode={$darkMode}
-                    data={regimeLCData}
-                    logScale={true}
-                />
-            </div>
-        </div>
-
-        <div class="regime-glow glow-{currentRegime.color}"></div>
-    </div>
-
-    <!-- Impulse Analysis -->
-    <div class="chart-card wide">
-        <div class="chart-header">
-            <div class="label-group">
-                <h3>{translations.impulse_analysis || "Impulse Analysis"}</h3>
-            </div>
-            <div class="header-controls">
-                <div
-                    class="control-group"
-                    style="display: flex; align-items: center; gap: 8px;"
-                >
-                    <span style="font-size: 11px; color: var(--text-muted);"
-                        >{translations.period || "Period"}:</span
-                    >
-                    <select
-                        bind:value={btcRocPeriod}
-                        style="background: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); padding: 4px; border-radius: 4px; font-size: 11px;"
-                    >
-                        <option value={21}>1M</option>
-                        <option value={63}>3M</option>
-                        <option value={126}>6M</option>
-                        <option value={252}>1Y</option>
-                    </select>
-                </div>
-
-                <div
-                    class="control-group"
-                    style="display: flex; align-items: center; gap: 8px;"
-                >
-                    <span style="font-size: 11px; color: var(--text-muted);"
-                        >{translations.lag_days || "Lag (Days)"}:</span
-                    >
-                    <input
-                        type="range"
-                        min="-60"
-                        max="60"
-                        step="1"
-                        bind:value={btcLag}
-                        style="width: 80px;"
-                        title="{btcLag} days"
-                    />
-                    <span
-                        style="font-size: 11px; width: 25px; text-align: right; color: var(--text-primary);"
-                        >{btcLag}</span
-                    >
-                </div>
-
-                <div
-                    class="control-group"
-                    style="display: flex; align-items: center; gap: 4px;"
-                >
-                    <label
-                        style="font-size: 11px; color: var(--text-primary); display: flex; align-items: center; gap: 4px; cursor: pointer;"
-                    >
-                        <input type="checkbox" bind:checked={showComposite} />
-                        Composite
-                    </label>
-                </div>
-
-                {#if showComposite}
-                    <span
-                        style="font-size: 11px; color: #8b5cf6; font-weight: 500; border: 1px solid #8b5cf6; padding: 2px 6px; border-radius: 4px;"
-                        >{optimalLagLabel}</span
-                    >
-                {/if}
-
-                <TimeRangeSelector
-                    selectedRange={impulseRange}
-                    onRangeChange={(r) => (impulseRange = r)}
-                />
-            </div>
-        </div>
-        <p class="chart-description">
-            {translations.chart_impulse_desc ||
-                "Compare BTC ROC with liquidity impulse."}
-        </p>
-        <div class="chart-content">
-            <Chart
-                darkMode={$darkMode}
-                data={impulseData}
-                layout={impulseLayout}
-            />
-        </div>
+    <!-- MAIN PANELS GRID -->
+    <div class="dashboard-grid">
+        <StressPanel {stressDimensions} {totalStress} maxStress={27} />
+        <SignalMatrixPanel
+            {signalMatrix}
+            {weightedScoreInfo}
+            {aggregateSignal}
+        />
+        <FlowMomentumPanel {flowData} {cbContributions} />
+        <RepoPlumbingPanel
+            {repoMetrics}
+            {repoStressLevel}
+            rrpSeries={$dashboardData.us_net_liq_rrp}
+        />
+        <BtcFundamentalsPanel
+            {btcZscore}
+            {btcDeviation}
+            drawdown={btcDrawdown}
+            realizedVol={btcRealizedVol}
+        />
+        <InflationPanel
+            {actualInflation}
+            {inflationCurveSignal}
+            {inflationMetrics}
+        />
     </div>
 </div>
+
+<style>
+    .dashboard-quant {
+        padding: 0 0 40px 0;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        min-height: 100%;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+    }
+
+    @media (max-width: 1200px) {
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (max-width: 600px) {
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+    }
+
+    @media (max-width: 1000px) {
+        .dashboard-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>

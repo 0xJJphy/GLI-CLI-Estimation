@@ -235,16 +235,20 @@
 <style>
     .regime-status-bar {
         display: flex;
-        flex-wrap: wrap;
-        gap: 1.5rem;
         align-items: center;
         justify-content: space-between;
-        background: var(--bg-secondary);
+        gap: 24px;
+        padding: 16px 24px;
+        background: var(--bg-secondary, #1e293b);
         border-radius: 16px;
-        padding: 1.5rem;
-        border: 1px solid var(--border-color);
-        box-shadow: var(--card-shadow);
-        margin-bottom: 1rem;
+        border: 1px solid var(--border-color, #334155);
+        flex-wrap: wrap;
+    }
+
+    .regime-status-bar:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.15);
+        border-color: var(--accent-secondary);
     }
 
     .regime-score-container {
@@ -254,24 +258,31 @@
     }
 
     .regime-score-ring {
-        width: 70px;
-        height: 70px;
+        width: 64px;
+        height: 64px;
         border-radius: 50%;
         background: conic-gradient(
             var(--color) calc(var(--score) * 1%),
-            var(--bg-elevated) calc(var(--score) * 1%)
+            var(--bg-tertiary, #334155) 0
         );
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 5px;
+        position: relative;
+    }
+
+    .regime-score-ring::before {
+        content: "";
+        position: absolute;
+        width: 52px;
+        height: 52px;
+        background: var(--bg-secondary, #1e293b);
+        border-radius: 50%;
     }
 
     .score-inner {
-        width: 100%;
-        height: 100%;
-        background: var(--bg-card);
-        border-radius: 50%;
+        position: relative;
+        z-index: 1;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -279,10 +290,10 @@
     }
 
     .score-value {
-        font-family: var(--font-mono);
         font-size: 1.25rem;
-        font-weight: 700;
-        color: var(--text-primary);
+        font-weight: 800;
+        color: var(--text-primary, #f1f5f9);
+        line-height: 1.1;
     }
 
     .confidence-label {
@@ -297,20 +308,17 @@
     }
 
     .regime-label {
-        font-weight: 600;
-        font-size: 0.9rem;
+        font-size: 1.1rem;
+        font-weight: 700;
     }
-
     .regime-label.bullish {
-        color: var(--signal-bullish);
+        color: #10b981;
     }
-
     .regime-label.bearish {
-        color: var(--signal-bearish);
+        color: #ef4444;
     }
-
     .regime-label.neutral {
-        color: var(--text-secondary);
+        color: #6b7280;
     }
 
     .regime-trend {
@@ -363,9 +371,14 @@
 
     .fomc-section {
         display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-        align-items: flex-end;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+        padding: 10px 16px;
+        background: var(--bg-tertiary, #334155);
+        border-radius: 10px;
+        border: 1px solid var(--border-color, #475569);
     }
 
     .fomc-countdown {
@@ -429,34 +442,64 @@
 
     .rate-value {
         font-family: var(--font-mono);
-        font-weight: 600;
-        font-size: 0.85rem;
+        font-weight: 700;
+        font-size: 1rem;
     }
 
     .rate-value.target {
-        color: var(--color-primary);
+        color: #10b981; /* Green for target */
     }
 
     .rate-value.sofr {
-        color: var(--text-primary);
+        color: #3b82f6; /* Blue for SOFR */
     }
 
     .probs-group {
         display: flex;
-        gap: 0.75rem;
+        gap: 8px;
+        padding: 8px;
+        background: rgba(0, 0, 0, 0.15);
+        border-radius: 8px;
     }
 
     .prob-item {
         display: flex;
         flex-direction: column;
         align-items: center;
-        padding: 0.4rem 0.6rem;
-        border-radius: var(--radius-sm);
-        background: var(--bg-elevated);
+        padding: 6px 10px;
+        border-radius: 6px;
+        background: var(--bg-tertiary, #334155);
+        min-width: 50px;
     }
 
-    .prob-item.high {
-        background: var(--signal-ok-bg);
+    .prob-item.cut {
+        background: rgba(16, 185, 129, 0.15);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .prob-item.cut .prob-value {
+        color: #10b981;
+        font-weight: 700;
+    }
+
+    .prob-item.hold {
+        background: rgba(107, 114, 128, 0.2);
+        border: 1px solid rgba(107, 114, 128, 0.3);
+    }
+
+    .prob-item.hold .prob-value {
+        color: #9ca3af;
+        font-weight: 700;
+    }
+
+    .prob-item.hike {
+        background: rgba(239, 68, 68, 0.15);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .prob-item.hike .prob-value {
+        color: #ef4444;
+        font-weight: 700;
     }
 
     .prob-item.cut .prob-value {
