@@ -102,8 +102,24 @@ function alignArrayToLength(arr, targetLen) {
     return arr.slice(arr.length - targetLen);
 }
 
+// ============================================================================
+// DEFENSIVE FALLBACK UTILITIES
+// ============================================================================
+// These functions handle edge cases where domain data might have more points
+// than the shared dates array. After the 2026-01-21 alignment fix (orchestrator
+// now uses calendar days), this should NOT happen in normal operation.
+// 
+// However, we keep these as a SAFETY NET in case:
+// 1. Backend pipeline changes introduce new misalignment bugs
+// 2. External data sources have unexpected date ranges
+// 3. Cache files become stale or corrupted
+//
+// When data is already aligned, these functions are NO-OPS (instant return).
+// ============================================================================
+
 /**
  * Recursively align all arrays in an object to the target length.
+ * DEFENSIVE FALLBACK: Should be a no-op when backend data is properly aligned.
  * @param {Object} obj - Object containing data arrays
  * @param {number} targetLen - Target length
  * @param {number} [originalMaxLen] - Max length of arrays in object (for detection)
@@ -135,7 +151,7 @@ function alignObjectToLength(obj, targetLen, originalMaxLen = null) {
 
 /**
  * Detect the maximum array length in an object (recursively).
- * Used to identify which arrays are data series vs config.
+ * DEFENSIVE FALLBACK: Used to identify which arrays are data series vs config.
  * @param {Object} obj - Object to analyze
  * @returns {number} Maximum array length found
  */
@@ -156,7 +172,8 @@ function detectMaxArrayLength(obj) {
 
 /**
  * Align domain data to shared dates length.
- * Call this after loading domain data to ensure consistency.
+ * DEFENSIVE FALLBACK: Call this after loading domain data to ensure consistency.
+ * In normal operation (after 2026-01-21 fix), this is a no-op.
  * @param {Object} data - Domain data object
  * @param {number} sharedDatesLen - Length of shared dates array
  * @returns {Object} Aligned data object
@@ -166,11 +183,12 @@ export function alignToSharedDates(data, sharedDatesLen) {
 
     const maxLen = detectMaxArrayLength(data);
     if (maxLen <= sharedDatesLen) {
-        // Data is already aligned or shorter
+        // Data is already aligned or shorter - normal case after fix
         return data;
     }
 
-    console.warn(`[DomainLoader] Aligning data: ${maxLen} -> ${sharedDatesLen} (trimming ${maxLen - sharedDatesLen} points)`);
+    // This warning indicates a potential backend issue - should not happen normally
+    console.warn(`[DomainLoader] FALLBACK: Aligning data: ${maxLen} -> ${sharedDatesLen} (trimming ${maxLen - sharedDatesLen} points)`);
     return alignObjectToLength(data, sharedDatesLen, maxLen);
 }
 

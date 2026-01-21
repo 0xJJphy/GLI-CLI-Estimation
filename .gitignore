@@ -130,6 +130,9 @@ config.local.*
 # Agent/AI workspace
 .agent/
 
+# Local debug scripts (not versioned)
+.local/
+
 # Temporary files
 plain_txt/
 scripts/
