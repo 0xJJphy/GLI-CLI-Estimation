@@ -94,6 +94,8 @@
         margin-bottom: 1rem;
         flex-wrap: wrap;
         gap: 0.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid var(--border-color, #334155);
     }
 
     .panel-header h3 {
