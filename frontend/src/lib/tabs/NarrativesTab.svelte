@@ -821,427 +821,459 @@
 </div>
 
 <!-- Main Content -->
-<div class="narratives-content" class:light={!darkMode}>
-    <!-- Top Row: Gauges and Regime -->
-    <div class="top-row">
-        <!-- CAI -->
-        <div class="stat-card">
-            <div class="stat-label">
-                {t("cai_label", "Altseason Index (CAI)")}
-            </div>
-            <div class="stat-gauge">
-                <svg viewBox="0 0 100 50" class="gauge-svg">
-                    <path
-                        d="M 10 50 A 40 40 0 0 1 90 50"
-                        fill="none"
-                        stroke={darkMode
-                            ? "rgba(255,255,255,0.1)"
-                            : "rgba(0,0,0,0.1)"}
-                        stroke-width="8"
-                    />
-                    <path
-                        d="M 10 50 A 40 40 0 0 1 90 50"
-                        fill="none"
-                        stroke="url(#caiGradient)"
-                        stroke-width="8"
-                        stroke-dasharray={`${(caiValueRaw !== null ? Math.min(Math.max(caiValueRaw, 0), 100) / 100 : 0) * 125.6} 125.6`}
-                        stroke-linecap="round"
-                    />
-                    <defs>
-                        <linearGradient
-                            id="caiGradient"
-                            x1="0%"
-                            y1="0%"
-                            x2="100%"
-                            y2="0%"
-                        >
-                            <stop offset="0%" stop-color="#f59e0b" />
-                            <stop offset="50%" stop-color="#3b82f6" />
-                            <stop offset="100%" stop-color="#10b981" />
-                        </linearGradient>
-                    </defs>
-                </svg>
-                <div class="gauge-value {getCaiColorClass(caiValue)}">
-                    {caiValue}
-                </div>
-            </div>
-            <div class="gauge-scale">
-                <span class="btc-side">BTC</span>
-                <span class="alt-side">ALT</span>
-            </div>
-            <div class="stat-status {getCaiColorClass(caiValue)}">
-                {caiValueRaw > 60
-                    ? "ALT SEASON"
-                    : caiValueRaw < 40
-                      ? "BTC SEASON"
-                      : "NEUTRAL"}
-            </div>
-        </div>
-
-        <!-- Fear & Greed -->
-        <div class="stat-card">
-            <div class="stat-label">{t("fng_label", "Fear & Greed Index")}</div>
-            <div class="fng-value {getFngColorClass(fngValue)}">{fngValue}</div>
-            <div class="fng-bar">
-                <div class="fng-gradient"></div>
-                {#if fngValueRaw !== null}
-                    <div class="fng-marker" style="left: {fngValueRaw}%"></div>
-                {/if}
-            </div>
-            <div class="stat-status {getFngColorClass(fngValue)}">
-                {getFngLabel(fngValue)}
-            </div>
-            <!-- F&G ROC Metrics -->
-            <div class="fng-rocs">
-                <div class="roc-item">
-                    <span class="roc-label">ROC 7d</span>
-                    <span
-                        class="roc-value"
-                        class:positive={fngRoc7d > 0}
-                        class:negative={fngRoc7d < 0}
-                    >
-                        {fngRoc7d !== null && fngRoc7d !== undefined
-                            ? (fngRoc7d > 0 ? "+" : "") + fngRoc7d.toFixed(1)
-                            : "N/A"}
-                    </span>
-                </div>
-                <div class="roc-item">
-                    <span class="roc-label">Z-Score</span>
-                    <span class="roc-value {getZScoreClass(fngRoc7dZ)}">
-                        {fngRoc7dZ !== null && fngRoc7dZ !== undefined
-                            ? fngRoc7dZ.toFixed(2) + "σ"
-                            : "N/A"}
-                    </span>
-                </div>
-                <div class="roc-item">
-                    <span class="roc-label">Pctl</span>
-                    <span class="roc-value">
-                        {fngRoc7dPct !== null && fngRoc7dPct !== undefined
-                            ? fngRoc7dPct.toFixed(0) + "%"
-                            : "N/A"}
-                    </span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Current Regime -->
-        <div class="stat-card regime-stat">
-            <div class="stat-label">
-                {t("market_regime", "Current Market Regime")}
-            </div>
-            <div class="regime-display">
-                <div
-                    class="regime-dot"
-                    style="background: {regimeColor.bg}; border-color: {regimeColor.text}"
-                ></div>
-                <div class="regime-name" style="color: {regimeColor.text}">
-                    {currentRegime}
-                </div>
-            </div>
-            <div class="regime-metrics">
-                <div
-                    class="metric-item"
-                    title={t(
-                        "risk_vs_btc_desc",
-                        "30-day change in log(Alts/BTC). Positive = Alts outperforming BTC",
-                    )}
-                >
-                    <span class="metric-label"
-                        >{t("risk_vs_btc", "Alts/BTC Mom")}</span
-                    >
-                    <span
-                        class="metric-value"
-                        class:positive={deltaRs > 0}
-                        class:negative={deltaRs < 0}
-                    >
-                        {deltaRs !== null
-                            ? (deltaRs > 0 ? "+" : "") +
-                              (deltaRs * 100).toFixed(2) +
-                              "%"
-                            : "N/A"}
-                    </span>
-                    <span class="metric-hint">
-                        {deltaRs > 0
-                            ? t("alts_outperforming", "Alts outperforming")
-                            : deltaRs < 0
-                              ? t("btc_outperforming", "BTC outperforming")
-                              : t("neutral_perf", "Neutral")}
-                    </span>
-                </div>
-                <div
-                    class="metric-item"
-                    title={t(
-                        "rs_log_ratio_desc",
-                        "Log ratio of Risk Assets (Alts ex-Stables) vs BTC. Negative = BTC dominance",
-                    )}
-                >
-                    <span class="metric-label"
-                        >{t("rs_log_ratio", "RS Ratio")}</span
-                    >
-                    <span class="metric-value"
-                        >{rsRatio !== null ? rsRatio.toFixed(3) : "N/A"}</span
-                    >
-                    <span class="metric-hint">
-                        {rsRatio !== null
-                            ? rsRatio > 0
-                                ? t("alts_larger", "Alts > BTC MCap")
-                                : t("btc_larger", "BTC > Alts MCap")
-                            : ""}
-                    </span>
-                </div>
-            </div>
-        </div>
-
-        <!-- CAI/F&G Divergence Signal -->
-        {#if divergenceSignal}
-            <div class="stat-card divergence-card">
-                <div class="stat-label">CAI/F&G Signal</div>
-                <div class="divergence-display">
-                    <span class="divergence-icon">{divergenceSignal.icon}</span>
-                    <span
-                        class="divergence-label"
-                        style="color: {divergenceSignal.color}"
-                    >
-                        {divergenceSignal.label}
-                    </span>
-                </div>
-                <div class="divergence-desc">
-                    {divergenceSignal.desc}
-                </div>
-                <div class="divergence-values">
-                    <span>CAI: {caiValue}</span>
-                    <span>F&G: {fngValue}</span>
-                </div>
-            </div>
-        {/if}
+{#if loading}
+    <div class="loading-container" class:light={!darkMode}>
+        <div class="loading-spinner"></div>
+        <p>Loading Crypto Narratives data...</p>
     </div>
-
-    <!-- Charts Row -->
-    <div class="charts-row">
-        <!-- Regime Timeline -->
-        <div class="chart-card" bind:this={regimeCard}>
-            <div class="chart-header">
-                <h3>
-                    {t(
-                        "regime_timeline_title",
-                        "Regime Timeline & BTC Evolution",
-                    )}
-                </h3>
-                <div class="header-controls">
-                    <label class="toggle-label">
-                        <input type="checkbox" bind:checked={showCai} />
-                        <span>CAI</span>
-                    </label>
-                    <TimeRangeSelector bind:selectedRange={regimeRange} />
-                    <button
-                        class="icon-btn"
-                        title={t("download_image", "Download as Image")}
-                        on:click={() =>
-                            downloadCardAsImage(regimeCard, "CryptoRegimes")}
-                    >
-                        <svg
-                            class="icon"
+{:else}
+    <div class="narratives-content" class:light={!darkMode}>
+        <!-- Top Row: Gauges and Regime -->
+        <div class="top-row">
+            <!-- CAI -->
+            <div class="stat-card">
+                <div class="stat-label">
+                    {t("cai_label", "Altseason Index (CAI)")}
+                </div>
+                <div class="stat-gauge">
+                    <svg viewBox="0 0 100 50" class="gauge-svg">
+                        <path
+                            d="M 10 50 A 40 40 0 0 1 90 50"
                             fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                            />
-                        </svg>
-                    </button>
+                            stroke={darkMode
+                                ? "rgba(255,255,255,0.1)"
+                                : "rgba(0,0,0,0.1)"}
+                            stroke-width="8"
+                        />
+                        <path
+                            d="M 10 50 A 40 40 0 0 1 90 50"
+                            fill="none"
+                            stroke="url(#caiGradient)"
+                            stroke-width="8"
+                            stroke-dasharray={`${(caiValueRaw !== null ? Math.min(Math.max(caiValueRaw, 0), 100) / 100 : 0) * 125.6} 125.6`}
+                            stroke-linecap="round"
+                        />
+                        <defs>
+                            <linearGradient
+                                id="caiGradient"
+                                x1="0%"
+                                y1="0%"
+                                x2="100%"
+                                y2="0%"
+                            >
+                                <stop offset="0%" stop-color="#f59e0b" />
+                                <stop offset="50%" stop-color="#3b82f6" />
+                                <stop offset="100%" stop-color="#10b981" />
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                    <div class="gauge-value {getCaiColorClass(caiValue)}">
+                        {caiValue}
+                    </div>
+                </div>
+                <div class="gauge-scale">
+                    <span class="btc-side">BTC</span>
+                    <span class="alt-side">ALT</span>
+                </div>
+                <div class="stat-status {getCaiColorClass(caiValue)}">
+                    {caiValueRaw > 60
+                        ? "ALT SEASON"
+                        : caiValueRaw < 40
+                          ? "BTC SEASON"
+                          : "NEUTRAL"}
                 </div>
             </div>
-            <div class="chart-container">
-                <Chart
-                    data={btcRegimeData}
-                    layout={btcRegimeLayout}
-                    {darkMode}
-                />
-            </div>
-            <div class="regime-legend">
-                {#each Object.entries(cryptoRegimeColors) as [name, colors]}
-                    <div class="legend-item">
+
+            <!-- Fear & Greed -->
+            <div class="stat-card">
+                <div class="stat-label">
+                    {t("fng_label", "Fear & Greed Index")}
+                </div>
+                <div class="fng-value {getFngColorClass(fngValue)}">
+                    {fngValue}
+                </div>
+                <div class="fng-bar">
+                    <div class="fng-gradient"></div>
+                    {#if fngValueRaw !== null}
                         <div
-                            class="legend-dot"
-                            style="background: {colors.bg}; border-color: {colors.text}"
+                            class="fng-marker"
+                            style="left: {fngValueRaw}%"
                         ></div>
-                        <span>{colors.label}</span>
-                    </div>
-                {/each}
-            </div>
-        </div>
-
-        <!-- Narrative Rotation -->
-        <div class="chart-card" bind:this={rotationCard}>
-            <div class="chart-header">
-                <h3>
-                    {t("narrative_rotation_title", "Narrative Rotation Matrix")}
-                </h3>
-                <div class="header-controls">
-                    <button
-                        class="icon-btn"
-                        title={t("download_image", "Download as Image")}
-                        on:click={() =>
-                            downloadCardAsImage(
-                                rotationCard,
-                                "NarrativeRotation",
-                            )}
-                    >
-                        <svg
-                            class="icon"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
+                    {/if}
+                </div>
+                <div class="stat-status {getFngColorClass(fngValue)}">
+                    {getFngLabel(fngValue)}
+                </div>
+                <!-- F&G ROC Metrics -->
+                <div class="fng-rocs">
+                    <div class="roc-item">
+                        <span class="roc-label">ROC 7d</span>
+                        <span
+                            class="roc-value"
+                            class:positive={fngRoc7d > 0}
+                            class:negative={fngRoc7d < 0}
                         >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                            />
-                        </svg>
-                    </button>
+                            {fngRoc7d !== null && fngRoc7d !== undefined
+                                ? (fngRoc7d > 0 ? "+" : "") +
+                                  fngRoc7d.toFixed(1)
+                                : "N/A"}
+                        </span>
+                    </div>
+                    <div class="roc-item">
+                        <span class="roc-label">Z-Score</span>
+                        <span class="roc-value {getZScoreClass(fngRoc7dZ)}">
+                            {fngRoc7dZ !== null && fngRoc7dZ !== undefined
+                                ? fngRoc7dZ.toFixed(2) + "σ"
+                                : "N/A"}
+                        </span>
+                    </div>
+                    <div class="roc-item">
+                        <span class="roc-label">Pctl</span>
+                        <span class="roc-value">
+                            {fngRoc7dPct !== null && fngRoc7dPct !== undefined
+                                ? fngRoc7dPct.toFixed(0) + "%"
+                                : "N/A"}
+                        </span>
+                    </div>
                 </div>
             </div>
-            <div class="chart-container">
-                <Chart data={rotationData} layout={rotationLayout} {darkMode} />
-            </div>
-            <div class="chart-footer">
-                Bubble size = Market Cap | Position = 30D Relative Momentum
-            </div>
-        </div>
-    </div>
 
-    <!-- Narratives Grid Row -->
-    <div class="narratives-grid-row">
-        <div class="grid-header">
-            <h3>
-                {t("narrative_performance", "Narrative Market Performance")}
-            </h3>
-        </div>
-        <div class="narratives-grid">
-            {#if data.narratives}
-                {#each Object.entries(data.narratives) as [name, nData]}
-                    {@const color = narrativeColors[name] || "#64748b"}
-                    {@const momBtc = nData.current_mom_btc}
-                    <div class="narrative-card">
-                        <div class="narrative-header">
-                            <div
-                                class="narrative-dot"
-                                style="background: {color}"
-                            ></div>
-                            <span class="narrative-name">{name}</span>
-                        </div>
-                        <div class="narrative-mcap">
-                            ${nData.current_mcap?.toFixed(1) || "0"}B
-                        </div>
-                        <div
-                            class="narrative-momentum"
-                            class:positive={momBtc > 0}
-                            class:negative={momBtc < 0}
-                        >
-                            <span>{momBtc > 0 ? "▲" : "▼"}</span>
-                            <span>{(momBtc * 100).toFixed(1)}%</span>
-                        </div>
+            <!-- Current Regime -->
+            <div class="stat-card regime-stat">
+                <div class="stat-label">
+                    {t("market_regime", "Current Market Regime")}
+                </div>
+                <div class="regime-display">
+                    <div
+                        class="regime-dot"
+                        style="background: {regimeColor.bg}; border-color: {regimeColor.text}"
+                    ></div>
+                    <div class="regime-name" style="color: {regimeColor.text}">
+                        {currentRegime}
                     </div>
-                {/each}
-            {:else}
-                <div class="no-data">No narrative data available</div>
+                </div>
+                <div class="regime-metrics">
+                    <div
+                        class="metric-item"
+                        title={t(
+                            "risk_vs_btc_desc",
+                            "30-day change in log(Alts/BTC). Positive = Alts outperforming BTC",
+                        )}
+                    >
+                        <span class="metric-label"
+                            >{t("risk_vs_btc", "Alts/BTC Mom")}</span
+                        >
+                        <span
+                            class="metric-value"
+                            class:positive={deltaRs > 0}
+                            class:negative={deltaRs < 0}
+                        >
+                            {deltaRs !== null
+                                ? (deltaRs > 0 ? "+" : "") +
+                                  (deltaRs * 100).toFixed(2) +
+                                  "%"
+                                : "N/A"}
+                        </span>
+                        <span class="metric-hint">
+                            {deltaRs > 0
+                                ? t("alts_outperforming", "Alts outperforming")
+                                : deltaRs < 0
+                                  ? t("btc_outperforming", "BTC outperforming")
+                                  : t("neutral_perf", "Neutral")}
+                        </span>
+                    </div>
+                    <div
+                        class="metric-item"
+                        title={t(
+                            "rs_log_ratio_desc",
+                            "Log ratio of Risk Assets (Alts ex-Stables) vs BTC. Negative = BTC dominance",
+                        )}
+                    >
+                        <span class="metric-label"
+                            >{t("rs_log_ratio", "RS Ratio")}</span
+                        >
+                        <span class="metric-value"
+                            >{rsRatio !== null
+                                ? rsRatio.toFixed(3)
+                                : "N/A"}</span
+                        >
+                        <span class="metric-hint">
+                            {rsRatio !== null
+                                ? rsRatio > 0
+                                    ? t("alts_larger", "Alts > BTC MCap")
+                                    : t("btc_larger", "BTC > Alts MCap")
+                                : ""}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CAI/F&G Divergence Signal -->
+            {#if divergenceSignal}
+                <div class="stat-card divergence-card">
+                    <div class="stat-label">CAI/F&G Signal</div>
+                    <div class="divergence-display">
+                        <span class="divergence-icon"
+                            >{divergenceSignal.icon}</span
+                        >
+                        <span
+                            class="divergence-label"
+                            style="color: {divergenceSignal.color}"
+                        >
+                            {divergenceSignal.label}
+                        </span>
+                    </div>
+                    <div class="divergence-desc">
+                        {divergenceSignal.desc}
+                    </div>
+                    <div class="divergence-values">
+                        <span>CAI: {caiValue}</span>
+                        <span>F&G: {fngValue}</span>
+                    </div>
+                </div>
             {/if}
         </div>
-    </div>
 
-    <!-- Crypto Stats Cards -->
-    <div class="stats-cards-row">
-        <div class="mini-card">
-            <span class="mini-label">Total MCap</span>
-            <span class="mini-value"
-                >${totalMcap !== null
-                    ? (totalMcap / 1000).toFixed(2)
-                    : "N/A"}T</span
-            >
-        </div>
-        <div class="mini-card">
-            <span class="mini-label">BTC MCap</span>
-            <span class="mini-value"
-                >${btcMcap !== null
-                    ? (btcMcap / 1000).toFixed(2)
-                    : "N/A"}T</span
-            >
-        </div>
-        <div class="mini-card">
-            <span class="mini-label">ETH MCap</span>
-            <span class="mini-value"
-                >${ethMcap !== null ? ethMcap.toFixed(0) : "N/A"}B</span
-            >
-        </div>
-        <div class="mini-card">
-            <span class="mini-label">BTC.D</span>
-            <span class="mini-value"
-                >{btcDom !== null ? btcDom.toFixed(1) : "N/A"}%</span
-            >
-        </div>
-        <div class="mini-card">
-            <span class="mini-label">ETH.D</span>
-            <span class="mini-value"
-                >{ethDom !== null ? ethDom.toFixed(1) : "N/A"}%</span
-            >
-        </div>
-        <div class="mini-card">
-            <span class="mini-label">Others.D</span>
-            <span class="mini-value"
-                >{othersDom !== null ? othersDom.toFixed(1) : "N/A"}%</span
-            >
-        </div>
-        <div class="mini-card">
-            <span class="mini-label">Stable.D</span>
-            <span class="mini-value"
-                >{stableDom !== null ? stableDom.toFixed(1) : "N/A"}%</span
-            >
-        </div>
-    </div>
+        <!-- Charts Row -->
+        <div class="charts-row">
+            <!-- Regime Timeline -->
+            <div class="chart-card" bind:this={regimeCard}>
+                <div class="chart-header">
+                    <h3>
+                        {t(
+                            "regime_timeline_title",
+                            "Regime Timeline & BTC Evolution",
+                        )}
+                    </h3>
+                    <div class="header-controls">
+                        <label class="toggle-label">
+                            <input type="checkbox" bind:checked={showCai} />
+                            <span>CAI</span>
+                        </label>
+                        <TimeRangeSelector bind:selectedRange={regimeRange} />
+                        <button
+                            class="icon-btn"
+                            title={t("download_image", "Download as Image")}
+                            on:click={() =>
+                                downloadCardAsImage(
+                                    regimeCard,
+                                    "CryptoRegimes",
+                                )}
+                        >
+                            <svg
+                                class="icon"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                                />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <Chart
+                        data={btcRegimeData}
+                        layout={btcRegimeLayout}
+                        {darkMode}
+                    />
+                </div>
+                <div class="regime-legend">
+                    {#each Object.entries(cryptoRegimeColors) as [name, colors]}
+                        <div class="legend-item">
+                            <div
+                                class="legend-dot"
+                                style="background: {colors.bg}; border-color: {colors.text}"
+                            ></div>
+                            <span>{colors.label}</span>
+                        </div>
+                    {/each}
+                </div>
+            </div>
 
-    <!-- Fear & Greed Chart -->
-    <div class="chart-card">
-        <div class="chart-header">
-            <h3>
-                {fngDataSource === "absolute"
-                    ? t("fng_chart_title", "Fear & Greed Index Analysis")
-                    : t("cai_chart_title", "Altseason Index (CAI) Analysis")}
-            </h3>
-            <div class="header-controls">
-                <Dropdown
-                    options={fngDataSourceOptions}
-                    bind:value={fngDataSource}
-                    {darkMode}
-                    small={true}
-                />
-                <Dropdown
-                    options={fngMetricOptions}
-                    bind:value={fngMetricType}
-                    {darkMode}
-                    small={true}
-                />
-                {#if fngMetricType !== "absolute"}
+            <!-- Narrative Rotation -->
+            <div class="chart-card" bind:this={rotationCard}>
+                <div class="chart-header">
+                    <h3>
+                        {t(
+                            "narrative_rotation_title",
+                            "Narrative Rotation Matrix",
+                        )}
+                    </h3>
+                    <div class="header-controls">
+                        <button
+                            class="icon-btn"
+                            title={t("download_image", "Download as Image")}
+                            on:click={() =>
+                                downloadCardAsImage(
+                                    rotationCard,
+                                    "NarrativeRotation",
+                                )}
+                        >
+                            <svg
+                                class="icon"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                                />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <Chart
+                        data={rotationData}
+                        layout={rotationLayout}
+                        {darkMode}
+                    />
+                </div>
+                <div class="chart-footer">
+                    Bubble size = Market Cap | Position = 30D Relative Momentum
+                </div>
+            </div>
+        </div>
+
+        <!-- Narratives Grid Row -->
+        <div class="narratives-grid-row">
+            <div class="grid-header">
+                <h3>
+                    {t("narrative_performance", "Narrative Market Performance")}
+                </h3>
+            </div>
+            <div class="narratives-grid">
+                {#if data.narratives}
+                    {#each Object.entries(data.narratives) as [name, nData]}
+                        {@const color = narrativeColors[name] || "#64748b"}
+                        {@const momBtc = nData.current_mom_btc}
+                        <div class="narrative-card">
+                            <div class="narrative-header">
+                                <div
+                                    class="narrative-dot"
+                                    style="background: {color}"
+                                ></div>
+                                <span class="narrative-name">{name}</span>
+                            </div>
+                            <div class="narrative-mcap">
+                                ${nData.current_mcap?.toFixed(1) || "0"}B
+                            </div>
+                            <div
+                                class="narrative-momentum"
+                                class:positive={momBtc > 0}
+                                class:negative={momBtc < 0}
+                            >
+                                <span>{momBtc > 0 ? "▲" : "▼"}</span>
+                                <span>{(momBtc * 100).toFixed(1)}%</span>
+                            </div>
+                        </div>
+                    {/each}
+                {:else}
+                    <div class="no-data">No narrative data available</div>
+                {/if}
+            </div>
+        </div>
+
+        <!-- Crypto Stats Cards -->
+        <div class="stats-cards-row">
+            <div class="mini-card">
+                <span class="mini-label">Total MCap</span>
+                <span class="mini-value"
+                    >${totalMcap !== null
+                        ? (totalMcap / 1000).toFixed(2)
+                        : "N/A"}T</span
+                >
+            </div>
+            <div class="mini-card">
+                <span class="mini-label">BTC MCap</span>
+                <span class="mini-value"
+                    >${btcMcap !== null
+                        ? (btcMcap / 1000).toFixed(2)
+                        : "N/A"}T</span
+                >
+            </div>
+            <div class="mini-card">
+                <span class="mini-label">ETH MCap</span>
+                <span class="mini-value"
+                    >${ethMcap !== null ? ethMcap.toFixed(0) : "N/A"}B</span
+                >
+            </div>
+            <div class="mini-card">
+                <span class="mini-label">BTC.D</span>
+                <span class="mini-value"
+                    >{btcDom !== null ? btcDom.toFixed(1) : "N/A"}%</span
+                >
+            </div>
+            <div class="mini-card">
+                <span class="mini-label">ETH.D</span>
+                <span class="mini-value"
+                    >{ethDom !== null ? ethDom.toFixed(1) : "N/A"}%</span
+                >
+            </div>
+            <div class="mini-card">
+                <span class="mini-label">Others.D</span>
+                <span class="mini-value"
+                    >{othersDom !== null ? othersDom.toFixed(1) : "N/A"}%</span
+                >
+            </div>
+            <div class="mini-card">
+                <span class="mini-label">Stable.D</span>
+                <span class="mini-value"
+                    >{stableDom !== null ? stableDom.toFixed(1) : "N/A"}%</span
+                >
+            </div>
+        </div>
+
+        <!-- Fear & Greed Chart -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3>
+                    {fngDataSource === "absolute"
+                        ? t("fng_chart_title", "Fear & Greed Index Analysis")
+                        : t(
+                              "cai_chart_title",
+                              "Altseason Index (CAI) Analysis",
+                          )}
+                </h3>
+                <div class="header-controls">
                     <Dropdown
-                        options={fngTransformOptions}
-                        bind:value={fngTransform}
+                        options={fngDataSourceOptions}
+                        bind:value={fngDataSource}
                         {darkMode}
                         small={true}
                     />
-                {/if}
-                <TimeRangeSelector bind:selectedRange={fngRange} />
+                    <Dropdown
+                        options={fngMetricOptions}
+                        bind:value={fngMetricType}
+                        {darkMode}
+                        small={true}
+                    />
+                    {#if fngMetricType !== "absolute"}
+                        <Dropdown
+                            options={fngTransformOptions}
+                            bind:value={fngTransform}
+                            {darkMode}
+                            small={true}
+                        />
+                    {/if}
+                    <TimeRangeSelector bind:selectedRange={fngRange} />
+                </div>
+            </div>
+            <div class="chart-container">
+                <Chart data={fngChartData} layout={fngChartLayout} {darkMode} />
             </div>
         </div>
-        <div class="chart-container">
-            <Chart data={fngChartData} layout={fngChartLayout} {darkMode} />
-        </div>
     </div>
-</div>
+{/if}
 
 <style>
     /* Main Layout */
@@ -1250,6 +1282,30 @@
         flex-direction: column;
         gap: 24px;
         padding-bottom: 40px;
+    }
+
+    /* Loading State */
+    .loading-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 400px;
+        gap: 16px;
+        color: var(--text-secondary);
+    }
+    .loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid var(--border-color, #334155);
+        border-top-color: var(--accent-primary, #3b82f6);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
     }
     .header-content h2 {
         margin: 0 0 8px 0;
